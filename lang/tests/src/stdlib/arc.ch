@@ -208,7 +208,7 @@ func arc_weak_upgrade_races_last_strong_drop(env : &mut TestEnv) {
     while(i < 200) {
         var a = std::arc(42)
         var w = a.downgrade()
-        var t = std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a)
+        var t = unsafe(std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a))
         var up = w.upgrade()
         if(up is Option.Some) {
             var Some(b) = up else unsafe { unreachable }
@@ -228,7 +228,7 @@ func arc_weak_drop_races_last_strong_drop(env : &mut TestEnv) {
     while(i < 200) {
         var a = std::arc(7)
         var w = a.downgrade()
-        var t = std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a)
+        var t = unsafe(std::thread.spawn<std::Arc<int>, int>(arc_worker_drop_after_delay, a))
         {
             // Move the weak handle into a shorter scope so its drop can overlap
             // the worker's last-strong drop.

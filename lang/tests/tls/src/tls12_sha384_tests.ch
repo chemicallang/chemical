@@ -65,15 +65,15 @@ public func tls12_sha384_prf_master_secret_known_answer(env : &mut TestEnv) {
     // as a byte string).
     var label = "master secret\0" as *char
     var actual : [48]u8
-    tls12_prf_sha384(&raw pre_master[0], 48, label, 13, &raw seed[0], 64, &raw mut actual[0], 48)
+    unsafe(tls12_prf_sha384(&raw pre_master[0], 48, label, 13, &raw seed[0], 64, &raw mut actual[0], 48))
     if(!sha384_bytes_eq(&raw actual[0], &raw expected[0], 48)) {
         env.error("tls12_prf_sha384 master-secret vector mismatch")
     }
 
     // Deriving through the high-level helper must agree with the raw PRF.
     var derived : [48]u8
-    tls12_derive_master_secret(&raw pre_master[0], 48, &raw client_random[0], &raw server_random[0],
-                               &raw mut derived[0], true)
+    unsafe(tls12_derive_master_secret(&raw pre_master[0], 48, &raw client_random[0], &raw server_random[0],
+                               &raw mut derived[0], true))
     if(!sha384_bytes_eq(&raw derived[0], &raw expected[0], 48)) {
         env.error("tls12_derive_master_secret(use_sha384=true) mismatch")
     }
@@ -109,8 +109,8 @@ public func tls12_sha384_key_block_known_answer(env : &mut TestEnv) {
     ]
 
     var actual : [72]u8
-    tls12_derive_key_block(&raw master_secret[0], &raw server_random[0], &raw client_random[0],
-                           &raw mut actual[0], 72, true)
+    unsafe(tls12_derive_key_block(&raw master_secret[0], &raw server_random[0], &raw client_random[0],
+                           &raw mut actual[0], 72, true))
     if(!sha384_bytes_eq(&raw actual[0], &raw expected[0], 72)) {
         env.error("tls12_derive_key_block(use_sha384=true) 72-byte vector mismatch")
     }
@@ -139,20 +139,20 @@ public func tls12_sha384_transform_population_works(env : &mut TestEnv) {
         env.error("AES_256_GCM_SHA384 must select the SHA-384 PRF")
         return
     }
-    var kb_size = tls12_key_block_size(&raw info)
+    var kb_size = unsafe(tls12_key_block_size(&raw info))
     if(kb_size != 72) {
         env.error("AES_256_GCM_SHA384 key block size should be 72")
         return
     }
 
     var key_block : [72]u8
-    tls12_derive_key_block(&raw master_secret[0], &raw server_random[0], &raw client_random[0],
-                           &raw mut key_block[0], kb_size, true)
+    unsafe(tls12_derive_key_block(&raw master_secret[0], &raw server_random[0], &raw client_random[0],
+                           &raw mut key_block[0], kb_size, true))
 
     // Layout for GCM: mac_key(0) | client_key(32) | server_key(32) | client_iv(4) | server_iv(4)
     var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>())
-    transform_init(unsafe(&raw mut tr))
-    tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw key_block[0], kb_size)
+    unsafe(transform_init(unsafe(&raw mut tr)))
+    unsafe(tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw key_block[0], kb_size))
 
     if(tr.key_len != 32) { env.error("AES-256 key_len should be 32") }
     if(tr.iv_len != 4) { env.error("GCM fixed iv_len should be 4") }
@@ -201,15 +201,15 @@ public func tls12_sha384_finished_known_answer(env : &mut TestEnv) {
     var expected_client : [12]u8 = [0x4D, 0x8A, 0x93, 0x0C, 0x6F, 0xE2, 0x60, 0x4B, 0xC5, 0x58, 0x2F, 0x43]
 
     var actual_server : [12]u8
-    tls12_compute_finished(&raw master_secret[0], false, &raw transcript[0], 48,
-                           &raw mut actual_server[0], true)
+    unsafe(tls12_compute_finished(&raw master_secret[0], false, &raw transcript[0], 48,
+                           &raw mut actual_server[0], true))
     if(!sha384_bytes_eq(&raw actual_server[0], &raw expected_server[0], 12)) {
         env.error("SHA-384 server Finished verify_data mismatch")
     }
 
     var actual_client : [12]u8
-    tls12_compute_finished(&raw master_secret[0], true, &raw transcript[0], 48,
-                           &raw mut actual_client[0], true)
+    unsafe(tls12_compute_finished(&raw master_secret[0], true, &raw transcript[0], 48,
+                           &raw mut actual_client[0], true))
     if(!sha384_bytes_eq(&raw actual_client[0], &raw expected_client[0], 12)) {
         env.error("SHA-384 client Finished verify_data mismatch")
     }
@@ -221,8 +221,8 @@ public func tls12_sha384_finished_known_answer(env : &mut TestEnv) {
     }
 
     var actual_sha256 : [12]u8
-    tls12_compute_finished(&raw master_secret[0], false, &raw transcript[0], 32,
-                           &raw mut actual_sha256[0], false)
+    unsafe(tls12_compute_finished(&raw master_secret[0], false, &raw transcript[0], 32,
+                           &raw mut actual_sha256[0], false))
     if(sha384_bytes_eq(&raw actual_sha256[0], &raw expected_server[0], 12)) {
         env.error("SHA-256 Finished must not equal the SHA-384 vector")
     }

@@ -36,21 +36,21 @@ public func audio_create_empty_works(env : &mut TestEnv) {
 @test
 public func audio_duration_ms_works(env : &mut TestEnv) {
     var a = audio_test_new(44100, 1, 16, 44100)
-    var dur = audio::raw::audio_duration_ms(&raw mut a)
+    var dur = unsafe(audio::raw::audio_duration_ms(&raw mut a))
     if(dur < 999.0 || dur > 1001.0) { env.error("1 second of audio") }
 }
 
 @test
 public func audio_duration_zero_samples(env : &mut TestEnv) {
     var a = audio_test_new(44100, 1, 16, 0)
-    var dur = audio::raw::audio_duration_ms(&raw mut a)
+    var dur = unsafe(audio::raw::audio_duration_ms(&raw mut a))
     if(dur != 0.0) { env.error("zero samples = 0 duration") }
 }
 
 @test
 public func audio_duration_stereo(env : &mut TestEnv) {
     var a = audio_test_new(44100, 2, 16, 22050)
-    var dur = audio::raw::audio_duration_ms(&raw mut a)
+    var dur = unsafe(audio::raw::audio_duration_ms(&raw mut a))
     if(dur < 499.0 || dur > 501.0) { env.error("0.5 seconds stereo") }
 }
 
@@ -132,7 +132,7 @@ public func audio_append_works(env : &mut TestEnv) {
 
     var b = audio_test_new_sized(44100, 1, 16, 3, 3)
 
-    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
+    var result = unsafe(audio::raw::audio_append(&raw mut a, &raw mut b))
     if(result is Result.Err) { env.error("append should succeed"); return }
     var Ok(r) = result else unsafe { unreachable }
     if(r.num_samples() != 8) { env.error("appended should have 8 samples") }
@@ -144,7 +144,7 @@ public func audio_append_rate_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(22050, 1, 16, 0)
 
-    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
+    var result = unsafe(audio::raw::audio_append(&raw mut a, &raw mut b))
     if(result is Result.Ok) { env.error("append with rate mismatch should fail") }
 }
 
@@ -154,7 +154,7 @@ public func audio_append_channel_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(44100, 1, 16, 0)
 
-    var result = audio::raw::audio_append(&raw mut a, &raw mut b)
+    var result = unsafe(audio::raw::audio_append(&raw mut a, &raw mut b))
     if(result is Result.Ok) { env.error("append with channel mismatch should fail") }
 }
 
@@ -166,7 +166,7 @@ public func audio_append_channel_mismatch(env : &mut TestEnv) {
 public func audio_trim_works(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::raw::audio_trim(&raw mut a, 500.0, 1500.0)
+    var trimmed = unsafe(audio::raw::audio_trim(&raw mut a, 500.0, 1500.0))
     if(trimmed.num_samples() != 22050) { env.error("trimmed sample count") }
 }
 
@@ -174,7 +174,7 @@ public func audio_trim_works(env : &mut TestEnv) {
 public func audio_trim_from_start(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::raw::audio_trim(&raw mut a, 0.0, 1000.0)
+    var trimmed = unsafe(audio::raw::audio_trim(&raw mut a, 0.0, 1000.0))
     if(trimmed.num_samples() != 44100) { env.error("trim from 0 should keep all samples (1000ms = 44100 @ 44100)") }
 }
 
@@ -182,7 +182,7 @@ public func audio_trim_from_start(env : &mut TestEnv) {
 public func audio_trim_beyond_end(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var trimmed = audio::raw::audio_trim(&raw mut a, 1000.0, 10000.0)
+    var trimmed = unsafe(audio::raw::audio_trim(&raw mut a, 1000.0, 10000.0))
     // Should clamp end to num_samples
     if(trimmed.num_samples() > 40000) { env.error("trim beyond end should clamp") }
 }
@@ -195,7 +195,7 @@ public func audio_trim_beyond_end(env : &mut TestEnv) {
 public func audio_resample_works(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 44100, 44100)
 
-    var resampled = audio::raw::audio_resample(&raw mut a, 22050)
+    var resampled = unsafe(audio::raw::audio_resample(&raw mut a, 22050))
     if(resampled.sample_rate() != 22050) { env.error("resampled rate") }
     if(resampled.num_samples() != 22050) { env.error("resampled count") }
 }
@@ -204,7 +204,7 @@ public func audio_resample_works(env : &mut TestEnv) {
 public func audio_resample_same_rate(env : &mut TestEnv) {
     var a = audio_test_new_sized(44100, 1, 16, 100, 100)
 
-    var resampled = audio::raw::audio_resample(&raw mut a, 44100)
+    var resampled = unsafe(audio::raw::audio_resample(&raw mut a, 44100))
     if(resampled.sample_rate() != 44100) { env.error("same rate: sample rate") }
     if(resampled.num_samples() != 100) { env.error("same rate: num samples") }
 }
@@ -213,7 +213,7 @@ public func audio_resample_same_rate(env : &mut TestEnv) {
 public func audio_resample_higher_rate(env : &mut TestEnv) {
     var a = audio_test_new_sized(22050, 1, 16, 22050, 22050)
 
-    var resampled = audio::raw::audio_resample(&raw mut a, 44100)
+    var resampled = unsafe(audio::raw::audio_resample(&raw mut a, 44100))
     if(resampled.sample_rate() != 44100) { env.error("upsampled rate") }
     if(resampled.num_samples() != 44100) { env.error("upsampled num samples") }
 }
@@ -300,7 +300,7 @@ public func audio_mix_rate_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(22050, 1, 16, 0)
 
-    var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
+    var result = unsafe(audio::raw::audio_mix(&raw mut a, &raw mut b))
     if(result is Result.Ok) { env.error("mix with rate mismatch should fail") }
 }
 
@@ -310,7 +310,7 @@ public func audio_mix_channel_mismatch(env : &mut TestEnv) {
 
     var b = audio_test_new(44100, 1, 16, 0)
 
-    var result = audio::raw::audio_mix(&raw mut a, &raw mut b)
+    var result = unsafe(audio::raw::audio_mix(&raw mut a, &raw mut b))
     if(result is Result.Ok) { env.error("mix with channel mismatch should fail") }
 }
 
@@ -531,7 +531,7 @@ public func audio_wav_parse_8bit(env : &mut TestEnv) {
 @test
 public func audio_wav_too_small(env : &mut TestEnv) {
     var data : [10]u8
-    var result = audio::raw::parse_wav(&raw data[0], 10)
+    var result = unsafe(audio::raw::parse_wav(&raw data[0], 10))
     if(result is Result.Ok) { env.error("should fail on <44 byte data") }
 }
 
@@ -539,7 +539,7 @@ public func audio_wav_too_small(env : &mut TestEnv) {
 public func audio_wav_not_riff(env : &mut TestEnv) {
     var data : [44]u8
     data[0] = 'N'; data[1] = 'O'; data[2] = 'P'; data[3] = 'E'
-    var result = audio::raw::parse_wav(&raw data[0], 44)
+    var result = unsafe(audio::raw::parse_wav(&raw data[0], 44))
     if(result is Result.Ok) { env.error("should fail on non-RIFF") }
 }
 
@@ -548,7 +548,7 @@ public func audio_wav_not_wave(env : &mut TestEnv) {
     var data : [44]u8
     data[0] = 'R'; data[1] = 'I'; data[2] = 'F'; data[3] = 'F'
     data[8] = 'N'; data[9] = 'A'; data[10] = 'T'; data[11] = 'V'  // Not WAVE
-    var result = audio::raw::parse_wav(&raw data[0], 44)
+    var result = unsafe(audio::raw::parse_wav(&raw data[0], 44))
     if(result is Result.Ok) { env.error("should fail on non-WAVE") }
 }
 
@@ -617,7 +617,7 @@ public func audio_wav_no_data_chunk(env : &mut TestEnv) {
 @test
 public func audio_load_wav_nonexistent(env : &mut TestEnv) {
     var wav_path = make_temp_test_path("nonexistent_audio_file.wav")
-    var result = audio::raw::load_wav(wav_path.data())
+    var result = unsafe(audio::raw::load_wav(wav_path.data()))
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
 

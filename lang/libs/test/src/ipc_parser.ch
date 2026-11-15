@@ -7,10 +7,10 @@ enum MessageCommandType {
 
 func to_msg_cmd_type(str : *char) : MessageCommandType {
     if (!str) return MessageCommandType.None; // guard nullptr
-    switch (fnv1_hash(str)) {
-        comptime_fnv1_hash("log") => { return MessageCommandType.Log; }
-        comptime_fnv1_hash("quit_group") => { return MessageCommandType.QuitGroup; }
-        comptime_fnv1_hash("quit_all") => { return MessageCommandType.QuitAll; }
+    switch (unsafe(fnv1_hash(str))) {
+        unsafe(comptime_fnv1_hash("log")) => { return MessageCommandType.Log; }
+        unsafe(comptime_fnv1_hash("quit_group")) => { return MessageCommandType.QuitGroup; }
+        unsafe(comptime_fnv1_hash("quit_all")) => { return MessageCommandType.QuitAll; }
         default => { return MessageCommandType.None; }
     }
 }

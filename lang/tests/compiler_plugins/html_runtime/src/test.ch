@@ -9,12 +9,12 @@ func html_view_equals(env : &mut TestEnv, got : &std::string_view, expected : &s
     var expected_s = std::string("expected:\"");
     expected_s.append_view(expected)
     expected_s.append('"');
-    test_env::ffi::log_cstr(env, LogType.Information, expected_s.data(), 0, 0)
+    unsafe(test_env::ffi::log_cstr(env, LogType.Information, expected_s.data(), 0, 0))
 
     var got_s = std::string("got     :\"");
     got_s.append_view(got)
     got_s.append('"');
-    test_env::ffi::log_cstr(env, LogType.Information, got_s.data(), 0, 0)
+    unsafe(test_env::ffi::log_cstr(env, LogType.Information, got_s.data(), 0, 0))
 }
 
 func test_html_roundtrip(env : &mut TestEnv, input : &std::string_view) {
@@ -85,13 +85,13 @@ public func test_html_tokenize(env : &mut TestEnv) {
 public func test_html_parse_root_api(env : &mut TestEnv) {
     var input = std::string_view("<span>x</span>")
     var allocator = ASTAllocator.make()
-    var root = html::parse_html_root(input, &raw mut allocator)
+    var root = unsafe(html::parse_html_root(input, &raw mut allocator))
     if(root == null) {
         env.error("parse_html_root returned null")
         allocator.deinit()
         return
     }
-    var out = html::convert_html_root_to_string(root)
+    var out = unsafe(html::convert_html_root_to_string(root))
     html_view_equals(env, out.to_view(), &input)
     allocator.deinit()
 }

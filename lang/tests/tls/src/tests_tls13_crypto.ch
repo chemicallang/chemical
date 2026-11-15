@@ -121,8 +121,8 @@ public func tls_ssl_set_config_works(env : &mut TestEnv) {
     cfg.max_tls_version = SSL_VERSION_TLS1_3
 
     var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
-    ssl_init(unsafe(&raw mut ctx))
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
+    unsafe(ssl_init(unsafe(&raw mut ctx)))
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg))
 
     if(unsafe(ctx.conf) == null) {
         env.error("ctx.conf should not be null after ssl_set_config")
@@ -345,10 +345,10 @@ public func tls13_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
 
     // Encrypt
     var output : [256]u8
-    var enc_len = tls13_encrypt_record(&raw mut ctx,
+    var enc_len = unsafe(tls13_encrypt_record(&raw mut ctx,
                                         SSL_MSG_APPLICATION_DATA as u8,
                                         &raw pt[0], 24,
-                                        &raw mut output[0], 256)
+                                        &raw mut output[0], 256))
     if(enc_len < 0) {
         env.error("tls13_encrypt_record should succeed")
         return
@@ -387,10 +387,10 @@ public func tls13_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
     // Decrypt: pass encrypted data without the 5-byte header
     var decrypted : [256]u8
     var inner_ct : u8 = 0
-    var dec_len = tls13_decrypt_record(&raw mut ctx,
+    var dec_len = unsafe(tls13_decrypt_record(&raw mut ctx,
                                         &raw output[5], (enc_len - 5) as size_t,
                                         &raw mut decrypted[0], 256,
-                                        &raw mut inner_ct)
+                                        &raw mut inner_ct))
     if(dec_len < 0) {
         env.error("tls13_decrypt_record should succeed")
         return
@@ -420,15 +420,15 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
     // Record 1: "Hello, "
     var pt1 : [7]u8 = [0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20]
     var buf1 : [256]u8
-    var len1 = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
-                                    &raw pt1[0], 7, &raw mut buf1[0], 256)
+    var len1 = unsafe(tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
+                                    &raw pt1[0], 7, &raw mut buf1[0], 256))
     if(len1 < 0) { env.error("encrypt record 1 should succeed"); return }
 
     // Record 2: "World!"
     var pt2 : [6]u8 = [0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21]
     var buf2 : [256]u8
-    var len2 = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
-                                    &raw pt2[0], 6, &raw mut buf2[0], 256)
+    var len2 = unsafe(tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
+                                    &raw pt2[0], 6, &raw mut buf2[0], 256))
     if(len2 < 0) { env.error("encrypt record 2 should succeed"); return }
 
     // Two records must differ (different sequence numbers → different nonces)
@@ -444,8 +444,8 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
 
     var dec1 : [256]u8
     var inner_ct1 : u8 = 0
-    var dlen1 = tls13_decrypt_record(&raw mut ctx, &raw buf1[5], (len1 - 5) as size_t,
-                                      &raw mut dec1[0], 256, &raw mut inner_ct1)
+    var dlen1 = unsafe(tls13_decrypt_record(&raw mut ctx, &raw buf1[5], (len1 - 5) as size_t,
+                                      &raw mut dec1[0], 256, &raw mut inner_ct1))
     if(dlen1 < 0) { env.error("decrypt record 1 should succeed"); return }
     if(dlen1 != 7) { env.error("decrypted length 1 should be 7"); return }
     if(!bytes_eq(&raw dec1[0], &raw pt1[0], 7)) {
@@ -459,8 +459,8 @@ public func tls13_encrypt_decrypt_multiple_records(env : &mut TestEnv) {
 
     var dec2 : [256]u8
     var inner_ct2 : u8 = 0
-    var dlen2 = tls13_decrypt_record(&raw mut ctx, &raw buf2[5], (len2 - 5) as size_t,
-                                      &raw mut dec2[0], 256, &raw mut inner_ct2)
+    var dlen2 = unsafe(tls13_decrypt_record(&raw mut ctx, &raw buf2[5], (len2 - 5) as size_t,
+                                      &raw mut dec2[0], 256, &raw mut inner_ct2))
     if(dlen2 < 0) { env.error("decrypt record 2 should succeed"); return }
     if(dlen2 != 6) { env.error("decrypted length 2 should be 6"); return }
     if(!bytes_eq(&raw dec2[0], &raw pt2[0], 6)) {
@@ -486,9 +486,9 @@ public func tls13_encrypt_decrypt_different_content_types(env : &mut TestEnv) {
         var ct = content_types[ct_idx]
 
         var enc_out : [256]u8
-        var enc_len = tls13_encrypt_record(&raw mut ctx, ct,
+        var enc_len = unsafe(tls13_encrypt_record(&raw mut ctx, ct,
                                             &raw test_data[0], 4,
-                                            &raw mut enc_out[0], 256)
+                                            &raw mut enc_out[0], 256))
         if(enc_len < 0) {
             env.error("encrypt with content_type should succeed")
             return
@@ -502,9 +502,9 @@ public func tls13_encrypt_decrypt_different_content_types(env : &mut TestEnv) {
         // Decrypt (in_ctr auto-incremented from previous decrypt, matches out_ctr)
         var dec : [256]u8
         var inner_ct : u8 = 0
-        var dec_len = tls13_decrypt_record(&raw mut ctx,
+        var dec_len = unsafe(tls13_decrypt_record(&raw mut ctx,
                                             &raw enc_out[5], (enc_len - 5) as size_t,
-                                            &raw mut dec[0], 256, &raw mut inner_ct)
+                                            &raw mut dec[0], 256, &raw mut inner_ct))
         if(dec_len < 0) {
             env.error("decrypt with content_type should succeed")
             return
@@ -535,8 +535,8 @@ public func tls13_decrypt_tampered_ct_fails(env : &mut TestEnv) {
     // Encrypt
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
     var enc_out : [256]u8
-    var enc_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
-                                        &raw pt[0], 8, &raw mut enc_out[0], 256)
+    var enc_len = unsafe(tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8,
+                                        &raw pt[0], 8, &raw mut enc_out[0], 256))
     if(enc_len < 0) { env.error("encrypt should succeed"); return }
 
     // Tamper with one byte of the ciphertext
@@ -554,9 +554,9 @@ public func tls13_decrypt_tampered_ct_fails(env : &mut TestEnv) {
     // Decrypt should fail (GCM authentication tag mismatch)
     var dec : [256]u8
     var inner_ct : u8 = 0
-    var dec_len = tls13_decrypt_record(&raw mut ctx,
+    var dec_len = unsafe(tls13_decrypt_record(&raw mut ctx,
                                         &raw enc_out[5], (enc_len - 5) as size_t,
-                                        &raw mut dec[0], 256, &raw mut inner_ct)
+                                        &raw mut dec[0], 256, &raw mut inner_ct))
     if(dec_len >= 0) {
         env.error("decrypt of tampered TLS 1.3 record should fail (GCM auth)")
     }
@@ -655,10 +655,10 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
 @test
 public func tls_ssl_close_notify_no_socket_works(env : &mut TestEnv) {
     var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
-    ssl_init(unsafe(&raw mut ctx))
+    unsafe(ssl_init(unsafe(&raw mut ctx)))
     // No socket or config set — just ensures ssl_close_notify doesn't crash
 
-    ssl_close_notify(unsafe(&raw mut ctx))
+    unsafe(ssl_close_notify(unsafe(&raw mut ctx)))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

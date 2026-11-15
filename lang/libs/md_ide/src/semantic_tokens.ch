@@ -65,7 +65,7 @@ func putToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
 }
 
 @no_mangle
-public func md_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *mut Token, end : *Token) : *Token {
+public unsafe func md_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *mut Token, end : *Token) : *Token {
 
     var current = start
 

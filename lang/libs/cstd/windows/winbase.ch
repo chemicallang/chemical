@@ -12,7 +12,7 @@ public comptime const FORMAT_MESSAGE_MAX_WIDTH_MASK =  0x000000FF
 @extern
 @dllimport
 @stdcall
-public func FormatMessageA(
+public unsafe func FormatMessageA(
      dwFlags : DWORD,
      lpSource : LPCVOID,
      dwMessageId : DWORD,
@@ -96,7 +96,7 @@ public comptime const PIPE_REJECT_REMOTE_CLIENTS =  0x00000008
 @extern
 @dllimport
 @stdcall
-public func CreatePipe(
+public unsafe func CreatePipe(
     lpReadPipe : *mut HANDLE,
     lpWritePipe : *mut HANDLE,
     lpPipeAttributes : LPSECURITY_ATTRIBUTES,
@@ -118,7 +118,7 @@ public func CreatePipe(
 @extern
 @dllimport
 @stdcall
-public func PeekNamedPipe(
+public unsafe func PeekNamedPipe(
     hNamedPipe : HANDLE,
     lpBuffer : LPVOID,
     nBufferSize : DWORD,

@@ -77,12 +77,12 @@ public func (c : &mut RleCompressor) name() : std::string_view {
 // Convenience functions
 // ---------------------------------------------------------------------------
 
-public func compress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
+public unsafe func compress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
     var rle = RleCompressor{};
     return rle.compress(data, data_len, out, out_len, out_capacity);
 }
 
-public func decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
+public unsafe func decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
     var rle = RleCompressor{};
     return rle.decompress(data, data_len, out, out_len, out_capacity);
 }

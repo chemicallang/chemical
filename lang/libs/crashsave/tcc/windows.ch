@@ -1,5 +1,5 @@
 @extern
-public func tcc_backtrace(thing : *char, _ : any...) : int
+public unsafe func tcc_backtrace(thing : *char, _ : any...) : int
 
 @extern
 public func _exit(status : int) : void
@@ -19,7 +19,7 @@ func segfault_handler(a : int) : void {
     abort();
 }
 
-public func install_crash_handler(exe_path : *char, onCrash : () => void) {
+public unsafe func install_crash_handler(exe_path : *char, onCrash : () => void) {
     g_on_crash = onCrash;
     signal(SIGSEGV, segfault_handler);
     signal(SIGFPE, segfault_handler);

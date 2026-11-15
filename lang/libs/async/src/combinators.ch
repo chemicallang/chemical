@@ -16,7 +16,7 @@ public namespace async {
 // Move the payload out of a `Ready` poll and leave `Pending` behind. Mirrors
 // `std::Option::take`; generic runtime code needs it because moving a `T`
 // payload bound by a variant pattern is rejected by the move checker (B18).
-public func <T> poll_take_ready(p : *mut core::async::Poll<T>) : T {
+public unsafe func <T> poll_take_ready(p : *mut core::async::Poll<T>) : T {
         unsafe {
         var temp : T
         unsafe {
@@ -41,7 +41,7 @@ impl<T> !Send for SelectState<T> { }
 impl<T> !Sync for SelectState<T> { }
 
 @retained
-public func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
+public unsafe func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
         var st = frame as *mut SelectState<T>
         var pa = st.a.vtbl_ptr().poll(st.a.frame_ptr(), cx)
@@ -60,7 +60,7 @@ public func <T> select_poll(frame : *mut void, cx : *mut core::async::Context) :
     }
 
 @retained
-public func <T> select_drop(frame : *mut void) {
+public unsafe func <T> select_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut SelectState<T>
         var vtbl = st.vtbl
@@ -115,7 +115,7 @@ impl<T> !Send for TimeoutOrState<T> { }
 impl<T> !Sync for TimeoutOrState<T> { }
 
 @retained
-public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
+public unsafe func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
         var st = frame as *mut TimeoutOrState<T>
         var p = st.inner.vtbl_ptr().poll(st.inner.frame_ptr(), cx)
@@ -133,7 +133,7 @@ public func <T> timeout_or_poll(frame : *mut void, cx : *mut core::async::Contex
     }
 
 @retained
-public func <T> timeout_or_drop(frame : *mut void) {
+public unsafe func <T> timeout_or_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut TimeoutOrState<T>
         var vtbl = st.vtbl

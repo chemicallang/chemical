@@ -306,11 +306,11 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === P-256 prime self-consistency check ===
 @test public func TEST_p256_prime(env:&mut TestEnv) {
-    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
-    var expected : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut expected))
+    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(ecp_curve_p(unsafe(&raw mut p)))
+    var expected : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(ecp_curve_p(unsafe(&raw mut expected)))
     var buf1:[32]u8; var buf2:[32]u8
-    mpi_write_binary(unsafe(&raw mut p), &raw mut buf1[0], 32)
-    mpi_write_binary(unsafe(&raw mut expected), &raw mut buf2[0], 32)
+    unsafe(mpi_write_binary(unsafe(&raw mut p), &raw mut buf1[0], 32))
+    unsafe(mpi_write_binary(unsafe(&raw mut expected), &raw mut buf2[0], 32))
     if(!test_bytes_eq(&raw buf1[0], &raw buf2[0], 32)) {
         print_hex("got", &raw buf1[0], 32)
         env.error("P-256 prime mismatch")
@@ -319,17 +319,17 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === 2*G test: check if doubling alone is correct ===
 @test public func TEST_ecdh_k2_direct(env:&mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var k : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k)); mpi_lset(unsafe(&raw mut k), 2)
-    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R))
-    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G))
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var k : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k))); unsafe(mpi_lset(unsafe(&raw mut k), 2))
+    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R)))
+    var ret = unsafe(ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G)))
     var _k2b : [256]char
-    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] ecp_mul error=%d", ret) }; test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0); env.error("ecp_mul failed"); return }
-    ret = ecp_normalize_jac(unsafe(&raw mut R))
-    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] normalize error=%d", ret) }; test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0); env.error("normalize failed"); return }
-    var chem_x : [32]u8; ret = mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32)
-    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] write error=%d", ret) }; test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0); env.error("write failed"); return }
+    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] ecp_mul error=%d", ret) }; unsafe(test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0)); env.error("ecp_mul failed"); return }
+    ret = unsafe(ecp_normalize_jac(unsafe(&raw mut R)))
+    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] normalize error=%d", ret) }; unsafe(test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0)); env.error("normalize failed"); return }
+    var chem_x : [32]u8; ret = unsafe(mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32))
+    if(ret < 0) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] write error=%d", ret) }; unsafe(test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0)); env.error("write failed"); return }
 
     // Python: compute 2*G
     var py_script : [512]u8; var psi:size_t=0
@@ -341,9 +341,9 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     py_script[psi]=115;psi+=1;py_script[psi]=121;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=115;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=100;psi+=1;py_script[psi]=111;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=119;psi+=1;py_script[psi]=114;psi+=1;py_script[psi]=105;psi+=1;py_script[psi]=116;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=112;psi+=1;py_script[psi]=117;psi+=1;py_script[psi]=98;psi+=1;py_script[psi]=46;psi+=1;py_script[psi]=104;psi+=1;py_script[psi]=101;psi+=1;py_script[psi]=120;psi+=1;py_script[psi]=40;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=41;psi+=1;py_script[psi]=10;psi+=1
 
     var py_pub:[65]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_pub[0], 65)
-    if(py_len < 65) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] Python output too short: %d", py_len as int) }; test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0); env.error("python failed"); return }
+    if(py_len < 65) { unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] Python output too short: %d", py_len as int) }; unsafe(test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0)); env.error("python failed"); return }
 
-    unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] chem=%064x py=%064x", chem_x[0] as int, py_pub[1] as int) }; test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0)
+    unsafe { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] chem=%064x py=%064x", chem_x[0] as int, py_pub[1] as int) }; unsafe(test_env::ffi::log_cstr(env, LogType.Information, &raw _k2b[0], 0, 0))
     if(!test_bytes_eq(&raw chem_x[0], &raw py_pub[1], 32)) {
         env.info("[K2] X mismatch")
         print_hex("chem", &raw chem_x[0], 32); print_hex("py  ", &raw py_pub[1], 32)
@@ -353,30 +353,30 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === 2G + G using mixed Jacobian-affine addition ===
 @test public func TEST_ecdh_add(env:&mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
 
-    var k2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k2)); mpi_lset(unsafe(&raw mut k2), 2)
-    var R2 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R2))
-    var ret = ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G))
+    var k2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k2))); unsafe(mpi_lset(unsafe(&raw mut k2), 2))
+    var R2 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R2)))
+    var ret = unsafe(ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G)))
     if(ret < 0) { env.error("ecp_mul k=2"); return }
 
-    var P_affine : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut P_affine))
-    ecp_curve_gx(unsafe(&raw mut P_affine.X)); ecp_curve_gy(unsafe(&raw mut P_affine.Y)); mpi_lset(unsafe(&raw mut P_affine.Z), 1)
-    var R3_add : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R3_add))
-    ret = ecp_add_jac(unsafe(&raw mut R3_add), unsafe(&raw mut R2), unsafe(&raw mut P_affine))
+    var P_affine : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut P_affine)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut P_affine.X))); unsafe(ecp_curve_gy(unsafe(&raw mut P_affine.Y))); unsafe(mpi_lset(unsafe(&raw mut P_affine.Z), 1))
+    var R3_add : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R3_add)))
+    ret = unsafe(ecp_add_jac(unsafe(&raw mut R3_add), unsafe(&raw mut R2), unsafe(&raw mut P_affine)))
     if(ret < 0) { env.error("ecp_add_jac failed"); return }
-    ret = ecp_normalize_jac(unsafe(&raw mut R3_add))
+    ret = unsafe(ecp_normalize_jac(unsafe(&raw mut R3_add)))
     if(ret < 0) { env.error("normalize failed"); return }
-    var add_x : [32]u8; mpi_write_binary(unsafe(&raw mut R3_add.X), &raw mut add_x[0], 32)
+    var add_x : [32]u8; unsafe(mpi_write_binary(unsafe(&raw mut R3_add.X), &raw mut add_x[0], 32))
 
-    var k3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k3)); mpi_lset(unsafe(&raw mut k3), 3)
-    var R3_mul : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R3_mul))
-    ret = ecp_mul(unsafe(&raw mut R3_mul), unsafe(&raw mut k3), unsafe(&raw mut G))
+    var k3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k3))); unsafe(mpi_lset(unsafe(&raw mut k3), 3))
+    var R3_mul : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R3_mul)))
+    ret = unsafe(ecp_mul(unsafe(&raw mut R3_mul), unsafe(&raw mut k3), unsafe(&raw mut G)))
     if(ret < 0) { env.error("ecp_mul k=3"); return }
-    ret = ecp_normalize_jac(unsafe(&raw mut R3_mul))
+    ret = unsafe(ecp_normalize_jac(unsafe(&raw mut R3_mul)))
     if(ret < 0) { env.error("normalize mul"); return }
-    var mul_x : [32]u8; mpi_write_binary(unsafe(&raw mut R3_mul.X), &raw mut mul_x[0], 32)
+    var mul_x : [32]u8; unsafe(mpi_write_binary(unsafe(&raw mut R3_mul.X), &raw mut mul_x[0], 32))
 
     if(!test_bytes_eq(&raw add_x[0], &raw mul_x[0], 32)) {
         unsafe { printf("[ADD] add=") }; var _adi:size_t=0; while(_adi<32){unsafe { printf("%02x",add_x[_adi]as int) };_adi+=1}; unsafe { printf("\n") }
@@ -495,15 +495,15 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_pub:[65]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_pub[0], 65)
     if(py_len < 65) { unsafe { printf("[K3] Python output too short: %d\n", py_len as int) }; env.error("python failed"); return }
 
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var k : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k)); mpi_lset(unsafe(&raw mut k), 3)
-    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R))
-    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G))
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var k : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k))); unsafe(mpi_lset(unsafe(&raw mut k), 3))
+    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R)))
+    var ret = unsafe(ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G)))
     if(ret < 0) { unsafe { printf("[K3] ecp_mul error=%d\n", ret) }; env.error("ecp_mul failed"); return }
-    ret = ecp_normalize_jac(unsafe(&raw mut R))
+    ret = unsafe(ecp_normalize_jac(unsafe(&raw mut R)))
     if(ret < 0) { unsafe { printf("[K3] normalize error=%d\n", ret) }; env.error("normalize failed"); return }
-    var chem_x : [32]u8; ret = mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32)
+    var chem_x : [32]u8; ret = unsafe(mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32))
     if(ret < 0) { unsafe { printf("[K3] write error=%d\n", ret) }; env.error("write failed"); return }
     if(!test_bytes_eq(&raw chem_x[0], &raw py_pub[1], 32)) {
         unsafe { printf("[K3] X mismatch\n") }
@@ -514,22 +514,22 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === Curve equation: G on curve ===
 @test public func TEST_curve_equation_stepwise(env:&mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_p(unsafe(&raw mut p))
-    var b_m : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); ecp_curve_b(unsafe(&raw mut b_m))
-    var lhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut lhs))
-    mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut G.Y), unsafe(&raw mut G.Y)); mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
-    var x_sq : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut x_sq))
-    mpi_mul(unsafe(&raw mut x_sq), unsafe(&raw mut G.X), unsafe(&raw mut G.X)); mpi_mod(unsafe(&raw mut x_sq), unsafe(&raw mut x_sq), unsafe(&raw mut p))
-    var x_cu : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut x_cu))
-    mpi_mul(unsafe(&raw mut x_cu), unsafe(&raw mut x_sq), unsafe(&raw mut G.X)); mpi_mod(unsafe(&raw mut x_cu), unsafe(&raw mut x_cu), unsafe(&raw mut p))
-    var three_x : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut three_x))
-    mpi_mul_int(unsafe(&raw mut three_x), unsafe(&raw mut G.X), 3); mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p))
-    var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut rhs))
-    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x_cu), unsafe(&raw mut three_x)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b_m)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0) {
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(ecp_curve_p(unsafe(&raw mut p)))
+    var b_m : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(ecp_curve_b(unsafe(&raw mut b_m)))
+    var lhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut lhs)))
+    unsafe(mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut G.Y), unsafe(&raw mut G.Y))); unsafe(mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p)))
+    var x_sq : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut x_sq)))
+    unsafe(mpi_mul(unsafe(&raw mut x_sq), unsafe(&raw mut G.X), unsafe(&raw mut G.X))); unsafe(mpi_mod(unsafe(&raw mut x_sq), unsafe(&raw mut x_sq), unsafe(&raw mut p)))
+    var x_cu : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut x_cu)))
+    unsafe(mpi_mul(unsafe(&raw mut x_cu), unsafe(&raw mut x_sq), unsafe(&raw mut G.X))); unsafe(mpi_mod(unsafe(&raw mut x_cu), unsafe(&raw mut x_cu), unsafe(&raw mut p)))
+    var three_x : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut three_x)))
+    unsafe(mpi_mul_int(unsafe(&raw mut three_x), unsafe(&raw mut G.X), 3)); unsafe(mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p)))
+    var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut rhs)))
+    unsafe(mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x_cu), unsafe(&raw mut three_x))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    unsafe(mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b_m))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    if(unsafe(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs))) != 0) {
         unsafe { printf("[CURVE] G NOT on curve!\n") }
         env.error("G not on curve")
     }
@@ -537,10 +537,10 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 @test public func TEST_mpi_mul_simple(env:&mut TestEnv) {
     var a:[32]u8 = [0]; a[31]=7
-    var ma : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 32)
-    var mr : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut mr))
-    var ret = mpi_mul_int(unsafe(&raw mut mr), unsafe(&raw mut ma), 6)
-    var cs=mpi_size(unsafe(&raw mut mr)); var cb:[8]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 8)
+    var ma : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 32))
+    var mr : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut mr)))
+    var ret = unsafe(mpi_mul_int(unsafe(&raw mut mr), unsafe(&raw mut ma), 6))
+    var cs=unsafe(mpi_size(unsafe(&raw mut mr))); var cb:[8]u8; unsafe(mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 8))
     if(ret<0 || cs!=1 || cb[7]!=42){
         unsafe { printf("[MUL_SIMP] ret=%d cs=%d cb[7]=%d\n", ret, cs as int, cb[7] as int) }
         env.error("mpi_mul_int(7,6) failed")
@@ -662,7 +662,7 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     var buf : [64]u8
     i = 0
     while(i < 64) { buf[i] = 0xAA; i += 1 }
-    crypto::raw::sha384_hash(&raw msg[0], 100, &raw mut buf[0])
+    unsafe(crypto::raw::sha384_hash(&raw msg[0], 100, &raw mut buf[0]))
 
     i = 48
     while(i < 64) {
@@ -678,10 +678,10 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     i = 0
     while(i < 64) { buf2[i] = 0xAA; i += 1 }
     var ctx : crypto::raw::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Sha512Context>())
-    crypto::raw::sha384_init(unsafe(&raw mut ctx))
-    crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[0], 40)
-    crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[40], 60)
-    crypto::raw::sha384_final(unsafe(&raw mut ctx), &raw mut buf2[0])
+    unsafe(crypto::raw::sha384_init(unsafe(&raw mut ctx)))
+    unsafe(crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[0], 40))
+    unsafe(crypto::raw::sha384_update(unsafe(&raw mut ctx), &raw msg[40], 60))
+    unsafe(crypto::raw::sha384_final(unsafe(&raw mut ctx), &raw mut buf2[0]))
 
     i = 48
     while(i < 64) {
@@ -711,15 +711,15 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     while(i < 1000) { msg[i] = (i % 251) as u8; i += 1 }
 
     var one : [64]u8
-    crypto::raw::sha512_hash(&raw msg[0], 1000, &raw mut one[0])
+    unsafe(crypto::raw::sha512_hash(&raw msg[0], 1000, &raw mut one[0]))
 
     var inc : [64]u8
     var ctx : crypto::raw::Sha512Context = unsafe(std::mem.zeroed_unchecked<crypto::raw::Sha512Context>())
-    crypto::raw::sha512_init(unsafe(&raw mut ctx))
-    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[0], 100)
-    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[100], 300)
-    crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[400], 600)
-    crypto::raw::sha512_final(unsafe(&raw mut ctx), &raw mut inc[0])
+    unsafe(crypto::raw::sha512_init(unsafe(&raw mut ctx)))
+    unsafe(crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[0], 100))
+    unsafe(crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[100], 300))
+    unsafe(crypto::raw::sha512_update(unsafe(&raw mut ctx), &raw msg[400], 600))
+    unsafe(crypto::raw::sha512_final(unsafe(&raw mut ctx), &raw mut inc[0]))
 
     var eq = true
     var j : usize = 0

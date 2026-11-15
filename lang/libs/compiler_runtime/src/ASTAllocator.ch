@@ -50,7 +50,7 @@ public struct ASTAllocator {
 
     // Records a cleanup function to run over an allocated object during
     // deinit(), before the block memory is freed.
-    public func store_cleanup(&mut self, obj : *void, cleanup_fn : (obj : *void) => void) {
+    public unsafe func store_cleanup(&mut self, obj : *void, cleanup_fn : (obj : *void) => void) {
         unsafe {
             if(self.state.cleanup_capacity < self.state.cleanup_count + 1) {
                 var new_cap = 8u
@@ -75,9 +75,9 @@ public struct ASTAllocator {
 
     // Allocates and also records a cleanup fn, so the object's destructor runs
     // during deinit() before its memory is freed.
-    public func allocate_with_cleanup(&mut self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
+    public unsafe func allocate_with_cleanup(&mut self, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
         const obj = self.allocate_size(obj_size, alignment) as *mut void
-        self.store_cleanup(obj, cleanup_fn)
+        unsafe(self.store_cleanup(obj, cleanup_fn))
         return obj
     }
 

@@ -1,8 +1,8 @@
 @extern
-public func backtrace(buffer : *mut *void, size : int) : int
+public unsafe func backtrace(buffer : *mut *void, size : int) : int
 
 @extern
-public func backtrace_symbols(buffer : *mut *void, size : int) : *mut *mut char
+public unsafe func backtrace_symbols(buffer : *mut *void, size : int) : *mut *mut char
 
 /* get_stacktrace() captures the current call stack and returns it as a multi-line string.
    Frame 0 (this function) is omitted from the output.

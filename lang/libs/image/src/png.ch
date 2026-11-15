@@ -705,7 +705,7 @@ func impl_parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageErr
 // ---------------------------------------------------------------------------
 
 func impl_load_png(path : *char) : std::Result<Image, ImageError> {
-    var read_result = fs::raw::read_entire_file(path)
+    var read_result = unsafe(fs::raw::read_entire_file(path))
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }

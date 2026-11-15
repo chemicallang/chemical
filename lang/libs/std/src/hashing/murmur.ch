@@ -4,7 +4,7 @@ if(def.big_endian) {
     }
 }
 
-public func murmurhash (key : *char, len : u32, seed : u32) : u32 {
+public unsafe func murmurhash (key : *char, len : u32, seed : u32) : u32 {
         unsafe {
         const c1 : uint32_t = 0xcc9e2d51 as uint32_t;
         const c2 : uint32_t = 0x1b873593 as uint32_t;

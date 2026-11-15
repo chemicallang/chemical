@@ -53,7 +53,7 @@ public func feraiseexcept(excepts : int) : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feexceptflag
  */
 @extern
-public func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
+public unsafe func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
 
 /**
  * Attempts to copy the full contents of the floating-point exception flags that are listed in excepts from flagp into the floating-point environment. Does not raise any exceptions, only modifies the flags.
@@ -64,7 +64,7 @@ public func fegetexceptflag(flagp : *mut fexcept_t, excepts : int) : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feexceptflag
  */
 @extern
-public func fesetexceptflag(flagp : *fexcept_t, excepts : int) : int
+public unsafe func fesetexceptflag(flagp : *fexcept_t, excepts : int) : int
 
 /**
  * Attempts to establish the floating-point rounding direction equal to the argument round, which is expected to be one of the floating-point rounding macros.
@@ -90,7 +90,7 @@ public func fegetround() : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feenv
  */
 @extern
-public func fegetenv(envp : *mut fenv_t) : int
+public unsafe func fegetenv(envp : *mut fenv_t) : int
 
 /**
  * Attempts to establish the floating-point environment from the object pointed to by envp. The value of that object must be previously obtained by a call to feholdexcept or fegetenv or be a floating-point macro constant. If any of the floating-point status flags are set in envp, they become set in the environment (and are then testable with fetestexcept), but the corresponding floating-point exceptions are not raised (execution continues uninterrupted)
@@ -99,7 +99,7 @@ public func fegetenv(envp : *mut fenv_t) : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feenv
  */
 @extern
-public func fesetenv(envp : *fenv_t) : int
+public unsafe func fesetenv(envp : *fenv_t) : int
 
 /**
  * First, saves the current floating-point environment to the object pointed to by envp (similar to fegetenv), then clears all floating-point status flags, and then installs the non-stop mode: future floating-point exceptions will not interrupt execution (will not trap), until the floating-point environment is restored by feupdateenv or fesetenv.
@@ -109,7 +109,7 @@ public func fesetenv(envp : *fenv_t) : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feholdexcept
  */
 @extern
-public func feholdexcept(envp : *mut fenv_t) : int
+public unsafe func feholdexcept(envp : *mut fenv_t) : int
 
 /**
  * First, remembers the currently raised floating-point exceptions, then restores the floating-point environment from the object pointed to by envp (similar to fesetenv), then raises the floating-point exceptions that were saved.
@@ -119,7 +119,7 @@ public func feholdexcept(envp : *mut fenv_t) : int
  * @see https://en.cppreference.com/w/c/numeric/fenv/feupdateenv
  */
 @extern
-public func feupdateenv(envp : *fenv_t) : int
+public unsafe func feupdateenv(envp : *fenv_t) : int
 
 /**
  * TODO these macros

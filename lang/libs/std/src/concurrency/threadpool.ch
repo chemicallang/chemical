@@ -1,6 +1,6 @@
 if(def.windows){
 
-@dllimport @stdcall @extern public func CreateThread(lpThreadAttributes:*void,dwStackSize:ulong,lpStartAddress:*void,lpParameter:*void,dwCreationFlags:ulong,lpThreadId:*mut ulong):HANDLE;
+@dllimport @stdcall @extern public unsafe func CreateThread(lpThreadAttributes:*void,dwStackSize:ulong,lpStartAddress:*void,lpParameter:*void,dwCreationFlags:ulong,lpThreadId:*mut ulong):HANDLE;
 
 export Sleep;
 
@@ -17,15 +17,15 @@ public struct SYSTEM_INFO {
     var wProcessorRevision: u16
 }
 
-@dllimport @stdcall @extern public func GetSystemInfo(lpSystemInfo: *SYSTEM_INFO): void
+@dllimport @stdcall @extern public unsafe func GetSystemInfo(lpSystemInfo: *SYSTEM_INFO): void
 
 } else {
 
-@extern public func pthread_create(thread_out:*usize,attr:*void,start_routine:*void,arg:*void):int;
-@extern public func pthread_attr_init(attr:*mut u8):int;
-@extern public func pthread_attr_setstacksize(attr:*mut u8,size:size_t):int;
-@extern public func pthread_attr_destroy(attr:*mut u8):int;
-@extern public func pthread_join(thread:usize,retval:*mut*void):int;
+@extern public unsafe func pthread_create(thread_out:*usize,attr:*void,start_routine:*void,arg:*void):int;
+@extern public unsafe func pthread_attr_init(attr:*mut u8):int;
+@extern public unsafe func pthread_attr_setstacksize(attr:*mut u8,size:size_t):int;
+@extern public unsafe func pthread_attr_destroy(attr:*mut u8):int;
+@extern public unsafe func pthread_join(thread:usize,retval:*mut*void):int;
 @extern public func pthread_self() : usize;
 @extern public func usleep(usec:int):int
 
@@ -71,11 +71,11 @@ public namespace std {
                 var attr_storage:[PTHREAD_ATTR_T_SIZE / 8]ulong
                 const attr_ptr = &raw mut attr_storage[0] as *mut u8
                 if(unsafe(pthread_attr_init(attr_ptr))!=0){
-                    panic("pthread_attr_init")
+                    unsafe(panic("pthread_attr_init"))
                 }
                 unsafe { pthread_attr_setstacksize(attr_ptr, (8 * 1024 * 1024) as size_t) }
                 if(unsafe(pthread_create(&raw mut th,attr_ptr,entry,arg))!=0){
-                    panic("pthread_create")
+                    unsafe(panic("pthread_create"))
                 }
                 unsafe { pthread_attr_destroy(attr_ptr) }
                 return th
@@ -104,7 +104,7 @@ public namespace std {
 
             public func join(&mut self) {
                 if(!valid) {
-                    panic("thread handle is invalid or already joined")
+                    unsafe(panic("thread handle is invalid or already joined"))
                 }
                 valid = false
                 join_native(handle)
@@ -165,7 +165,7 @@ public namespace std {
             }
             func get(&mut self):T {
                 if(p == null) {
-                    panic("Future is empty")
+                    unsafe(panic("Future is empty"))
                 }
                 unsafe {
                     p.m.lock();
@@ -645,7 +645,7 @@ public namespace std {
                     joined = true
                 }
                 if(result == null) {
-                    panic("thread result is already taken")
+                    unsafe(panic("thread result is already taken"))
                 }
                 var out = unsafe((*result).value.take_unchecked())
                 unsafe { delete result }
@@ -671,16 +671,16 @@ public namespace std {
 
         // Both parameters are explicit until return-type inference from a
         // function pointer lands: `spawn<int, int>(worker, 41)`.
-        public func <T, U> spawn(f : (value : T) => U, arg : T) : JoinHandle<U> where T : Send + 'static, U : Send + 'static {
+        public unsafe func <T, U> spawn(f : (value : T) => U, arg : T) : JoinHandle<U> where T : Send + 'static, U : Send + 'static {
             var cell = unsafe(malloc(sizeof(ResultCell<U>))) as *mut ResultCell<U>
             if(cell == null) {
-                panic("failed to allocate thread result")
+                unsafe(panic("failed to allocate thread result"))
             }
             unsafe { new(cell) ResultCell<U> { value : std::Option.None<U>() } }
             var data = unsafe(malloc(sizeof(SpawnData<T, U>))) as *mut SpawnData<T, U>
             if(data == null) {
                 unsafe { free(cell) }
-                panic("failed to allocate thread state")
+                unsafe(panic("failed to allocate thread state"))
             }
             unsafe {
                 new(data) SpawnData<T, U> {
@@ -700,7 +700,7 @@ public namespace std {
         public func <T> spawn_void(f : (value : T) => void, arg : T) : std::concurrent.Thread where T : Send + 'static {
             var data = unsafe(malloc(sizeof(VoidSpawnData<T>))) as *mut VoidSpawnData<T>
             if(data == null) {
-                panic("failed to allocate thread state")
+                unsafe(panic("failed to allocate thread state"))
             }
             unsafe {
                 new(data) VoidSpawnData<T> {
@@ -717,13 +717,13 @@ public namespace std {
         public func <U, C> spawn_closure(f : %capture<() => U, std::default_function_instance, C>) : JoinHandle<U> where C : Send + 'static, U : Send + 'static {
             var cell = unsafe(malloc(sizeof(ResultCell<U>))) as *mut ResultCell<U>
             if(cell == null) {
-                panic("failed to allocate thread result")
+                unsafe(panic("failed to allocate thread result"))
             }
             unsafe { new(cell) ResultCell<U> { value : std::Option.None<U>() } }
             var data = unsafe(malloc(sizeof(ClosureSpawnData<U>))) as *mut ClosureSpawnData<U>
             if(data == null) {
                 unsafe { free(cell) }
-                panic("failed to allocate thread state")
+                unsafe(panic("failed to allocate thread state"))
             }
             unsafe {
                 new(data) ClosureSpawnData<U> {
@@ -742,7 +742,7 @@ public namespace std {
         public func <C> spawn_void_closure(f : %capture<() => void, std::default_function_instance, C>) : std::concurrent.Thread where C : Send + 'static {
             var data = unsafe(malloc(sizeof(VoidClosureSpawnData))) as *mut VoidClosureSpawnData
             if(data == null) {
-                panic("failed to allocate thread state")
+                unsafe(panic("failed to allocate thread state"))
             }
             unsafe {
                 new(data) VoidClosureSpawnData {
@@ -761,7 +761,7 @@ public namespace std {
         public func <C> scoped_spawn_closure(f : %capture<() => void, std::default_function_instance, C>) where C : Send {
             var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureSpawnData {
@@ -783,7 +783,7 @@ public namespace std {
         ) where C : Send, T : Sync {
             var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureValueData<T> {
@@ -803,7 +803,7 @@ public namespace std {
         ) where C : Send, T : Send {
             var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureMutData<T> {
@@ -824,7 +824,7 @@ public namespace std {
         ) {
             var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureSpawnData {
@@ -841,7 +841,7 @@ public namespace std {
         ) where T : Sync {
             var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureValueData<T> {
@@ -859,7 +859,7 @@ public namespace std {
         ) where T : Send {
             var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureMutData<T> {
@@ -908,7 +908,7 @@ public namespace std {
         public func <T> scoped_spawn(f : (value : &T) => void, value : &T) where T : Sync {
             var data = unsafe(malloc(sizeof(ScopedData<T>))) as *mut ScopedData<T>
             if(data == null) {
-                panic("failed to allocate scoped thread state")
+                unsafe(panic("failed to allocate scoped thread state"))
             }
             unsafe {
                 new(data) ScopedData<T> {
@@ -926,7 +926,7 @@ public namespace std {
         public func <T> scoped_spawn_mut(f : (value : &mut T) => void, value : &mut T) where T : Send {
             var data = unsafe(malloc(sizeof(ScopedMutData<T>))) as *mut ScopedMutData<T>
             if(data == null) {
-                panic("failed to allocate scoped thread state")
+                unsafe(panic("failed to allocate scoped thread state"))
             }
             unsafe {
                 new(data) ScopedMutData<T> {
@@ -956,13 +956,13 @@ public namespace std {
             internal var threads : [32]*mut std::concurrent.Thread
             internal var count : size_t
 
-            public func spawn(&mut self, f : (value : &T) => void) {
+            public unsafe func spawn(&mut self, f : (value : &T) => void) {
                 if(count >= 32) {
-                    panic("scoped thread limit exceeded")
+                    unsafe(panic("scoped thread limit exceeded"))
                 }
                 var data = unsafe(malloc(sizeof(ScopedData<T>))) as *mut ScopedData<T>
                 if(data == null) {
-                    panic("failed to allocate scoped thread state")
+                    unsafe(panic("failed to allocate scoped thread state"))
                 }
                 unsafe {
                     new(data) ScopedData<T> {
@@ -973,7 +973,7 @@ public namespace std {
                 var t = unsafe(std::concurrent.spawn(scoped_entry<T>, data as *void))
                 var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
                 if(slot == null) {
-                    panic("failed to allocate scoped thread handle")
+                    unsafe(panic("failed to allocate scoped thread handle"))
                 }
                 unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
                 threads[count] = slot
@@ -1042,11 +1042,11 @@ public namespace std {
             f : %capture<() => void, std::default_function_instance, C>
         ) where C : Send {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureSpawnData {
@@ -1056,7 +1056,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot
@@ -1069,11 +1069,11 @@ public namespace std {
             value : &T
         ) where C : Send, T : Sync {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureValueData<T> {
@@ -1084,7 +1084,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot
@@ -1097,11 +1097,11 @@ public namespace std {
             value : &mut T
         ) where C : Send, T : Send {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureMutData<T> {
@@ -1112,7 +1112,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot
@@ -1127,11 +1127,11 @@ public namespace std {
             f : std::scoped_send_function<() => void>
         ) {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureSpawnData))) as *mut ScopedClosureSpawnData
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureSpawnData {
@@ -1141,7 +1141,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_thread_entry, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot
@@ -1154,11 +1154,11 @@ public namespace std {
             value : &T
         ) where T : Sync {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureValueData<T>))) as *mut ScopedClosureValueData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureValueData<T> {
@@ -1169,7 +1169,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_value_entry<T>, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot
@@ -1182,11 +1182,11 @@ public namespace std {
             value : &mut T
         ) where T : Send {
             if(scope.count >= 32) {
-                panic("scoped closure limit exceeded")
+                unsafe(panic("scoped closure limit exceeded"))
             }
             var data = unsafe(malloc(sizeof(ScopedClosureMutData<T>))) as *mut ScopedClosureMutData<T>
             if(data == null) {
-                panic("failed to allocate scoped closure state")
+                unsafe(panic("failed to allocate scoped closure state"))
             }
             unsafe {
                 new(data) ScopedClosureMutData<T> {
@@ -1197,7 +1197,7 @@ public namespace std {
             var t = unsafe(std::concurrent.spawn(scoped_closure_mut_entry<T>, data as *void))
             var slot = unsafe(malloc(sizeof(std::concurrent.Thread))) as *mut std::concurrent.Thread
             if(slot == null) {
-                panic("failed to allocate scoped thread handle")
+                unsafe(panic("failed to allocate scoped thread handle"))
             }
             unsafe { memcpy(slot, &raw t, sizeof(std::concurrent.Thread)) }
             scope.threads[scope.count] = slot

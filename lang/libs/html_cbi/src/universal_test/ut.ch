@@ -29,15 +29,15 @@ public struct UniversalTestDecl {
     var fixtureFn : *mut FunctionDeclaration
 }
 
-public func ut_known_type(value : *EmbeddedNode) : *BaseType {
+public unsafe func ut_known_type(value : *EmbeddedNode) : *BaseType {
     return null
 }
 
-public func ut_child_res(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func ut_child_res(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null
 }
 
-public func ut_cross_mod(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
+public unsafe func ut_cross_mod(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
     // tests are not cross-module symbols
 }
 
@@ -174,7 +174,7 @@ func ut_parse_body(parser : *mut Parser, builder : *mut ASTBuilder, statement : 
     }
 
 @no_mangle
-public func ut_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
+public unsafe func ut_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
         unsafe {
         const loc = parser.getEncodedLocation(parser.getToken())
         const decl = ut_parse_body(parser, builder, false)
@@ -211,7 +211,7 @@ public func ut_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, s
     }
 
 @no_mangle
-public func ut_parseMacroNodeStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func ut_parseMacroNodeStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const loc = parser.getEncodedLocation(parser.getToken())
         const decl = ut_parse_body(parser, builder, true)
@@ -224,12 +224,12 @@ public func ut_parseMacroNodeStatement(parser : *mut Parser, builder : *mut ASTB
     }
 
 @no_mangle
-public func ut_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
+public unsafe func ut_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
     // signature resolution happens in ut_symResNode
 }
 
 @no_mangle
-public func ut_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public unsafe func ut_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
         unsafe {
         const root = node.getDataPtr() as *mut UniversalTestDecl
         if(root.statement) { return }
@@ -241,7 +241,7 @@ public func ut_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut Emb
     }
 
 @no_mangle
-public func ut_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func ut_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         const root = node.getDataPtr() as *mut UniversalTestDecl
         const resolver = visitor.getSymbolResolver()
@@ -344,7 +344,7 @@ func ut_emit_test(
     }
 
 @no_mangle
-public func ut_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func ut_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut UniversalTestDecl
         if(root.statement) { return value }
@@ -354,7 +354,7 @@ public func ut_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mu
     }
 
 @no_mangle
-public func ut_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func ut_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut UniversalTestDecl
         const loc = intrinsics::get_raw_location()

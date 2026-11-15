@@ -19,7 +19,7 @@ public func get_stderr() : *mut FILE {
 }
 
 @extern
-public func pclose(__stream : *mut FILE) : int
+public unsafe func pclose(__stream : *mut FILE) : int
 
 @extern
-public func popen(__command : *char, __modes : *char) : *mut FILE
+public unsafe func popen(__command : *char, __modes : *char) : *mut FILE

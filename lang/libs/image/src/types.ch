@@ -221,7 +221,7 @@ public struct Image {
     func pixel(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<RGBA8, ImageError>(e) }
-        return raw::image_get_rgba(unsafe(self as *mut Image), x, y)
+        return unsafe(raw::image_get_rgba(unsafe(self as *mut Image), x, y))
     }
 
     func get(&self, x : int, y : int) : std::Result<RGBA8, ImageError> {
@@ -234,13 +234,13 @@ public struct Image {
     func set(&mut self, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        return raw::image_set_rgba(unsafe(self as *mut Image), x, y, color)
+        return unsafe(raw::image_set_rgba(unsafe(self as *mut Image), x, y, color))
     }
 
     func crop(&self, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { var Err(e) = check else unsafe { unreachable }; return std::Result.Err<Image, ImageError>(e) }
-        return raw::image_crop(unsafe(self as *mut Image), x, y, w, h)
+        return unsafe(raw::image_crop(unsafe(self as *mut Image), x, y, w, h))
     }
 
     /// Mirror left/right. Returns `Err` instead of silently doing nothing when
@@ -248,7 +248,7 @@ public struct Image {
     func flip_h(&mut self) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        raw::image_flip_h(unsafe(self as *mut Image))
+        unsafe(raw::image_flip_h(unsafe(self as *mut Image)))
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
@@ -257,7 +257,7 @@ public struct Image {
     func flip_v(&mut self) : std::Result<std::Unit, ImageError> {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
-        raw::image_flip_v(unsafe(self as *mut Image))
+        unsafe(raw::image_flip_v(unsafe(self as *mut Image)))
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
 
@@ -266,9 +266,9 @@ public struct Image {
         var check = self.validate()
         if(check is std::Result.Err) { return check }
         if(horizontal) {
-            raw::image_flip_h(unsafe(self as *mut Image))
+            unsafe(raw::image_flip_h(unsafe(self as *mut Image)))
         } else {
-            raw::image_flip_v(unsafe(self as *mut Image))
+            unsafe(raw::image_flip_v(unsafe(self as *mut Image)))
         }
         return std::Result.Ok<std::Unit, ImageError>(std::Unit{})
     }
@@ -278,7 +278,7 @@ public struct Image {
         if(check is std::Result.Err) { return check }
         var src_check = src.validate()
         if(src_check is std::Result.Err) { return src_check }
-        return raw::image_blit(unsafe(self as *mut Image), unsafe(src as *mut Image), dx, dy)
+        return unsafe(raw::image_blit(unsafe(self as *mut Image), unsafe(src as *mut Image), dx, dy))
     }
 
     // ── safe encoding / saving ───────────────────────────────────────────

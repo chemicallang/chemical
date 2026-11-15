@@ -82,14 +82,14 @@ public namespace std {
 
         func subview(&self, start : size_t, end : size_t) : 'self std::string_view {
             if(start > end || end > _size) {
-                panic("string_view subview out of bounds")
+                unsafe(panic("string_view subview out of bounds"))
             }
             return unsafe(std::string_view(_data + start, end - start))
         }
 
         func skip(&self, count : size_t) : 'self std::string_view {
             if(count > _size) {
-                panic("string_view skip out of bounds")
+                unsafe(panic("string_view skip out of bounds"))
             }
             return unsafe(std::string_view(_data + count, _size - count))
         }
@@ -177,7 +177,7 @@ public namespace std {
                 } else if (_data[i] == '+') {
                     i++
                 }
-                if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                if (i == _size || !(unsafe(isdigit(_data[i])))) return std::Result.Err(std::string_view("invalid format"))
                 var mag : u64 = 0
                 var limit : u64 = 9223372036854775807u64
                 if(negative) limit = 9223372036854775808u64
@@ -233,7 +233,7 @@ public namespace std {
                 while (i < _size && unsafe(isspace(_data[i]))) i++
                 if (i == _size) return std::Result.Err(std::string_view("empty string"))
                 if (_data[i] == '+') i++
-                if (i == _size || !unsafe(isdigit(_data[i]))) return std::Result.Err(std::string_view("invalid format"))
+                if (i == _size || !(unsafe(isdigit(_data[i])))) return std::Result.Err(std::string_view("invalid format"))
                 var res : u64 = 0
                 var limit : u64 = 18446744073709551615u64
                 while (i < _size && unsafe(isdigit(_data[i]))) {

@@ -57,7 +57,7 @@ public struct ChannelShared<T> {
 // Move a `T` out of a heap node without running a destructor. The node is then
 // freed with `dealloc` (plain struct, no destructor).
 @retained
-public func <T> channel_node_take(n : *mut ChannelNode<T>) : T {
+public unsafe func <T> channel_node_take(n : *mut ChannelNode<T>) : T {
         unsafe {
         var temp : T
         unsafe {
@@ -70,7 +70,7 @@ public func <T> channel_node_take(n : *mut ChannelNode<T>) : T {
 
 // Move the payload out of an `Option<T>` through a pointer, leaving `None`.
 @retained
-public func <T> option_take(o : *mut std::Option<T>) : T {
+public unsafe func <T> option_take(o : *mut std::Option<T>) : T {
         unsafe {
         var temp : T
         unsafe {
@@ -84,7 +84,7 @@ public func <T> option_take(o : *mut std::Option<T>) : T {
     }
 
 @retained
-public func <T> channel_wake_locked(s : *mut ChannelShared<T>) {
+public unsafe func <T> channel_wake_locked(s : *mut ChannelShared<T>) {
         unsafe {
         if(s.waker.is_empty()) {
             return
@@ -98,7 +98,7 @@ public func <T> channel_wake_locked(s : *mut ChannelShared<T>) {
     }
 
 @retained
-public func <T> channel_release_shared(s : *mut ChannelShared<T>) {
+public unsafe func <T> channel_release_shared(s : *mut ChannelShared<T>) {
         unsafe {
         var free_it = false
         s.m.lock()
@@ -131,7 +131,7 @@ public func <T> channel_release_shared(s : *mut ChannelShared<T>) {
     }
 
 @retained
-public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : std::Result<std::Unit, T> {
+public unsafe func <T> channel_push(s : *mut ChannelShared<T>, value : T) : std::Result<std::Unit, T> {
         unsafe {
         s.m.lock()
         if(s.closed) {
@@ -162,7 +162,7 @@ public func <T> channel_push(s : *mut ChannelShared<T>, value : T) : std::Result
     }
 
 @retained
-public func <T> channel_pop_opt(s : *mut ChannelShared<T>) : std::Option<T> {
+public unsafe func <T> channel_pop_opt(s : *mut ChannelShared<T>) : std::Option<T> {
         unsafe {
         s.m.lock()
         if(s.head == null) {
@@ -195,7 +195,7 @@ public struct Sender<T> {
      * channel is closed; the value is handed back so the caller can recover it.
      */
     public func send(&self, value : T) : std::Result<std::Unit, SendError<T> > {
-        var pushed = channel_push<T>(self.shared, value)
+        var pushed = unsafe(channel_push<T>(self.shared, value))
         if(pushed is std::Result.Ok) {
             return result_ok_unit<SendError<T> >()
         }
@@ -261,9 +261,9 @@ public struct Receiver<T> {
      * queued value; `Err(Disconnected)` means every sender is gone.
      */
     public func try_recv(&self) : std::Result<T, TryRecvError> {
-        var opt = channel_pop_opt<T>(self.shared)
+        var opt = unsafe(channel_pop_opt<T>(self.shared))
         if(opt is std::Option.Some) {
-            var value = option_take<T>(&raw mut opt)
+            var value = unsafe(option_take<T>(&raw mut opt))
             return std::Result.Ok<T, TryRecvError>(value)
         }
         if(self.is_closed()) {
@@ -346,7 +346,7 @@ public struct RecvState<T> {
 }
 
 @retained
-public func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
+public unsafe func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
         var st = frame as *mut RecvState<T>
         var s = st.shared
@@ -371,7 +371,7 @@ public func <T> recv_poll(frame : *mut void, cx : *mut core::async::Context) : c
     }
 
 @retained
-public func <T> recv_drop(frame : *mut void) {
+public unsafe func <T> recv_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut RecvState<T>
         var vtbl = st.vtbl
@@ -440,7 +440,7 @@ public func <T> channel() : Channel<T> {
 // Use `clone_sender` on the channel's sender rather than moving it out of the
 // `Channel<T>`: moving a destructible field out of a value is rejected by the
 // move checker.
-public func <T> clone_sender(s : *mut ChannelShared<T>) : Sender<T> {
+public unsafe func <T> clone_sender(s : *mut ChannelShared<T>) : Sender<T> {
         unsafe {
         s.m.lock()
         s.senders = s.senders + 1

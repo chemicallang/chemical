@@ -45,7 +45,7 @@ public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, buil
 
         if(token.type == JsTokenType.Style as int) {
             if(jsParser.style_fn != null) {
-                return jsParser.style_fn(parser, builder, jsParser.dyn_values)
+                return unsafe(jsParser.style_fn(parser, builder, jsParser.dyn_values))
             }
             parser.error("style blocks are not supported here")
             return null

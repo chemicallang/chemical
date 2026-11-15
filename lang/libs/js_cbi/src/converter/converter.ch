@@ -294,11 +294,11 @@ func (converter : &mut JsConverter) put_chemical_value_in(value : *mut Value) {
     }
 
 func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
-    convert_js_node(node, converter)
+    unsafe(convert_js_node(node, converter))
 }
 
 func (converter : &mut JsConverter) convertJsRoot(root : *mut JsRoot) {
-    convert_js_root(root, converter)
+    unsafe(convert_js_root(root, converter))
 }
 
 impl JsNodeEmitter for JsConverter {

@@ -135,7 +135,7 @@ public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("scalar macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMPoint>()
@@ -161,7 +161,7 @@ public func json_macro_nested_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("nested macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMParent>()
@@ -187,7 +187,7 @@ public func json_macro_wide_scalar_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("wide macro parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMWide>()
@@ -215,7 +215,7 @@ public func json_macro_namespaced_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("namespaced parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<jmns::JMNs>()
@@ -243,7 +243,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("char parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMChar>()
@@ -258,7 +258,7 @@ public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
 public func json_macro_decode_rejects_non_object_root(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var pr = json::raw::parse(&mut parser, "5", 1, &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, "5", 1, &mut ph))
     if(!pr.ok) { env.error("root number parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -266,7 +266,7 @@ public func json_macro_decode_rejects_non_object_root(env : &mut TestEnv) {
 
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(128, 4096)
-    var pr2 = json::raw::parse(&mut parser2, "[1,2]", 5, &mut ph2)
+    var pr2 = unsafe(json::raw::parse(&mut parser2, "[1,2]", 5, &mut ph2))
     if(!pr2.ok) { env.error("root array parse failed"); return }
     var d2 = JsonDecoder { value : &ph2.root }
     var res2 = d2.decode<JMTwo>()
@@ -278,7 +278,7 @@ public func json_macro_decode_field_type_mismatch(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":\"not a number\",\"b\":2}")
-    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!pr.ok) { env.error("type mismatch parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -290,7 +290,7 @@ public func json_macro_decode_missing_field(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":1}")
-    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!pr.ok) { env.error("missing field parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMTwo>()
@@ -377,7 +377,7 @@ func run_dtor_scalar_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDPoint>()
@@ -414,7 +414,7 @@ func run_dtor_owning_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDChild>()
@@ -452,7 +452,7 @@ func run_dtor_nested_roundtrip() : int {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDHolder>()
@@ -495,7 +495,7 @@ public func json_macro_enum_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("enum parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMEnumPoint>()
@@ -512,7 +512,7 @@ public func json_macro_enum_unknown_name_rejected(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
     var doc = std::string_view("{\"name\":\"pt\",\"color\":\"Purple\",\"x\":1,\"y\":2}")
-    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!pr.ok) { env.error("unknown enum name parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMEnumPoint>()
@@ -587,7 +587,7 @@ public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, buffer.data(), buffer.size(), &mut ph))
     if(!pr.ok) { env.error("empty vector parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMVectorInt>()

@@ -1,27 +1,27 @@
 @dllimport
 @stdcall
 @extern
-public func InitializeCriticalSection(cs : *mut u8) : void
+public unsafe func InitializeCriticalSection(cs : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func EnterCriticalSection(cs : *mut u8) : void
+public unsafe func EnterCriticalSection(cs : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func TryEnterCriticalSection(cs : *mut u8) : int
+public unsafe func TryEnterCriticalSection(cs : *mut u8) : int
 
 @dllimport
 @stdcall
 @extern
-public func LeaveCriticalSection(cs : *mut u8) : void
+public unsafe func LeaveCriticalSection(cs : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func DeleteCriticalSection(cs : *mut u8) : void
+public unsafe func DeleteCriticalSection(cs : *mut u8) : void
 
 public namespace std {
     comptime const CRITICAL_SECTION_SIZE = 40

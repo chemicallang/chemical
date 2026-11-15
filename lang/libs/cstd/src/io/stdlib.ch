@@ -21,7 +21,7 @@
  * @see https://en.cppreference.com/w/c/string/byte/atof
  */
 @extern
-public func atof(str : *char) : double
+public unsafe func atof(str : *char) : double
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -34,7 +34,7 @@ public func atof(str : *char) : double
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
 @extern
-public func atoi(str : *char) : int
+public unsafe func atoi(str : *char) : int
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -47,7 +47,7 @@ public func atoi(str : *char) : int
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
 @extern
-public func atol(str : *char) : long
+public unsafe func atol(str : *char) : long
 
 /**
  * Interprets an integer value in a byte string pointed to by str. The implied radix is always 10.
@@ -60,7 +60,7 @@ public func atol(str : *char) : long
  * @see https://en.cppreference.com/w/c/string/byte/atoi
  */
 @extern
-public func atoll(str  :*char) : bigint
+public unsafe func atoll(str  :*char) : bigint
 
 /**
  * Interprets an integer value in a byte string pointed to by str.
@@ -84,7 +84,7 @@ public func atoll(str  :*char) : bigint
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
 @extern
-public func strtol(str : *char, str_end : **mut char, base : int) : long
+public unsafe func strtol(str : *char, str_end : **mut char, base : int) : long
 
 /**
  * Interprets an integer value in a byte string pointed to by str.
@@ -108,7 +108,7 @@ public func strtol(str : *char, str_end : **mut char, base : int) : long
  * @see https://en.cppreference.com/w/c/string/byte/strtol
  */
 @extern
-public func strtoll(str : *char, str_end : **mut char, base : int) : bigint
+public unsafe func strtoll(str : *char, str_end : **mut char, base : int) : bigint
 
 /**
  * Interprets an unsigned integer value in a byte string pointed to by str.
@@ -129,7 +129,7 @@ public func strtoll(str : *char, str_end : **mut char, base : int) : bigint
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
 @extern
-public func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
+public unsafe func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
 
 /**
  * Interprets an unsigned integer value in a byte string pointed to by str.
@@ -150,7 +150,7 @@ public func strtoul(str : *mut char, str_end : **mut char, base : int) : ulong
  * @see https://en.cppreference.com/w/c/string/byte/strtoul
  */
 @extern
-public func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
+public unsafe func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigint
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -178,7 +178,7 @@ public func strtoull(str : *mut char, str_end : **mut char, base : int) : ubigin
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
 @extern
-public func strtof(str : *mut char, str_end : **mut char) : float
+public unsafe func strtof(str : *mut char, str_end : **mut char) : float
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -206,7 +206,7 @@ public func strtof(str : *mut char, str_end : **mut char) : float
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
 @extern
-public func strtod(str : *mut char, str_end : **mut char) : double
+public unsafe func strtod(str : *mut char, str_end : **mut char) : double
 
 /**
  * Interprets a floating-point value in a byte string pointed to by str.
@@ -234,7 +234,7 @@ public func strtod(str : *mut char, str_end : **mut char) : double
  * @see https://en.cppreference.com/w/c/string/byte/strtof
  */
 @extern
-public func strtold(str : *mut char, str_end : **mut char) : longdouble
+public unsafe func strtold(str : *mut char, str_end : **mut char) : longdouble
 
 /**
  * Converts a floating-point value to a byte string.
@@ -247,7 +247,7 @@ public func strtold(str : *mut char, str_end : **mut char) : longdouble
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
 @extern
-public func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
+public unsafe func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
 
 /**
  * Converts a floating-point value to a byte string.
@@ -260,7 +260,7 @@ public func strfromf(s : *char, n : size_t, format : *char, fp : float) : int
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
 @extern
-public func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
+public unsafe func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
 
 /**
  * Converts a floating-point value to a byte string.
@@ -273,7 +273,7 @@ public func strfromd(s : *char, n : size_t, format : *char, fp : double) : int
  * @see https://en.cppreference.com/w/c/string/byte/strfromf
  */
 @extern
-public func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
+public unsafe func strfroml(s : *char, n : size_t, format : *char, fp : longdouble) : int
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.
@@ -443,7 +443,7 @@ public comptime const EXIT_FAILURE = 0
  * @see https://en.cppreference.com/w/c/program/system
  */
 @extern
-public func system(command : *char) : int
+public unsafe func system(command : *char) : int
 
 /**
  * Searches for an environmental variable with name name in the host-specified environment list and returns a pointer to the string that is associated with the matched environment variable. The set of environmental variables and methods of altering it are implementation-defined.
@@ -454,7 +454,7 @@ public func system(command : *char) : int
  * @see https://en.cppreference.com/w/c/program/getenv
  */
 @extern
-public func getenv(name : *char) : *mut char
+public unsafe func getenv(name : *char) : *mut char
 
 /**
  * Same as (1), except that the values of the environment variable is written to the user-provided buffer value (unless null) and the number of bytes written is stored in the user-provided location *len (unless null). If the environment variable is not set in the environment, zero is written to *len (unless null) and '\0' is written to value[0] (unless null). In addition, the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -470,7 +470,7 @@ public func getenv(name : *char) : *mut char
  * @see https://en.cppreference.com/w/c/program/getenv
  */
 @extern
-public func getenv_s(
+public unsafe func getenv_s(
     len : *mut size_t,
     value : *mut char,
     valuesz : rsize_t,
@@ -486,7 +486,7 @@ public func getenv_s(
  * @see https://en.cppreference.com/w/c/program/memalignment
  */
 @extern
-public func memalignment(p : *void) : size_t
+public unsafe func memalignment(p : *void) : size_t
 
 /**
  * Determines the size, in bytes, of the multibyte character whose first byte is pointed to by s.
@@ -499,7 +499,7 @@ public func memalignment(p : *void) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/mblen
  */
 @extern
-public func mblen(s : *char, n : size_t) : int
+public unsafe func mblen(s : *char, n : size_t) : int
 
 /**
  * Converts a multibyte character whose first byte is pointed to by s to a wide character, written to *pwc if pwc is not null.
@@ -512,7 +512,7 @@ public func mblen(s : *char, n : size_t) : int
  * @see https://en.cppreference.com/w/c/string/multibyte/mbtowc
  */
 @extern
-public func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
+public unsafe func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
 
 /**
  * Converts a wide character wc to multibyte encoding and stores it (including any shift sequences) in the char array whose first element is pointed to by s. No more than MB_CUR_MAX characters are stored. The conversion is affected by the current locale's LC_CTYPE category.
@@ -527,7 +527,7 @@ public func mbtowc(pwc : *mut wchar_t, s : *char, n : size_t) : int
  * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
  */
 @extern
-public func wctomb(s : *char, wc : wchar_t) : int
+public unsafe func wctomb(s : *char, wc : wchar_t) : int
 
 /**
  * Same as (1), except that the result is returned in the out-parameter status and the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -543,7 +543,7 @@ public func wctomb(s : *char, wc : wchar_t) : int
  * @see https://en.cppreference.com/w/c/string/multibyte/wctomb
  */
 @extern
-public func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar_t) : errno_t
+public unsafe func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar_t) : errno_t
 
 /**
  * Converts a multibyte character string from the array whose first element is pointed to by src to its wide character representation. Converted characters are stored in the successive elements of the array pointed to by dst. No more than len wide characters are written to the destination array.
@@ -561,7 +561,7 @@ public func wctomb_s(status : *mut int, s : *mut char, ssz : rsize_t, wc : wchar
  * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
  */
 @extern
-public func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
+public unsafe func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
 
 /**
  *  Same as (1), except that
@@ -586,7 +586,7 @@ public func mbstowcs(dst : *mut wchar_t, src : *char, len : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/mbstowcs
  */
 @extern
-public func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : *char, len : rsize_t) : errno_t
+public unsafe func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : *char, len : rsize_t) : errno_t
 
 /**
  * Converts a sequence of wide characters from the array whose first element is pointed to by src to its narrow multibyte representation that begins in the initial shift state. Converted characters are stored in the successive elements of the char array pointed to by dst. No more than len bytes are written to the destination array.
@@ -604,7 +604,7 @@ public func mbstowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t
  * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
  */
 @extern
-public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
+public unsafe func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
 
 /**
  * Same as wcstombs, except that
@@ -629,7 +629,7 @@ public func wcstombs(dst : *mut char, src : *wchar_t, len : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/wcstombs
  */
 @extern
-public func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wchar_t, len : rsize_t);
+public unsafe func wcstombs_s(retval : *size_t, dst : *char, dstsz : rsize_t, src : *wchar_t, len : rsize_t);
 
 /**
  * TODO macro MB_CUR_MAX
@@ -685,10 +685,10 @@ public func malloc(size : size_t) : *mut void
  * TODO: documentation
  */
 @extern
-public func realloc(block : *mut any, size : size_t) : *mut void
+public unsafe func realloc(block : *mut any, size : size_t) : *mut void
 
 /**
  * TODO: documentation
  */
 @extern
-public func free(block : *mut any)
+public unsafe func free(block : *mut any)

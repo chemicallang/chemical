@@ -5,14 +5,14 @@ protected struct FILETIME {
 }
 
 @extern
-public func GetSystemTimeAsFileTime(lpSystemTimeAsFileTime : *mut FILETIME) : void
+public unsafe func GetSystemTimeAsFileTime(lpSystemTimeAsFileTime : *mut FILETIME) : void
 
 // QPC for high-resolution monotonic clock
 @extern
-public func QueryPerformanceCounter(lpPerformanceCount : *mut u64) : int
+public unsafe func QueryPerformanceCounter(lpPerformanceCount : *mut u64) : int
 
 @extern
-public func QueryPerformanceFrequency(lpFrequency : *mut u64) : int
+public unsafe func QueryPerformanceFrequency(lpFrequency : *mut u64) : int
 
 public namespace std {
 
@@ -43,11 +43,11 @@ public namespace std {
         var freq : u64 = 0
         var qpc_result = unsafe(QueryPerformanceCounter(&raw mut counter))
         if(qpc_result == 0) {
-            panic("QueryPerformanceCounter failed")
+            unsafe(panic("QueryPerformanceCounter failed"))
         }
         var freq_result = unsafe(QueryPerformanceFrequency(&raw mut freq))
         if(freq_result == 0 || freq == 0) {
-            panic("QueryPerformanceFrequency failed")
+            unsafe(panic("QueryPerformanceFrequency failed"))
         }
         // Convert to seconds and nanoseconds
         var total_secs = counter / freq

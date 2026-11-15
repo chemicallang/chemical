@@ -87,7 +87,7 @@ public struct lconv {
  * A copy of the returned string along with the category used in this call to setlocale may be used later in the program to restore the locale back to the state at the end of this call.
  */
 @extern
-public func setlocale(category : int, locale : *char) : *mut char
+public unsafe func setlocale(category : int, locale : *char) : *mut char
 
 /**
  * The localeconv function obtains a pointer to a static object of type lconv, which represents numeric and monetary formatting rules of the current C locale.

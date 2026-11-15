@@ -23,7 +23,7 @@
  * @see https://en.cppreference.com/w/c/string/byte/strtoimax
  */
 @extern
-public func strtoimax(nptr : *char, endptr : **mut char, base : int) : intmax_t
+public unsafe func strtoimax(nptr : *char, endptr : **mut char, base : int) : intmax_t
 
 /**
  * Interprets an integer value in a byte string pointed to by nptr.
@@ -47,7 +47,7 @@ public func strtoimax(nptr : *char, endptr : **mut char, base : int) : intmax_t
  * @see https://en.cppreference.com/w/c/string/byte/strtoimax
  */
 @extern
-public func strtoumax(nptr : *char, endptr : **mut char, base : int) : uintmax_t
+public unsafe func strtoumax(nptr : *char, endptr : **mut char, base : int) : uintmax_t
 
 /**
  * Computes the absolute value of an integer number. The behavior is undefined if the result cannot be represented by the return type.

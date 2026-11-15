@@ -86,7 +86,7 @@ public struct Arc<T> {
 
     public func clone(&self) : Arc<T> {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         var inner = self.ptr
         unsafe {
@@ -105,7 +105,7 @@ public struct Arc<T> {
 
     public func downgrade(&self) : ArcWeak<T> {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         var inner = self.ptr
         unsafe {
@@ -122,14 +122,14 @@ public struct Arc<T> {
 
     public func get(&self) : &T {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         return unsafe(&self.ptr.value.value)
     }
 
     public func strong_count(&self) : size_t {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         var result : size_t = 0
         unsafe {
@@ -143,7 +143,7 @@ public struct Arc<T> {
 
     public func weak_count(&self) : size_t {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         var result : size_t = 0
         unsafe {
@@ -158,7 +158,7 @@ public struct Arc<T> {
     /** Mutably access the value only when this is the sole strong owner. */
     public func get_mut(&mut self) : Option<&mut T> {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         var allowed = false
         unsafe {
@@ -176,7 +176,7 @@ public struct Arc<T> {
     /** Move the value out only when this is the sole strong owner. */
     public func try_unwrap(&mut self) : Option<T> {
         if(self.ptr == null) {
-            panic("Arc is empty")
+            unsafe(panic("Arc is empty"))
         }
         unsafe {
             var lp = &raw mut self.ptr.lock
@@ -260,7 +260,7 @@ public struct ArcWeak<T> {
 
     public func strong_count(&self) : size_t {
         if(self.ptr == null) {
-            panic("ArcWeak is empty")
+            unsafe(panic("ArcWeak is empty"))
         }
         var result : size_t = 0
         unsafe {
@@ -274,7 +274,7 @@ public struct ArcWeak<T> {
 
     public func weak_count(&self) : size_t {
         if(self.ptr == null) {
-            panic("ArcWeak is empty")
+            unsafe(panic("ArcWeak is empty"))
         }
         var result : size_t = 0
         unsafe {

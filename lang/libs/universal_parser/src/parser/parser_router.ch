@@ -282,7 +282,7 @@ func js_parse_router_decl(parser : *mut Parser, builder : *mut ASTBuilder, jsPar
  * Contextual-keyword dispatch (D-1.2). Returns null WITHOUT consuming any token
  * when the current statement is not a router/route declaration.
  */
-public func tryParseRouterStatement(jsParser : &mut JsParser, parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+public unsafe func tryParseRouterStatement(jsParser : &mut JsParser, parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
         unsafe {
         const token = parser.getToken()
         if(token.type != JsTokenType.Identifier as int) return null

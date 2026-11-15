@@ -1,5 +1,5 @@
 @no_mangle
-public func md_initializeLexer(lexer : *mut Lexer) {
+public unsafe func md_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(MdLexer), alignof(MdLexer)) as *mut MdLexer;
@@ -16,7 +16,7 @@ public func md_initializeLexer(lexer : *mut Lexer) {
     }
 
 @no_mangle
-public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public unsafe func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
         unsafe {
         const loc = intrinsics::get_raw_location();
         // No brace needed, parse until #endmd
@@ -34,7 +34,7 @@ public func md_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) 
     }
 
 @no_mangle
-public func md_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
+public unsafe func md_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
         unsafe {
         visitor.visitEmbeddedValue(value)
         const loc = value.getEncodedLocation()
@@ -46,7 +46,7 @@ public func md_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedV
     }
 
 @no_mangle
-public func md_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
+public unsafe func md_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut MdRoot;
@@ -71,16 +71,16 @@ public func md_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTD
         }
     }
 
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
 }
 
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null;
 }
 
 @no_mangle
-public func md_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func md_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         visitor.visitEmbeddedNode(node)
         const loc = node.getEncodedLocation();
@@ -91,7 +91,7 @@ public func md_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNod
     }
 
 @no_mangle
-public func md_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func md_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut MdRoot;
@@ -111,7 +111,7 @@ public func md_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDi
     }
 
 @no_mangle
-public func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func md_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const loc = intrinsics::get_raw_location();
         // No brace needed, parse until #endmd

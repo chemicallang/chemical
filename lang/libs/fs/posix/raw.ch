@@ -52,7 +52,7 @@ public func file_close_ref(f : &mut File) : Result<UnitTy, FsError> {
         }
     }
 
-public func file_close(f : *mut File) : Result<UnitTy, FsError> {
+public unsafe func file_close(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
         if(f == null) { return Result.Err(FsError.InvalidInput()); }
         if(!f.valid) { return Result.Ok(UnitTy{}); }
@@ -64,7 +64,7 @@ public func file_close(f : *mut File) : Result<UnitTy, FsError> {
         }
     }
 
-public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+public unsafe func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(f == null || !f.valid || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
         if(buf_len == 0) { return Result.Ok(0 as size_t); }
@@ -75,7 +75,7 @@ public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<s
         }
     }
 
-public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+public unsafe func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(f == null || !f.valid || (buf == null && buf_len != 0)) { return Result.Err(FsError.InvalidInput()); }
         if(buf_len == 0) { return Result.Ok(0 as size_t); }
@@ -86,7 +86,7 @@ public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size
         }
     }
 
-public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+public unsafe func file_flush(f : *mut File) : Result<UnitTy, FsError> {
         unsafe {
         if(f == null || !f.valid) { return Result.Err(FsError.InvalidInput()); }
         var r = unsafe(fsync((f.handle as int)));
@@ -97,7 +97,7 @@ public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
     }
 
 /// Seek an open file. `whence` is one of SEEK_SET/SEEK_CUR/SEEK_END.
-public func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
+public unsafe func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
         unsafe {
         if(f == null || !f.valid) { return Result.Err(FsError.InvalidInput()); }
         var r = unsafe(lseek((f.handle as int), offset as longlong, whence));
@@ -108,7 +108,7 @@ public func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, F
     }
 
 /// Metadata for an open file handle.
-public func file_metadata(f : *mut File) : Result<Metadata, FsError> {
+public unsafe func file_metadata(f : *mut File) : Result<Metadata, FsError> {
         unsafe {
         if(f == null || !f.valid) { return Result.Err(FsError.InvalidInput()); }
         var st : Stat;
@@ -233,7 +233,7 @@ func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mu
         }
     }
 
-public func remove_file(path : *char) : Result<UnitTy, FsError> {
+public unsafe func remove_file(path : *char) : Result<UnitTy, FsError> {
         unsafe {
         if(path == null) { return Result.Err(FsError.InvalidInput()); }
         return remove_file_native(path);
@@ -241,7 +241,7 @@ public func remove_file(path : *char) : Result<UnitTy, FsError> {
         }
     }
 
-public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+public unsafe func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
         unsafe {
         if(src == null || dst == null) { return Result.Err(FsError.InvalidInput()); }
         return copy_file_native(src, dst)
@@ -256,7 +256,7 @@ func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_
         }
     }
 
-public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+public unsafe func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
         unsafe {
         if(path == null) { return Result.Err(FsError.InvalidInput()); }
         return file_open_native(path, opts)
@@ -264,7 +264,7 @@ public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> 
         }
     }
 
-public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+public unsafe func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
         unsafe {
         if(path == null) { return Result.Err(FsError.InvalidInput()); }
         return set_times_native(path, atime, mtime)
@@ -284,7 +284,7 @@ public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
     }
 
 // create_dir_all (recursive)
-public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
+public unsafe func create_dir_all(path : *char) : Result<UnitTy, FsError> {
         unsafe {
         var buf : [PATH_MAX_BUF]char;
         var r = normalize_path(path, &raw mut buf[0], PATH_MAX_BUF as size_t);
@@ -505,7 +505,7 @@ public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, Fs
         }
     }
 
-public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(out == null) { return Result.Err(FsError.InvalidInput()); }
         var tmp : *char = "/tmp\0";
@@ -519,7 +519,7 @@ public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError
     }
 
 // read_dir: callback style to avoid allocations. Callback signature: fn(name : *char, name_len : size_t, is_dir : bool) -> bool
-public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+public unsafe func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
         unsafe {
         if(path == null) { return Result.Err(FsError.InvalidInput()); }
         var d = unsafe(opendir(path));
@@ -568,28 +568,28 @@ public func read_dir(path : *char, callback : std::function<(name : *char, name_
         }
     }
 
-public func create_dir(path : *char) : Result<UnitTy, FsError> {
+public unsafe func create_dir(path : *char) : Result<UnitTy, FsError> {
         unsafe {
         return create_dir_native(path);
 
         }
     }
 
-public func remove_dir(path : *char) : Result<UnitTy, FsError> {
+public unsafe func remove_dir(path : *char) : Result<UnitTy, FsError> {
         unsafe {
         return remove_dir_native(path)
 
         }
     }
 
-public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+public unsafe func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
         unsafe {
         return remove_dir_all_recursive_native(path)
 
         }
     }
 
-public func mkdir(pathname : *char) : int {
+public unsafe func mkdir(pathname : *char) : int {
         unsafe {
         return posix_mkdir(pathname, PermissionMode.S_IRWXU as uint)
 
@@ -661,27 +661,27 @@ func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsErro
 // ---- from lang/libs/fs/posix/lock.ch ----
 func lock_file_shared(path : *char) : Result<File, FsError> {
     var opts : OpenOptions; opts.read = true; opts.write = false;
-    var fo = file_open(path, opts);
+    var fo = unsafe(file_open(path, opts));
     if(fo is Result.Err) {
         var Err(e) = fo else unsafe { unreachable };
         return Result.Err(e);
     }
     var Ok(f) = fo else unsafe { unreachable };
     var r = unsafe(flock((f.handle as int), LOCK_SH));
-    if(r != 0) { file_close(&raw mut f); return Result.Err(posix_errno_to_fs(get_errno())); }
+    if(r != 0) { unsafe(file_close(&raw mut f)); return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(f);
 }
 
 func lock_file_exclusive(path : *char) : Result<File, FsError> {
     var opts : OpenOptions; opts.read = true; opts.write = true;
-    var fo = file_open(path, opts);
+    var fo = unsafe(file_open(path, opts));
     if(fo is Result.Err) {
         var Err(e) = fo else unsafe { unreachable };
         return Result.Err(e);
     }
     var Ok(f) = fo else unsafe { unreachable };
     var r = unsafe(flock((f.handle as int), LOCK_EX));
-    if(r != 0) { file_close(&raw mut f); return Result.Err(posix_errno_to_fs(get_errno())); }
+    if(r != 0) { unsafe(file_close(&raw mut f)); return Result.Err(posix_errno_to_fs(get_errno())); }
     return Result.Ok(f);
 }
 
@@ -692,7 +692,7 @@ public func set_permissions_native(path : path_ptr, mode : u32) : Result<UnitTy,
     return Result.Ok(UnitTy{});
 }
 
-public func set_permissions(path : *char, mode : u32) : Result<UnitTy, FsError> {
+public unsafe func set_permissions(path : *char, mode : u32) : Result<UnitTy, FsError> {
     return set_permissions_native(path, mode)
 }
 
@@ -726,7 +726,7 @@ public func stat_to_metadata(st : Stat) : Metadata {
     return m;
 }
 
-public func metadata(path : *char) : Result<Metadata, FsError> {
+public unsafe func metadata(path : *char) : Result<Metadata, FsError> {
     if(path == null) { return Result.Err(FsError.InvalidInput()); }
     var st : Stat;
     var r = unsafe(lstat(path, unsafe(&raw mut st)));
@@ -750,7 +750,7 @@ func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size
     }
 
 // ---- from lang/libs/fs/src/path.ch ----
-public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0;
@@ -777,7 +777,7 @@ public func basename(path : *char, out : *mut char, out_len : size_t) : Result<s
         }
     }
 
-public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0;
@@ -805,7 +805,7 @@ public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<si
     }
 
 // extension (returns extension starting at '.' or empty)
-public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(path == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         var base_buf : [PATH_MAX_BUF]char;
@@ -829,7 +829,7 @@ public func extension(path : *char, out : *mut char, out_len : size_t) : Result<
     }
 
 // join path a + b -> out (normalizes separators). Caller must provide out buffer.
-public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(a == null || b == null || out == null) { return Result.Err(FsError.InvalidInput()); }
         const max_size = (0 as size_t) - 1;
@@ -859,7 +859,7 @@ public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) :
 
 // normalize_path: resolve "." and ".." (does not resolve symlinks). Uses stack arrays for components.
 // normalize path removing "." and resolving ".." relative components (no symlink resolution)
-public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
+public unsafe func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(path_in == null || out_buf == null) { return Result.Err(FsError.InvalidInput()); }
         var len : size_t = 0; while(path_in[len] != 0) { len++ }
@@ -1027,7 +1027,7 @@ func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
         }
     }
 
-public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+public unsafe func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
         if(path == null || (data == null && data_len != 0)) {
             return Result.Err(FsError.InvalidInput());
@@ -1076,7 +1076,7 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
         }
     }
 
-public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
+public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
         unsafe {
         if(path == null) { return Result.Err(FsError.InvalidInput()); }
         // open file for reading
@@ -1150,7 +1150,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
     }
 
 
-public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+public unsafe func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
         unsafe {
         if(path == null || (buf == null && buf_len != 0)) {
             return Result.Err(FsError.InvalidInput());
@@ -1178,7 +1178,7 @@ public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Resu
         }
     }
 
-public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+public unsafe func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
         unsafe {
         if(path == null || (data == null && data_len != 0)) {
             return Result.Err(FsError.InvalidInput());
@@ -1198,7 +1198,7 @@ public func write_text_file(path : *char, data : *u8, data_len : size_t) : Resul
         }
     }
 
-public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
+public unsafe func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
         unsafe {
         if(src == null || dst == null) { return Result.Err(FsError.InvalidInput()); }
         var r = unsafe(rename(src, dst));
@@ -1240,7 +1240,7 @@ public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
     }
 
 // ---- from lang/libs/fs/src/directory.ch ----
-public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
+public unsafe func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
         unsafe {
         // recursive copy: create dest dir then iterate src and copy files/dirs
         var st_res = metadata(src);
@@ -1314,20 +1314,20 @@ public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) :
 
 // ---- from lang/libs/fs/src/metadata.ch ----
 // exists / is_file / is_dir convenience
-public func exists(path : *char) : bool {
-    var r = metadata(path);
+public unsafe func exists(path : *char) : bool {
+    var r = unsafe(metadata(path));
     return !(r is Result.Err);
 }
 
-public func is_file(path : *char) : Result<bool, FsError> {
-    var r = metadata(path);
+public unsafe func is_file(path : *char) : Result<bool, FsError> {
+    var r = unsafe(metadata(path));
     if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e); }
     var Ok(m) = r else unsafe { unreachable };
     return Result.Ok(m.is_file);
 }
 
-public func is_dir(path : *char) : Result<bool, FsError> {
-    var r = metadata(path);
+public unsafe func is_dir(path : *char) : Result<bool, FsError> {
+    var r = unsafe(metadata(path));
     if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; return Result.Err(e); }
     var Ok(m) = r else unsafe { unreachable };
     return Result.Ok(m.is_dir);

@@ -8,7 +8,7 @@ using namespace http;
 @test
 func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
     // Setup: listen, connect in thread, accept, then recv without data should timeout
-    var listen_sock = net::raw::listen_addr("127.0.0.1", 19990u)
+    var listen_sock = unsafe(net::raw::listen_addr("127.0.0.1", 19990u))
     if(listen_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // Connect in a background thread
@@ -31,7 +31,7 @@ func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
 
     // Try to recv — should time out after ~1s instead of hanging forever
     var buf : [1]u8
-    var n = net::raw::recv_all(client_sock, &raw mut buf[0], 1)
+    var n = unsafe(net::raw::recv_all(client_sock, &raw mut buf[0], 1))
     if(n > 0) {
         env.error("recv should not succeed on idle socket")
     }
@@ -45,7 +45,7 @@ func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
 @test
 func test_socket_echo(env : &mut TestEnv) {
     // Verify basic socket send/recv works (connect, send, recv, verify)
-    var listen_sock = net::raw::listen_addr("127.0.0.1", 19991u)
+    var listen_sock = unsafe(net::raw::listen_addr("127.0.0.1", 19991u))
     if(listen_sock == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // Spawn a client thread that connects, sends "ping", then waits
@@ -69,7 +69,7 @@ func test_socket_echo(env : &mut TestEnv) {
     // Read with timeout
     net::raw::set_recv_timeout(client_sock, 3, 0)
     var buf : [16]u8
-    var n = net::raw::recv_all(client_sock, &raw mut buf[0], 16)
+    var n = unsafe(net::raw::recv_all(client_sock, &raw mut buf[0], 16))
     if(n <= 0) { env.error("recv failed or timed out"); }
     else if(n < 5) {
         env.error("received too little data")

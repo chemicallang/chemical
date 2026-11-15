@@ -8,10 +8,14 @@ public struct Location {
 }
 
 @extern
+// Compiler runtime hook: `panic(...)` and generated failure paths call this
+// directly. It is an ABI symbol, not a source-level API, so it stays a plain
+// declaration — marking it `unsafe func` would make ordinary `panic("x")`
+// require an unsafe block through the expansion.
 public func __chc_panic(message : *char, file : *char, line : uint, column : uint)
 
 @retained
-public func raw_panic(message : *char, location : Location) {
+public unsafe func raw_panic(message : *char, location : Location) {
     unsafe { __chc_panic(message, location.filename, location.line, location.character) }
 }
 
@@ -22,5 +26,5 @@ comptime func decode_location(loc : ubigint) : Location {
 
 @expand
 public comptime func panic(message : %runtime<*char>) {
-    raw_panic(message, decode_location(intrinsics::get_call_loc(999)))
+    unsafe(raw_panic(message, decode_location(intrinsics::get_call_loc(999))))
 }

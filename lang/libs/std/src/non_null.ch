@@ -31,9 +31,9 @@ public struct NonNull<T> {
  * is non-null), so it aborts instead of producing an invalid wrapper. Use
  * `non_null_try` when null is an expected outcome.
  */
-public func <T> non_null(ptr : *mut T) : NonNull<T> {
+public unsafe func <T> non_null(ptr : *mut T) : NonNull<T> {
     if(ptr == null) {
-        panic("NonNull cannot wrap a null pointer")
+        unsafe(panic("NonNull cannot wrap a null pointer"))
     }
     return unsafe(non_null_unchecked<T>(ptr))
 }
@@ -42,11 +42,11 @@ public func <T> non_null(ptr : *mut T) : NonNull<T> {
  * Checked constructor that preserves the non-null invariant and reports null
  * as `None` instead of aborting.
  */
-public func <T> non_null_try(ptr : *mut T) : Option<NonNull<T>> {
+public unsafe func <T> non_null_try(ptr : *mut T) : Option<NonNull<T>> {
     if(ptr == null) {
         return Option.None<NonNull<T>>()
     }
-    return Option.Some<NonNull<T>>(non_null<T>(ptr))
+    return Option.Some<NonNull<T>>(unsafe(non_null<T>(ptr)))
 }
 
 /**

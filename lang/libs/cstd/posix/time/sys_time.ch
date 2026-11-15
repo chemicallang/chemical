@@ -15,4 +15,4 @@ public struct timeval {
  * @return 0 on success, –1 on error.
  */
 @extern
-public func gettimeofday(tv : *mut timeval, tz : *mut void) : int
+public unsafe func gettimeofday(tv : *mut timeval, tz : *mut void) : int

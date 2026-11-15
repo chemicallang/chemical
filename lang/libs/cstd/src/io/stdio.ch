@@ -16,7 +16,7 @@ public struct fpos_t {
  * @see https://en.cppreference.com/w/c/io/fopen
  */
 @extern
-public func fopen(filename : *char, mode : *char) : *mut FILE
+public unsafe func fopen(filename : *char, mode : *char) : *mut FILE
 
 /**
  * Same as fopen, except that the pointer to the file stream is written to streamptr and the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -31,7 +31,7 @@ public func fopen(filename : *char, mode : *char) : *mut FILE
  * @see https://en.cppreference.com/w/c/io/fopen
  */
 @extern
-public func fopen_s(streamptr : **mut FILE, filename : *char, mode : *char) : errno_t
+public unsafe func fopen_s(streamptr : **mut FILE, filename : *char, mode : *char) : errno_t
 
 /**
  * First, attempts to close the file associated with stream, ignoring any errors. Then, if filename is not null, attempts to open the file specified by filename using mode as if by fopen, and associates that file with the file stream pointed to by stream. If filename is a null pointer, then the function attempts to reopen the file that is already associated with stream (it is implementation defined which mode changes are allowed in this case).
@@ -42,7 +42,7 @@ public func fopen_s(streamptr : **mut FILE, filename : *char, mode : *char) : er
  * @see https://en.cppreference.com/w/c/io/freopen
  */
 @extern
-public func freopen(filename : *char, mode : *char, stream : *mut FILE) : *FILE
+public unsafe func freopen(filename : *char, mode : *char, stream : *mut FILE) : *FILE
 
 /**
  * Same as (1), except that mode is treated as in fopen_s and that the pointer to the file stream is written to newstreamptr and the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -58,7 +58,7 @@ public func freopen(filename : *char, mode : *char, stream : *mut FILE) : *FILE
  * @see https://en.cppreference.com/w/c/io/freopen
  */
 @extern
-public func freopen_s(newstreamptr : **mut FILE, filename : *char, mode : *char, stream : *mut FILE) : errno_t
+public unsafe func freopen_s(newstreamptr : **mut FILE, filename : *char, mode : *char, stream : *mut FILE) : errno_t
 
 /**
  * Closes the given file stream. Any unwritten buffered data are flushed to the OS. Any unread buffered data are discarded.
@@ -69,7 +69,7 @@ public func freopen_s(newstreamptr : **mut FILE, filename : *char, mode : *char,
  * @see https://en.cppreference.com/w/c/io/fclose
  */
 @extern
-public func fclose(stream : *mut FILE) : int
+public unsafe func fclose(stream : *mut FILE) : int
 
 /**
  * For output streams (and for update streams on which the last operation was output), writes any unwritten data from the stream's buffer to the associated output device.
@@ -80,7 +80,7 @@ public func fclose(stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/fflush
  */
 @extern
-public func fflush(stream : *mut FILE) : int
+public unsafe func fflush(stream : *mut FILE) : int
 
 /**
  * Sets the internal buffer to use for stream operations. It should be at least BUFSIZ characters long.
@@ -91,7 +91,7 @@ public func fflush(stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/setbuf
  */
 @extern
-public func setbuf(stream : *FILE, buffer : *char);
+public unsafe func setbuf(stream : *FILE, buffer : *char);
 
 /**
  * TODO macro
@@ -114,7 +114,7 @@ public func setbuf(stream : *FILE, buffer : *char);
  * @see https://en.cppreference.com/w/c/io/setvbuf
  */
 @extern
-public func setvbuf(stream : *mut FILE, buffer : *mut char, mode : int, size : size_t) : int
+public unsafe func setvbuf(stream : *mut FILE, buffer : *mut char, mode : int, size : size_t) : int
 
 /**
  * Reads up to count objects into the array buffer from the given input stream stream as if by calling fgetc size times for each object, and storing the results, in the order obtained, into the successive positions of buffer, which is reinterpreted as an array of unsigned char. The file position indicator for the stream is advanced by the number of characters read.
@@ -128,7 +128,7 @@ public func setvbuf(stream : *mut FILE, buffer : *mut char, mode : int, size : s
  *         fread does not distinguish between end-of-file and error, and callers must use feof and ferror to determine which occurred.
  */
 @extern
-public func fread(buffer : *mut void, size : size_t, count : size_t, stream : *mut FILE) : size_t
+public unsafe func fread(buffer : *mut void, size : size_t, count : size_t, stream : *mut FILE) : size_t
 
 /**
  * Writes count of objects from the given array buffer to the output stream stream. The objects are written as if by reinterpreting each object as an array of unsigned char and calling fputc size times for each object to write those unsigned chars into stream, in order. The file position indicator for the stream is advanced by the number of characters written.
@@ -142,7 +142,7 @@ public func fread(buffer : *mut void, size : size_t, count : size_t, stream : *m
  * @see https://en.cppreference.com/w/c/io/fwrite
  */
 @extern
-public func fwrite(buffer : *void, size : size_t, count : size_t, stream : *mut FILE) : size_t
+public unsafe func fwrite(buffer : *void, size : size_t, count : size_t, stream : *mut FILE) : size_t
 
 /**
  * Reads the next character from the given input stream.
@@ -152,7 +152,7 @@ public func fwrite(buffer : *void, size : size_t, count : size_t, stream : *mut 
  * @see https://en.cppreference.com/w/c/io/fgetc
  */
 @extern
-public func fgetc(stream : *mut FILE) : int
+public unsafe func fgetc(stream : *mut FILE) : int
 
 /**
  * Reads at most count - 1 characters from the given file stream and stores them in the character array pointed to by str. Parsing stops if a newline character is found (in which case str will contain that newline character) or if end-of-file occurs. If bytes are read and no errors occur, writes a null character at the position immediately after the last character written to str.
@@ -165,7 +165,7 @@ public func fgetc(stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/fgets
  */
 @extern
-public func fgets(str : *mut char, count : int, stream : *mut FILE) : *mut char
+public unsafe func fgets(str : *mut char, count : int, stream : *mut FILE) : *mut char
 
 /**
  * Writes a character ch to the given output stream stream. putc() may be implemented as a macro and evaluate stream more than once, so the corresponding argument should never be an expression with side effects.
@@ -177,7 +177,7 @@ public func fgets(str : *mut char, count : int, stream : *mut FILE) : *mut char
  * @see https://en.cppreference.com/w/c/io/fputc
  */
 @extern
-public func fputc(ch : int, stream : *mut FILE) : int
+public unsafe func fputc(ch : int, stream : *mut FILE) : int
 
 /**
  * Writes a character ch to the given output stream stream. putc() may be implemented as a macro and evaluate stream more than once, so the corresponding argument should never be an expression with side effects.
@@ -189,7 +189,7 @@ public func fputc(ch : int, stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/fputc
  */
 @extern
-public func putc(ch : int, stream : *mut FILE) : int
+public unsafe func putc(ch : int, stream : *mut FILE) : int
 
 /**
  * Writes every character from the null-terminated string str to the output stream stream, as if by repeatedly executing fputc.
@@ -201,7 +201,7 @@ public func putc(ch : int, stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/fputs
  */
 @extern
-public func fputs(str : *char, stream : *mut FILE) : int
+public unsafe func fputs(str : *char, stream : *mut FILE) : int
 
 /**
  * Reads the next character from stdin.
@@ -233,7 +233,7 @@ public func putchar(ch : int) : int
  * @see https://en.cppreference.com/w/c/io/puts
  */
 @extern
-public func puts(str : *char) : int
+public unsafe func puts(str : *char) : int
 
 /**
  * If ch does not equal EOF, pushes the character ch (reinterpreted as unsigned char) into the input buffer associated with the stream stream in such a manner that subsequent read operation from stream will retrieve that character. The external device associated with the stream is not modified.
@@ -250,7 +250,7 @@ public func puts(str : *char) : int
  * @see https://en.cppreference.com/w/c/io/ungetc
  */
 @extern
-public func ungetc(ch : int, stream : *mut FILE) : int
+public unsafe func ungetc(ch : int, stream : *mut FILE) : int
 
 
 /**
@@ -273,7 +273,7 @@ public func ungetc(ch : int, stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func scanf(format : *char, _ : any... ) : int
+public unsafe func scanf(format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -295,7 +295,7 @@ public func scanf(format : *char, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
+public unsafe func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -317,7 +317,7 @@ public func fscanf(stream : *mut FILE, format : *char, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func sscanf(buffer : *char, format : *char, _ : any... ) : int
+public unsafe func sscanf(buffer : *char, format : *char, _ : any... ) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -344,7 +344,7 @@ public func sscanf(buffer : *char, format : *char, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func scanf_s(format : *char, _ : any...) : int
+public unsafe func scanf_s(format : *char, _ : any...) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -371,7 +371,7 @@ public func scanf_s(format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
+public unsafe func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
  * Reads data from a variety of sources, interprets it according to format and stores the results into given locations.
@@ -398,7 +398,7 @@ public func fscanf_s(stream : *mut FILE, format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fscanf
  */
 @extern
-public func sscanf_s(buffer : *char, format : *char, _ : any...) : int
+public unsafe func sscanf_s(buffer : *char, format : *char, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -420,7 +420,7 @@ public func sscanf_s(buffer : *char, format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vscanf(format : *char, vlist : va_list ) : int
+public unsafe func vscanf(format : *char, vlist : va_list ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -442,7 +442,7 @@ public func vscanf(format : *char, vlist : va_list ) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vfscanf(stream : *mut FILE, format : *char, vlist : va_list) : int
+public unsafe func vfscanf(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -464,7 +464,7 @@ public func vfscanf(stream : *mut FILE, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vsscanf(buffer : *char, format : *char, vlist : va_list) : int
+public unsafe func vsscanf(buffer : *char, format : *char, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -491,7 +491,7 @@ public func vsscanf(buffer : *char, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vscanf_s(format : *char, vlist : va_list) : int
+public unsafe func vscanf_s(format : *char, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -518,7 +518,7 @@ public func vscanf_s(format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vfscanf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
+public unsafe func vfscanf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -545,7 +545,7 @@ public func vfscanf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfscanf
  */
 @extern
-public func vsscanf_s(buffer : *char, format : *char, vlist : va_list) : int
+public unsafe func vsscanf_s(buffer : *char, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -571,7 +571,7 @@ public func vsscanf_s(buffer : *char, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func printf(format : *char, _ : any...) : int
+public unsafe func printf(format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -597,7 +597,7 @@ public func printf(format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func fprintf(stream : *mut FILE, format : *char, _ : any...) : int
+public unsafe func fprintf(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -623,7 +623,7 @@ public func fprintf(stream : *mut FILE, format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func sprintf(buffer : *mut char, format : *char, _ : any...) : int
+public unsafe func sprintf(buffer : *mut char, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -649,7 +649,7 @@ public func sprintf(buffer : *mut char, format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
+public unsafe func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -682,7 +682,7 @@ public func snprintf(buffer : *mut char, bufsz : size_t, format : *char, _ : any
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func printf_s(format : *char, _ : any...) : int
+public unsafe func printf_s(format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -715,7 +715,7 @@ public func printf_s(format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func fprintf_s(stream : *mut FILE, format : *char, _ : any...) : int
+public unsafe func fprintf_s(stream : *mut FILE, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -748,7 +748,7 @@ public func fprintf_s(stream : *mut FILE, format : *char, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func sprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
+public unsafe func sprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to character string equivalents and writes the results to a variety of sinks/streams
@@ -781,7 +781,7 @@ public func sprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : a
  * @see https://en.cppreference.com/w/c/io/fprintf
  */
 @extern
-public func snprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
+public unsafe func snprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : any...) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -807,7 +807,7 @@ public func snprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, _ : 
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vprintf(format : *char, vlist : va_list) : int
+public unsafe func vprintf(format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -833,7 +833,7 @@ public func vprintf(format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vfprintf(stream : *FILE, format : *char, vlist : va_list) : int
+public unsafe func vfprintf(stream : *FILE, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -859,7 +859,7 @@ public func vfprintf(stream : *FILE, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vsprintf(buffer : *mut char, format : *char, vlist : va_list) : int
+public unsafe func vsprintf(buffer : *mut char, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -885,7 +885,7 @@ public func vsprintf(buffer : *mut char, format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vsnprintf(buffer : *mut char, bufsz : size_t, format : *char, vlist : va_list) : int
+public unsafe func vsnprintf(buffer : *mut char, bufsz : size_t, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -918,7 +918,7 @@ public func vsnprintf(buffer : *mut char, bufsz : size_t, format : *char, vlist 
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vprintf_s(format : *char, vlist : va_list) : int
+public unsafe func vprintf_s(format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -951,7 +951,7 @@ public func vprintf_s(format : *char, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vfprintf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
+public unsafe func vfprintf_s(stream : *mut FILE, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -984,7 +984,7 @@ public func vfprintf_s(stream : *mut FILE, format : *char, vlist : va_list) : in
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
+public unsafe func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
 
 /**
  * Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a variety of sinks.
@@ -1017,7 +1017,7 @@ public func vsprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlis
  * @see https://en.cppreference.com/w/c/io/vfprintf
  */
 @extern
-public func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
+public unsafe func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vlist : va_list) : int
 
 
 /**
@@ -1030,7 +1030,7 @@ public func vsnprintf_s(buffer : *mut char, bufsz : rsize_t, format : *char, vli
  * @see https://en.cppreference.com/w/c/io/ftell
  */
 @extern
-public func ftell(stream : *mut FILE) : long
+public unsafe func ftell(stream : *mut FILE) : long
 
 /**
  * Obtains the file position indicator and the current parse state (if any) for the file stream stream and stores them in the object pointed to by pos. The value stored is only meaningful as the input to fsetpos.
@@ -1040,7 +1040,7 @@ public func ftell(stream : *mut FILE) : long
  * @see https://en.cppreference.com/w/c/io/fgetpos
  */
 @extern
-public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
+public unsafe func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
 
 /**
  * Sets the file position indicator for the file stream stream to the value pointed to by offset.
@@ -1056,7 +1056,7 @@ public func fgetpos(stream : *mut FILE, pos : *mut fpos_t) : int
  * @see https://en.cppreference.com/w/c/io/fseek
  */
 @extern
-public func fseek(stream : *mut FILE, offset : long, origin : int) : int
+public unsafe func fseek(stream : *mut FILE, offset : long, origin : int) : int
 
 /**
  * argument to fseek indicating seeking from beginning of the file
@@ -1092,7 +1092,7 @@ public comptime const EOF : int = -1;
  * @see https://en.cppreference.com/w/c/io/fsetpos
  */
 @extern
-public func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
+public unsafe func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
 
 /**
  * Moves the file position indicator to the beginning of the given file stream.
@@ -1102,7 +1102,7 @@ public func fsetpos(stream : *mut FILE, pos : *fpos_t) : int
  * @see https://en.cppreference.com/w/c/io/rewind
  */
 @extern
-public func rewind(stream : *mut FILE) : void
+public unsafe func rewind(stream : *mut FILE) : void
 
 /**
  * Resets the error flags and the EOF indicator for the given file stream.
@@ -1110,7 +1110,7 @@ public func rewind(stream : *mut FILE) : void
  * @see https://en.cppreference.com/w/c/io/clearerr
  */
 @extern
-public func clearerr(stream : *mut FILE) : void
+public unsafe func clearerr(stream : *mut FILE) : void
 
 /**
  * Checks if the end of the given file stream has been reached.
@@ -1119,7 +1119,7 @@ public func clearerr(stream : *mut FILE) : void
  * @see https://en.cppreference.com/w/c/io/feof
  */
 @extern
-public func feof(stream : *mut FILE) : int
+public unsafe func feof(stream : *mut FILE) : int
 
 /**
  * Checks the given stream for errors.
@@ -1128,7 +1128,7 @@ public func feof(stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/ferror
  */
 @extern
-public func ferror(stream : *mut FILE) : int
+public unsafe func ferror(stream : *mut FILE) : int
 
 /**
  * Prints a textual description of the error code currently stored in the system variable errno to stderr.
@@ -1139,7 +1139,7 @@ public func ferror(stream : *mut FILE) : int
  * @see https://en.cppreference.com/w/c/io/perror
  */
 @extern
-public func perror(s : *char);
+public unsafe func perror(s : *char);
 
 /**
  * Deletes the file identified by the character string pointed to by pathname.
@@ -1149,7 +1149,7 @@ public func perror(s : *char);
  * @see https://en.cppreference.com/w/c/io/remove
  */
 @extern
-public func remove(pathname : *char) : int
+public unsafe func remove(pathname : *char) : int
 
 /**
  * Changes the filename of a file. The file is identified by character string pointed to by old_filename. The new filename is identified by character string pointed to by new_filename.
@@ -1160,7 +1160,7 @@ public func remove(pathname : *char) : int
  * @see https://en.cppreference.com/w/c/io/rename
  */
 @extern
-public func rename(old_filename : *char, new_filename : *char) : int
+public unsafe func rename(old_filename : *char, new_filename : *char) : int
 
 /**
  * Creates and opens a temporary file. The file is opened as binary file for update (as if by fopen with "wb+" mode). The filename of the file is guaranteed to be unique within the filesystem. At least TMP_MAX files may be opened during the lifetime of a program (this limit may be shared with tmpnam and may be further limited by FOPEN_MAX).
@@ -1178,7 +1178,7 @@ public func tmpfile() : *mut FILE
  * @see https://en.cppreference.com/w/c/io/tmpfile
  */
 @extern
-public func tmpfile_s(streamptr : *mut FILE) : errno_t
+public unsafe func tmpfile_s(streamptr : *mut FILE) : errno_t
 
 /**
  * Creates a unique valid file name (no longer than L_tmpnam in length) and stores it in character string pointed to by filename. The function is capable of generating up to TMP_MAX of unique filenames, but some or all of them may be in use in the filesystem and thus not suitable return values.
@@ -1190,7 +1190,7 @@ public func tmpfile_s(streamptr : *mut FILE) : errno_t
  * @see https://en.cppreference.com/w/c/io/tmpnam
  */
 @extern
-public func tmpnam(filename : *mut char) : *mut char
+public unsafe func tmpnam(filename : *mut char) : *mut char
 
 /**
  * Same as (1), except that up to TMP_MAX_S names may be generated, no longer than L_tmpnam_s in length, and the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1206,7 +1206,7 @@ public func tmpnam(filename : *mut char) : *mut char
  * @see https://en.cppreference.com/w/c/io/tmpnam
  */
 @extern
-public func tmpnam_s(filename : *mut char, maxsize : rsize_t) : errno_t
+public unsafe func tmpnam_s(filename : *mut char, maxsize : rsize_t) : errno_t
 
 /**
  * TODO these macros about tmpnam

@@ -170,10 +170,10 @@ public func INT_gcm_auth_decrypt_wrong_tag(env : &mut TestEnv) {
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
 
     var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
-    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var ret = unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16))
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var ct : [64]u8; var tag : [16]u8
-    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
+    ret = unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0]))
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
     var wrong_tag : [16]u8
@@ -181,9 +181,9 @@ public func INT_gcm_auth_decrypt_wrong_tag(env : &mut TestEnv) {
     wrong_tag[0] = wrong_tag[0] ^ 0xFF
 
     var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
-    gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+    unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16))
     var dec_out : [64]u8
-    ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw wrong_tag[0], 16, &raw mut dec_out[0])
+    ret = unsafe(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw wrong_tag[0], 16, &raw mut dec_out[0]))
     if(ret >= 0) { env.error("auth_decrypt should have failed with wrong tag"); return } else {}
 }
 
@@ -200,16 +200,16 @@ public func INT_gcm_varying_sizes(env : &mut TestEnv) {
         var pt : [1024]u8; test_random_bytes(&raw mut pt[0], pt_len)
 
         var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
-        var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+        var ret = unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16))
         if(ret < 0) { env.error("gcm_init failed"); return } else {}
         var ct : [1024]u8; var tag : [16]u8
-        ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], pt_len, &raw mut ct[0], &raw mut tag[0])
+        ret = unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], pt_len, &raw mut ct[0], &raw mut tag[0]))
         if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
         var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
-        gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+        unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16))
         var dec : [1024]u8
-        ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], pt_len, &raw tag[0], 16, &raw mut dec[0])
+        ret = unsafe(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], pt_len, &raw tag[0], 16, &raw mut dec[0]))
         if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
         if(!test_bytes_eq(&raw dec[0], &raw pt[0], pt_len)) { env.error("GCM varying size roundtrip failed"); return } else {}
 
@@ -339,20 +339,20 @@ public func INT_aes_cbc_128_roundtrip(env : &mut TestEnv) {
     var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
 
     var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>())
-    aes_init(unsafe(&raw mut ctx))
-    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
+    unsafe(aes_init(unsafe(&raw mut ctx)))
+    var ret = unsafe(aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16))
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
 
     var enc_out : [80]u8
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
-    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
+    ret = unsafe(aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0]))
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
-    ret = aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
+    ret = unsafe(aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16))
     if(ret < 0) { env.error("aes_setkey_dec failed"); return } else {}
     var dec_iv : [16]u8; ii = 0; while(ii < 16) { dec_iv[ii] = iv[ii]; ii += 1 }
     var dec_out : [80]u8
-    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
+    ret = unsafe(aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0]))
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 64)) { env.error("AES-128 CBC roundtrip failed"); return } else {}
@@ -365,20 +365,20 @@ public func INT_aes_cbc_256_roundtrip(env : &mut TestEnv) {
     var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
 
     var ctx : AESContext = unsafe(std::mem.zeroed_unchecked<AESContext>())
-    aes_init(unsafe(&raw mut ctx))
-    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
+    unsafe(aes_init(unsafe(&raw mut ctx)))
+    var ret = unsafe(aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32))
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
 
     var enc_out : [80]u8
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
-    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
+    ret = unsafe(aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0]))
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
-    ret = aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 32)
+    ret = unsafe(aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 32))
     if(ret < 0) { env.error("aes_setkey_dec failed"); return } else {}
     var dec_iv : [16]u8; ii = 0; while(ii < 16) { dec_iv[ii] = iv[ii]; ii += 1 }
     var dec_out : [80]u8
-    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
+    ret = unsafe(aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0]))
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 64)) { env.error("AES-256 CBC roundtrip failed"); return } else {}
@@ -834,7 +834,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     // RFC 7748 Section 5.2 test vector: X25519(9, 9)
     var scalar : [32]u8; scalar[0]=9; var i:size_t=1;while(i<32){scalar[i]=0;i+=1}
     var u_coord : [32]u8; u_coord[0]=9; i=1;while(i<32){u_coord[i]=0;i+=1}
-    var out : [32]u8; x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0])
+    var out : [32]u8; unsafe(x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0]))
     // Expected: 422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079
     var expect : [32]u8 = [
         0x42, 0x2c, 0x8e, 0x7a, 0x62, 0x27, 0xd7, 0xbc, 0xa1, 0x35, 0x0b, 0x3e, 0x2b, 0xb7, 0x27, 0x9f,
@@ -1305,24 +1305,24 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_mpi_shift_ops(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 0x12345678)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_copy(unsafe(&raw mut b), unsafe(&raw mut a))
-    mpi_shift_l(unsafe(&raw mut b), 8)
-    var c : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut c)); mpi_copy(unsafe(&raw mut c), unsafe(&raw mut b))
-    mpi_shift_r(unsafe(&raw mut c), 8)
-    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c)) != 0){env.error("shift roundtrip");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), 0x12345678))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_copy(unsafe(&raw mut b), unsafe(&raw mut a)))
+    unsafe(mpi_shift_l(unsafe(&raw mut b), 8))
+    var c : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut c))); unsafe(mpi_copy(unsafe(&raw mut c), unsafe(&raw mut b)))
+    unsafe(mpi_shift_r(unsafe(&raw mut c), 8))
+    if(unsafe(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c))) != 0){env.error("shift roundtrip");return}else{}
 }
 
 @test public func INT_mpi_cmp_ops(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 100)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 200)
-    var c : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut c)); mpi_lset(unsafe(&raw mut c), 100)
-    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut b)) >= 0){env.error("cmp a<b");return}else{}
-    if(mpi_cmp(unsafe(&raw mut b), unsafe(&raw mut a)) <= 0){env.error("cmp b>a");return}else{}
-    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c)) != 0){env.error("cmp a==c");return}else{}
-    if(mpi_cmp_int(unsafe(&raw mut a), 100) != 0){env.error("cmp int");return}else{}
-    if(mpi_size(unsafe(&raw mut a)) == 0){env.error("size zero");return}else{}
-    if(mpi_bitlen(unsafe(&raw mut a)) == 0){env.error("bitlen zero");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), 100))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), 200))
+    var c : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut c))); unsafe(mpi_lset(unsafe(&raw mut c), 100))
+    if(unsafe(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut b))) >= 0){env.error("cmp a<b");return}else{}
+    if(unsafe(mpi_cmp(unsafe(&raw mut b), unsafe(&raw mut a))) <= 0){env.error("cmp b>a");return}else{}
+    if(unsafe(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c))) != 0){env.error("cmp a==c");return}else{}
+    if(unsafe(mpi_cmp_int(unsafe(&raw mut a), 100)) != 0){env.error("cmp int");return}else{}
+    if(unsafe(mpi_size(unsafe(&raw mut a))) == 0){env.error("size zero");return}else{}
+    if(unsafe(mpi_bitlen(unsafe(&raw mut a))) == 0){env.error("bitlen zero");return}else{}
 }
 
 // ============================================================
@@ -1403,27 +1403,27 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_tls13_derive_app_keys(env : &mut TestEnv) {
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg))
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    if(tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0]) < 0){env.error("hs keys");return}else{}
-    if(tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32) < 0){env.error("app keys");return}else{}
+    if(unsafe(tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0])) < 0){env.error("hs keys");return}else{}
+    if(unsafe(tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32)) < 0){env.error("app keys");return}else{}
 }
 
 @test public func INT_tls13_key_update(env : &mut TestEnv) {
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg))
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0])
-    tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32)
-    if(tls13_update_send_keys(unsafe(&raw mut ctx)) < 0){env.error("update send");return}else{}
-    if(tls13_update_recv_keys(unsafe(&raw mut ctx)) < 0){env.error("update recv");return}else{}
+    unsafe(tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0]))
+    unsafe(tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32))
+    if(unsafe(tls13_update_send_keys(unsafe(&raw mut ctx))) < 0){env.error("update send");return}else{}
+    if(unsafe(tls13_update_recv_keys(unsafe(&raw mut ctx))) < 0){env.error("update recv");return}else{}
 }
 
 // ============================================================
@@ -1432,10 +1432,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_base64_roundtrip(env : &mut TestEnv) {
     var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
-    var enc : [72]char; var enc_r = crypto::raw::base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
+    var enc : [72]char; var enc_r = unsafe(crypto::raw::base64_encode(&raw data[0], 48, &raw mut enc[0], 72))
     if(enc_r is Result.Err){env.error("b64 enc");return}else{}
     var Ok(enc_len) = enc_r else unsafe { unreachable }
-    var dec : [48]u8; var dec_r = crypto::raw::base64_decode(&raw enc[0], enc_len, &raw mut dec[0], 48)
+    var dec : [48]u8; var dec_r = unsafe(crypto::raw::base64_decode(&raw enc[0], enc_len, &raw mut dec[0], 48))
     if(dec_r is Result.Err){env.error("b64 dec");return}else{}
     var Ok(dec_len) = dec_r else unsafe { unreachable }
     if(dec_len != 48 || !test_bytes_eq(&raw data[0], &raw dec[0], 48)){env.error("b64 roundtrip");return}else{}
@@ -1467,36 +1467,36 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
 @test public func INT_compound_ecdh_gcm(env : &mut TestEnv) {
     var alice_priv : [32]u8; var alice_pub : [32]u8
-    x25519_generate_keypair(&raw mut alice_priv[0], &raw mut alice_pub[0])
+    unsafe(x25519_generate_keypair(&raw mut alice_priv[0], &raw mut alice_pub[0]))
     var bob_priv : [32]u8; var bob_pub : [32]u8
-    x25519_generate_keypair(&raw mut bob_priv[0], &raw mut bob_pub[0])
-    var shared_a : [32]u8; x25519_compute_shared(&raw mut alice_priv[0], &raw bob_pub[0], &raw mut shared_a[0])
-    var shared_b : [32]u8; x25519_compute_shared(&raw mut bob_priv[0], &raw alice_pub[0], &raw mut shared_b[0])
+    unsafe(x25519_generate_keypair(&raw mut bob_priv[0], &raw mut bob_pub[0]))
+    var shared_a : [32]u8; unsafe(x25519_compute_shared(&raw mut alice_priv[0], &raw bob_pub[0], &raw mut shared_a[0]))
+    var shared_b : [32]u8; unsafe(x25519_compute_shared(&raw mut bob_priv[0], &raw alice_pub[0], &raw mut shared_b[0]))
     if(!test_bytes_eq(&raw shared_a[0], &raw shared_b[0], 32)){env.error("x25519 shared mismatch");return}else{}
     var key : [16]u8; var i : size_t = 0; while(i<16){key[i]=shared_a[i]^shared_a[16+i];i+=1}
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [40]u8; test_random_bytes(&raw mut pt[0], 40)
-    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16))
     var ct : [40]u8; var tag : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 40, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 40, &raw mut ct[0], &raw mut tag[0]))
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16))
     var dec : [40]u8
-    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 40, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound decrypt");return}else{}
+    if(unsafe(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 40, &raw tag[0], 16, &raw mut dec[0])) < 0){env.error("compound decrypt");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 40)){env.error("compound pt");return}else{}
 }
 
 @test public func INT_compound_hmac_gcm(env : &mut TestEnv) {
     var key_material : [32]u8; test_random_bytes(&raw mut key_material[0], 32)
     var salt : [16]u8; test_random_bytes(&raw mut salt[0], 16)
-    var hmac_key : [32]u8; crypto::raw::hmac_sha256(&raw salt[0], 16, &raw key_material[0], 32, &raw mut hmac_key[0])
+    var hmac_key : [32]u8; unsafe(crypto::raw::hmac_sha256(&raw salt[0], 16, &raw key_material[0], 32, &raw mut hmac_key[0]))
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw hmac_key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm), &raw hmac_key[0], 16))
     var ct : [48]u8; var tag : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 48, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw hmac_key[0], 16)
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 48, &raw mut ct[0], &raw mut tag[0]))
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm2), &raw hmac_key[0], 16))
     var dec : [48]u8
-    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 48, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound2 decrypt");return}else{}
+    if(unsafe(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 48, &raw tag[0], 16, &raw mut dec[0])) < 0){env.error("compound2 decrypt");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 48)){env.error("compound2 pt");return}else{}
 }
 
@@ -1529,15 +1529,15 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_x509_cert_init_free(env : &mut TestEnv) {
-    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut cert))
-    cert_free(unsafe(&raw mut cert))
+    var cert : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut cert)))
+    unsafe(cert_free(unsafe(&raw mut cert)))
 }
 
 @test public func INT_x509_constant_time(env : &mut TestEnv) {
     var a : [16]u8; var b : [32]u8
     test_random_bytes(&raw mut a[0], 16); test_random_bytes(&raw mut b[0], 32)
-    if(!crypto::raw::constant_time_equal(&raw a[0], &raw a[0], 16)){env.error("ct eq self");return}else{}
-    if(crypto::raw::constant_time_equal(&raw a[0], &raw b[0], 16)){env.error("ct eq diff");return}else{}
+    if(!(unsafe(crypto::raw::constant_time_equal(&raw a[0], &raw a[0], 16)))){env.error("ct eq self");return}else{}
+    if(unsafe(crypto::raw::constant_time_equal(&raw a[0], &raw b[0], 16))){env.error("ct eq diff");return}else{}
 }
 
 // ============================================================
@@ -1626,21 +1626,21 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_mpi_div_mod(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 1000)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 7)
-    var q : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut q)); var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut r))
-    mpi_div(unsafe(&raw mut q), unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
-    var q_val : [8]u8; mpi_write_binary(unsafe(&raw mut q), &raw mut q_val[0], 8)
-    var r_val : [8]u8; mpi_write_binary(unsafe(&raw mut r), &raw mut r_val[0], 8)
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), 1000))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), 7))
+    var q : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut q))); var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut r)))
+    unsafe(mpi_div(unsafe(&raw mut q), unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b)))
+    var q_val : [8]u8; unsafe(mpi_write_binary(unsafe(&raw mut q), &raw mut q_val[0], 8))
+    var r_val : [8]u8; unsafe(mpi_write_binary(unsafe(&raw mut r), &raw mut r_val[0], 8))
     if(q_val[7]!=142||r_val[7]!=6){env.error("mpi div/mod");return}else{}
 }
 
 @test public func INT_mpi_large_add(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), -1)
-    mpi_shift_l(unsafe(&raw mut a), 255)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 1)
-    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut r)); mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
-    var sz = mpi_size(unsafe(&raw mut r))
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), -1))
+    unsafe(mpi_shift_l(unsafe(&raw mut a), 255))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), 1))
+    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut r))); unsafe(mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b)))
+    var sz = unsafe(mpi_size(unsafe(&raw mut r)))
     if(sz != 32){env.error("large add size");return}else{}
 }
 
@@ -1649,69 +1649,69 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_consistency_p256_ng(env : &mut TestEnv) {
-    var Gx : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut Gx)); ecp_curve_gx(unsafe(&raw mut Gx))
-    var Gy : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut Gy)); ecp_curve_gy(unsafe(&raw mut Gy))
-    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut p)); ecp_curve_p(unsafe(&raw mut p))
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); ecp_curve_b(unsafe(&raw mut b))
-    var lhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut lhs))
-    mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut Gy), unsafe(&raw mut Gy)); mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
-    var x3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut x3))
-    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut Gx), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p))
-    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p))
-    var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut rhs))
-    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x3), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0){env.error("G not on curve");return}else{}
+    var Gx : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut Gx))); unsafe(ecp_curve_gx(unsafe(&raw mut Gx)))
+    var Gy : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut Gy))); unsafe(ecp_curve_gy(unsafe(&raw mut Gy)))
+    var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut p))); unsafe(ecp_curve_p(unsafe(&raw mut p)))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(ecp_curve_b(unsafe(&raw mut b)))
+    var lhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut lhs)))
+    unsafe(mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut Gy), unsafe(&raw mut Gy))); unsafe(mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p)))
+    var x3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut x3)))
+    unsafe(mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut Gx), unsafe(&raw mut Gx))); unsafe(mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p)))
+    unsafe(mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut Gx))); unsafe(mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p)))
+    var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut rhs)))
+    unsafe(mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x3), unsafe(&raw mut Gx))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    unsafe(mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    unsafe(mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    unsafe(mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b))); unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    if(unsafe(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs))) != 0){env.error("G not on curve");return}else{}
 }
 
 @test public func INT_consistency_ecdh_2g_3g(env : &mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var k2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k2)); mpi_lset(unsafe(&raw mut k2), 2)
-    var R2 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R2))
-    ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G))
-    var k3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k3)); mpi_lset(unsafe(&raw mut k3), 3)
-    var R3 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R3))
-    ecp_mul(unsafe(&raw mut R3), unsafe(&raw mut k3), unsafe(&raw mut G))
-    var P_aff : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut P_aff))
-    ecp_curve_gx(unsafe(&raw mut P_aff.X)); ecp_curve_gy(unsafe(&raw mut P_aff.Y)); mpi_lset(unsafe(&raw mut P_aff.Z), 1)
-    var R2G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R2G))
-    ecp_add_jac(unsafe(&raw mut R2G), unsafe(&raw mut R2), unsafe(&raw mut P_aff))
-    ecp_normalize_jac(unsafe(&raw mut R2G))
-    ecp_normalize_jac(unsafe(&raw mut R3))
-    if(mpi_cmp(unsafe(&raw mut R2G.X), unsafe(&raw mut R3.X)) != 0){env.error("2G+G != 3G");return}else{}
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var k2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k2))); unsafe(mpi_lset(unsafe(&raw mut k2), 2))
+    var R2 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R2)))
+    unsafe(ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G)))
+    var k3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k3))); unsafe(mpi_lset(unsafe(&raw mut k3), 3))
+    var R3 : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R3)))
+    unsafe(ecp_mul(unsafe(&raw mut R3), unsafe(&raw mut k3), unsafe(&raw mut G)))
+    var P_aff : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut P_aff)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut P_aff.X))); unsafe(ecp_curve_gy(unsafe(&raw mut P_aff.Y))); unsafe(mpi_lset(unsafe(&raw mut P_aff.Z), 1))
+    var R2G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R2G)))
+    unsafe(ecp_add_jac(unsafe(&raw mut R2G), unsafe(&raw mut R2), unsafe(&raw mut P_aff)))
+    unsafe(ecp_normalize_jac(unsafe(&raw mut R2G)))
+    unsafe(ecp_normalize_jac(unsafe(&raw mut R3)))
+    if(unsafe(mpi_cmp(unsafe(&raw mut R2G.X), unsafe(&raw mut R3.X))) != 0){env.error("2G+G != 3G");return}else{}
 }
 
 @test public func INT_consistency_ecdh_zero_check(env : &mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var k0 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k0)); mpi_lset(unsafe(&raw mut k0), 0)
-    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R))
-    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k0), unsafe(&raw mut G))
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var k0 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k0))); unsafe(mpi_lset(unsafe(&raw mut k0), 0))
+    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R)))
+    var ret = unsafe(ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k0), unsafe(&raw mut G)))
     if(ret < 0){env.error("zero mul failed");return}else{}
-    ecp_normalize_jac(unsafe(&raw mut R))
-    if(!mpi_is_zero(unsafe(&raw mut R.X)) || !mpi_is_zero(unsafe(&raw mut R.Y))){env.error("0*G should be zero");return}else{}
+    unsafe(ecp_normalize_jac(unsafe(&raw mut R)))
+    if(!(unsafe(mpi_is_zero(unsafe(&raw mut R.X)))) || !(unsafe(mpi_is_zero(unsafe(&raw mut R.Y))))){env.error("0*G should be zero");return}else{}
 }
 
 @test public func INT_consistency_ecdh_identity(env : &mut TestEnv) {
-    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut G))
-    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
-    var k1 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut k1)); mpi_lset(unsafe(&raw mut k1), 1)
-    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); ecp_point_init(unsafe(&raw mut R))
-    ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k1), unsafe(&raw mut G))
-    ecp_normalize_jac(unsafe(&raw mut R))
-    if(mpi_cmp(unsafe(&raw mut R.X), unsafe(&raw mut G.X)) != 0 || mpi_cmp(unsafe(&raw mut R.Y), unsafe(&raw mut G.Y)) != 0){env.error("1*G != G");return}else{}
+    var G : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut G)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut G.X))); unsafe(ecp_curve_gy(unsafe(&raw mut G.Y))); unsafe(mpi_lset(unsafe(&raw mut G.Z), 1))
+    var k1 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut k1))); unsafe(mpi_lset(unsafe(&raw mut k1), 1))
+    var R : ECPPoint = unsafe(std::mem.zeroed_unchecked<ECPPoint>()); unsafe(ecp_point_init(unsafe(&raw mut R)))
+    unsafe(ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k1), unsafe(&raw mut G)))
+    unsafe(ecp_normalize_jac(unsafe(&raw mut R)))
+    if(unsafe(mpi_cmp(unsafe(&raw mut R.X), unsafe(&raw mut G.X))) != 0 || unsafe(mpi_cmp(unsafe(&raw mut R.Y), unsafe(&raw mut G.Y))) != 0){env.error("1*G != G");return}else{}
 }
 
 @test public func INT_consistency_transform_init(env : &mut TestEnv) {
-    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); unsafe(transform_init(unsafe(&raw mut tr)))
     if(tr.cipher_type != 0 || tr.hash_type != 0){env.error("transform init");return}else{}
 }
 
 @test public func INT_consistency_ssl_context_init(env : &mut TestEnv) {
-    var ssl : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ssl))
+    var ssl : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ssl)))
     if(unsafe(ssl.tls_version) != 0){env.error("ssl init");return}else{}
 }
 
@@ -1737,7 +1737,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_consistency_hkdf_key_schedule(env : &mut TestEnv) {
-    var ks : TLS13KeySchedule = unsafe(std::mem.zeroed_unchecked<TLS13KeySchedule>()); tls13_key_schedule_init(unsafe(&raw mut ks))
+    var ks : TLS13KeySchedule = unsafe(std::mem.zeroed_unchecked<TLS13KeySchedule>()); unsafe(tls13_key_schedule_init(unsafe(&raw mut ks)))
     if(ks.hash_algorithm != 0){env.error("ks init");return}else{}
 }
 
@@ -1749,12 +1749,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
-    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
+    var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16))
     var ct : [16]u8; var tag : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0]))
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16))
     var dec : [16]u8
-    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("null aad");return}else{}
+    if(unsafe(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw tag[0], 16, &raw mut dec[0])) < 0){env.error("null aad");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 16)){env.error("null aad pt");return}else{}
 }
 
@@ -1763,12 +1763,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
     var iv1 : [12]u8; var i : size_t = 0; while(i<12){iv1[i]=i as u8;i+=1}
-    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm1), &raw key[0], 16)
-    gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm1), &raw key[0], 16))
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0]))
     var iv2 : [12]u8; i=0; while(i<12){iv2[i]=i as u8;i+=1} iv2[0]=iv2[0]^1
     var ct2 : [16]u8; var tag2 : [16]u8
-    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
-    gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16))
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0]))
     if(test_bytes_eq(&raw ct1[0], &raw ct2[0], 16)){env.error("same ct different iv");return}else{}
 }
 
@@ -1778,11 +1778,11 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
-    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm1), &raw key1[0], 16)
-    gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    var gcm1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm1), &raw key1[0], 16))
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0]))
     var ct2 : [16]u8; var tag2 : [16]u8
-    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut gcm2), &raw key2[0], 16)
-    gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    var gcm2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut gcm2), &raw key2[0], 16))
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0]))
     if(test_bytes_eq(&raw ct1[0], &raw ct2[0], 16)){env.error("same ct diff key");return}else{}
 }
 
@@ -1794,8 +1794,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var d1 : [16]u8; test_random_bytes(&raw mut d1[0], 16)
     var d2 : [16]u8; test_random_bytes(&raw mut d2[0], 16)
-    var m1 : [32]u8; crypto::raw::hmac_sha256(&raw key[0], 16, &raw d1[0], 16, &raw mut m1[0])
-    var m2 : [32]u8; crypto::raw::hmac_sha256(&raw key[0], 16, &raw d2[0], 16, &raw mut m2[0])
+    var m1 : [32]u8; unsafe(crypto::raw::hmac_sha256(&raw key[0], 16, &raw d1[0], 16, &raw mut m1[0]))
+    var m2 : [32]u8; unsafe(crypto::raw::hmac_sha256(&raw key[0], 16, &raw d2[0], 16, &raw mut m2[0]))
     if(test_bytes_eq(&raw m1[0], &raw m2[0], 32)){env.error("same mac diff data");return}else{}
 }
 
@@ -1803,8 +1803,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var k1 : [16]u8; test_random_bytes(&raw mut k1[0], 16)
     var k2 : [16]u8; test_random_bytes(&raw mut k2[0], 16)
     var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
-    var m1 : [32]u8; crypto::raw::hmac_sha256(&raw k1[0], 16, &raw data[0], 16, &raw mut m1[0])
-    var m2 : [32]u8; crypto::raw::hmac_sha256(&raw k2[0], 16, &raw data[0], 16, &raw mut m2[0])
+    var m1 : [32]u8; unsafe(crypto::raw::hmac_sha256(&raw k1[0], 16, &raw data[0], 16, &raw mut m1[0]))
+    var m2 : [32]u8; unsafe(crypto::raw::hmac_sha256(&raw k2[0], 16, &raw data[0], 16, &raw mut m2[0]))
     if(test_bytes_eq(&raw m1[0], &raw m2[0], 32)){env.error("same mac diff key");return}else{}
 }
 
@@ -1813,44 +1813,44 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_consistency_mpi_zero(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a))
-    if(!mpi_is_zero(unsafe(&raw mut a))){env.error("zero not zero");return}else{}
-    mpi_lset(unsafe(&raw mut a), 0)
-    if(!mpi_is_zero(unsafe(&raw mut a))){env.error("lset zero not zero");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a)))
+    if(!(unsafe(mpi_is_zero(unsafe(&raw mut a))))){env.error("zero not zero");return}else{}
+    unsafe(mpi_lset(unsafe(&raw mut a), 0))
+    if(!(unsafe(mpi_is_zero(unsafe(&raw mut a))))){env.error("lset zero not zero");return}else{}
 }
 
 @test public func INT_consistency_mpi_negative(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), -10)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 5)
-    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut r)); mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
-    if(mpi_cmp_int(unsafe(&raw mut r), -5) != 0){env.error("-10+5 != -5");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), -10))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), 5))
+    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut r))); unsafe(mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b)))
+    if(unsafe(mpi_cmp_int(unsafe(&raw mut r), -5)) != 0){env.error("-10+5 != -5");return}else{}
 }
 
 @test public func INT_consistency_mpi_abs_sub(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 100)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 200)
-    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut r)); mpi_sub(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
-    if(mpi_cmp_int(unsafe(&raw mut r), -100) != 0){env.error("100-200 != -100");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), 100))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), 200))
+    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut r))); unsafe(mpi_sub(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b)))
+    if(unsafe(mpi_cmp_int(unsafe(&raw mut r), -100)) != 0){env.error("100-200 != -100");return}else{}
 }
 
 @test public func INT_consistency_mpi_mul_neg(env : &mut TestEnv) {
-    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 7)
-    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), -3)
-    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); mpi_init(unsafe(&raw mut r)); mpi_mul(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
-    if(mpi_cmp_int(unsafe(&raw mut r), -21) != 0){env.error("7*-3 != -21");return}else{}
+    var a : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut a))); unsafe(mpi_lset(unsafe(&raw mut a), 7))
+    var b : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut b))); unsafe(mpi_lset(unsafe(&raw mut b), -3))
+    var r : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); unsafe(mpi_init(unsafe(&raw mut r))); unsafe(mpi_mul(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b)))
+    if(unsafe(mpi_cmp_int(unsafe(&raw mut r), -21)) != 0){env.error("7*-3 != -21");return}else{}
 }
 
 @test public func INT_consistency_gcm_init_reinit(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var gcm : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>())
-    if(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16) < 0){env.error("first init");return}else{}
-    if(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16) < 0){env.error("second init");return}else{}
+    if(unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)) < 0){env.error("first init");return}else{}
+    if(unsafe(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)) < 0){env.error("second init");return}else{}
 }
 
 @test public func INT_consistency_x25519_small_scalar(env : &mut TestEnv) {
     var scalar : [32]u8; scalar[0]=1; var i:size_t=1;while(i<32){scalar[i]=0;i+=1}
     var u_coord : [32]u8; u_coord[0]=9; i=1;while(i<32){u_coord[i]=0;i+=1}
-    var out : [32]u8; x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0])
+    var out : [32]u8; unsafe(x25519_ladder(&raw mut out[0], &raw scalar[0], &raw u_coord[0]))
     if(out[0]==0&&out[31]==0){env.error("x25519 all zero");return}else{}
 }
 

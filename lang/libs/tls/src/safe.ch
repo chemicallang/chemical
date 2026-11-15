@@ -64,7 +64,7 @@ public func make_string(value : &str) : string {
 
 func cert_cn(crt : *mut raw::X509Cert) : string {
     var out = string()
-    raw::cert_get_cn(crt, &raw mut out)
+    unsafe(raw::cert_get_cn(crt, &raw mut out))
     return out
 }
 
@@ -83,7 +83,7 @@ public struct Certificate {
     func delete(&mut self) {
         if(self.ptr == null) { return }
         if(self.owns) {
-            raw::cert_free(self.ptr)
+            unsafe(raw::cert_free(self.ptr))
             unsafe { dealloc self.ptr }
         }
         self.ptr = null
@@ -99,10 +99,10 @@ public struct Certificate {
             return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
         }
         unsafe { memset(mem as *mut void, 0, sizeof(raw::X509Cert)) }
-        raw::x509_cert_init(mem)
-        var ret = raw::parse_cert_der(mem, der.data(), der.size())
+        unsafe(raw::x509_cert_init(mem))
+        var ret = unsafe(raw::parse_cert_der(mem, der.data(), der.size()))
         if(ret < 0) {
-            raw::cert_free(mem)
+            unsafe(raw::cert_free(mem))
             unsafe { dealloc mem }
             return Result.Err(TlsError.InvalidCertificate(make_string("invalid DER certificate")))
         }
@@ -118,10 +118,10 @@ public struct Certificate {
             return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
         }
         unsafe { memset(mem as *mut void, 0, sizeof(raw::X509Cert)) }
-        raw::x509_cert_init(mem)
-        var ret = raw::parse_cert_pem(mem, pem.data(), pem.size())
+        unsafe(raw::x509_cert_init(mem))
+        var ret = unsafe(raw::parse_cert_pem(mem, pem.data(), pem.size()))
         if(ret < 0) {
-            raw::cert_free(mem)
+            unsafe(raw::cert_free(mem))
             unsafe { dealloc mem }
             return Result.Err(TlsError.InvalidCertificate(make_string("invalid PEM certificate")))
         }
@@ -143,12 +143,12 @@ public struct Certificate {
         var made = std::cstring_make(host)
         if(made is Result.Err) { return false }
         var Ok(host_c) = made else unsafe { unreachable }
-        return raw::x509_verify_hostname(self.ptr, unsafe(host_c.as_ptr())) == 0
+        return unsafe(raw::x509_verify_hostname(self.ptr, unsafe(host_c.as_ptr()))) == 0
     }
 
     public func is_valid_now(&self) : bool {
         if(self.ptr == null) { return false }
-        return raw::x509_check_date(self.ptr) == 0
+        return unsafe(raw::x509_check_date(self.ptr)) == 0
     }
 }
 
@@ -166,7 +166,7 @@ public struct CertificateChain {
     @delete
     func delete(&mut self) {
         if(self.ptr != null) {
-            if(self.owns) { raw::cert_chain_free(self.ptr) }
+            if(self.owns) { unsafe(raw::cert_chain_free(self.ptr)) }
             self.ptr = null
         }
     }
@@ -212,16 +212,16 @@ public struct CertificateChain {
             var block_len = e + end.size()
             var mem = unsafe(malloc(sizeof(raw::X509Cert))) as *mut raw::X509Cert
             if(mem == null) {
-                if(head != null) { raw::cert_chain_free(head) }
+                if(head != null) { unsafe(raw::cert_chain_free(head)) }
                 return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
             }
             unsafe { memset(mem as *mut void, 0, sizeof(raw::X509Cert)) }
-            raw::x509_cert_init(mem)
-            var ret = raw::parse_cert_pem(mem, from_begin.data() as *u8, block_len)
+            unsafe(raw::x509_cert_init(mem))
+            var ret = unsafe(raw::parse_cert_pem(mem, from_begin.data() as *u8, block_len))
             if(ret < 0) {
-                raw::cert_free(mem)
+                unsafe(raw::cert_free(mem))
                 unsafe { dealloc mem }
-                if(head != null) { raw::cert_chain_free(head) }
+                if(head != null) { unsafe(raw::cert_chain_free(head)) }
                 return Result.Err(TlsError.InvalidCertificate(make_string("invalid PEM certificate")))
             }
             if(head == null) {
@@ -282,9 +282,9 @@ public struct PrivateKey {
     func delete(&mut self) {
         if(self.ptr == null) { return }
         if(self.kind == 1) {
-            raw::rsa_free(self.ptr as *mut raw::RSAContext)
+            unsafe(raw::rsa_free(self.ptr as *mut raw::RSAContext))
         } else if(self.kind == 2) {
-            raw::ecdsa_context_free(self.ptr as *mut raw::ECDSAContext)
+            unsafe(raw::ecdsa_context_free(self.ptr as *mut raw::ECDSAContext))
         }
         unsafe { dealloc self.ptr }
         self.ptr = null
@@ -297,7 +297,7 @@ public func load_certificate(path : &str) : Result<CertificateChain, TlsError> {
         return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())))
     }
     var Ok(cpath) = made else unsafe { unreachable }
-    var cert = raw::x509_crt_load_pem_file(unsafe(cpath.as_ptr()))
+    var cert = unsafe(raw::x509_crt_load_pem_file(unsafe(cpath.as_ptr())))
     if(cert == null) {
         return Result.Err(TlsError.InvalidCertificate(make_string("cannot load certificate file")))
     }
@@ -310,7 +310,7 @@ public func load_rsa_private_key(path : &str) : Result<PrivateKey, TlsError> {
         return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())))
     }
     var Ok(cpath) = made else unsafe { unreachable }
-    var key = raw::rsa_privkey_load_pem_file(unsafe(cpath.as_ptr()))
+    var key = unsafe(raw::rsa_privkey_load_pem_file(unsafe(cpath.as_ptr())))
     if(key == null) {
         return Result.Err(TlsError.InvalidCertificate(make_string("cannot load RSA private key")))
     }
@@ -323,7 +323,7 @@ public func load_ec_private_key(path : &str) : Result<PrivateKey, TlsError> {
         return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput())))
     }
     var Ok(cpath) = made else unsafe { unreachable }
-    var key = raw::ec_privkey_load_hex_file(unsafe(cpath.as_ptr()))
+    var key = unsafe(raw::ec_privkey_load_hex_file(unsafe(cpath.as_ptr())))
     if(key == null) {
         return Result.Err(TlsError.InvalidCertificate(make_string("cannot load EC private key")))
     }
@@ -339,10 +339,10 @@ public func rsa_private_key_from_components(n : &[u8], d : &[u8]) : Result<Priva
         return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
     }
     unsafe { memset(ctx as *mut void, 0, sizeof(raw::RSAContext)) }
-    raw::rsa_init(ctx, raw::RSA_PKCS_V15, 0)
-    var ret = raw::rsa_import_privkey(ctx, n.data(), n.size(), d.data(), d.size())
+    unsafe(raw::rsa_init(ctx, raw::RSA_PKCS_V15, 0))
+    var ret = unsafe(raw::rsa_import_privkey(ctx, n.data(), n.size(), d.data(), d.size()))
     if(ret < 0) {
-        raw::rsa_free(ctx)
+        unsafe(raw::rsa_free(ctx))
         unsafe { dealloc ctx }
         return Result.Err(TlsError.InvalidConfig(make_string("invalid RSA key components")))
     }
@@ -497,13 +497,13 @@ public func <'a> server_config(certs : &'a CertificateChain, key : &'a PrivateKe
 func make_ctx(cfg : &TlsConfig) : *mut raw::SSLContext {
     var ctx = unsafe(malloc(sizeof(raw::SSLContext))) as *mut raw::SSLContext
     if(ctx == null) { return null }
-    raw::ssl_init(ctx)
+    unsafe(raw::ssl_init(ctx))
     unsafe { raw::ssl_set_config(ctx, &raw mut cfg.conf) }
     return ctx
 }
 
 @retained
-public func peer_from_ctx(ctx : *mut raw::SSLContext) : Certificate {
+public unsafe func peer_from_ctx(ctx : *mut raw::SSLContext) : Certificate {
     if(ctx == null) {
         return Certificate { ptr : null, owns : false, cn : string() }
     }
@@ -523,7 +523,7 @@ public struct TlsStream {
     @delete
     func delete(&mut self) {
         if(self.ctx != null) {
-            raw::ssl_free(self.ctx)
+            unsafe(raw::ssl_free(self.ctx))
             unsafe { dealloc self.ctx }
             self.ctx = null
         }
@@ -542,21 +542,21 @@ public struct TlsStream {
         if(ctx == null) {
             return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
         }
-        raw::ssl_set_hostname(ctx, unsafe(host_c.as_ptr()))
-        var ret = raw::tls_connect(ctx, unsafe(host_c.as_ptr()), port as uint)
+        unsafe(raw::ssl_set_hostname(ctx, unsafe(host_c.as_ptr())))
+        var ret = unsafe(raw::tls_connect(ctx, unsafe(host_c.as_ptr()), port as uint))
         if(ret < 0) {
-            raw::ssl_free(ctx)
+            unsafe(raw::ssl_free(ctx))
             unsafe { dealloc ctx }
             return Result.Err(TlsError.Io(io_error(ret)))
         }
         if(!cfg.insecure && unsafe(ctx.peer_cert) != null) {
-            if(raw::x509_verify_hostname(unsafe(ctx.peer_cert), unsafe(host_c.as_ptr())) != 0) {
-                raw::ssl_free(ctx)
+            if(unsafe(raw::x509_verify_hostname(unsafe(ctx.peer_cert), unsafe(host_c.as_ptr()))) != 0) {
+                unsafe(raw::ssl_free(ctx))
                 unsafe { dealloc ctx }
                 return Result.Err(TlsError.HandshakeFailure(make_string("TLS hostname mismatch")))
             }
         }
-        return Result.Ok(TlsStream { ctx : ctx, peer : peer_from_ctx(ctx) })
+        return Result.Ok(TlsStream { ctx : ctx, peer : unsafe(peer_from_ctx(ctx)) })
     }
 
     /// Server-side accept from an explicit certificate chain + private key.
@@ -576,24 +576,24 @@ public struct TlsStream {
             net::raw::close_socket(fd)
             return Result.Err(TlsError.Io(std::io::IoError.Kind(std::io::IoErrorKind::OutOfMemory())))
         }
-        raw::ssl_set_socket(ctx, fd)
+        unsafe(raw::ssl_set_socket(ctx, fd))
         if(!cfg.hostname.empty()) {
-            raw::ssl_set_hostname(ctx, cfg.hostname.data())
+            unsafe(raw::ssl_set_hostname(ctx, cfg.hostname.data()))
         }
-        var ret = raw::ssl_handshake(ctx)
+        var ret = unsafe(raw::ssl_handshake(ctx))
         if(ret < 0) {
-            raw::ssl_free(ctx)
+            unsafe(raw::ssl_free(ctx))
             unsafe { dealloc ctx }
             return Result.Err(TlsError.Io(io_error(ret)))
         }
         if(!cfg.insecure && unsafe(ctx.peer_cert) != null && !cfg.hostname.empty()) {
-            if(raw::x509_verify_hostname(unsafe(ctx.peer_cert), cfg.hostname.data()) != 0) {
-                raw::ssl_free(ctx)
+            if(unsafe(raw::x509_verify_hostname(unsafe(ctx.peer_cert), cfg.hostname.data())) != 0) {
+                unsafe(raw::ssl_free(ctx))
                 unsafe { dealloc ctx }
                 return Result.Err(TlsError.HandshakeFailure(make_string("TLS hostname mismatch")))
             }
         }
-        return Result.Ok(TlsStream { ctx : ctx, peer : peer_from_ctx(ctx) })
+        return Result.Ok(TlsStream { ctx : ctx, peer : unsafe(peer_from_ctx(ctx)) })
     }
 
     public func into_box(stream : &mut TlsStream) : *mut TlsStream {
@@ -614,7 +614,7 @@ public struct TlsStream {
         if(buf.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var n = raw::ssl_read(self.ctx, buf.data(), buf.size() as i32)
+        var n = unsafe(raw::ssl_read(self.ctx, buf.data(), buf.size() as i32))
         if(n < 0) { return Result.Err(io_error(n)) }
         return Result.Ok(n as size_t)
     }
@@ -626,7 +626,7 @@ public struct TlsStream {
         if(data.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var n = raw::ssl_write(self.ctx, data.data(), data.size() as i32)
+        var n = unsafe(raw::ssl_write(self.ctx, data.data(), data.size() as i32))
         if(n < 0) { return Result.Err(io_error(n)) }
         return Result.Ok(n as size_t)
     }
@@ -647,7 +647,7 @@ public struct TlsStream {
         if(self.ctx == null) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var ret = raw::ssl_close_notify(self.ctx)
+        var ret = unsafe(raw::ssl_close_notify(self.ctx))
         if(ret < 0) { return Result.Err(io_error(ret)) }
         return Result.Ok(std::Unit { })
     }
@@ -740,7 +740,7 @@ public struct TlsServerStream {
     @delete
     func delete(&mut self) {
         if(self.ctx != null) {
-            raw::ssl_free(self.ctx)
+            unsafe(raw::ssl_free(self.ctx))
             unsafe { dealloc self.ctx }
             self.ctx = null
         }
@@ -765,7 +765,7 @@ public struct TlsServerStream {
         if(buf.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var n = raw::ssl_read(self.ctx, buf.data(), buf.size() as i32)
+        var n = unsafe(raw::ssl_read(self.ctx, buf.data(), buf.size() as i32))
         if(n < 0) { return Result.Err(io_error(n)) }
         return Result.Ok(n as size_t)
     }
@@ -777,7 +777,7 @@ public struct TlsServerStream {
         if(data.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var n = raw::ssl_write(self.ctx, data.data(), data.size() as i32)
+        var n = unsafe(raw::ssl_write(self.ctx, data.data(), data.size() as i32))
         if(n < 0) { return Result.Err(io_error(n)) }
         return Result.Ok(n as size_t)
     }
@@ -798,7 +798,7 @@ public struct TlsServerStream {
         if(self.ctx == null) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind::InvalidInput()))
         }
-        var ret = raw::ssl_close_notify(self.ctx)
+        var ret = unsafe(raw::ssl_close_notify(self.ctx))
         if(ret < 0) { return Result.Err(io_error(ret)) }
         return Result.Ok(std::Unit { })
     }
@@ -891,11 +891,11 @@ public func <'a> accept(stream : net::TcpStream, cfg : &'a TlsServerConfig<'a>) 
         return std::Result.Err<TlsServerStream, TlsError>(TlsError.InvalidConfig(make_string("server certificate or key missing")))
     }
     var fd = unsafe(net::raw::release_tcp(&mut stream))
-    var ctx = raw::tls_accept(fd, cfg.cert.ptr, cfg.key.ptr, cfg.cipher_suite)
+    var ctx = unsafe(raw::tls_accept(fd, cfg.cert.ptr, cfg.key.ptr, cfg.cipher_suite))
     if(ctx == null) {
         return std::Result.Err<TlsServerStream, TlsError>(TlsError.HandshakeFailure(make_string("TLS server handshake failed")))
     }
-    return std::Result.Ok<TlsServerStream, TlsError>(TlsServerStream { ctx : ctx, peer : peer_from_ctx(ctx) })
+    return std::Result.Ok<TlsServerStream, TlsError>(TlsServerStream { ctx : ctx, peer : unsafe(peer_from_ctx(ctx)) })
 }
 
 @retained

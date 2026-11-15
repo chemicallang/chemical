@@ -124,7 +124,7 @@ public struct u16string {
         const length = storage.constant.length;
         // The inline buffer has room for the units plus the terminator.
         if(length >= U16_STR_BUFF_SIZE) {
-            panic("u16_string constant does not fit the inline buffer")
+            unsafe(panic("u16_string constant does not fit the inline buffer"))
         }
         unsafe {
             for(var i = 0; i < length; i++) {
@@ -180,7 +180,7 @@ public struct u16string {
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&mut self, length : size_t) {
         if(length > (((0 as size_t) - 1) - 2) / 2) {
-            panic("u16_string capacity overflow")
+            unsafe(panic("u16_string capacity overflow"))
         }
         if((state == '0' || state == '1') && length < U16_STR_BUFF_SIZE) {
             if(state == '0') {

@@ -16,26 +16,26 @@ public namespace crypto {
 
 public func sha256(data : &[u8]) : [32]u8 {
     var digest : [32]u8
-    crypto::raw::sha256_hash(data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::sha256_hash(data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
 public func sha384(data : &[u8]) : [48]u8 {
     var digest : [48]u8
-    crypto::raw::sha384_hash(data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::sha384_hash(data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
 public func sha512(data : &[u8]) : [64]u8 {
     var digest : [64]u8
-    crypto::raw::sha512_hash(data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::sha512_hash(data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
 /// MD5 is legacy and cryptographically broken; provided for compatibility.
 public func md5(data : &[u8]) : [16]u8 {
     var digest : [16]u8
-    crypto::raw::md5_hash(data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::md5_hash(data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
@@ -45,20 +45,20 @@ public func md5(data : &[u8]) : [16]u8 {
 
 public func hmac_sha256(key : &[u8], data : &[u8]) : [32]u8 {
     var digest : [32]u8
-    crypto::raw::hmac_sha256(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::hmac_sha256(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
 public func hmac_sha384(key : &[u8], data : &[u8]) : [48]u8 {
     var digest : [48]u8
-    crypto::raw::hmac_sha384(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::hmac_sha384(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
 /// HMAC-MD5 is legacy and cryptographically broken; provided for compatibility.
 public func hmac_md5(key : &[u8], data : &[u8]) : [16]u8 {
     var digest : [16]u8
-    crypto::raw::hmac_md5(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0])
+    unsafe(crypto::raw::hmac_md5(key.data(), key.size(), data.data(), data.size(), &raw mut digest[0]))
     return digest
 }
 
@@ -75,7 +75,7 @@ public func constant_time_equal(a : &[u8], b : &[u8]) : bool {
     if(a.size() == 0) {
         return true
     }
-    return crypto::raw::constant_time_equal(a.data(), b.data(), a.size())
+    return unsafe(crypto::raw::constant_time_equal(a.data(), b.data(), a.size()))
 }
 
 // ---------------------------------------------------------------------------
@@ -91,22 +91,22 @@ public struct Sha256Hasher {
     @constructor
     func make() {
         var ctx = zeroed<raw::Sha256Context>()
-        crypto::raw::sha256_init(unsafe(&raw mut ctx))
+        unsafe(crypto::raw::sha256_init(unsafe(&raw mut ctx)))
         return Sha256Hasher { ctx : ctx }
     }
 
     func update(&mut self, data : &[u8]) {
-        crypto::raw::sha256_update(unsafe(&raw mut self.ctx), data.data(), data.size())
+        unsafe(crypto::raw::sha256_update(unsafe(&raw mut self.ctx), data.data(), data.size()))
     }
 
     func finish(self) : [32]u8 {
         var digest : [32]u8
-        crypto::raw::sha256_final(unsafe(&raw mut self.ctx), &raw mut digest[0])
+        unsafe(crypto::raw::sha256_final(unsafe(&raw mut self.ctx), &raw mut digest[0]))
         return digest
     }
 
     func reset(&mut self) {
-        crypto::raw::sha256_init(unsafe(&raw mut self.ctx))
+        unsafe(crypto::raw::sha256_init(unsafe(&raw mut self.ctx)))
     }
 }
 
@@ -117,22 +117,22 @@ public struct Sha384Hasher {
     @constructor
     func make() {
         var ctx = zeroed<raw::Sha512Context>()
-        crypto::raw::sha384_init(unsafe(&raw mut ctx))
+        unsafe(crypto::raw::sha384_init(unsafe(&raw mut ctx)))
         return Sha384Hasher { ctx : ctx }
     }
 
     func update(&mut self, data : &[u8]) {
-        crypto::raw::sha384_update(unsafe(&raw mut self.ctx), data.data(), data.size())
+        unsafe(crypto::raw::sha384_update(unsafe(&raw mut self.ctx), data.data(), data.size()))
     }
 
     func finish(self) : [48]u8 {
         var digest : [48]u8
-        crypto::raw::sha384_final(unsafe(&raw mut self.ctx), &raw mut digest[0])
+        unsafe(crypto::raw::sha384_final(unsafe(&raw mut self.ctx), &raw mut digest[0]))
         return digest
     }
 
     func reset(&mut self) {
-        crypto::raw::sha384_init(unsafe(&raw mut self.ctx))
+        unsafe(crypto::raw::sha384_init(unsafe(&raw mut self.ctx)))
     }
 }
 
@@ -143,22 +143,22 @@ public struct Sha512Hasher {
     @constructor
     func make() {
         var ctx = zeroed<raw::Sha512Context>()
-        crypto::raw::sha512_init(unsafe(&raw mut ctx))
+        unsafe(crypto::raw::sha512_init(unsafe(&raw mut ctx)))
         return Sha512Hasher { ctx : ctx }
     }
 
     func update(&mut self, data : &[u8]) {
-        crypto::raw::sha512_update(unsafe(&raw mut self.ctx), data.data(), data.size())
+        unsafe(crypto::raw::sha512_update(unsafe(&raw mut self.ctx), data.data(), data.size()))
     }
 
     func finish(self) : [64]u8 {
         var digest : [64]u8
-        crypto::raw::sha512_final(unsafe(&raw mut self.ctx), &raw mut digest[0])
+        unsafe(crypto::raw::sha512_final(unsafe(&raw mut self.ctx), &raw mut digest[0]))
         return digest
     }
 
     func reset(&mut self) {
-        crypto::raw::sha512_init(unsafe(&raw mut self.ctx))
+        unsafe(crypto::raw::sha512_init(unsafe(&raw mut self.ctx)))
     }
 }
 
@@ -170,22 +170,22 @@ public struct Md5Hasher {
     @constructor
     func make() {
         var ctx = zeroed<raw::Md5Context>()
-        crypto::raw::md5_init(unsafe(&raw mut ctx))
+        unsafe(crypto::raw::md5_init(unsafe(&raw mut ctx)))
         return Md5Hasher { ctx : ctx }
     }
 
     func update(&mut self, data : &[u8]) {
-        crypto::raw::md5_update(unsafe(&raw mut self.ctx), data.data(), data.size())
+        unsafe(crypto::raw::md5_update(unsafe(&raw mut self.ctx), data.data(), data.size()))
     }
 
     func finish(self) : [16]u8 {
         var digest : [16]u8
-        crypto::raw::md5_final(unsafe(&raw mut self.ctx), &raw mut digest[0])
+        unsafe(crypto::raw::md5_final(unsafe(&raw mut self.ctx), &raw mut digest[0]))
         return digest
     }
 
     func reset(&mut self) {
-        crypto::raw::md5_init(unsafe(&raw mut self.ctx))
+        unsafe(crypto::raw::md5_init(unsafe(&raw mut self.ctx)))
     }
 }
 

@@ -18,7 +18,7 @@
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc8
  */
 @extern
-public func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from UTF-8 to a narrow multibyte character representation.
@@ -35,7 +35,7 @@ public func mbrtoc8(pc8 : *mut char8_t, s : *char, n : size_t, ps : *mut mbstate
  * @see https://en.cppreference.com/w/c/string/multibyte/c8rtomb
  */
 @extern
-public func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
+public unsafe func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its narrow multibyte character representation to its variable-length 16-bit wide character representation (typically, UTF-16).
@@ -57,7 +57,7 @@ public func c8rtomb(s : *mut char, c8 : char8_t, ps : *mut mbstate_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc16
  */
 @extern
-public func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its variable-length 16-bit wide character representation (typically, UTF-16) to its narrow multibyte character representation.
@@ -74,7 +74,7 @@ public func mbrtoc16(pc16 : *mut char16_t, s : *char, n : size_t, ps : *mut mbst
  * @see https://en.cppreference.com/w/c/string/multibyte/c16rtomb
  */
 @extern
-public func c16rtomb(s : *mut char, c16 : char16_t, ps : *mut mbstate_t) : size_t
+public unsafe func c16rtomb(s : *mut char, c16 : char16_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its narrow multibyte character representation to its variable-length 32-bit wide character representation (but typically, UTF-32).
@@ -96,7 +96,7 @@ public func c16rtomb(s : *mut char, c16 : char16_t, ps : *mut mbstate_t) : size_
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrtoc32
  */
 @extern
-public func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Converts a single code point from its variable-length 32-bit wide character representation (but typically, UTF-32) to its narrow multibyte character representation.
@@ -112,4 +112,4 @@ public func mbrtoc32(pc32 : *mut char32_t, s : *char, n : size_t, ps : *mut mbst
  * @see https://en.cppreference.com/w/c/string/multibyte/c32rtomb
  */
 @extern
-public func c32rtomb(s : *mut char, c32 : char32_t, ps : *mut mbstate_t) : size_t
+public unsafe func c32rtomb(s : *mut char, c32 : char32_t, ps : *mut mbstate_t) : size_t

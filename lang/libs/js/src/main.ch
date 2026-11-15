@@ -27,7 +27,7 @@ public func parse_js(view : std::string_view) : std::string {
     var allocator = ASTAllocator.make()
     var builder = ASTBuilder { allocator : (&raw mut allocator) as *mut BatchAllocator, typeBuilder : null }
 
-    const root = parseJsRoot((&raw mut parser) as *mut Parser, &raw mut builder)
+    const root = unsafe(parseJsRoot((&raw mut parser) as *mut Parser, &raw mut builder))
     if(root == null) {
         allocator.deinit()
         return std::string()
@@ -35,15 +35,15 @@ public func parse_js(view : std::string_view) : std::string {
 
     var out = std::string()
     var converter = JsRuntimeConverter { str : &raw mut out }
-    convert_js_root(root as *mut JsRoot, &mut converter)
+    unsafe(convert_js_root(root as *mut JsRoot, &mut converter))
     allocator.deinit()
     return out
 }
 
-public func convert_js_node_to_string(node : *mut JsNode) : std::string {
+public unsafe func convert_js_node_to_string(node : *mut JsNode) : std::string {
     var out = std::string()
     var converter = JsRuntimeConverter { str : &raw mut out }
-    convert_js_node(node, &mut converter)
+    unsafe(convert_js_node(node, &mut converter))
     return out
 }
 

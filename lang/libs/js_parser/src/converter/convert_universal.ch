@@ -7,11 +7,11 @@
  * (`js_parser::JsRuntimeConverter`), so both runtime front ends share one
  * emitter and one printer.
  */
-public func convert_universal_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
-    convert_js_node(node, emitter, true)
+public unsafe func convert_universal_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
+    unsafe(convert_js_node(node, emitter, true))
 }
 
-public func convert_universal_root(root : *mut JsBlock, emitter : &mut JsNodeEmitter) {
+public unsafe func convert_universal_root(root : *mut JsBlock, emitter : &mut JsNodeEmitter) {
         unsafe {
         var i = 0u
         while(i < root.statements.size()) {

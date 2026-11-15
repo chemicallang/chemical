@@ -15,8 +15,8 @@ using std::vector;
 
 // Encode raw bytes to base64 string.
 // Caller provides output buffer. Returns encoded length or error.
-public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
-    var r = crypto::raw::base64_encode(data, data_len, out, out_len)
+public unsafe func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+    var r = unsafe(crypto::raw::base64_encode(data, data_len, out, out_len))
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -26,8 +26,8 @@ public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_le
 
 // Decode base64 string to raw bytes.
 // Caller provides output buffer. Returns decoded length or error.
-public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
-    var r = crypto::raw::base64_decode(b64, b64_len, out, out_len)
+public unsafe func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
+    var r = unsafe(crypto::raw::base64_decode(b64, b64_len, out, out_len))
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -37,11 +37,11 @@ public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len 
 
 // Encode raw bytes to base64 string (legacy heap convenience).
 // Allocates the output string internally.
-public func base64_encode_to_string(data : *u8, data_len : size_t) : Result<string, EncodingError> {
+public unsafe func base64_encode_to_string(data : *u8, data_len : size_t) : Result<string, EncodingError> {
     var encoded_len = ((data_len + 2) / 3) * 4
     var buf = unsafe(malloc(encoded_len + 1)) as *mut char
     if(buf == null) { return Result.Err(EncodingError.InvalidInput()) }
-    var r = crypto::raw::base64_encode(data, data_len, buf, encoded_len + 1)
+    var r = unsafe(crypto::raw::base64_encode(data, data_len, buf, encoded_len + 1))
     if(r is Result.Err) {
         unsafe { free(buf) }
         return Result.Err(EncodingError.InvalidInput())
@@ -66,7 +66,7 @@ public func base64_decode_to_vec(b64 : string_view) : Result<vector<u8>, Encodin
 
     var out = vector<u8>()
     out.resize(decoded_len)
-    var r = crypto::raw::base64_decode(b64.data(), b64.size(), out.data() as *mut u8, decoded_len)
+    var r = unsafe(crypto::raw::base64_decode(b64.data(), b64.size(), out.data() as *mut u8, decoded_len))
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -75,7 +75,7 @@ public func base64_decode_to_vec(b64 : string_view) : Result<vector<u8>, Encodin
     return Result.Ok(out)
 }
 
-public func hex_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func hex_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var needed = data_len * 2;
         if(needed + 1 > out_len) { return Result.Err(EncodingError.BufferTooSmall(needed + 1)); }
@@ -95,7 +95,7 @@ public func hex_encode(data : *u8, data_len : size_t, out : *mut char, out_len :
         }
     }
 
-public func hex_encode_upper(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func hex_encode_upper(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var needed = data_len * 2;
         if(needed + 1 > out_len) { return Result.Err(EncodingError.BufferTooSmall(needed + 1)); }
@@ -115,7 +115,7 @@ public func hex_encode_upper(data : *u8, data_len : size_t, out : *mut char, out
         }
     }
 
-public func hex_decode(hex : *char, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func hex_decode(hex : *char, out : *mut u8, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var hex_len : size_t = 0;
         while(hex[hex_len] != 0) { hex_len += 1; }
@@ -141,7 +141,7 @@ public func hex_decode(hex : *char, out : *mut u8, out_len : size_t) : Result<si
 /// URL-encode a string (percent-encoding).
 /// Encodes everything except unreserved characters.
 /// out_len should be at least 3 * input_len + 1.
-public func url_encode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func url_encode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var pos : size_t = 0;
         var i : size_t = 0;
@@ -167,7 +167,7 @@ public func url_encode(data : *char, data_len : size_t, out : *mut char, out_len
     }
 
 /// URL-encode only the query component (encodes spaces as '+').
-public func url_encode_query(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func url_encode_query(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var pos : size_t = 0;
         var i : size_t = 0;
@@ -198,7 +198,7 @@ public func url_encode_query(data : *char, data_len : size_t, out : *mut char, o
 
 /// URL-decode a percent-encoded string (also decodes '+' as space).
 /// out_len should be at least input_len + 1.
-public func url_decode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func url_decode(data : *char, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var pos : size_t = 0;
         var i : size_t = 0;
@@ -236,7 +236,7 @@ public func url_decode(data : *char, data_len : size_t, out : *mut char, out_len
 // UTF-8 validation
 // ---------------------------------------------------------------------------
 
-public func utf8_is_valid(data : *char, data_len : size_t) : bool {
+public unsafe func utf8_is_valid(data : *char, data_len : size_t) : bool {
         unsafe {
         var i : size_t = 0;
         while(i < data_len) {
@@ -276,7 +276,7 @@ public func utf8_is_valid(data : *char, data_len : size_t) : bool {
 // UTF-8 to UTF-16 conversion
 // ---------------------------------------------------------------------------
 
-public func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var i : size_t = 0;
         var wpos : size_t = 0;
@@ -332,7 +332,7 @@ public func utf8_to_utf16(in_utf8 : *char, out_w : *mut u16, out_w_len : size_t)
 // UTF-16 to UTF-8 conversion
 // ---------------------------------------------------------------------------
 
-public func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
+public unsafe func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Result<size_t, EncodingError> {
         unsafe {
         var i : size_t = 0;
         var pos : size_t = 0;
@@ -379,7 +379,7 @@ public func utf16_to_utf8(in_w : *u16, out : *mut char, out_len : size_t) : Resu
 // ---------------------------------------------------------------------------
 
 
-public func utf8_decode(data : *char, data_len : size_t, out_codepoint : *mut int, out_bytes : *mut size_t) : bool {
+public unsafe func utf8_decode(data : *char, data_len : size_t, out_codepoint : *mut int, out_bytes : *mut size_t) : bool {
         unsafe {
         if(data_len == 0) { out_bytes[0] = 0; out_codepoint[0] = 0; return false; }
         var c = data[0] as u8;

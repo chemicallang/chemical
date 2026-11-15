@@ -553,14 +553,14 @@ public namespace raw {
 
     // TODO: remove retained, once runtime magic val support is available
     @retained
-    public func appended_str(str : std::string, path : *char) : std::string {
+    public unsafe func appended_str(str : std::string, path : *char) : std::string {
         str.append_char_ptr(path)
         return str;
     }
 
     @expand
     public comptime func rel_path_to(path : %runtime<*char>) : std::string {
-        return appended_str(curr_dir(), path)
+        return unsafe(appended_str(curr_dir(), path))
     }
 
 
@@ -576,7 +576,7 @@ public namespace raw {
 
     @expand
     public comptime func rel_path_to(path : %runtime<*char>) : std::string {
-        return raw::rel_path_to(path)
+        return unsafe(raw::rel_path_to(path))
     }
 
 }

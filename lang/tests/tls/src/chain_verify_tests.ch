@@ -278,14 +278,14 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut root))
-    var inter : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut inter))
-    var leaf : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut leaf))
-    var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
+    var root : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut root)))
+    var inter : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut inter)))
+    var leaf : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut leaf)))
+    var ret = unsafe(parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len))
     if(ret < 0) { env.error("parse root failed"); return }
-    ret = parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len)
+    ret = unsafe(parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len))
     if(ret < 0) { env.error("parse inter failed"); return }
-    ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)
+    ret = unsafe(parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len))
     if(ret < 0) { env.error("parse leaf failed"); return }
 
     // Build the peer chain: the server sends leaf then intermediate.
@@ -294,7 +294,7 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
     // Verify: leaf -> inter via peer chain (4b), inter -> root via trusted
     // root match (4a). Root is a 4096-bit RSA key — exercises MAX_LIMBS.
     var hostname = "test.example.com\0" as *char
-    ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname)
+    ret = unsafe(x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname))
     if(ret != 0) { env.error("full chain verify should succeed"); return }
     if(unsafe(leaf.flags) != 0) { env.error("leaf flags should be 0 on success"); return }
 }
@@ -371,16 +371,16 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut root))
-    var leaf : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); x509_cert_init(unsafe(&raw mut leaf))
-    var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
+    var root : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut root)))
+    var leaf : X509Cert = unsafe(std::mem.zeroed_unchecked<X509Cert>()); unsafe(x509_cert_init(unsafe(&raw mut leaf)))
+    var ret = unsafe(parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len))
     if(ret < 0) { env.error("parse root failed"); return }
-    ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)
+    ret = unsafe(parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len))
     if(ret < 0) { env.error("parse leaf failed"); return }
 
     // leaf.next stays null — the intermediate was never sent.
     var hostname = "test.example.com\0" as *char
-    ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname)
+    ret = unsafe(x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname))
     if(ret == 0) { env.error("chain verify should FAIL without the intermediate"); return }
 }
 

@@ -163,61 +163,61 @@ const GDK_ACTION_COPY = 2
 // GTK / GDK functions
 // ===========================================================================
 
-@extern public func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
-@extern public func gtk_init_check(argc : *mut int, argv : *mut *mut *char) : int
+@extern public unsafe func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
+@extern public unsafe func gtk_init_check(argc : *mut int, argv : *mut *mut *char) : int
 @extern public func gtk_main()
 @extern public func gtk_main_quit()
 
 @extern public func gtk_window_new(type_ : int) : *mut GtkWidget
-@extern public func gtk_window_set_title(window : *mut GtkWindow, title : *char)
-@extern public func gtk_window_set_default_size(window : *mut GtkWindow, width : int, height : int)
-@extern public func gtk_window_set_position(window : *mut GtkWindow, position : int)
-@extern public func gtk_window_move(window : *mut GtkWindow, x : int, y : int)
-@extern public func gtk_window_get_position(window : *mut GtkWindow, x : *mut int, y : *mut int)
-@extern public func gtk_window_get_size(window : *mut GtkWindow, width : *mut int, height : *mut int)
-@extern public func gtk_window_maximize(window : *mut GtkWindow)
-@extern public func gtk_window_unmaximize(window : *mut GtkWindow)
-@extern public func gtk_window_iconify(window : *mut GtkWindow)
-@extern public func gtk_window_deiconify(window : *mut GtkWindow)
-@extern public func gtk_window_fullscreen(window : *mut GtkWindow)
-@extern public func gtk_window_unfullscreen(window : *mut GtkWindow)
-@extern public func gtk_window_set_decorated(window : *mut GtkWindow, setting : int)
-@extern public func gtk_window_set_opacity(window : *mut GtkWindow, opacity : double)
-@extern public func gtk_window_set_keep_above(window : *mut GtkWindow, setting : int)
-@extern public func gtk_window_set_icon_from_file(window : *mut GtkWindow, filename : *char, error : *mut *mut GError) : int
-@extern public func gtk_window_set_geometry_hints(window : *mut GtkWindow, geometry_widget : *mut GtkWidget, geometry : *mut GdkGeometry, flags : int)
-@extern public func gtk_window_present(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_set_title(window : *mut GtkWindow, title : *char)
+@extern public unsafe func gtk_window_set_default_size(window : *mut GtkWindow, width : int, height : int)
+@extern public unsafe func gtk_window_set_position(window : *mut GtkWindow, position : int)
+@extern public unsafe func gtk_window_move(window : *mut GtkWindow, x : int, y : int)
+@extern public unsafe func gtk_window_get_position(window : *mut GtkWindow, x : *mut int, y : *mut int)
+@extern public unsafe func gtk_window_get_size(window : *mut GtkWindow, width : *mut int, height : *mut int)
+@extern public unsafe func gtk_window_maximize(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_unmaximize(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_iconify(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_deiconify(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_fullscreen(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_unfullscreen(window : *mut GtkWindow)
+@extern public unsafe func gtk_window_set_decorated(window : *mut GtkWindow, setting : int)
+@extern public unsafe func gtk_window_set_opacity(window : *mut GtkWindow, opacity : double)
+@extern public unsafe func gtk_window_set_keep_above(window : *mut GtkWindow, setting : int)
+@extern public unsafe func gtk_window_set_icon_from_file(window : *mut GtkWindow, filename : *char, error : *mut *mut GError) : int
+@extern public unsafe func gtk_window_set_geometry_hints(window : *mut GtkWindow, geometry_widget : *mut GtkWidget, geometry : *mut GdkGeometry, flags : int)
+@extern public unsafe func gtk_window_present(window : *mut GtkWindow)
 
-@extern public func gtk_widget_show(widget : *mut GtkWidget)
-@extern public func gtk_widget_show_all(widget : *mut GtkWidget)
-@extern public func gtk_widget_hide(widget : *mut GtkWidget)
-@extern public func gtk_widget_destroy(widget : *mut GtkWidget)
-@extern public func gtk_widget_get_window(widget : *mut GtkWidget) : *mut GdkWindow
-@extern public func gtk_widget_add_events(widget : *mut GtkWidget, events : int)
+@extern public unsafe func gtk_widget_show(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_show_all(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_hide(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_destroy(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_get_window(widget : *mut GtkWidget) : *mut GdkWindow
+@extern public unsafe func gtk_widget_add_events(widget : *mut GtkWidget, events : int)
 
-@extern public func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
-@extern public func g_idle_add(function : *mut void, data : *mut void) : u32
+@extern public unsafe func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
+@extern public unsafe func g_idle_add(function : *mut void, data : *mut void) : u32
 
 // GObject object-data — used for the stable per-widget callback context
 // (g_object_set_data_full auto-frees the context when the widget is destroyed)
-@extern public func g_object_set_data_full(object : *mut void, key : *char, data : *mut void, destroy : *mut void)
-@extern public func g_object_get_data(object : *mut void, key : *char) : *mut void
+@extern public unsafe func g_object_set_data_full(object : *mut void, key : *char, data : *mut void, destroy : *mut void)
+@extern public unsafe func g_object_get_data(object : *mut void, key : *char) : *mut void
 
 // GDK
 @extern public func gdk_display_get_default() : *mut GdkDisplay
-@extern public func gdk_display_get_n_monitors(display : *mut GdkDisplay) : int
-@extern public func gdk_display_get_monitor(display : *mut GdkDisplay, num : int) : *mut GdkMonitor
-@extern public func gdk_display_get_monitor_at_window(display : *mut GdkDisplay, win : *mut GdkWindow) : *mut GdkMonitor
-@extern public func gdk_monitor_get_geometry(monitor : *mut GdkMonitor, rect : *mut GdkRectangle)
-@extern public func gdk_monitor_get_scale_factor(monitor : *mut GdkMonitor) : int
-@extern public func gdk_window_set_cursor(window : *mut GdkWindow, cursor : *mut GdkCursor)
-@extern public func gdk_cursor_new_from_name(display : *mut GdkDisplay, name : *char) : *mut GdkCursor
+@extern public unsafe func gdk_display_get_n_monitors(display : *mut GdkDisplay) : int
+@extern public unsafe func gdk_display_get_monitor(display : *mut GdkDisplay, num : int) : *mut GdkMonitor
+@extern public unsafe func gdk_display_get_monitor_at_window(display : *mut GdkDisplay, win : *mut GdkWindow) : *mut GdkMonitor
+@extern public unsafe func gdk_monitor_get_geometry(monitor : *mut GdkMonitor, rect : *mut GdkRectangle)
+@extern public unsafe func gdk_monitor_get_scale_factor(monitor : *mut GdkMonitor) : int
+@extern public unsafe func gdk_window_set_cursor(window : *mut GdkWindow, cursor : *mut GdkCursor)
+@extern public unsafe func gdk_cursor_new_from_name(display : *mut GdkDisplay, name : *char) : *mut GdkCursor
 
 // drag & drop
-@extern public func gtk_drag_dest_set(widget : *mut GtkWidget, flags : int, targets : *mut void, n_targets : int, actions : int)
-@extern public func gtk_selection_data_get_uris(data : *mut GtkSelectionData) : *mut *mut char
-@extern public func g_filename_from_uri(uri : *char, hostname : *mut *mut char, error : *mut *mut GError) : *char
-@extern public func g_free(mem : *mut void)
+@extern public unsafe func gtk_drag_dest_set(widget : *mut GtkWidget, flags : int, targets : *mut void, n_targets : int, actions : int)
+@extern public unsafe func gtk_selection_data_get_uris(data : *mut GtkSelectionData) : *mut *mut char
+@extern public unsafe func g_filename_from_uri(uri : *char, hostname : *mut *mut char, error : *mut *mut GError) : *char
+@extern public unsafe func g_free(mem : *mut void)
 
 // ===========================================================================
 // the NativeWindow struct
@@ -666,7 +666,7 @@ func linux_on_drag_data_received(
 // Raw platform API: `window::NativeWindow` (platform state) + `window::raw`. The safe handle is `window::Window`.
 public namespace raw {
 
-public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
+public unsafe func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
         unsafe {
         if(w.created) {
             return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
@@ -769,7 +769,7 @@ public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, Window
         }
     }
 
-public func window_destroy(w : *mut NativeWindow) {
+public unsafe func window_destroy(w : *mut NativeWindow) {
         unsafe {
         if(g_quit_by_destroy != 0) {
             // The window was already destroyed by the user (the main loop quit
@@ -790,14 +790,14 @@ public func window_destroy(w : *mut NativeWindow) {
         }
     }
 
-public func window_is_created(w : *mut NativeWindow) : bool {
+public unsafe func window_is_created(w : *mut NativeWindow) : bool {
         unsafe {
         return w.created && w.widget != null
 
         }
     }
 
-public func window_title(w : *mut NativeWindow) : string {
+public unsafe func window_title(w : *mut NativeWindow) : string {
         unsafe {
         // copy() — returning w.title by value would be a shallow copy whose
         // destructor frees the same heap buffer as w.title (double free).
@@ -806,7 +806,7 @@ public func window_title(w : *mut NativeWindow) : string {
         }
     }
 
-public func window_set_title(w : *mut NativeWindow, title : *char) {
+public unsafe func window_set_title(w : *mut NativeWindow, title : *char) {
         unsafe {
         w.title = string("")
         w.title.append_char_ptr(title)
@@ -817,14 +817,14 @@ public func window_set_title(w : *mut NativeWindow, title : *char) {
         }
     }
 
-public func window_size(w : *mut NativeWindow) : Size {
+public unsafe func window_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.width, w.height)
 
         }
     }
 
-public func window_client_size(w : *mut NativeWindow) : Size {
+public unsafe func window_client_size(w : *mut NativeWindow) : Size {
         unsafe {
         if(w.widget != null) {
             var width : int = 0
@@ -837,7 +837,7 @@ public func window_client_size(w : *mut NativeWindow) : Size {
         }
     }
 
-public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.width = width
         w.height = height
@@ -853,7 +853,7 @@ public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
         }
     }
 
-public func window_position(w : *mut NativeWindow) : Position {
+public unsafe func window_position(w : *mut NativeWindow) : Position {
         unsafe {
         if(w.widget != null) {
             var x : int = 0
@@ -866,7 +866,7 @@ public func window_position(w : *mut NativeWindow) : Position {
         }
     }
 
-public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
+public unsafe func window_set_position(w : *mut NativeWindow, x : int, y : int) {
         unsafe {
         w.x = x
         w.y = y
@@ -877,21 +877,21 @@ public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
         }
     }
 
-public func window_min_size(w : *mut NativeWindow) : Size {
+public unsafe func window_min_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.min_w, w.min_h)
 
         }
     }
 
-public func window_max_size(w : *mut NativeWindow) : Size {
+public unsafe func window_max_size(w : *mut NativeWindow) : Size {
         unsafe {
         return Size.make(w.max_w, w.max_h)
 
         }
     }
 
-public func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.min_w = width
         w.min_h = height
@@ -907,7 +907,7 @@ public func window_set_min_size(w : *mut NativeWindow, width : int, height : int
         }
     }
 
-public func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
         w.max_w = width
         w.max_h = height
@@ -923,7 +923,7 @@ public func window_set_max_size(w : *mut NativeWindow, width : int, height : int
         }
     }
 
-public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
+public unsafe func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
         unsafe {
         if(w.widget == null) {
             return
@@ -938,14 +938,14 @@ public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
         }
     }
 
-public func window_is_fullscreen(w : *mut NativeWindow) : bool {
+public unsafe func window_is_fullscreen(w : *mut NativeWindow) : bool {
         unsafe {
         return w.fullscreen
 
         }
     }
 
-public func window_maximize(w : *mut NativeWindow) {
+public unsafe func window_maximize(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_maximize(w.widget as *mut GtkWindow) }
@@ -954,7 +954,7 @@ public func window_maximize(w : *mut NativeWindow) {
         }
     }
 
-public func window_minimize(w : *mut NativeWindow) {
+public unsafe func window_minimize(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_iconify(w.widget as *mut GtkWindow) }
@@ -963,7 +963,7 @@ public func window_minimize(w : *mut NativeWindow) {
         }
     }
 
-public func window_restore(w : *mut NativeWindow) {
+public unsafe func window_restore(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_unmaximize(w.widget as *mut GtkWindow) }
@@ -973,7 +973,7 @@ public func window_restore(w : *mut NativeWindow) {
         }
     }
 
-public func window_show(w : *mut NativeWindow) {
+public unsafe func window_show(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_show_all(w.widget) }
@@ -983,7 +983,7 @@ public func window_show(w : *mut NativeWindow) {
         }
     }
 
-public func window_hide(w : *mut NativeWindow) {
+public unsafe func window_hide(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_hide(w.widget) }
@@ -993,7 +993,7 @@ public func window_hide(w : *mut NativeWindow) {
         }
     }
 
-public func window_focus(w : *mut NativeWindow) {
+public unsafe func window_focus(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_window_present(w.widget as *mut GtkWindow) }
@@ -1002,7 +1002,7 @@ public func window_focus(w : *mut NativeWindow) {
         }
     }
 
-public func window_close(w : *mut NativeWindow) {
+public unsafe func window_close(w : *mut NativeWindow) {
         unsafe {
         if(w.widget != null) {
             unsafe { gtk_widget_destroy(w.widget) }
@@ -1011,7 +1011,7 @@ public func window_close(w : *mut NativeWindow) {
         }
     }
 
-public func window_set_cursor(w : *mut NativeWindow, cursor : int) {
+public unsafe func window_set_cursor(w : *mut NativeWindow, cursor : int) {
         unsafe {
         w.cursor = cursor
         apply_cursor(w)
@@ -1019,7 +1019,7 @@ public func window_set_cursor(w : *mut NativeWindow, cursor : int) {
         }
     }
 
-public func window_set_icon(w : *mut NativeWindow, path : *char) {
+public unsafe func window_set_icon(w : *mut NativeWindow, path : *char) {
         unsafe {
         if(w.widget == null) {
             return
@@ -1030,7 +1030,7 @@ public func window_set_icon(w : *mut NativeWindow, path : *char) {
         }
     }
 
-public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
+public unsafe func window_set_opacity(w : *mut NativeWindow, opacity : double) {
         unsafe {
         w.opacity = opacity
         if(w.widget != null) {
@@ -1040,7 +1040,7 @@ public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
         }
     }
 
-public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
+public unsafe func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
         unsafe {
         w.always_on_top = on_top
         if(w.widget != null) {
@@ -1054,7 +1054,7 @@ public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
         }
     }
 
-public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
+public unsafe func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
         unsafe {
         w.decorated = decorated
         if(w.widget != null) {
@@ -1068,14 +1068,14 @@ public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
         }
     }
 
-public func window_dpi(w : *mut NativeWindow) : int {
+public unsafe func window_dpi(w : *mut NativeWindow) : int {
         unsafe {
         return w.dpi
 
         }
     }
 
-public func window_scale_factor(w : *mut NativeWindow) : double {
+public unsafe func window_scale_factor(w : *mut NativeWindow) : double {
         unsafe {
         return (w.dpi as double) / 96.0
 
@@ -1109,7 +1109,7 @@ public func window_monitor_scale(index : int) : double {
     return scale as double
 }
 
-public func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
+public unsafe func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
         unsafe {
         w.user_data = data
         window_ctx_sync(w)
@@ -1117,7 +1117,7 @@ public func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
         }
     }
 
-public func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
+public unsafe func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
         unsafe {
         w.resize_cb = cb
         window_ctx_sync(w)
@@ -1125,7 +1125,7 @@ public func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallbac
         }
     }
 
-public func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
+public unsafe func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
         unsafe {
         w.close_cb = cb
         window_ctx_sync(w)
@@ -1133,7 +1133,7 @@ public func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback)
         }
     }
 
-public func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
+public unsafe func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
         unsafe {
         w.focus_cb = cb
         window_ctx_sync(w)
@@ -1141,7 +1141,7 @@ public func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback)
         }
     }
 
-public func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
+public unsafe func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
         unsafe {
         w.event_cb = cb
         window_ctx_sync(w)
@@ -1149,7 +1149,7 @@ public func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback)
         }
     }
 
-public func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
+public unsafe func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
         unsafe {
         w.drop_cb = cb
         window_ctx_sync(w)
@@ -1159,7 +1159,7 @@ public func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
 
 // On GTK, native menu/button activation is wired by the app through its own
 // signal handlers, so command_cb is stored for API parity but not invoked.
-public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
+public unsafe func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
         unsafe {
         w.command_cb = cb
         window_ctx_sync(w)
@@ -1167,7 +1167,7 @@ public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallb
         }
     }
 
-public func window_native_handle(w : *mut NativeWindow) : *mut void {
+public unsafe func window_native_handle(w : *mut NativeWindow) : *mut void {
         unsafe {
         return w.widget as *mut void
 
@@ -1226,10 +1226,10 @@ public func window_post_empty_event() {
 // clipboard (GTK)
 // ===========================================================================
 
-@extern public func gtk_clipboard_get(selection : *mut void) : *mut void
-@extern public func gtk_clipboard_set_text(clipboard : *mut void, text : *char, len : int) : void
-@extern public func gtk_clipboard_wait_for_text(clipboard : *mut void) : *char
-@extern public func gtk_selection_data_get_text(data : *mut void) : *char
+@extern public unsafe func gtk_clipboard_get(selection : *mut void) : *mut void
+@extern public unsafe func gtk_clipboard_set_text(clipboard : *mut void, text : *char, len : int) : void
+@extern public unsafe func gtk_clipboard_wait_for_text(clipboard : *mut void) : *char
+@extern public unsafe func gtk_selection_data_get_text(data : *mut void) : *char
 
 /// Lazily initialize GTK exactly once. The toolkit must be initialized before
 /// any clipboard call; doing it here (rather than relying on the caller having
@@ -1273,13 +1273,13 @@ public func window_set_clipboard(text : string_view) : bool {
     return true
 }
 
-@extern public func gdk_atom_intern(atom_name : *char, only_if_exists : int) : *mut void
+@extern public unsafe func gdk_atom_intern(atom_name : *char, only_if_exists : int) : *mut void
 
 // ===========================================================================
 // timer (GTK)
 // ===========================================================================
 
-@extern public func g_timeout_add(interval_ms : u32, function : *mut void, data : *mut void) : u32
+@extern public unsafe func g_timeout_add(interval_ms : u32, function : *mut void, data : *mut void) : u32
 @extern public func g_source_remove(tag : u32) : int
 
 comptime const MAX_TIMERS : int = 16
@@ -1301,7 +1301,7 @@ func linux_timer_wrapper(data : *mut void) : int {
     }
 
 /// Set a periodic timer.
-public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
+public unsafe func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
         unsafe {
         var idx = -1
         var i : int = 0

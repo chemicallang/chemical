@@ -59,7 +59,7 @@ func metrics_scaled(f : &Font, font_size : float) : FontMetrics {
         units_per_em : f.units_per_em,
         ascent : (f.ascent as float * scale) as i32,
         descent : (-f.descent as float * scale) as i32,
-        line_height : (raw::font_line_height(unsafe(f as *mut Font)) as float * scale) as i32,
+        line_height : (unsafe(raw::font_line_height(unsafe(f as *mut Font))) as float * scale) as i32,
         num_glyphs : f.num_glyphs
     }
 }

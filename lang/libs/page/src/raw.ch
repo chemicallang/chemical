@@ -25,7 +25,7 @@ public namespace raw {
 
 // HTML-escape a NUL-terminated C string. Null returns "". Prefer the safe
 // `escape_html(&str)`.
-public func escape_html(value : *char) : std::string {
+public unsafe func escape_html(value : *char) : std::string {
     unsafe {
         var out = std::string()
         if(value == null) { return out }
@@ -46,41 +46,41 @@ public func escape_html(value : *char) : std::string {
 
 // Append `len` bytes of raw markup. `value` must point to at least `len`
 // readable bytes; the page copies them immediately.
-public func append_html(page : &mut HtmlPage, value : *char, len : size_t) {
+public unsafe func append_html(page : &mut HtmlPage, value : *char, len : size_t) {
     page.append_html_raw(value, len)
 }
 
 // Append `len` bytes of raw JavaScript.
-public func append_js(page : &mut HtmlPage, value : *char, len : size_t) {
+public unsafe func append_js(page : &mut HtmlPage, value : *char, len : size_t) {
     page.append_js_raw(value, len)
 }
 
 // Append `len` bytes of raw CSS (routed to the shared sink when attached).
-public func append_css(page : &mut HtmlPage, value : *char, len : size_t) {
+public unsafe func append_css(page : &mut HtmlPage, value : *char, len : size_t) {
     page.append_css_raw(value, len)
 }
 
 // Append `len` bytes of raw `<head>` markup.
-public func append_head(page : &mut HtmlPage, value : *char, len : size_t) {
+public unsafe func append_head(page : &mut HtmlPage, value : *char, len : size_t) {
     page.append_head_raw(value, len)
 }
 
 // Append `len` bytes of raw JavaScript to the post-flush tail.
-public func append_js_end(page : &mut HtmlPage, value : *char, len : size_t) {
+public unsafe func append_js_end(page : &mut HtmlPage, value : *char, len : size_t) {
     page.append_js_end_raw(value, len)
 }
 
 // Store a caller-owned object pointer under `key`. The key view must outlive
 // the page render and the pointed-to object must stay alive until the page is
 // done; prefer an owned parameter for new code.
-public func add_parameter_object(page : &mut HtmlPage, key : std::string_view, ptr : *mut void) {
-    page.add_parameter_object_raw(key, ptr)
+public unsafe func add_parameter_object(page : &mut HtmlPage, key : std::string_view, ptr : *mut void) {
+    unsafe(page.add_parameter_object_raw(key, ptr))
 }
 
 // Attach a caller-owned heap `SharedAssets` (see `shared_assets()`); the page
 // does not take ownership. Prefer `attach_shared_ref`/`SharedAssetsHandle`.
-public func attach_shared(page : &mut HtmlPage, assets : *mut SharedAssets) {
-    page.attach_shared(assets)
+public unsafe func attach_shared(page : &mut HtmlPage, assets : *mut SharedAssets) {
+    unsafe(page.attach_shared(assets))
 }
 
 } // namespace raw

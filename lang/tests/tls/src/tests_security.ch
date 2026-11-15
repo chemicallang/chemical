@@ -40,9 +40,9 @@ func sec_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
 
 @test
 public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut ctx))
+    var ctx : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); unsafe(ecdh_init(unsafe(&raw mut ctx)))
     var priv : [32]u8; var pub : [65]u8
-    var ret = ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
+    var ret = unsafe(ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65))
     if(ret < 0) { env.error("keygen failed"); return }
 
     var invalid_peer : [65]u8; var i : size_t = 0
@@ -50,7 +50,7 @@ public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
     invalid_peer[40] = invalid_peer[40] + 1  // corrupt Y
 
     var shared : [32]u8
-    ret = ecdh_compute_shared(unsafe(&raw mut ctx), &raw invalid_peer[0], 65, &raw mut shared[0], 32)
+    ret = unsafe(ecdh_compute_shared(unsafe(&raw mut ctx), &raw invalid_peer[0], 65, &raw mut shared[0], 32))
     if(ret == 0) {
         env.error("SEC FAIL: ECDH accepted point NOT on curve")
     }
@@ -58,9 +58,9 @@ public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_invalid_curve_64_corruptions_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut ctx))
+    var ctx : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); unsafe(ecdh_init(unsafe(&raw mut ctx)))
     var priv : [32]u8; var pub : [65]u8
-    ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
+    unsafe(ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65))
 
     var rejected : size_t = 0; var offset : size_t = 1
     while(offset < 65) {
@@ -68,7 +68,7 @@ public func SEC_invalid_curve_64_corruptions_rejected(env : &mut TestEnv) {
         while(j < 65) { bad_peer[j] = pub[j]; j += 1 }
         bad_peer[offset] = 0xFF as u8
         var shared : [32]u8
-        var r = ecdh_compute_shared(unsafe(&raw mut ctx), &raw bad_peer[0], 65, &raw mut shared[0], 32)
+        var r = unsafe(ecdh_compute_shared(unsafe(&raw mut ctx), &raw bad_peer[0], 65, &raw mut shared[0], 32))
         if(r < 0) { rejected += 1 }
         offset += 1
     }
@@ -87,7 +87,7 @@ public func SEC_rsa_padding_oracle_rejects_bad_padding(env : &mut TestEnv) {
 
     // Too short
     var too_short : [5]u8 = [0x00 as u8, 0x02 as u8, 0x00 as u8, 0x00 as u8, 0x00 as u8]
-    var ret = pkcs1_v15_decode(&raw too_short[0], 5, &raw mut out_buf[0], &raw mut out_len, 64)
+    var ret = unsafe(pkcs1_v15_decode(&raw too_short[0], 5, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret == 0) { env.error("SEC FAIL: too-short padding accepted") }
 
     // Wrong block type (01 = signature, not encryption)
@@ -97,7 +97,7 @@ public func SEC_rsa_padding_oracle_rejects_bad_padding(env : &mut TestEnv) {
     while(bi < 10) { bad_type[bi] = bi as u8; bi += 1 }
     bad_type[10] = 0x00 as u8; bad_type[11] = 0x42 as u8
     out_len = 64
-    ret = pkcs1_v15_decode(&raw bad_type[0], 12, &raw mut out_buf[0], &raw mut out_len, 64)
+    ret = unsafe(pkcs1_v15_decode(&raw bad_type[0], 12, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret == 0) { env.error("SEC FAIL: signature block type accepted for encryption") }
 
     // Padding < 8 bytes
@@ -107,7 +107,7 @@ public func SEC_rsa_padding_oracle_rejects_bad_padding(env : &mut TestEnv) {
     bi = 4
     while(bi < 12) { short_pad[bi] = bi as u8; bi += 1 }
     out_len = 64
-    ret = pkcs1_v15_decode(&raw short_pad[0], 12, &raw mut out_buf[0], &raw mut out_len, 64)
+    ret = unsafe(pkcs1_v15_decode(&raw short_pad[0], 12, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret == 0) { env.error("SEC FAIL: padding < 8 bytes accepted") }
 
     // No separator
@@ -116,7 +116,7 @@ public func SEC_rsa_padding_oracle_rejects_bad_padding(env : &mut TestEnv) {
     bi = 2
     while(bi < 12) { no_sep[bi] = bi as u8; bi += 1 }
     out_len = 64
-    ret = pkcs1_v15_decode(&raw no_sep[0], 12, &raw mut out_buf[0], &raw mut out_len, 64)
+    ret = unsafe(pkcs1_v15_decode(&raw no_sep[0], 12, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret == 0) { env.error("SEC FAIL: missing separator accepted") }
 
     // Bad first byte
@@ -126,7 +126,7 @@ public func SEC_rsa_padding_oracle_rejects_bad_padding(env : &mut TestEnv) {
     while(bi < 10) { bad_first[bi] = bi as u8; bi += 1 }
     bad_first[10] = 0x00 as u8; bad_first[11] = 0x42 as u8
     out_len = 64
-    ret = pkcs1_v15_decode(&raw bad_first[0], 12, &raw mut out_buf[0], &raw mut out_len, 64)
+    ret = unsafe(pkcs1_v15_decode(&raw bad_first[0], 12, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret == 0) { env.error("SEC FAIL: invalid first byte accepted") }
 }
 
@@ -139,7 +139,7 @@ public func SEC_rsa_padding_valid_accepted(env : &mut TestEnv) {
     valid[10] = 0x00 as u8; valid[11] = 0x42 as u8
 
     var out_buf : [64]u8; var out_len : size_t = 64
-    var ret = pkcs1_v15_decode(&raw valid[0], 12, &raw mut out_buf[0], &raw mut out_len, 64)
+    var ret = unsafe(pkcs1_v15_decode(&raw valid[0], 12, &raw mut out_buf[0], &raw mut out_len, 64))
     if(ret != 0) { env.error("SEC FAIL: valid padded message rejected") }
     if(out_len != 1) { env.error("output length should be 1") }
 }
@@ -207,12 +207,12 @@ public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
 @test
 public func SEC_random_keypair_unique(env : &mut TestEnv) {
     var k0 : [32]u8; var k1 : [32]u8; var k2 : [32]u8
-    var c0 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut c0))
-    var p0 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c0), &raw mut k0[0], 32, &raw mut p0[0], 65)
-    var c1 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut c1))
-    var p1 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c1), &raw mut k1[0], 32, &raw mut p1[0], 65)
-    var c2 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); ecdh_init(unsafe(&raw mut c2))
-    var p2 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c2), &raw mut k2[0], 32, &raw mut p2[0], 65)
+    var c0 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); unsafe(ecdh_init(unsafe(&raw mut c0)))
+    var p0 : [65]u8; unsafe(ecdh_generate_keypair(unsafe(&raw mut c0), &raw mut k0[0], 32, &raw mut p0[0], 65))
+    var c1 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); unsafe(ecdh_init(unsafe(&raw mut c1)))
+    var p1 : [65]u8; unsafe(ecdh_generate_keypair(unsafe(&raw mut c1), &raw mut k1[0], 32, &raw mut p1[0], 65))
+    var c2 : ECDHContext = unsafe(std::mem.zeroed_unchecked<ECDHContext>()); unsafe(ecdh_init(unsafe(&raw mut c2)))
+    var p2 : [65]u8; unsafe(ecdh_generate_keypair(unsafe(&raw mut c2), &raw mut k2[0], 32, &raw mut p2[0], 65))
 
     var dupes : size_t = 0
     if(sec_bytes_equal(&raw k0[0], &raw k1[0], 32)) { dupes += 1 }
@@ -225,9 +225,9 @@ public func SEC_random_keypair_unique(env : &mut TestEnv) {
 public func SEC_random_padding_unique(env : &mut TestEnv) {
     var msg : [4]u8; fill_bytes(&raw mut msg[0], 4, 1)
     var em1 : [128]u8; var em2 : [128]u8; var em3 : [128]u8
-    pkcs1_v15_encode(&raw msg[0], 4, &raw mut em1[0], 128)
-    pkcs1_v15_encode(&raw msg[0], 4, &raw mut em2[0], 128)
-    pkcs1_v15_encode(&raw msg[0], 4, &raw mut em3[0], 128)
+    unsafe(pkcs1_v15_encode(&raw msg[0], 4, &raw mut em1[0], 128))
+    unsafe(pkcs1_v15_encode(&raw msg[0], 4, &raw mut em2[0], 128))
+    unsafe(pkcs1_v15_encode(&raw msg[0], 4, &raw mut em3[0], 128))
 
     var same12 = sec_bytes_equal(&raw em1[0], &raw em2[0], 128)
     var same23 = sec_bytes_equal(&raw em2[0], &raw em3[0], 128)
@@ -246,13 +246,13 @@ public func SEC_gcm_different_nonce_different_output(env : &mut TestEnv) {
     fill_bytes(&raw mut iv1[0], 12, 0x01)
     fill_bytes(&raw mut iv2[0], 12, 0x02)
 
-    var g1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
+    var g1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut g1), &raw key[0], 16))
     var ct1 : [16]u8; var tag1 : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0]))
 
-    var g2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
+    var g2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut g2), &raw key[0], 16))
     var ct2 : [16]u8; var tag2 : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut g2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut g2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0]))
 
     if(sec_bytes_equal(&raw ct1[0], &raw ct2[0], 16)) { env.error("SEC FAIL: same ct with different nonce") }
     if(sec_bytes_equal(&raw tag1[0], &raw tag2[0], 16)) { env.error("SEC FAIL: same tag with different nonce") }
@@ -264,19 +264,19 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
     var iv : [12]u8; fill_bytes(&raw mut iv[0], 12, 0xCA)
     var pt : [8]u8; fill_bytes(&raw mut pt[0], 8, 0x01)
 
-    var g1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
+    var g1 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut g1), &raw key[0], 16))
     var ct : [8]u8; var tag : [16]u8
-    gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv[0], 12, null, 0, &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
+    unsafe(gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv[0], 12, null, 0, &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0]))
 
     var detections : size_t = 0; var pos : size_t = 0
     while(pos < 16) {
         var bad_tag : [16]u8; var j : size_t = 0
         while(j < 16) { bad_tag[j] = tag[j]; j += 1 }
         bad_tag[pos] = bad_tag[pos] ^ 0xFF
-        var g2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
+        var g2 : GCMContext = unsafe(std::mem.zeroed_unchecked<GCMContext>()); unsafe(gcm_init(unsafe(&raw mut g2), &raw key[0], 16))
         var dec : [8]u8
-        var r = gcm_auth_decrypt(unsafe(&raw mut g2), &raw iv[0], 12, null, 0,
-                                  &raw ct[0], 8, &raw bad_tag[0], 16, &raw mut dec[0])
+        var r = unsafe(gcm_auth_decrypt(unsafe(&raw mut g2), &raw iv[0], 12, null, 0,
+                                  &raw ct[0], 8, &raw bad_tag[0], 16, &raw mut dec[0]))
         if(r < 0) { detections += 1 }
         pos += 1
     }
@@ -289,7 +289,7 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
 
 @test
 public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
-    var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); ecdsa_init(unsafe(&raw mut ctx))
+    var ctx : ECDSAContext = unsafe(std::mem.zeroed_unchecked<ECDSAContext>()); unsafe(ecdsa_init(unsafe(&raw mut ctx)))
     // A real P-256 point (RFC 6979 A.2.5 sample key). It has to be: the
     // importer checks the curve equation, so a key that is merely 65 bytes of
     // the right shape would be rejected and the verify below would fail for the
@@ -300,7 +300,7 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
         0xC0, 0x49, 0xB8, 0x92, 0x3B, 0x61, 0xFA, 0x6C, 0xE6, 0x69, 0x62, 0x2E, 0x60, 0xF2, 0x9F, 0xB6,
         0x79, 0x03, 0xFE, 0x10, 0x08, 0xB8, 0xBC, 0x99, 0xA4, 0x1A, 0xE9, 0xE9, 0x56, 0x28, 0xBC, 0x64,
         0xF2, 0xF1, 0xB2, 0x0C, 0x2D, 0x7E, 0x9F, 0x51, 0x77, 0xA3, 0xC2, 0x94, 0xD4, 0x46, 0x22, 0x99]
-    if(ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16) != 0) {
+    if(unsafe(ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16)) != 0) {
         env.error("SEC FAIL: could not import a known-good P-256 public key")
         return
     }
@@ -322,7 +322,7 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
     // Note: these last bytes should be ...63 25 50 for n-1
 
     var hash : [32]u8
-    var ret = ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig[0], 38)
+    var ret = unsafe(ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig[0], 38))
     // If low-S enforced, this signature should fail (s > n/2).
     // It will also likely fail signature verification since we didn't compute
     // the correct s value. Either failure is acceptable for this test.
@@ -362,7 +362,7 @@ public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
-    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); unsafe(transform_init(unsafe(&raw mut tr)))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     tr.iv_len = 4 as u8; tr.fixed_iv_len = 4 as u8
     var i : size_t = 0
@@ -372,8 +372,8 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
 
     var pt : [32]u8; fill_bytes(&raw mut pt[0], 32, 0)
     var seq : [8]u8; var enc : [128]u8
-    var len = tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
-                                    &raw pt[0], 32, &raw mut enc[0], 128)
+    var len = unsafe(tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+                                    &raw pt[0], 32, &raw mut enc[0], 128))
     if(len < 0) { env.error("encrypt failed"); return }
 
     var detections : size_t = 0; var pos : size_t = 0
@@ -382,8 +382,8 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
         while(j < len as size_t) { bad[j] = enc[j]; j += 1 }
         bad[pos] = bad[pos] ^ 0x01
         var dec : [64]u8
-        var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
-                                      &raw bad[0], len as size_t, &raw mut dec[0], 64)
+        var r = unsafe(tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+                                      &raw bad[0], len as size_t, &raw mut dec[0], 64))
         if(r < 0) { detections += 1 }
         pos += 1
     }
@@ -392,7 +392,7 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
 
 @test
 public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
-    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); unsafe(transform_init(unsafe(&raw mut tr)))
     tr.cipher_type = CIPHER_AES_128_CBC as u8; tr.key_len = 16 as u8
     tr.iv_len = 16 as u8; tr.mac_key_len = 32 as u8
     var i : size_t = 0
@@ -403,8 +403,8 @@ public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
 
     var pt : [16]u8; fill_bytes(&raw mut pt[0], 16, 0)
     var seq : [8]u8; var enc : [128]u8
-    var len = tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
-                                    &raw pt[0], 16, &raw mut enc[0], 128)
+    var len = unsafe(tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+                                    &raw pt[0], 16, &raw mut enc[0], 128))
     if(len < 0) { env.error("CBC encrypt failed"); return }
 
     var bad : [128]u8; i = 0
@@ -412,8 +412,8 @@ public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
     bad[18] = bad[18] ^ 0xFF
 
     var dec : [64]u8
-    var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
-                                  &raw bad[0], 128, &raw mut dec[0], 64)
+    var r = unsafe(tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+                                  &raw bad[0], 128, &raw mut dec[0], 64))
     if(r >= 0) { env.error("SEC FAIL: CBC MAC missed tamper — Lucky13/POODLE possible") }
 }
 
@@ -434,11 +434,11 @@ public func SEC_protocol_constants_distinct(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_input_too_short_rejected(env : &mut TestEnv) {
-    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); transform_init(unsafe(&raw mut tr))
+    var tr : Transform = unsafe(std::mem.zeroed_unchecked<Transform>()); unsafe(transform_init(unsafe(&raw mut tr)))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     var dummy : [64]u8; var seq : [8]u8
-    var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
-                                  &raw dummy[0], 20, &raw mut dummy[0], 64)
+    var r = unsafe(tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+                                  &raw dummy[0], 20, &raw mut dummy[0], 64))
     if(r >= 0) { env.error("SEC FAIL: too-short GCM record accepted") }
 }
 
@@ -450,8 +450,8 @@ public func SEC_gcm_input_too_short_rejected(env : &mut TestEnv) {
 public func x25519_generate_keypair_unique(env : &mut TestEnv) {
     var p1 : [32]u8; var u1 : [32]u8
     var p2 : [32]u8; var u2 : [32]u8
-    var r1 = x25519_generate_keypair(&raw mut p1[0], &raw mut u1[0])
-    var r2 = x25519_generate_keypair(&raw mut p2[0], &raw mut u2[0])
+    var r1 = unsafe(x25519_generate_keypair(&raw mut p1[0], &raw mut u1[0]))
+    var r2 = unsafe(x25519_generate_keypair(&raw mut p2[0], &raw mut u2[0]))
     if(r1 < 0 || r2 < 0) { env.error("x25519 keygen failed"); return }
 
     // Keys must be unique from CSPRNG
@@ -471,16 +471,16 @@ public func x25519_generate_keypair_unique(env : &mut TestEnv) {
 public func x25519_shared_secret_deterministic(env : &mut TestEnv) {
     // Key property: a * (b * G) == b * (a * G)
     var a_priv : [32]u8; var a_pub : [32]u8
-    x25519_generate_keypair(&raw mut a_priv[0], &raw mut a_pub[0])
+    unsafe(x25519_generate_keypair(&raw mut a_priv[0], &raw mut a_pub[0]))
 
     var b_priv : [32]u8; var b_pub : [32]u8
-    x25519_generate_keypair(&raw mut b_priv[0], &raw mut b_pub[0])
+    unsafe(x25519_generate_keypair(&raw mut b_priv[0], &raw mut b_pub[0]))
 
     var a_shared : [32]u8
-    x25519_compute_shared(&raw a_priv[0], &raw b_pub[0], &raw mut a_shared[0])
+    unsafe(x25519_compute_shared(&raw a_priv[0], &raw b_pub[0], &raw mut a_shared[0]))
 
     var b_shared : [32]u8
-    x25519_compute_shared(&raw b_priv[0], &raw a_pub[0], &raw mut b_shared[0])
+    unsafe(x25519_compute_shared(&raw b_priv[0], &raw a_pub[0], &raw mut b_shared[0]))
 
     if(!sec_bytes_equal(&raw a_shared[0], &raw b_shared[0], 32)) {
         env.error("x25519 shared secrets should match (ECDH property)")
@@ -494,13 +494,13 @@ public func x25519_shared_secret_deterministic(env : &mut TestEnv) {
 @test
 public func x25519_rejects_all_zero_peer(env : &mut TestEnv) {
     var priv : [32]u8; var pub : [32]u8
-    x25519_generate_keypair(&raw mut priv[0], &raw mut pub[0])
+    unsafe(x25519_generate_keypair(&raw mut priv[0], &raw mut pub[0]))
 
     var zero_peer : [32]u8
     var zpi : size_t = 0
     while(zpi < 32) { zero_peer[zpi] = 0; zpi += 1 }
     var shared : [32]u8
-    var r = x25519_compute_shared(&raw priv[0], &raw zero_peer[0], &raw mut shared[0])
+    var r = unsafe(x25519_compute_shared(&raw priv[0], &raw zero_peer[0], &raw mut shared[0]))
     if(r >= 0) {
         env.error("x25519 should reject all-zero peer public key")
     }
@@ -564,14 +564,14 @@ public func x25519_known_answer_rfc7748(env : &mut TestEnv) {
     // The test vectors are PRE-clamped (RFC says), so we pass them as-is.
 
     var alice_shared : [32]u8
-    x25519_compute_shared(&raw alice_priv[0], &raw bob_pub[0], &raw mut alice_shared[0])
+    unsafe(x25519_compute_shared(&raw alice_priv[0], &raw bob_pub[0], &raw mut alice_shared[0]))
 
     if(!sec_bytes_equal(&raw alice_shared[0], &raw expected[0], 32)) {
         env.error("x25519 RFC 7748 test vector failed")
     }
 
     var bob_shared : [32]u8
-    x25519_compute_shared(&raw bob_priv[0], &raw alice_pub[0], &raw mut bob_shared[0])
+    unsafe(x25519_compute_shared(&raw bob_priv[0], &raw alice_pub[0], &raw mut bob_shared[0]))
 
     if(!sec_bytes_equal(&raw bob_shared[0], &raw expected[0], 32)) {
         env.error("x25519 RFC 7748 test vector failed (Bob's side)")

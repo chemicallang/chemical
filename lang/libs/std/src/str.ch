@@ -76,7 +76,7 @@ public struct str 'a {
     func make(value : %literal_string) : str {
         var view = unsafe(std::string_view.make_no_len(value))
         if(!str_utf8_valid(view.data(), view.size())) {
-            panic("invalid UTF-8 in string literal")
+            unsafe(panic("invalid UTF-8 in string literal"))
         }
         return str { _view : view }
     }
@@ -85,7 +85,7 @@ public struct str 'a {
     @constructor
     func make_view(view : std::string_view) : str {
         if(!str_utf8_valid(view.data(), view.size())) {
-            panic("invalid UTF-8 in string view")
+            unsafe(panic("invalid UTF-8 in string view"))
         }
         return str { _view : view }
     }

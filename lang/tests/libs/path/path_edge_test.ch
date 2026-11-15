@@ -205,7 +205,7 @@ func test_path_stem_multi_dot(env : &mut TestEnv) {
 
 @test
 func test_path_is_absolute_root(env : &mut TestEnv) {
-    if(!unsafe(path::raw::is_absolute("/"))) {
+    if(!(unsafe(path::raw::is_absolute("/")))) {
         env.error("is_absolute / should be true");
     }
 }

@@ -402,7 +402,7 @@ public comptime func universal_test_runner(argc : %maybe_runtime<int>, argv : %r
  * Returns the number of failed tests.
  */
 @retained
-public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
+public unsafe func run_universal_tests_reporting(tests : std::span<UTFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
     var span = tests
     if(span.size() == 0) {
         printf("universal_test: no #universal_test declarations found\n")
@@ -471,7 +471,7 @@ public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporte
 
 /** Single-runner entry point: streams to a default console reporter. */
 @retained
-public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv : **char) : int {
+public unsafe func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv : **char) : int {
     var console = new_console_reporter()
     run_universal_tests_reporting(tests, &mut console, argc, argv)
     return finish_reporter(&mut console)
@@ -480,7 +480,7 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
 type UTHandleRunFn = (h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
 
 @retained
-public func universal_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public unsafe func universal_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     unsafe {
 
     var ptr = h.tests_ptr_value() as *mut UTFunction

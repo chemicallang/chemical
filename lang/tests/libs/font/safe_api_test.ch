@@ -149,7 +149,7 @@ public func font_api_from_path_roundtrip(env : &mut TestEnv) {
     var p = font_temp_pathbuf("p24_safe_font.ttf")
 
     var ps = p.as_string()
-    var wr = fs::raw::write_text_file(ps.c_str(), bytes.data(), bytes.size())
+    var wr = unsafe(fs::raw::write_text_file(ps.c_str(), bytes.data(), bytes.size()))
     if(wr is Result.Err) { env.error("failed to write font fixture"); return }
 
     var loaded = font::Font.from_path(&p.as_path())

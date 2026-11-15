@@ -52,7 +52,7 @@ public namespace raw {
     }
 
     // listen by address string and port using getaddrinfo -> bind -> listen loop
-    public func try_listen_addr(addr_str:*char, port: uint) : Socket {
+    public unsafe func try_listen_addr(addr_str:*char, port: uint) : Socket {
 
         net::startup();
         // create socket
@@ -140,10 +140,10 @@ public namespace raw {
         return s;
     }
 
-    public func listen_addr(addr_str : *char, port : uint) : Socket {
-        var s = try_listen_addr(addr_str, port)
+    public unsafe func listen_addr(addr_str : *char, port : uint) : Socket {
+        var s = unsafe(try_listen_addr(addr_str, port))
         if(s == 0 as Socket) {
-            panic("listen failed")
+            unsafe(panic("listen failed"))
         }
         return s
     }
@@ -158,7 +158,7 @@ public namespace raw {
         return s;
     }
 
-    public func recv_all(s: Socket, buf: *mut u8, cap: usize) : int {
+    public unsafe func recv_all(s: Socket, buf: *mut u8, cap: usize) : int {
         // A null buffer is only valid for a zero-length read; the C socket
         // length is signed, so reject lengths that would wrap to negative.
         if(cap > 0 && buf == null) { return -1 }
@@ -168,7 +168,7 @@ public namespace raw {
         return net::sock_recv(s, buf as *mut char, cap as int)
     }
 
-    public func send_all(s: Socket, p:*char, len:int) : int {
+    public unsafe func send_all(s: Socket, p:*char, len:int) : int {
         unsafe {
             if(len < 0) { return -1 }
             if(len > 0 && p == null) { return -1 }
@@ -185,7 +185,7 @@ public namespace raw {
 
     public func close_socket(s: Socket) { net::sock_close(s) }
 
-    public func dial(addr_str:*char, port: uint) : Socket {
+    public unsafe func dial(addr_str:*char, port: uint) : Socket {
         if(addr_str == null || port > 65535u) { return 0 as Socket; }
         net::startup();
 
@@ -287,12 +287,12 @@ public struct AsyncSocket {
     }
 
     // Await the next chunk of bytes (0 = EOF, <0 = error).
-    public func read(&self, buf : *mut u8, cap : usize) : core::async::FutureHandle<'static, int> {
+    public unsafe func read(&self, buf : *mut u8, cap : usize) : core::async::FutureHandle<'static, int> {
         return recv_async(self.fd, buf, cap)
     }
 
     // Await a full write of `len` bytes (returns `len`, or <0 on error).
-    public func write(&self, data : *char, len : int) : core::async::FutureHandle<'static, int> {
+    public unsafe func write(&self, data : *char, len : int) : core::async::FutureHandle<'static, int> {
         return send_async(self.fd, data, len)
     }
 
@@ -308,14 +308,14 @@ public func async_socket(fd : int) : AsyncSocket {
 }
 
 // Bind + listen synchronously (fast) and return an async listener.
-public func async_listener(addr_str : *char, port : uint) : AsyncSocket {
-    return AsyncSocket { fd : listen_addr(addr_str, port) as int }
+public unsafe func async_listener(addr_str : *char, port : uint) : AsyncSocket {
+    return AsyncSocket { fd : unsafe(listen_addr(addr_str, port)) as int }
 }
 
 // ---- connect ---------------------------------------------------------------
 
 // Resolves with the connected fd (>0), or 0 on failure.
-public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandle<'static, int> {
+public unsafe func dial_async(addr_str : *char, port : uint) : core::async::FutureHandle<'static, int> {
     return unsafe(async::spawn_blocking<int>(|addr_str, port|() => {
         var s = dial(addr_str, port)
         if(s == 0 as Socket) {
@@ -354,10 +354,10 @@ public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
         var n = await unsafe(net::iocp::async_iocp_recv(fd as Socket, buf, cap))
         return n
     } else {
-        var n = recv_all(fd as Socket, buf, cap)
+        var n = unsafe(recv_all(fd as Socket, buf, cap))
         while(n < 0 && (get_errno() == EAGAIN || get_errno() == EINTR)) {
             var ready = await async::readable(fd)
-            n = recv_all(fd as Socket, buf, cap)
+            n = unsafe(recv_all(fd as Socket, buf, cap))
         }
         return n
     }

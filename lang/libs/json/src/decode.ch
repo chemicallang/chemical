@@ -33,7 +33,7 @@ public func se_repl(value : &mut std::SerializationError, repl : std::Serializat
 // inside a generic function fail to resolve during generic instantiation.
 public func <T> take_ok(t : &mut std::Result<T, std::SerializationError>) : T {
     if(t is std::Result.Err) {
-        panic("take_ok: result is in error state")
+        unsafe(panic("take_ok: result is in error state"))
     }
     var Ok(value) = t else unsafe { unreachable }
     var temp : T
@@ -91,7 +91,7 @@ impl std::Decoder for JsonDecoder {
     func decode_u64(&self) : std::Result<u64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(json::raw::parse_u64(s.data()))
+            return std::Result.Ok(unsafe(json::raw::parse_u64(s.data())))
         }
         return std::Result.Err(se_err("expected number"))
     }
@@ -99,7 +99,7 @@ impl std::Decoder for JsonDecoder {
     func decode_i64(&self) : std::Result<i64, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(json::raw::parse_i64(s.data()))
+            return std::Result.Ok(unsafe(json::raw::parse_i64(s.data())))
         }
         if(self.value is JsonValue.Bool) {
             var Bool(v) = self.value else unsafe { unreachable }
@@ -111,7 +111,7 @@ impl std::Decoder for JsonDecoder {
     func decode_double(&self) : std::Result<double, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(json::raw::parse_double(s.data()))
+            return std::Result.Ok(unsafe(json::raw::parse_double(s.data())))
         }
         return std::Result.Err(se_err("expected number"))
     }
@@ -119,7 +119,7 @@ impl std::Decoder for JsonDecoder {
     func decode_float(&self) : std::Result<float, std::SerializationError> {
         if(self.value is JsonValue.Number) {
             var Number(s) = self.value else unsafe { unreachable }
-            return std::Result.Ok(json::raw::parse_double(s.data()) as float)
+            return std::Result.Ok(unsafe(json::raw::parse_double(s.data())) as float)
         }
         return std::Result.Err(se_err("expected number"))
     }

@@ -79,7 +79,7 @@ public func escape_js_text(text : std::string_view, emitter : &mut JsNodeEmitter
 
 // Emit the declarator list of a `var`/`const`/`let` statement (everything after
 // the keyword): `a = 1, b, c = 3`. Handles chained declarators in `next`.
-public func emit_js_var_decl_items(decl : *mut JsVarDecl, emitter : &mut JsNodeEmitter, universal_mode : bool) {
+public unsafe func emit_js_var_decl_items(decl : *mut JsVarDecl, emitter : &mut JsNodeEmitter, universal_mode : bool) {
         unsafe {
         var d = decl
         while(d != null) {
@@ -99,7 +99,7 @@ public func emit_js_var_decl_items(decl : *mut JsVarDecl, emitter : &mut JsNodeE
         }
     }
 
-public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, universal_mode : bool = false) {
+public unsafe func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, universal_mode : bool = false) {
         unsafe {
         switch(node.kind) {
             JsNodeKind.VarDecl => {
@@ -677,7 +677,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
         }
     }
 
-public func convert_js_root(root : *mut JsRoot, emitter : &mut JsNodeEmitter) {
+public unsafe func convert_js_root(root : *mut JsRoot, emitter : &mut JsNodeEmitter) {
         unsafe {
         var i = 0u
         while(i < root.statements.size()) {

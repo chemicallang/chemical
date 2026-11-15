@@ -282,7 +282,7 @@ public namespace ffi {
     }
 
     /// Raw arena copy of a C string.
-    public func allocate_str(builder : &mut ASTBuilder, data : *char, size : size_t) : *mut char {
+    public unsafe func allocate_str(builder : &mut ASTBuilder, data : *char, size : size_t) : *mut char {
         return builder.allocate_str(data, size)
     }
 
@@ -297,7 +297,7 @@ public namespace ffi {
     }
 
     /// Raw token-slot assignment.
-    public func set_token(parser : &mut Parser, token : *mut Token) {
+    public unsafe func set_token(parser : &mut Parser, token : *mut Token) {
         parser.setToken(token)
     }
 
@@ -312,7 +312,7 @@ public namespace ffi {
     }
 
     /// Raw parent-node assignment.
-    public func set_parent_node(parser : &mut Parser, node : *mut ASTNode) {
+    public unsafe func set_parent_node(parser : &mut Parser, node : *mut ASTNode) {
         parser.setParentNode(node)
     }
 

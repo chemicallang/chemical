@@ -57,7 +57,7 @@ public func shared_assets_bundle_has_no_dispatch_statements(env : &mut TestEnv) 
 public func shared_assets_local_js_has_dispatch(env : &mut TestEnv) {
     var shared = shared_assets("test")
     var page = HtmlPage()
-    page.attach_shared(shared)
+    unsafe(page.attach_shared(shared))
     page.defaultUniversalSetup()
     #html { <Greeting /> }
 

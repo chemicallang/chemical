@@ -1,25 +1,25 @@
 
 func getLineStyleKeyword(view : &std::string_view) : CSSKeywordKind {
     switch(fnv1_hash_view(view)) {
-        comptime_fnv1_hash("none") => { return CSSKeywordKind.None }
-        comptime_fnv1_hash("hidden") => { return CSSKeywordKind.Hidden }
-        comptime_fnv1_hash("dotted") => { return CSSKeywordKind.Dotted }
-        comptime_fnv1_hash("dashed") => { return CSSKeywordKind.Dashed }
-        comptime_fnv1_hash("solid") => { return CSSKeywordKind.Solid }
-        comptime_fnv1_hash("double") => { return CSSKeywordKind.Double }
-        comptime_fnv1_hash("groove") => { return CSSKeywordKind.Groove }
-        comptime_fnv1_hash("ridge") => { return CSSKeywordKind.Ridge }
-        comptime_fnv1_hash("inset") => { return CSSKeywordKind.Inset }
-        comptime_fnv1_hash("outset") => { return CSSKeywordKind.Outset }
+        unsafe(comptime_fnv1_hash("none")) => { return CSSKeywordKind.None }
+        unsafe(comptime_fnv1_hash("hidden")) => { return CSSKeywordKind.Hidden }
+        unsafe(comptime_fnv1_hash("dotted")) => { return CSSKeywordKind.Dotted }
+        unsafe(comptime_fnv1_hash("dashed")) => { return CSSKeywordKind.Dashed }
+        unsafe(comptime_fnv1_hash("solid")) => { return CSSKeywordKind.Solid }
+        unsafe(comptime_fnv1_hash("double")) => { return CSSKeywordKind.Double }
+        unsafe(comptime_fnv1_hash("groove")) => { return CSSKeywordKind.Groove }
+        unsafe(comptime_fnv1_hash("ridge")) => { return CSSKeywordKind.Ridge }
+        unsafe(comptime_fnv1_hash("inset")) => { return CSSKeywordKind.Inset }
+        unsafe(comptime_fnv1_hash("outset")) => { return CSSKeywordKind.Outset }
         default => { return CSSKeywordKind.Unknown }
     }
 }
 
 func getLineWidthKeyword(view : &std::string_view) : CSSKeywordKind {
     switch(fnv1_hash_view(view)) {
-        comptime_fnv1_hash("thin") => { return CSSKeywordKind.None }
-        comptime_fnv1_hash("medium") => { return CSSKeywordKind.Hidden }
-        comptime_fnv1_hash("thick") => { return CSSKeywordKind.Dotted }
+        unsafe(comptime_fnv1_hash("thin")) => { return CSSKeywordKind.None }
+        unsafe(comptime_fnv1_hash("medium")) => { return CSSKeywordKind.Hidden }
+        unsafe(comptime_fnv1_hash("thick")) => { return CSSKeywordKind.Dotted }
         default => { return CSSKeywordKind.Unknown }
     }
 }

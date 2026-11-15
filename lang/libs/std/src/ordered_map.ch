@@ -70,7 +70,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         const cap = 16u
         const allocated = unsafe(malloc(cap * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
         if(allocated == null) {
-            panic("failed to allocate ordered_map table")
+            unsafe(panic("failed to allocate ordered_map table"))
         }
         unsafe { memset(allocated, 0, cap * sizeof(*mut ordered_map_node<Key, Value>)) };
         return ordered_map<Key, Value> {
@@ -162,7 +162,7 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
 
     func at(&self, key : &Key) : &Value {
         const ptr = get_ptr(key)
-        if(ptr == null) { panic("map key not found") }
+        if(ptr == null) { unsafe(panic("map key not found")) }
         return unsafe(&*ptr)
     }
 

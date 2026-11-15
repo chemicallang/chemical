@@ -28,7 +28,7 @@ public variant Option<T> {
     // Explicit panicking form for callers that already checked `is_some`.
     func take_unchecked(&mut self) : T {
         if(self is Option.None) {
-            panic("cannot take on a option that's none")
+            unsafe(panic("cannot take on a option that's none"))
         }
         var Some(value) = self else unsafe { unreachable }
         var temp : T

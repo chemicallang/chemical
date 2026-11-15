@@ -87,7 +87,7 @@ func (converter : &mut MdConverter) make_html_value_call(value : *mut Value, len
 
 func (converter : &mut MdConverter) convertMdRoot(root : *mut MdRoot) {
     if(root != null) {
-        md_convert_md_node(&mut converter.str, root as *mut MdNode, converter as *mut MdEmitter, null, null)
+        unsafe(md_convert_md_node(&mut converter.str, root as *mut MdNode, converter as *mut MdEmitter, null, null))
     }
     converter.flush()
 }

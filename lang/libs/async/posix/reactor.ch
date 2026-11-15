@@ -14,13 +14,13 @@
 // The libc names live in `async::posix` so they do not collide with the
 // Chemical-level `async::select<T>` combinator.
 public namespace async {
-    @extern public func pipe(fds : *mut int) : int
+    @extern public unsafe func pipe(fds : *mut int) : int
 }
 public namespace async {
 public namespace posix {
 
     // ---- select(2) fallback ----
-    @extern public func select(nfds : int, readfds : *mut FdSet, writefds : *mut FdSet, exceptfds : *mut FdSet, timeout : *mut TimeVal) : int
+    @extern public unsafe func select(nfds : int, readfds : *mut FdSet, writefds : *mut FdSet, exceptfds : *mut FdSet, timeout : *mut TimeVal) : int
 
     public struct TimeVal {
         var tv_sec : long
@@ -45,8 +45,8 @@ public namespace posix {
 
     // ---- epoll(7) (Linux) ----
     @extern public func epoll_create1(flags : int) : int
-    @extern public func epoll_ctl(epfd : int, op : int, fd : int, event : *mut void) : int
-    @extern public func epoll_wait(epfd : int, events : *mut void, maxevents : int, timeout : int) : int
+    @extern public unsafe func epoll_ctl(epfd : int, op : int, fd : int, event : *mut void) : int
+    @extern public unsafe func epoll_wait(epfd : int, events : *mut void, maxevents : int, timeout : int) : int
 
     comptime const EPOLL_CTL_ADD : int = 1
     comptime const EPOLL_CTL_DEL : int = 2
@@ -59,7 +59,7 @@ public namespace posix {
 
     // ---- kqueue(2) (macOS / FreeBSD) ----
     @extern public func kqueue() : int
-    @extern public func kevent(kq : int, changelist : *mut void, nchanges : int, eventlist : *mut void, nevents : int, timeout : *mut KTimeSpec) : int
+    @extern public unsafe func kevent(kq : int, changelist : *mut void, nchanges : int, eventlist : *mut void, nevents : int, timeout : *mut KTimeSpec) : int
 
     comptime const EVFILT_READ : i16 = -1
     comptime const EVFILT_WRITE : i16 = -2
@@ -593,7 +593,7 @@ public namespace posix {
         }
     }
 
-    public func reactor_platform_poll(fds : *mut PollFd, n : ulong, timeout_ms : int) : int {
+    public unsafe func reactor_platform_poll(fds : *mut PollFd, n : ulong, timeout_ms : int) : int {
         unsafe {
             comptime if(def.linux) {
                 return epoll_reactor_poll(fds, n, timeout_ms)

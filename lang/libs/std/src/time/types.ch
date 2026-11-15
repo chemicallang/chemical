@@ -142,7 +142,7 @@ public namespace std {
 
             public func div_i64(&self, scalar : i64) : Duration {
                 if(scalar == 0) {
-                    panic("Duration::div_i64: division by zero")
+                    unsafe(panic("Duration::div_i64: division by zero"))
                 }
                 var total_nanos = self.as_nanos()
                 var result_nanos = total_nanos / scalar

@@ -14,6 +14,11 @@ The audit separates four things:
   must go through a safe wrapper).
 - `SAFE_NAMED`: public functions whose name still carries a `safe_`/`_safe`
   qualifier. It must be zero: safe is the default name (see `AGENTS.md`).
+- `RAW_UNSAFE_GATE` (`scripts/safety-raw-surface-audit.py`, 2026-11-15): every
+  public function whose *parameter list* mentions a raw pointer must be
+  `unsafe func`. Also must be zero. `RAW_NONRAW` measures namespace placement,
+  which is why moving a function into `namespace raw` could satisfy the naming
+  gate while leaving it safe-callable — the unsoundness this gate closes.
 
 The snapshot script fails closed if `rg` is missing instead of silently writing
 empty snapshots.

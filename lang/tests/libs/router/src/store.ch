@@ -80,7 +80,7 @@ public func test_router_manifest_json(env : &mut TestEnv) {
     var expected = std::string_view("{\"routers\":[{\"name\":\"main\",\"routes\":[{\"id\":\"projects\",\"pattern\":\"/projects/{id}\",\"fallback\":false},{\"id\":\"not-found\",\"pattern\":null,\"fallback\":true}]}]}")
     if(!json.to_view().equals(&expected)) {
         env.error("route_manifest_json did not match")
-        test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0))
     }
 }
 
@@ -93,6 +93,6 @@ public func test_router_manifest_document(env : &mut TestEnv) {
     var expected = std::string_view("{\"name\":\"index\",\"base\":\"/app\",\"routers\":[{\"name\":\"main\",\"routes\":[{\"id\":\"projects\",\"pattern\":\"/projects/{id}\",\"fallback\":false},{\"id\":\"not-found\",\"pattern\":null,\"fallback\":true}]}]}")
     if(!json.to_view().equals(&expected)) {
         env.error("route_manifest_document did not match template 6")
-        test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, json.data(), 0, 0))
     }
 }

@@ -39,15 +39,15 @@ func decode_any(data : *u8, len : size_t) : Result<Image, ImageError> {
 }
 
 func decode_png(data : *u8, len : size_t) : Result<Image, ImageError> {
-    return raw::parse_png(data, len)
+    return unsafe(raw::parse_png(data, len))
 }
 
 func decode_bmp(data : *u8, len : size_t) : Result<Image, ImageError> {
-    return raw::parse_bmp(data, len)
+    return unsafe(raw::parse_bmp(data, len))
 }
 
 func decode_ppm(data : *u8, len : size_t) : Result<Image, ImageError> {
-    return raw::parse_ppm(data, len)
+    return unsafe(raw::parse_ppm(data, len))
 }
 
 // ── encoding ──────────────────────────────────────────────────────────────
@@ -55,19 +55,19 @@ func decode_ppm(data : *u8, len : size_t) : Result<Image, ImageError> {
 func encode_png_bytes(img : &Image) : Result<vector<u8>, ImageError> {
     var check = img.validate()
     if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
-    return raw::encode_png(unsafe(img as *mut Image))
+    return unsafe(raw::encode_png(unsafe(img as *mut Image)))
 }
 
 func encode_bmp_bytes(img : &Image) : Result<vector<u8>, ImageError> {
     var check = img.validate()
     if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
-    return raw::encode_bmp(unsafe(img as *mut Image))
+    return unsafe(raw::encode_bmp(unsafe(img as *mut Image)))
 }
 
 func encode_ppm_bytes(img : &Image) : Result<vector<u8>, ImageError> {
     var check = img.validate()
     if(check is Result.Err) { var Err(e) = check else unsafe { unreachable }; return Result.Err<vector<u8>, ImageError>(e) }
-    return raw::encode_ppm(unsafe(img as *mut Image))
+    return unsafe(raw::encode_ppm(unsafe(img as *mut Image)))
 }
 
 // ── saving ────────────────────────────────────────────────────────────────

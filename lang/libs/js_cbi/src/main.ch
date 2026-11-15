@@ -1,5 +1,5 @@
 @no_mangle
-public func js_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func js_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         visitor.visitEmbeddedNode(node)
         const resolver = visitor.getSymbolResolver();
@@ -11,7 +11,7 @@ public func js_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNod
     }
 
 @no_mangle
-public func js_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func js_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut JsRoot;
@@ -92,16 +92,16 @@ func make_set_js_hash_call(converter : &mut JsConverter, hash : ubigint, parent 
         }
     }
 
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
 }
 
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null;
 }
 
 @no_mangle
-public func js_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
+public unsafe func js_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
         unsafe {
         visitor.visitEmbeddedValue(value)
         const resolver = visitor.getSymbolResolver();
@@ -114,7 +114,7 @@ public func js_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedV
     }
 
 @no_mangle
-public func js_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
+public unsafe func js_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut JsRoot;
@@ -145,7 +145,7 @@ public func js_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTD
     }
 
 @no_mangle
-public func js_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public unsafe func js_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -167,7 +167,7 @@ public func js_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) 
     }
 
 @no_mangle
-public func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -192,7 +192,7 @@ public func js_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) :
 // falling back to the page, and is emitted once per source location (see
 // `js_replacementNode`). It reuses the `js` embedded node with `shared = true`.
 @no_mangle
-public func globaljs_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func globaljs_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -217,7 +217,7 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
     return nextJsToken(js, lexer, false)
 }
 @no_mangle
-public func js_initializeLexer(lexer : *mut Lexer) {
+public unsafe func js_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;

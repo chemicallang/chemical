@@ -10,7 +10,7 @@
  * Such a run is pretty-printing indentation rather than content: dropping it is
  * what keeps a formatted #html block byte-identical however it is indented.
  */
-public func ut_run_has_newline(start : *char, end : *char) : bool { unsafe {
+public unsafe func ut_run_has_newline(start : *char, end : *char) : bool { unsafe {
     var p = start;
     while(p < end) {
         if(*p == '\n' || *p == '\r') {
@@ -42,7 +42,7 @@ public func ut_run_has_newline(start : *char, end : *char) : bool { unsafe {
  * Inside <pre> (and whenever preserve_whitespace is set) nothing is dropped --
  * see pre_depth in HtmlLexer.
  */
-public func ut_text_run_end(html : &mut HtmlLexer, provider : &SourceProvider, start : *char, end : *char) : *char { unsafe {
+public unsafe func ut_text_run_end(html : &mut HtmlLexer, provider : &SourceProvider, start : *char, end : *char) : *char { unsafe {
     if(html.pre_depth > 0 || html.preserve_whitespace) {
         return end;
     }

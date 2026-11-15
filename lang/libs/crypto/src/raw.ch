@@ -28,7 +28,7 @@ func base64_val(c : char) : int {
         }
     }
 
-public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, CryptoError> {
+public unsafe func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_len : size_t) : Result<size_t, CryptoError> {
         unsafe {
         var encoded_len = ((data_len + 2) / 3) * 4;
         if(encoded_len + 1 > out_len) { return Result.Err(CryptoError.BufferTooSmall(encoded_len + 1)); }
@@ -55,7 +55,7 @@ public func base64_encode(data : *u8, data_len : size_t, out : *mut char, out_le
         }
     }
 
-public func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len : size_t) : Result<size_t, CryptoError> {
+public unsafe func base64_decode(b64 : *char, b64_len : size_t, out : *mut u8, out_len : size_t) : Result<size_t, CryptoError> {
         unsafe {
         var effective_len = b64_len;
         if(effective_len > 0 && b64[effective_len - 1] == '=') { effective_len -= 1; }
@@ -108,7 +108,7 @@ public struct Sha256Context {
     var buffer_pos : size_t;
 }
 
-public func sha256_init(ctx : *mut Sha256Context) {
+public unsafe func sha256_init(ctx : *mut Sha256Context) {
         unsafe {
         ctx.state[0] = 0x6A09E667u32;
         ctx.state[1] = 0xBB67AE85u32;
@@ -124,7 +124,7 @@ public func sha256_init(ctx : *mut Sha256Context) {
         }
     }
 
-public func sha256_update(ctx : *mut Sha256Context, data : *u8, data_len : size_t) {
+public unsafe func sha256_update(ctx : *mut Sha256Context, data : *u8, data_len : size_t) {
         unsafe {
         ctx.count += data_len as u64;
         var pos : size_t = 0;
@@ -149,7 +149,7 @@ public func sha256_update(ctx : *mut Sha256Context, data : *u8, data_len : size_
         }
     }
 
-public func sha256_final(ctx : *mut Sha256Context, digest : *mut u8) {
+public unsafe func sha256_final(ctx : *mut Sha256Context, digest : *mut u8) {
         unsafe {
         var bits = ctx.count * 8;
         ctx.buffer[ctx.buffer_pos] = 0x80;
@@ -189,7 +189,7 @@ public func sha256_final(ctx : *mut Sha256Context, digest : *mut u8) {
         }
     }
 
-public func sha256_hash(data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func sha256_hash(data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         var ctx : Sha256Context;
         sha256_init(unsafe(&raw mut ctx));
@@ -333,14 +333,14 @@ func sha512_ctx_init(ctx : *mut Sha512Context, init_sha384 : bool) {
         }
     }
 
-public func sha512_init(ctx : *mut Sha512Context) {
+public unsafe func sha512_init(ctx : *mut Sha512Context) {
         unsafe {
         sha512_ctx_init(ctx, false)
 
         }
     }
 
-public func sha384_init(ctx : *mut Sha512Context) {
+public unsafe func sha384_init(ctx : *mut Sha512Context) {
         unsafe {
         sha512_ctx_init(ctx, true)
 
@@ -373,14 +373,14 @@ func sha512_update_impl(ctx : *mut Sha512Context, data : *u8, data_len : size_t)
         }
     }
 
-public func sha512_update(ctx : *mut Sha512Context, data : *u8, data_len : size_t) {
+public unsafe func sha512_update(ctx : *mut Sha512Context, data : *u8, data_len : size_t) {
         unsafe {
         sha512_update_impl(ctx, data, data_len)
 
         }
     }
 
-public func sha384_update(ctx : *mut Sha512Context, data : *u8, data_len : size_t) {
+public unsafe func sha384_update(ctx : *mut Sha512Context, data : *u8, data_len : size_t) {
         unsafe {
         sha512_update_impl(ctx, data, data_len)
 
@@ -444,21 +444,21 @@ func sha512_final_impl(ctx : *mut Sha512Context, digest : *mut u8, digest_len : 
         }
     }
 
-public func sha512_final(ctx : *mut Sha512Context, digest : *mut u8) {
+public unsafe func sha512_final(ctx : *mut Sha512Context, digest : *mut u8) {
         unsafe {
         sha512_final_impl(ctx, digest, 64u)
 
         }
     }
 
-public func sha384_final(ctx : *mut Sha512Context, digest : *mut u8) {
+public unsafe func sha384_final(ctx : *mut Sha512Context, digest : *mut u8) {
         unsafe {
         sha512_final_impl(ctx, digest, 48u)
 
         }
     }
 
-public func sha512_hash(data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func sha512_hash(data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         var ctx : Sha512Context;
         sha512_init(unsafe(&raw mut ctx));
@@ -468,7 +468,7 @@ public func sha512_hash(data : *u8, data_len : size_t, digest : *mut u8) {
         }
     }
 
-public func sha384_hash(data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func sha384_hash(data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         var ctx : Sha512Context;
         sha384_init(unsafe(&raw mut ctx));
@@ -634,7 +634,7 @@ func II(a : *mut u32, b : u32, c : u32, d : u32, x : u32, s : u32, ac : u32) {
         }
     }
 
-public func md5_init(ctx : *mut Md5Context) {
+public unsafe func md5_init(ctx : *mut Md5Context) {
         unsafe {
         ctx.state[0] = 0x67452301u32;
         ctx.state[1] = 0xEFCDAB89u32;
@@ -646,7 +646,7 @@ public func md5_init(ctx : *mut Md5Context) {
         }
     }
 
-public func md5_update(ctx : *mut Md5Context, data : *u8, data_len : size_t) {
+public unsafe func md5_update(ctx : *mut Md5Context, data : *u8, data_len : size_t) {
         unsafe {
         var new_count = ctx.count[0] + ((data_len as u32) << 3);
         if(new_count < ctx.count[0]) { ctx.count[1] += 1; }
@@ -677,7 +677,7 @@ public func md5_update(ctx : *mut Md5Context, data : *u8, data_len : size_t) {
         }
     }
 
-public func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
+public unsafe func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
         unsafe {
         var count_bits = ctx.count[0];
         var count_bits_high = ctx.count[1];
@@ -715,7 +715,7 @@ public func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
         }
     }
 
-public func md5_hash(data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func md5_hash(data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         var ctx : Md5Context;
         md5_init(unsafe(&raw mut ctx));
@@ -817,7 +817,7 @@ func md5_transform(ctx : *mut Md5Context, block : *u8) {
 /// key: secret key
 /// data: message data
 /// digest: output buffer (at least 32 bytes)
-public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         // If key is longer than block size (64 bytes), hash it first
         var actual_key : [64]u8;
@@ -879,7 +879,7 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
 /// key: secret key
 /// data: message data
 /// digest: output buffer (at least 48 bytes)
-public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         // If key is longer than block size (128 bytes for the SHA-512 family),
         // hash it first. All locals are declared up front — mid-function
@@ -936,7 +936,7 @@ public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size
 // ---------------------------------------------------------------------------
 
 /// Compute HMAC-MD5 (legacy only, not for security).
-public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
+public unsafe func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
         unsafe {
         var actual_key : [64]u8;
         var actual_key_len : size_t = key_len;
@@ -995,7 +995,7 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
 /// Constant-time comparison of two byte arrays.
 /// Returns true if they are equal.
 /// Safe against timing side-channel attacks.
-public func constant_time_equal(a : *u8, b : *u8, len : size_t) : bool {
+public unsafe func constant_time_equal(a : *u8, b : *u8, len : size_t) : bool {
         unsafe {
         var diff : u8 = 0;
         var i : size_t = 0;

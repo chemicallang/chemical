@@ -1791,7 +1791,7 @@ func (converter : &mut CSSRuntimeConverter) writeMediaQueryList(queryList : *mut
  * Root-level declarations (no selector) are emitted inside a bare `{ ... }`
  * block; nested rules, media queries and keyframes keep their selectors.
  */
-public func convert_css_root(root : *mut CSSOM, out : &mut std::string) {
+public unsafe func convert_css_root(root : *mut CSSOM, out : &mut std::string) {
         unsafe {
         var converter = CSSRuntimeConverter { str : std::string() }
 

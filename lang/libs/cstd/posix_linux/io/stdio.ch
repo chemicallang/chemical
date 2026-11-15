@@ -42,11 +42,11 @@ public func get_stderr() : *mut FILE {
    This function is a possible cancellation point and therefore not
    marked with __THROW.  */
 @extern
-public func pclose(__stream : *mut FILE) : int
+public unsafe func pclose(__stream : *mut FILE) : int
 
 /* Create a new stream connected to a pipe running the given command.
 
    This function is a possible cancellation point and therefore not
    marked with __THROW.  */
 @extern
-public func popen(__command : *char, __modes : *char) : *mut FILE
+public unsafe func popen(__command : *char, __modes : *char) : *mut FILE

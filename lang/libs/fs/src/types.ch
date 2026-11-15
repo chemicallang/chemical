@@ -106,7 +106,7 @@ public struct File {
         // No cached native form: hand the raw UTF-8 bytes to the portable
         // wrapper, which converts to the platform form (UTF-16 on Windows).
         var text = path.as_string()
-        return raw::file_open(text.c_str(), unsafe(*opts))
+        return unsafe(raw::file_open(text.c_str(), unsafe(*opts)))
     }
 
     /// Create or truncate a file for writing.
@@ -124,7 +124,7 @@ public struct File {
 
     /// Metadata for this open handle.
     func metadata(&self) : Result<Metadata, FsError> {
-        return raw::file_metadata(unsafe(self as *mut File))
+        return unsafe(raw::file_metadata(unsafe(self as *mut File)))
     }
 
     @delete

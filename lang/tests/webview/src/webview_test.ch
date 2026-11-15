@@ -21,12 +21,12 @@ public func test_webview_defaults(env : &mut TestEnv) {
 @test
 public func test_webview_set_title_size(env : &mut TestEnv) {
     var wv = webview::NativeWebView.make()
-    webview::raw::webview_set_title(&raw mut wv, "My App")
+    unsafe(webview::raw::webview_set_title(&raw mut wv, "My App"))
     if(!string_eq(&raw wv.title, string_view("My App"))) {
         env.error("set_title did not update title");
         return
     }
-    webview::raw::webview_set_size(&raw mut wv, 1024, 768)
+    unsafe(webview::raw::webview_set_size(&raw mut wv, 1024, 768))
     if(wv.width != 1024) { env.error("set_size did not update width"); return }
     if(wv.height != 768) { env.error("set_size did not update height"); return }
 }

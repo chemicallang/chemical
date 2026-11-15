@@ -73,13 +73,13 @@ public struct Archive {
         var out = vector<u8>()
         var entry = archive_safe_entry_ptr_mut(&raw mut self.inner, index)
         if(self.inner.archive_type == 1) {
-            var r = raw::zip_read_entry(&raw mut self.inner.zip_data, entry, &raw mut out)
+            var r = unsafe(raw::zip_read_entry(&raw mut self.inner.zip_data, entry, &raw mut out))
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
             }
         } else {
-            var r = raw::tar_read_entry(&raw mut self.inner.tar_data, entry, &raw mut out)
+            var r = unsafe(raw::tar_read_entry(&raw mut self.inner.tar_data, entry, &raw mut out))
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
@@ -226,7 +226,7 @@ public struct ZipWriter {
         var name_buf = string()
         name_buf.append_view(name.to_view())
         name_buf.append(0 as char)
-        raw::zip_writer_add_file(&raw mut self.inner, name_buf.c_str(), data.data(), data.size())
+        unsafe(raw::zip_writer_add_file(&raw mut self.inner, name_buf.c_str(), data.data(), data.size()))
         self.finished = false
         return Result.Ok(std::Unit{})
     }
@@ -234,7 +234,7 @@ public struct ZipWriter {
     /// Append the central directory (once) and return the ZIP bytes.
     public func finish(&mut self) : vector<u8> {
         if(!self.finished) {
-            raw::zip_writer_close(&raw mut self.inner)
+            unsafe(raw::zip_writer_close(&raw mut self.inner))
             self.finished = true
         }
         var out = vector<u8>()
@@ -270,7 +270,7 @@ func archive_safe_from_bytes(data : *u8, len : size_t) : Result<Archive, Archive
         archive_type : 1,
         loaded : false
     }
-    var zr = raw::open_zip_bytes(data, len, &raw mut zip_archive.zip_data)
+    var zr = unsafe(raw::open_zip_bytes(data, len, &raw mut zip_archive.zip_data))
     if(zr is Result.Ok) {
         zip_archive.loaded = true
         return Result.Ok(Archive { inner : zip_archive })

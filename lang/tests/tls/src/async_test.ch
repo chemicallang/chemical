@@ -21,16 +21,16 @@ public func INT_tls13_client_async(env : &mut TestEnv) {
     test_server_wait()
 
     var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>())
-    ssl_init(unsafe(&raw mut ctx))
+    unsafe(ssl_init(unsafe(&raw mut ctx)))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut config))
 
     var ret = async::block_on<int>(tls_connect_async(unsafe(&raw mut ctx), "127.0.0.1", 19890u))
     if(ret < 0) {
         env.error("TLS13 async: handshake failed")
-        ssl_free(unsafe(&raw mut ctx))
+        unsafe(ssl_free(unsafe(&raw mut ctx)))
         test_kill_port(19890)
         return
     }
@@ -47,7 +47,7 @@ public func INT_tls13_client_async(env : &mut TestEnv) {
         env.error("TLS13 async: app-data response mismatch")
     }
 
-    ssl_close_notify(unsafe(&raw mut ctx))
-    ssl_free(unsafe(&raw mut ctx))
+    unsafe(ssl_close_notify(unsafe(&raw mut ctx)))
+    unsafe(ssl_free(unsafe(&raw mut ctx)))
     test_kill_port(19890)
 }

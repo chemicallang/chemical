@@ -109,7 +109,7 @@ public namespace net {
         }}
         }
 
-        public func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
+        public unsafe func async_recv(s: Socket, ctx: *mut AsyncContext) : int {
         unsafe {
             var bytes: u32 = 0;
             var flags: u32 = 0;
@@ -117,7 +117,7 @@ public namespace net {
 
         }}
 
-        public func async_send(s: Socket, ctx: *mut AsyncContext) : int {
+        public unsafe func async_send(s: Socket, ctx: *mut AsyncContext) : int {
         unsafe {
             var bytes: u32 = 0;
             return WSASend(s as uintptr_t, &raw mut ctx.buffer, 1, &raw mut bytes, 0, &raw mut ctx.overlapped, null);
@@ -179,7 +179,7 @@ public namespace net {
         }
 
         @retained
-        public func iocp_op_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
+        public unsafe func iocp_op_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
         unsafe {
             var op = frame as *mut IocpOp
             op.m.lock()
@@ -200,7 +200,7 @@ public namespace net {
         }}
 
         @retained
-        public func iocp_op_drop(frame : *mut void) {
+        public unsafe func iocp_op_drop(frame : *mut void) {
         unsafe {
             var op = frame as *mut IocpOp
             var vtbl = op.vtbl

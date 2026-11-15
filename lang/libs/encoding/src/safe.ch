@@ -37,7 +37,7 @@ public func base64_encode(data : &[u8]) : Result<string, EncodingError> {
     if(!out.try_reserve(encoded_len + 1)) {
         return Result.Err(EncodingError.OutOfMemory())
     }
-    var r = crypto::raw::base64_encode(data.data(), n, out.data() as *mut char, encoded_len + 1)
+    var r = unsafe(crypto::raw::base64_encode(data.data(), n, out.data() as *mut char, encoded_len + 1))
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }
@@ -87,7 +87,7 @@ public func base64_decode(b64 : &str) : Result<vector<u8>, EncodingError> {
         return Result.Ok(out)
     }
     out.resize(decoded_len)
-    var r = crypto::raw::base64_decode(b64.data(), size, out.data() as *mut u8, decoded_len)
+    var r = unsafe(crypto::raw::base64_decode(b64.data(), size, out.data() as *mut u8, decoded_len))
     if(r is Result.Err) {
         return Result.Err(EncodingError.InvalidInput())
     }

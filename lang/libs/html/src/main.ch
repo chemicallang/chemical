@@ -27,19 +27,19 @@ public func parse_html(view : std::string_view) : std::string {
     var allocator = ASTAllocator.make()
     var builder = ASTBuilder { allocator : (&raw mut allocator) as *mut BatchAllocator, typeBuilder : null }
 
-    const root = parseHtmlRoot((&raw mut parser) as *mut Parser, &raw mut builder)
+    const root = unsafe(parseHtmlRoot((&raw mut parser) as *mut Parser, &raw mut builder))
     if(root == null) {
         allocator.deinit()
         return std::string()
     }
 
     var out = std::string()
-    convert_html_root(root as *mut HtmlRoot, &mut out)
+    unsafe(convert_html_root(root as *mut HtmlRoot, &mut out))
     allocator.deinit()
     return out
 }
 
-public func parse_html_root(view : std::string_view, allocator : *mut ASTAllocator) : *mut HtmlRoot {
+public unsafe func parse_html_root(view : std::string_view, allocator : *mut ASTAllocator) : *mut HtmlRoot {
     var tokens = tokenize_html_impl(view)
 
     var parser = RuntimeParser { current : null, tokens : std::vector<Token>(), parent : null }
@@ -47,12 +47,12 @@ public func parse_html_root(view : std::string_view, allocator : *mut ASTAllocat
 
     var builder = ASTBuilder { allocator : allocator as *mut BatchAllocator, typeBuilder : null }
 
-    return parseHtmlRoot((&raw mut parser) as *mut Parser, &raw mut builder) as *mut HtmlRoot
+    return unsafe(parseHtmlRoot((&raw mut parser) as *mut Parser, &raw mut builder)) as *mut HtmlRoot
 }
 
-public func convert_html_root_to_string(root : *mut HtmlRoot) : std::string {
+public unsafe func convert_html_root_to_string(root : *mut HtmlRoot) : std::string {
     var out = std::string()
-    convert_html_root(root, &mut out)
+    unsafe(convert_html_root(root, &mut out))
     return out
 }
 

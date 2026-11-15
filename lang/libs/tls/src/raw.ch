@@ -326,7 +326,7 @@ public namespace raw {
         var resumption_master_secret : [48]u8
     }
 
-    public func tls13_key_schedule_init(ks : *mut TLS13KeySchedule) {
+    public unsafe func tls13_key_schedule_init(ks : *mut TLS13KeySchedule) {
         unsafe {
 
         ks.hash_algorithm = 0
@@ -662,11 +662,11 @@ public namespace raw {
         // if ssl_free() was already invoked explicitly.
         @delete
         func destruct(&mut self) {
-            ssl_free(&raw mut self)
+            unsafe(ssl_free(&raw mut self))
         }
     }
 
-    public func ssl_context_init(ssl : *mut SSLContext) { unsafe {
+    public unsafe func ssl_context_init(ssl : *mut SSLContext) { unsafe {
         ssl.conf = null
         ssl.conf_owned = false
         var sess_mem = malloc(sizeof(Session)) as *mut Session
@@ -753,7 +753,7 @@ public namespace raw {
         var base_iv_dec : [16]u8
     }
 
-    public func transform_init(tr : *mut Transform) {
+    public unsafe func transform_init(tr : *mut Transform) {
         unsafe {
 
         tr.cipher_type = 0
@@ -832,7 +832,7 @@ public namespace raw {
         var new_session_ticket_len : u16
     }
 
-    public func handshake_params_init(hs : *mut HandshakeParams) {
+    public unsafe func handshake_params_init(hs : *mut HandshakeParams) {
         unsafe {
 
         var i : size_t = 0
@@ -952,7 +952,7 @@ public namespace raw {
     // As defined in RFC 5246 section 5. The hash is SHA-256 for most suites
     // and SHA-384 for the AES_256_GCM_SHA384 family (use_sha384 = true).
 
-    public func tls12_prf(secret : *u8, secret_len : size_t,
+    public unsafe func tls12_prf(secret : *u8, secret_len : size_t,
                            label : *char, label_len : size_t,
                            seed : *u8, seed_len : size_t,
                            output : *mut u8, output_len : size_t) {
@@ -1021,7 +1021,7 @@ public namespace raw {
 
     // SHA-384 variant of the TLS 1.2 PRF for the AES_256_GCM_SHA384 family.
     // Structurally identical to tls12_prf above with 48-byte hash blocks.
-    public func tls12_prf_sha384(secret : *u8, secret_len : size_t,
+    public unsafe func tls12_prf_sha384(secret : *u8, secret_len : size_t,
                                   label : *char, label_len : size_t,
                                   seed : *u8, seed_len : size_t,
                                   output : *mut u8, output_len : size_t) {
@@ -1152,7 +1152,7 @@ public namespace raw {
 }
 
     // TLS 1.3 Derive-Secret (RFC 8446)
-    public func tls13_derive_secret(secret : *u8, secret_len : size_t,
+    public unsafe func tls13_derive_secret(secret : *u8, secret_len : size_t,
                                      label : *char, label_len : size_t,
                                      transcript_hash : *u8, hash_len : size_t,
                                      output : *mut u8, output_len : size_t) {
@@ -1221,9 +1221,9 @@ public namespace raw {
                              ikm : *u8, ikm_len : size_t,
                              prk : *mut u8, hash_len : size_t) {
         if(hash_len == 48) {
-            crypto::raw::hmac_sha384(salt, salt_len, ikm, ikm_len, prk)
+            unsafe(crypto::raw::hmac_sha384(salt, salt_len, ikm, ikm_len, prk))
         } else {
-            crypto::raw::hmac_sha256(salt, salt_len, ikm, ikm_len, prk)
+            unsafe(crypto::raw::hmac_sha256(salt, salt_len, ikm, ikm_len, prk))
         }
     }
 
@@ -1231,7 +1231,7 @@ public namespace raw {
     // Must be called after receiving ServerHello (transcript includes CH + SH).
     // Populates ssl.transform_in and ssl.transform_out for the handshake phase.
     // transcript_hash = SHA256(ClientHello...ServerHello)
-    public func tls13_derive_handshake_keys(ssl : *mut SSLContext,
+    public unsafe func tls13_derive_handshake_keys(ssl : *mut SSLContext,
                                              shared_secret : *u8, shared_len : size_t,
                                              transcript_hash : *u8,
                                              psk : *u8 = null, psk_len : size_t = 0,
@@ -1396,7 +1396,7 @@ public namespace raw {
     // and server_handshake_traffic_secret (ClientHello..client Finished). The
     // function copies those into callee-local arrays via indexed reads, which
     // are reliable.
-    public func tls13_derive_application_keys(ssl : *mut SSLContext,
+    public unsafe func tls13_derive_application_keys(ssl : *mut SSLContext,
                                                 hs_hash : *u8 = null, hash_len : size_t,
                                                 res_hash : *u8 = null,
                                                 res_hash_len : size_t = 0,
@@ -1577,7 +1577,7 @@ public namespace raw {
     // Update the send side traffic keys (role-aware)
     // Client sends with client_application_traffic_secret -> transform_out.key_enc
     // Server sends with server_application_traffic_secret -> transform_out.key_enc
-    public func tls13_update_send_keys(ssl : *mut SSLContext) : int {
+    public unsafe func tls13_update_send_keys(ssl : *mut SSLContext) : int {
         unsafe {
 
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
@@ -1651,7 +1651,7 @@ public namespace raw {
     // Update the recv side traffic keys (role-aware)
     // Client receives with server_application_traffic_secret -> transform_in.key_dec
     // Server receives with client_application_traffic_secret -> transform_in.key_dec
-    public func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
+    public unsafe func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
         unsafe {
 
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
@@ -1724,7 +1724,7 @@ public namespace raw {
 
     // Send a KeyUpdate message (TLS 1.3)
     // request_response: if true, requests the peer to also send a KeyUpdate
-    public func tls13_send_key_update(ssl : *mut SSLContext, request_response : bool) : int {
+    public unsafe func tls13_send_key_update(ssl : *mut SSLContext, request_response : bool) : int {
         return async::block_on<int>(tls13_send_key_update_coro(ssl, request_response))
     }
 
@@ -1744,7 +1744,7 @@ public namespace raw {
         var ret = await send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
         if(ret < 0) { return ret }
 
-        ret = tls13_update_send_keys(ssl)
+        ret = unsafe(tls13_update_send_keys(ssl))
         return ret
     }
 
@@ -1754,7 +1754,7 @@ public namespace raw {
 
     // Derive master secret from pre-master secret
     // master_secret = PRF(pre_master_secret, "master secret", ClientHello.random + ServerHello.random)[0..47]
-    public func tls12_derive_master_secret(pre_master : *u8, pre_master_len : size_t,
+    public unsafe func tls12_derive_master_secret(pre_master : *u8, pre_master_len : size_t,
                                             client_random : *u8, server_random : *u8,
                                             master_secret : *mut u8,
                                             use_sha384 : bool = false) {
@@ -1782,7 +1782,7 @@ public namespace raw {
     // Derive key block from master secret (RFC 5246 Section 6.3)
     // key_block = PRF(master_secret, "key expansion", ServerRandom + ClientRandom)
     // The key_block is split as needed for the cipher suite
-    public func tls12_derive_key_block(master_secret : *u8,
+    public unsafe func tls12_derive_key_block(master_secret : *u8,
                                         server_random : *u8, client_random : *u8,
                                         key_block : *mut u8, key_block_len : size_t,
                                         use_sha384 : bool = false) {
@@ -1808,7 +1808,7 @@ public namespace raw {
 }
 
     // Compute the key block size needed for a cipher suite
-    public func tls12_key_block_size(info : *CipherSuiteInfo) : size_t {
+    public unsafe func tls12_key_block_size(info : *CipherSuiteInfo) : size_t {
         unsafe {
 
         var mac_key_len = info.mac_key_len as size_t
@@ -1828,7 +1828,7 @@ public namespace raw {
 }
 
     // Split key block and populate Transform structure
-    public func tls12_populate_transform(tr : *mut Transform, info : *CipherSuiteInfo,
+    public unsafe func tls12_populate_transform(tr : *mut Transform, info : *CipherSuiteInfo,
                                           key_block : *u8, key_block_len : size_t) : int {
                                               unsafe {
 
@@ -1913,7 +1913,7 @@ public namespace raw {
 
     // Compute Finished message verify_data
     // verify_data = PRF(master_secret, finished_label, SHA256(handshake_messages))[0..11]
-    public func tls12_compute_finished(master_secret : *u8, is_client : bool,
+    public unsafe func tls12_compute_finished(master_secret : *u8, is_client : bool,
                                         handshake_hash : *u8, hash_len : size_t,
                                         verify_data : *mut u8,
                                         use_sha384 : bool = false) {
@@ -1924,11 +1924,11 @@ public namespace raw {
             label = "server finished\0" as *char
         }
         if(use_sha384) {
-            tls12_prf_sha384(master_secret, 48, label, 15,
-                              handshake_hash, hash_len, verify_data, 12)
+            unsafe(tls12_prf_sha384(master_secret, 48, label, 15,
+                              handshake_hash, hash_len, verify_data, 12))
         } else {
-            tls12_prf(master_secret, 48, label, 15,
-                       handshake_hash, hash_len, verify_data, 12)
+            unsafe(tls12_prf(master_secret, 48, label, 15,
+                       handshake_hash, hash_len, verify_data, 12))
         }
     }
 
@@ -1940,7 +1940,7 @@ public namespace raw {
     // input: plaintext data (already has MAC appended if using CBC)
     // output: ciphertext (includes IV + encrypted data + tag for GCM)
     // Returns the total ciphertext length or negative error
-    public func tls12_encrypt_record(tr : *mut Transform, seq_num : *u8,
+    public unsafe func tls12_encrypt_record(tr : *mut Transform, seq_num : *u8,
                                      content_type : u8, version_major : u8,
                                      version_minor : u8, input : *u8,
                                      input_len : size_t, output : *mut u8,
@@ -2099,7 +2099,7 @@ public namespace raw {
 }
 
     // Decrypt a TLS record
-    public func tls12_decrypt_record(tr : *mut Transform, seq_num : *u8,
+    public unsafe func tls12_decrypt_record(tr : *mut Transform, seq_num : *u8,
                                      content_type : u8, version_major : u8,
                                      version_minor : u8, input : *u8,
                                      input_len : size_t, output : *mut u8,
@@ -2298,7 +2298,7 @@ public namespace raw {
     // plaintext = content_type(1) + actual_data
     // output = header(5) + encrypted_record
     // Returns total bytes written (5 + encrypted_len), or negative error.
-    public func tls13_encrypt_record(ssl : *mut SSLContext,
+    public unsafe func tls13_encrypt_record(ssl : *mut SSLContext,
                                       content_type : u8,
                                       data : *u8, data_len : size_t,
                                       output : *mut u8, out_max : size_t) : int {
@@ -2367,7 +2367,7 @@ public namespace raw {
     // output = decrypted plaintext (without the inner content_type at the end)
     // inner_content_type is extracted from the last byte of decrypted data.
     // Returns plaintext length, or negative error.
-    public func tls13_decrypt_record(ssl : *mut SSLContext,
+    public unsafe func tls13_decrypt_record(ssl : *mut SSLContext,
                                       input : *u8, input_len : size_t,
                                       output : *mut u8, out_max : size_t,
                                       inner_content_type : *mut u8) : int { unsafe {
@@ -2703,7 +2703,7 @@ public namespace raw {
 }
 
     // Consume (remove) the current record from the input buffer
-    public func ssl_consume_record(ssl : *mut SSLContext) {
+    public unsafe func ssl_consume_record(ssl : *mut SSLContext) {
         unsafe {
 
         var consumed = 5 + ssl.in_msglen
@@ -3115,11 +3115,11 @@ public namespace raw {
     // socket with blocking syscalls and completes eagerly; the async transport
     // suspends on fd readiness. Both return a `FutureHandle<int>`.
     async func transport_recv_blocking(ctx : *mut void, buf : *mut u8, len : size_t) : int {
-        return net::raw::recv_all(ctx as net::raw::Socket, buf, len)
+        return unsafe(net::raw::recv_all(ctx as net::raw::Socket, buf, len))
     }
 
     async func transport_send_blocking(ctx : *mut void, buf : *u8, len : size_t) : int {
-        return net::raw::send_all(ctx as net::raw::Socket, buf as *char, len as int)
+        return unsafe(net::raw::send_all(ctx as net::raw::Socket, buf as *char, len as int))
     }
 
     async func transport_recv_async(ctx : *mut void, buf : *mut u8, len : size_t) : int {
@@ -3218,9 +3218,9 @@ public namespace raw {
         var hdr : [4]u8
         hdr[0] = msg_type
         write_u24(msg_len, &raw mut hdr[1])
-        crypto::raw::sha256_update(hash_ctx, &raw hdr[0], 4)
+        unsafe(crypto::raw::sha256_update(hash_ctx, &raw hdr[0], 4))
         if(msg_len > 0) {
-            crypto::raw::sha256_update(hash_ctx, msg_body, msg_len as size_t)
+            unsafe(crypto::raw::sha256_update(hash_ctx, msg_body, msg_len as size_t))
         }
     }
 
@@ -3234,11 +3234,11 @@ public namespace raw {
         var hdr : [4]u8
         hdr[0] = msg_type
         write_u24(msg_len, &raw mut hdr[1])
-        crypto::raw::sha256_update(h256, &raw hdr[0], 4)
-        crypto::raw::sha384_update(h384, &raw hdr[0], 4)
+        unsafe(crypto::raw::sha256_update(h256, &raw hdr[0], 4))
+        unsafe(crypto::raw::sha384_update(h384, &raw hdr[0], 4))
         if(msg_len > 0) {
-            crypto::raw::sha256_update(h256, msg_body, msg_len as size_t)
-            crypto::raw::sha384_update(h384, msg_body, msg_len as size_t)
+            unsafe(crypto::raw::sha256_update(h256, msg_body, msg_len as size_t))
+            unsafe(crypto::raw::sha384_update(h384, msg_body, msg_len as size_t))
         }
     }
 
@@ -3246,7 +3246,7 @@ public namespace raw {
     // Parse the SubjectPublicKeyInfo BIT STRING to extract RSA modulus N and exponent E
     // Returns 0 on success, negative error code on failure.
     // The RSA context must be initialized with rsa_init() before calling.
-    public func x509_extract_rsa_pubkey(crt : *mut X509Cert, rsa : *mut RSAContext) : int {
+    public unsafe func x509_extract_rsa_pubkey(crt : *mut X509Cert, rsa : *mut RSAContext) : int {
         unsafe {
 
         if(crt.pk_type != PK_RSA as u8) { return ERR_SSL_PK_TYPE_MISMATCH }
@@ -3335,7 +3335,7 @@ public namespace raw {
 
     // ─── Extract ECDSA Public Key from Parsed Certificate ───────────────
     // Parse SubjectPublicKeyInfo to extract ECDSA uncompressed public key.
-    public func x509_extract_ecdsa_pubkey(crt : *mut X509Cert, ecdsa : *mut ECDSAContext) : int {
+    public unsafe func x509_extract_ecdsa_pubkey(crt : *mut X509Cert, ecdsa : *mut ECDSAContext) : int {
         unsafe {
 
         if(crt.pk_type != PK_ECKEY as u8) { return ERR_SSL_PK_TYPE_MISMATCH }
@@ -3403,7 +3403,7 @@ public namespace raw {
 }
 
     // ─── Verify X.509 Certificate ECDSA Signature ───────────────────────
-    public func x509_verify_cert_ecdsa_signature(crt : *mut X509Cert,
+    public unsafe func x509_verify_cert_ecdsa_signature(crt : *mut X509Cert,
                                                   issuer_ecdsa : *mut ECDSAContext) : int {
                                                       unsafe {
 
@@ -3447,7 +3447,7 @@ public namespace raw {
     // crt: the certificate to verify
     // issuer_rsa: issuer RSA context with N and E already imported
     // Returns 0 on success, negative error code on failure
-    public func x509_verify_cert_signature(crt : *mut X509Cert,
+    public unsafe func x509_verify_cert_signature(crt : *mut X509Cert,
                                             issuer_rsa : *mut RSAContext) : int {
                                                 unsafe {
 
@@ -3492,7 +3492,7 @@ public namespace raw {
     // Verify that the certificate's CN or SAN matches the expected hostname.
     // Checks SAN dNSName entries first, then falls back to CN.
     // Returns 0 on match, X509_BADCERT_CN_MISMATCH on mismatch.
-    public func x509_verify_hostname(crt : *mut X509Cert, hostname : *char) : int {
+    public unsafe func x509_verify_hostname(crt : *mut X509Cert, hostname : *char) : int {
         unsafe {
 
         var host_view = string_view(hostname)
@@ -3677,7 +3677,7 @@ public namespace raw {
     // ─── X.509 Date Validity Check ────────────────────────────────────────
     // Check if the certificate's validity period covers the current time.
     // Returns 0 if valid, X509_BADCERT_EXPIRED or X509_BADCERT_FUTURE on failure.
-    public func x509_check_date(crt : *mut X509Cert) : int {
+    public unsafe func x509_check_date(crt : *mut X509Cert) : int {
         unsafe {
 
         if(crt.valid_from[0] == 0 || crt.valid_to[0] == 0) {
@@ -3876,7 +3876,7 @@ public namespace raw {
     // hostname: expected server hostname (or null to skip)
     // Returns 0 on success, negative error code on failure.
     // Sets crt->flags with verification results.
-    public func x509_verify_chain(leaf : *mut X509Cert, trusted_ca : *mut X509Cert,
+    public unsafe func x509_verify_chain(leaf : *mut X509Cert, trusted_ca : *mut X509Cert,
                                     hostname : *char) : int {
                                         unsafe {
 
@@ -5252,7 +5252,7 @@ public namespace raw {
     // priv_key must be a pointer to the matching private key context
     // (*mut RSAContext for RSA certs, *mut ECDSAContext for EC certs).
     // cipher_suite selects the TLS 1.2 RSA key-exchange suite to offer.
-    public func tls_accept(sock : net::raw::Socket, cert : *mut X509Cert,
+    public unsafe func tls_accept(sock : net::raw::Socket, cert : *mut X509Cert,
                            priv_key : *mut void,
                            cipher_suite : int = TLS_RSA_WITH_AES_128_GCM_SHA256) : *mut SSLContext {
         return async::block_on<*mut SSLContext>(tls_accept_coro(sock, cert, priv_key, cipher_suite, false))
@@ -5328,7 +5328,7 @@ public namespace raw {
             ]
             var wi : size_t = 0
             while(wi < 6) {
-                var ca = x509_crt_load_pem_file(win_paths[wi])
+                var ca = unsafe(x509_crt_load_pem_file(win_paths[wi]))
                 if(ca != null) { return ca }
                 wi += 1
             }
@@ -5336,7 +5336,7 @@ public namespace raw {
 
         var i : size_t = 0
         while(i < 4) {
-            var ca = x509_crt_load_pem_file(paths[i])
+            var ca = unsafe(x509_crt_load_pem_file(paths[i]))
             if(ca != null) { return ca }
             i += 1
         }
@@ -5345,7 +5345,7 @@ public namespace raw {
     }
 
     // ─── EC Private Key Loading ──────────────────────────────────────────
-    public func ec_privkey_load_hex_file(path : *char) : *mut ECDSAContext {
+    public unsafe func ec_privkey_load_hex_file(path : *char) : *mut ECDSAContext {
         var mode = "r\0" as *char
         var f = unsafe(fopen(path, mode))
         if(f == null) { return null }
@@ -5385,8 +5385,8 @@ public namespace raw {
 
         var ctx = unsafe(malloc(sizeof(ECDSAContext))) as *mut ECDSAContext
         if(ctx == null) { return null }
-        ecdsa_init(ctx)
-        var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], hex_count / 2, curve)
+        unsafe(ecdsa_init(ctx))
+        var ret = unsafe(ecdsa_import_privkey(ctx, &raw key_bytes[0], hex_count / 2, curve))
         if(ret < 0) { unsafe { dealloc ctx }; return null }
         return ctx
     }
@@ -5394,7 +5394,7 @@ public namespace raw {
     // Free an ECDSA private-key context returned by ec_privkey_load_hex_file.
     // ECDSAContext is stack-only (no internal heap), so this just releases the
     // struct itself.
-    public func ecdsa_context_free(ctx : *mut ECDSAContext) {
+    public unsafe func ecdsa_context_free(ctx : *mut ECDSAContext) {
         if(ctx != null) { unsafe { dealloc ctx } }
     }
 
@@ -5402,7 +5402,7 @@ public namespace raw {
     // Load a PEM-encoded certificate from a file on disk.
     // Returns a pointer to a heap-allocated X509Cert on success,
     // or null on failure. Caller is responsible for freeing.
-    public func x509_crt_load_pem_file(path : *char) : *mut X509Cert {
+    public unsafe func x509_crt_load_pem_file(path : *char) : *mut X509Cert {
         unsafe {
 
         var mode = "rb\0" as *char
@@ -5507,7 +5507,7 @@ public namespace raw {
     // Load an RSA private key from a PEM file.
     // Supports:-----BEGIN RSA PRIVATE KEY----- (PKCS#1)
     // Returns a heap-allocated RSAContext (caller must rsa_free + dealloc).
-    public func rsa_privkey_load_pem_file(path : *char) : *mut RSAContext {
+    public unsafe func rsa_privkey_load_pem_file(path : *char) : *mut RSAContext {
         unsafe {
 
         var f = unsafe(fopen(path, "rb"))
@@ -5696,7 +5696,7 @@ public namespace raw {
         var cert_mem = unsafe(malloc(sizeof(X509Cert))) as *mut X509Cert
         if(cert_mem != null) {
             unsafe { memset(cert_mem as *mut void, 0, sizeof(X509Cert)) }
-            x509_cert_init(cert_mem)
+            unsafe(x509_cert_init(cert_mem))
         }
         return cert_mem
     }
@@ -5758,9 +5758,9 @@ public namespace raw {
     }
 
     // Initialize SSL context
-    public func ssl_init(ssl : *mut SSLContext) {
+    public unsafe func ssl_init(ssl : *mut SSLContext) {
         ensure_init()
-        ssl_context_init(ssl)
+        unsafe(ssl_context_init(ssl))
     }
 
     // Apply read timeout to the SSL socket (from config, or 5s default)
@@ -5778,7 +5778,7 @@ public namespace raw {
 }
 
     // Set the socket for the SSL connection
-    public func ssl_set_socket(ssl : *mut SSLContext, socket : net::raw::Socket) {
+    public unsafe func ssl_set_socket(ssl : *mut SSLContext, socket : net::raw::Socket) {
         unsafe {
 
         ssl.transport_socket = socket
@@ -5809,7 +5809,7 @@ public namespace raw {
 
     // Switch an already-connected context to the non-blocking transport (used
     // by the async entry points). Idempotent; a no-op before a socket is set.
-    public func ssl_use_async_transport(ssl : *mut SSLContext) {
+    public unsafe func ssl_use_async_transport(ssl : *mut SSLContext) {
         unsafe {
 
         ssl.transport_async = true
@@ -5826,7 +5826,7 @@ public namespace raw {
 }
 
     // Set the hostname for SNI and certificate verification
-    public func ssl_set_hostname(ssl : *mut SSLContext, hostname : *char) {
+    public unsafe func ssl_set_hostname(ssl : *mut SSLContext, hostname : *char) {
         unsafe {
 
         if(ssl == null || hostname == null) { return }
@@ -5854,7 +5854,7 @@ public namespace raw {
 
     // Configure the SSL context. The config is copied into context-owned
     // storage, so callers may use a stack config or a temporary expression.
-    public func ssl_set_config(ssl : *mut SSLContext, conf : *mut SSLConfig) {
+    public unsafe func ssl_set_config(ssl : *mut SSLContext, conf : *mut SSLConfig) {
         unsafe {
 
         if(ssl == null || conf == null) { return }
@@ -6735,7 +6735,7 @@ public namespace raw {
 }
 
     // Perform the TLS handshake
-    public func ssl_handshake(ssl : *mut SSLContext) : int {
+    public unsafe func ssl_handshake(ssl : *mut SSLContext) : int {
         return async::block_on<int>(ssl_handshake_coro(ssl))
     }
 
@@ -6856,7 +6856,7 @@ public namespace raw {
 }
 
     // Read application data
-    public func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+    public unsafe func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
         return async::block_on<int>(ssl_read_coro(ssl, buf, len))
     }
 
@@ -6950,7 +6950,7 @@ public namespace raw {
 }
 
     // Write application data
-    public func ssl_write(ssl : *mut SSLContext, data : *u8, len : i32) : int {
+    public unsafe func ssl_write(ssl : *mut SSLContext, data : *u8, len : i32) : int {
         return async::block_on<int>(ssl_write_coro(ssl, data, len))
     }
 
@@ -6975,7 +6975,7 @@ public namespace raw {
 }
 
     // Close the SSL connection (send close_notify)
-    public func ssl_close_notify(ssl : *mut SSLContext) : int {
+    public unsafe func ssl_close_notify(ssl : *mut SSLContext) : int {
         return async::block_on<int>(ssl_close_notify_coro(ssl))
     }
 
@@ -6984,7 +6984,7 @@ public namespace raw {
     }
 
     // Free SSL context resources (closes socket, frees handshake params)
-    public func ssl_free(ssl : *mut SSLContext) {
+    public unsafe func ssl_free(ssl : *mut SSLContext) {
         unsafe {
 
         if(ssl.handshake != null) {
@@ -7071,7 +7071,7 @@ public namespace raw {
     }
 }
 
-    public func tls_connect(ssl : *mut SSLContext, host : *char, port : uint) : int {
+    public unsafe func tls_connect(ssl : *mut SSLContext, host : *char, port : uint) : int {
         return async::block_on<int>(tls_connect_coro(ssl, host, port))
     }
 
@@ -7137,7 +7137,7 @@ public namespace raw {
 }
 
     // Read NewSessionTicket post-handshake message
-    public func ssl_read_new_session_ticket(ssl : *mut SSLContext) : int {
+    public unsafe func ssl_read_new_session_ticket(ssl : *mut SSLContext) : int {
         return async::block_on<int>(ssl_read_new_session_ticket_coro(ssl))
     }
 
@@ -7650,7 +7650,7 @@ public namespace raw {
     // serial, sig_oid, issuer_raw, subject_raw, pk_raw, sig, sig_alg and tbs_der
     // are BORROWED pointers into the DER buffer (der_copy / raw_pem) and must not
     // be freed individually.
-    public func cert_free(crt : *mut X509Cert) {
+    public unsafe func cert_free(crt : *mut X509Cert) {
         unsafe {
 
         var curr = crt
@@ -7673,7 +7673,7 @@ public namespace raw {
     // releases fields and lets the caller dealloc a single struct), this walks
     // the whole `next` list. Use this for heap-allocated chains such as the
     // system CA bundle and the peer certificate chain from a handshake.
-    public func cert_chain_free(head : *mut X509Cert) {
+    public unsafe func cert_chain_free(head : *mut X509Cert) {
         unsafe {
 
         var curr = head
@@ -7695,7 +7695,7 @@ public namespace raw {
 }
 
     // Initialize an X509 certificate
-    public func x509_cert_init(crt : *mut X509Cert) {
+    public unsafe func x509_cert_init(crt : *mut X509Cert) {
         unsafe {
 
         crt.raw_pem = null
@@ -7742,7 +7742,7 @@ public namespace raw {
 }
 
     // Get CN from subject
-    public func cert_get_cn(crt : *mut X509Cert, out : *mut string) { unsafe {
+    public unsafe func cert_get_cn(crt : *mut X509Cert, out : *mut string) { unsafe {
         var cn_prefix = string_view("CN=")
         var sub_view = crt.subject.to_view()
         var pos = sub_view.find_or_npos(&cn_prefix)
@@ -8029,7 +8029,7 @@ public namespace raw {
     // ============================================================================
 
     // Parse a DER-encoded X.509 certificate (RFC 5280)
-    public func parse_cert_der(crt : *mut X509Cert, der_data : *u8, der_len : size_t) : int {
+    public unsafe func parse_cert_der(crt : *mut X509Cert, der_data : *u8, der_len : size_t) : int {
         unsafe {
 
         if(der_len < 10) { return ERR_X509_INVALID_FORMAT }
@@ -8346,7 +8346,7 @@ public namespace raw {
     // ============================================================================
 
     // Parse a PEM-encoded certificate
-    public func parse_cert_pem(crt : *mut X509Cert, pem_data : *u8, pem_len : size_t) : int {
+    public unsafe func parse_cert_pem(crt : *mut X509Cert, pem_data : *u8, pem_len : size_t) : int {
         unsafe {
 
         var begin_marker = string_view("-----BEGIN CERTIFICATE-----")
@@ -8484,7 +8484,7 @@ public namespace raw {
         var hash_id : int                // Hash algorithm identifier (for v2.1)
     }
 
-    public func rsa_init(ctx : *mut RSAContext, padding : int, hash_id : int) {
+    public unsafe func rsa_init(ctx : *mut RSAContext, padding : int, hash_id : int) {
         unsafe {
 
         ctx.ver = 0; ctx.len = 0; ctx.padding = padding; ctx.hash_id = hash_id
@@ -8496,7 +8496,7 @@ public namespace raw {
     }
 }
 
-    public func rsa_free(ctx : *mut RSAContext) {
+    public unsafe func rsa_free(ctx : *mut RSAContext) {
         unsafe {
 
         mpi_init(&raw mut ctx.N); mpi_init(&raw mut ctx.E)
@@ -8511,7 +8511,7 @@ public namespace raw {
     // ─── Import RSA Public Key ──────────────────────────────────────────────
 
     // Import RSA public key from modulus (big-endian) and exponent (big-endian)
-    public func rsa_import_pubkey(ctx : *mut RSAContext,
+    public unsafe func rsa_import_pubkey(ctx : *mut RSAContext,
                                    n_buf : *u8, n_len : size_t,
                                    e_buf : *u8, e_len : size_t) : int {
                                        unsafe {
@@ -8529,7 +8529,7 @@ public namespace raw {
 }
 
     // Check key size
-    public func rsa_get_len(ctx : *mut RSAContext) : size_t {
+    public unsafe func rsa_get_len(ctx : *mut RSAContext) : size_t {
         unsafe {
 
         return ctx.len
@@ -8545,7 +8545,7 @@ public namespace raw {
     // sender never signed. Import deliberately stays permissive (tests and
     // hand-built contexts import fragments), so callers that obtained a key
     // from the outside — the certificate parser, for example — run this.
-    public func rsa_check_pubkey(ctx : *mut RSAContext) : int {
+    public unsafe func rsa_check_pubkey(ctx : *mut RSAContext) : int {
         unsafe {
 
         mpi_trim(&raw mut ctx.N)
@@ -8564,7 +8564,7 @@ public namespace raw {
     // PKCS#1 v1.5 padding for encryption (RFC 8017 Section 7.2.1)
     // EM = 0x00 || 0x02 || PS || 0x00 || M
     // PS = 8+ pseudorandom non-zero bytes
-    public func pkcs1_v15_encode(message : *u8, message_len : size_t,
+    public unsafe func pkcs1_v15_encode(message : *u8, message_len : size_t,
                             em : *mut u8, em_len : size_t) : int {
                                 unsafe {
 
@@ -8622,7 +8622,7 @@ public namespace raw {
 }
 
     // PKCS#1 v1.5 unpadding for encryption (RFC 8017 Section 7.2.2)
-    public func pkcs1_v15_decode(input : *u8, input_len : size_t,
+    public unsafe func pkcs1_v15_decode(input : *u8, input_len : size_t,
                            output : *mut u8, output_len : *mut size_t,
                            expected_output_len : size_t) : int { unsafe {
         // Minimum: 0x00 || 0x02 || 0x00 (at least 8 bytes PS) = 11 bytes
@@ -8657,7 +8657,7 @@ public namespace raw {
     // ─── RSA Public Operation ────────────────────────────────────────────
 
     // RSAVP1: c = m^e mod N
-    public func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
+    public unsafe func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
         unsafe {
 
         var M : Mpi; mpi_init(unsafe(&raw mut M))
@@ -8687,7 +8687,7 @@ public namespace raw {
     // ─── PKCS#1 v1.5 Encryption ─────────────────────────────────────────
 
     // RSAES-PKCS1-V1_5-ENCRYPT (RFC 8017 Section 7.2.1)
-    public func rsa_pkcs1_encrypt(ctx : *mut RSAContext,
+    public unsafe func rsa_pkcs1_encrypt(ctx : *mut RSAContext,
                                     input : *u8, input_len : size_t,
                                     output : *mut u8) : int {
                                         unsafe {
@@ -8764,7 +8764,7 @@ public namespace raw {
     // digest: hash value, hash_len: length of digest (e.g., 32 for SHA-256)
     // sig: signature to verify, sig_len: length of signature (must equal key size)
     // Returns 0 if valid, ERR_RSA_VERIFY_FAILED if invalid
-    public func rsa_pkcs1_verify(ctx : *mut RSAContext,
+    public unsafe func rsa_pkcs1_verify(ctx : *mut RSAContext,
                                   digest : *u8, digest_len : size_t,
                                   sig : *u8, sig_len : size_t) : int {
                                       unsafe {
@@ -8934,7 +8934,7 @@ public namespace raw {
 
     // ─── PKCS#1 v1.5 Decryption (for server-side) ───────────────────────
 
-    public func rsa_pkcs1_decrypt(ctx : *mut RSAContext,
+    public unsafe func rsa_pkcs1_decrypt(ctx : *mut RSAContext,
                                    input : *u8, input_len : size_t,
                                    output : *mut u8, output_len : *mut size_t,
                                    expected_max_len : size_t) : int { unsafe {
@@ -8961,7 +8961,7 @@ public namespace raw {
     // ─── RSA Private Key Import ────────────────────────────────────────
 
     // Import RSA private key from modulus N and private exponent D
-    public func rsa_import_privkey(ctx : *mut RSAContext,
+    public unsafe func rsa_import_privkey(ctx : *mut RSAContext,
                                     n_buf : *u8, n_len : size_t,
                                     d_buf : *u8, d_len : size_t) : int {
                                         unsafe {
@@ -9136,7 +9136,7 @@ public namespace raw {
     }
 
     // Generate an RSA key pair with the given modulus size (in bits).
-    public func rsa_gen_key(ctx : *mut RSAContext, nbits : size_t, exponent : u32) : int {
+    public unsafe func rsa_gen_key(ctx : *mut RSAContext, nbits : size_t, exponent : u32) : int {
         unsafe {
 
         if(nbits < 256 || nbits % 8 != 0) { return ERR_RSA_BAD_INPUT_DATA }
@@ -9238,7 +9238,7 @@ public namespace raw {
         var has_private : bool
     }
 
-    public func ecdsa_init(ctx : *mut ECDSAContext) {
+    public unsafe func ecdsa_init(ctx : *mut ECDSAContext) {
         unsafe {
 
         mpi_init(&raw mut ctx.pub_x)
@@ -9260,7 +9260,7 @@ public namespace raw {
     // mbedtls_ecp_point_read_binary calls mbedtls_ecp_check_pubkey before
     // handing the point back: "imported without error" has to mean "this is a
     // public key", not merely "these are 65 bytes I could parse".
-    public func ecdsa_import_pubkey(ctx : *mut ECDSAContext,
+    public unsafe func ecdsa_import_pubkey(ctx : *mut ECDSAContext,
                                      pub_key : *u8, pub_key_len : size_t,
                                      curve : u16) : int {
                                          unsafe {
@@ -9319,7 +9319,7 @@ public namespace raw {
 }
 
     // Import raw private key scalar (32 bytes for P-256)
-    public func ecdsa_import_privkey(ctx : *mut ECDSAContext,
+    public unsafe func ecdsa_import_privkey(ctx : *mut ECDSAContext,
                                       priv_key : *u8, priv_key_len : size_t,
                                       curve : u16) : int {
                                           unsafe {
@@ -9336,7 +9336,7 @@ public namespace raw {
 
     // ─── ECDSA Signing (secp256r1) ────────────────────────────────────────
 
-    public func ecdsa_sign(ctx : *mut ECDSAContext,
+    public unsafe func ecdsa_sign(ctx : *mut ECDSAContext,
                             hash : *u8, hash_len : size_t,
                             sig_out : *mut u8, sig_out_len : *mut u16) : int { unsafe {
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
@@ -9571,7 +9571,7 @@ public namespace raw {
     // sig: ASN.1 DER-encoded ECDSA signature
     // sig_len: length of signature
     // Returns 0 if valid, ERR_ECDSA_VERIFY_FAILED if invalid.
-    public func ecdsa_verify(ctx : *mut ECDSAContext,
+    public unsafe func ecdsa_verify(ctx : *mut ECDSAContext,
                               hash : *u8, hash_len : size_t,
                               sig : *u8, sig_len : size_t) : int {
                                   unsafe {
@@ -9793,7 +9793,7 @@ public namespace raw {
         return GLOBAL_CURVE
     }
 
-    public func ecp_curve_gx(gx : *mut Mpi) {
+    public unsafe func ecp_curve_gx(gx : *mut Mpi) {
         unsafe {
 
         if(GLOBAL_CURVE == 1) {
@@ -9806,7 +9806,7 @@ public namespace raw {
 
     }
 }
-    public func ecp_curve_gy(gy : *mut Mpi) {
+    public unsafe func ecp_curve_gy(gy : *mut Mpi) {
         unsafe {
 
         if(GLOBAL_CURVE == 1) {
@@ -9819,7 +9819,7 @@ public namespace raw {
 
     }
 }
-    public func ecp_curve_b(b : *mut Mpi) {
+    public unsafe func ecp_curve_b(b : *mut Mpi) {
         unsafe {
 
         if(GLOBAL_CURVE == 1) {
@@ -9859,7 +9859,7 @@ public namespace raw {
         var Z : Mpi
     }
 
-    public func ecp_point_init(p : *mut ECPPoint) {
+    public unsafe func ecp_point_init(p : *mut ECPPoint) {
         unsafe {
 
         mpi_init(&raw mut p.X); mpi_init(&raw mut p.Y); mpi_init(&raw mut p.Z)
@@ -9875,7 +9875,7 @@ public namespace raw {
         var is_init : bool
     }
 
-    public func ecdh_init(ctx : *mut ECDHContext) {
+    public unsafe func ecdh_init(ctx : *mut ECDHContext) {
         unsafe {
 
         mpi_init(&raw mut ctx.priv_key)
@@ -9888,7 +9888,7 @@ public namespace raw {
     // ─── Modular arithmetic helpers for P-256 ────────────────────────────
 
     // Load curve parameter p into an Mpi
-    public func ecp_curve_p(p : *mut Mpi) {
+    public unsafe func ecp_curve_p(p : *mut Mpi) {
         unsafe {
 
         if(GLOBAL_CURVE == 1) {
@@ -9906,7 +9906,7 @@ public namespace raw {
     }
 }
 
-    public func ecp_curve_n(p : *mut Mpi) {
+    public unsafe func ecp_curve_n(p : *mut Mpi) {
         unsafe {
 
         if(GLOBAL_CURVE == 1) {
@@ -9928,8 +9928,8 @@ public namespace raw {
     func ecp_mod_p256(X : *mut Mpi) : int {
         // Fast reduction for P-256 (2^256 - 2^224 + 2^192 + 2^96 - 1)
         // For now, use general mod
-        var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
-        return mpi_mod(X, X, unsafe(&raw mut p))
+        var p : Mpi; unsafe(ecp_curve_p(unsafe(&raw mut p)))
+        return unsafe(mpi_mod(X, X, unsafe(&raw mut p)))
     }
 
     // ─── Point Operations on P-256 ──────────────────────────────────────
@@ -10047,7 +10047,7 @@ public namespace raw {
 }
 
     // Point addition: R = P + Q (with Q in affine coordinates, Z=1)
-    public func ecp_add_jac(R : *mut ECPPoint, P : *mut ECPPoint, Q : *mut ECPPoint) : int {
+    public unsafe func ecp_add_jac(R : *mut ECPPoint, P : *mut ECPPoint, Q : *mut ECPPoint) : int {
         unsafe {
 
         // Mixed Jacobian-affine addition
@@ -10217,7 +10217,7 @@ public namespace raw {
     // ─── Scalar Multiplication (Double-and-Add) ──────────────────────────
 
     // R = k * P on P-256 using Montgomery ladder for safety
-    public func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
+    public unsafe func ecp_mul(R : *mut ECPPoint, k : *mut Mpi, P : *mut ECPPoint) : int {
         unsafe {
 
         // Double-and-add: R = k * P
@@ -10283,55 +10283,55 @@ public namespace raw {
     // as a public key even when it is not a curve point at all.
     //
     // Returns 0 when the point is valid, ERR_ECP_INVALID_KEY when it is not.
-    public func ecp_check_affine(x : *mut Mpi, y : *mut Mpi) : int {
+    public unsafe func ecp_check_affine(x : *mut Mpi, y : *mut Mpi) : int {
         var ret : int = 0
-        var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
-        var b : Mpi; ecp_curve_b(unsafe(&raw mut b))
+        var p : Mpi; unsafe(ecp_curve_p(unsafe(&raw mut p)))
+        var b : Mpi; unsafe(ecp_curve_b(unsafe(&raw mut b)))
 
         // 1. Range check. mpi_read_binary yields a non-negative value, so only
         //    the upper bound needs testing here.
-        if(mpi_cmp(x, unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
-        if(mpi_cmp(y, unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
+        if(unsafe(mpi_cmp(x, unsafe(&raw mut p))) >= 0) { return ERR_ECP_INVALID_KEY }
+        if(unsafe(mpi_cmp(y, unsafe(&raw mut p))) >= 0) { return ERR_ECP_INVALID_KEY }
 
         // 2. lhs = y^2 mod p
-        var lhs : Mpi; mpi_init(unsafe(&raw mut lhs))
-        ret = mpi_mul(unsafe(&raw mut lhs), y, y)
+        var lhs : Mpi; unsafe(mpi_init(unsafe(&raw mut lhs)))
+        ret = unsafe(mpi_mul(unsafe(&raw mut lhs), y, y))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
+        ret = unsafe(mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p)))
         if(ret < 0) { return ret }
 
         // 3. rhs = (x^3 - 3x + b) mod p
-        var x2 : Mpi; mpi_init(unsafe(&raw mut x2))
-        ret = mpi_mul(unsafe(&raw mut x2), x, x)
+        var x2 : Mpi; unsafe(mpi_init(unsafe(&raw mut x2)))
+        ret = unsafe(mpi_mul(unsafe(&raw mut x2), x, x))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut x2), unsafe(&raw mut x2), unsafe(&raw mut p))
+        ret = unsafe(mpi_mod(unsafe(&raw mut x2), unsafe(&raw mut x2), unsafe(&raw mut p)))
         if(ret < 0) { return ret }
 
-        var rhs : Mpi; mpi_init(unsafe(&raw mut rhs))
-        ret = mpi_mul(unsafe(&raw mut rhs), unsafe(&raw mut x2), x)
+        var rhs : Mpi; unsafe(mpi_init(unsafe(&raw mut rhs)))
+        ret = unsafe(mpi_mul(unsafe(&raw mut rhs), unsafe(&raw mut x2), x))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        ret = unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
         if(ret < 0) { return ret }
 
         // -3x: subtract a multiple of p first so the value stays small and
         // non-negative, then reduce.
-        var three_x : Mpi; mpi_init(unsafe(&raw mut three_x))
-        ret = mpi_mul_int(unsafe(&raw mut three_x), x, 3)
+        var three_x : Mpi; unsafe(mpi_init(unsafe(&raw mut three_x)))
+        ret = unsafe(mpi_mul_int(unsafe(&raw mut three_x), x, 3))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p))
-        if(ret < 0) { return ret }
-
-        ret = mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut three_x))
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        ret = unsafe(mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p)))
         if(ret < 0) { return ret }
 
-        ret = mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b))
+        ret = unsafe(mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut three_x)))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        ret = unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
         if(ret < 0) { return ret }
 
-        if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0) {
+        ret = unsafe(mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b)))
+        if(ret < 0) { return ret }
+        ret = unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+        if(ret < 0) { return ret }
+
+        if(unsafe(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs))) != 0) {
             return ERR_ECP_INVALID_KEY
         }
         return 0
@@ -10340,7 +10340,7 @@ public namespace raw {
     // ─── Point Normalization (Jacobian to Affine) ────────────────────────
 
     // Convert Jacobian coordinates to affine: (X/Z^2, Y/Z^3, 1)
-    public func ecp_normalize_jac(P : *mut ECPPoint) : int {
+    public unsafe func ecp_normalize_jac(P : *mut ECPPoint) : int {
         unsafe {
 
         if(mpi_is_zero(&raw mut P.Z)) {
@@ -10389,7 +10389,7 @@ public namespace raw {
     // Generate ECDH key pair (private key + public key)
     // priv: output for private key (big-endian, 32 bytes)
     // pub: output for public key (65 bytes: 0x04 || X || Y)
-    public func ecdh_generate_keypair(ctx : *mut ECDHContext,
+    public unsafe func ecdh_generate_keypair(ctx : *mut ECDHContext,
                                        priv : *mut u8, priv_len : size_t,
                                        pub : *mut u8, pub_len : size_t) : int {
                                            unsafe {
@@ -10454,7 +10454,7 @@ public namespace raw {
     // Compute ECDH shared secret: shared = private * peer_public
     // peer_pub: peer's public key (65 bytes: 0x04 || X || Y)
     // shared: output for shared secret (32 bytes, X coordinate)
-    public func ecdh_compute_shared(ctx : *mut ECDHContext,
+    public unsafe func ecdh_compute_shared(ctx : *mut ECDHContext,
                                      peer_pub : *u8, peer_pub_len : size_t,
                                      shared : *mut u8, shared_len : size_t) : int {
                                          unsafe {
@@ -10520,7 +10520,7 @@ public namespace raw {
         var p : [MAX_LIMBS]u32
     }
 
-    public func mpi_init(m : *mut Mpi) {
+    public unsafe func mpi_init(m : *mut Mpi) {
         unsafe {
 
         m.s = 1; m.n = 0
@@ -10530,7 +10530,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_lset(m : *mut Mpi, val : i64) {
+    public unsafe func mpi_lset(m : *mut Mpi, val : i64) {
         unsafe {
 
         if(val < 0) { m.s = -1 } else { m.s = 1 }
@@ -10549,7 +10549,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_grow(m : *mut Mpi, nlimbs : size_t) : int {
+    public unsafe func mpi_grow(m : *mut Mpi, nlimbs : size_t) : int {
         unsafe {
 
         if(nlimbs > MAX_LIMBS) { return ERR_MPI_ALLOC_FAILED }
@@ -10563,7 +10563,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_trim(m : *mut Mpi) {
+    public unsafe func mpi_trim(m : *mut Mpi) {
         unsafe {
 
         while(m.n > 0 && m.p[m.n - 1] == 0) { m.n -= 1 }
@@ -10572,7 +10572,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_bitlen(m : *mut Mpi) : size_t {
+    public unsafe func mpi_bitlen(m : *mut Mpi) : size_t {
         unsafe {
 
         mpi_trim(m)
@@ -10591,11 +10591,11 @@ public namespace raw {
     }
 }
 
-    public func mpi_size(m : *mut Mpi) : size_t {
-        return (mpi_bitlen(m) + 7) / 8
+    public unsafe func mpi_size(m : *mut Mpi) : size_t {
+        return (unsafe(mpi_bitlen(m)) + 7) / 8
     }
 
-    public func mpi_copy(dst : *mut Mpi, src : *mut Mpi) {
+    public unsafe func mpi_copy(dst : *mut Mpi, src : *mut Mpi) {
         unsafe {
 
         dst.s = src.s; dst.n = src.n
@@ -10606,7 +10606,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_cmp_abs(a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_cmp_abs(a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         mpi_trim(a); mpi_trim(b)
@@ -10622,7 +10622,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_cmp(a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_cmp(a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         mpi_trim(a); mpi_trim(b)
@@ -10636,12 +10636,12 @@ public namespace raw {
     }
 }
 
-    public func mpi_cmp_int(m : *mut Mpi, val : i64) : int {
-        var tmp : Mpi; mpi_init(unsafe(&raw mut tmp)); mpi_lset(unsafe(&raw mut tmp), val)
-        return mpi_cmp(m, unsafe(&raw mut tmp))
+    public unsafe func mpi_cmp_int(m : *mut Mpi, val : i64) : int {
+        var tmp : Mpi; unsafe(mpi_init(unsafe(&raw mut tmp))); unsafe(mpi_lset(unsafe(&raw mut tmp), val))
+        return unsafe(mpi_cmp(m, unsafe(&raw mut tmp)))
     }
 
-    public func mpi_is_zero(m : *mut Mpi) : bool {
+    public unsafe func mpi_is_zero(m : *mut Mpi) : bool {
         unsafe {
 
         mpi_trim(m)
@@ -10652,7 +10652,7 @@ public namespace raw {
 
     // ─── Addition / Subtraction ──────────────────────────────────────────
 
-    public func mpi_add_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_add_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         var max_n = a.n; if(b.n > max_n) { max_n = b.n }
@@ -10675,7 +10675,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_sub_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_sub_abs(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         if(mpi_cmp_abs(a, b) < 0) { return ERR_MPI_NEGATIVE_VALUE }
@@ -10697,7 +10697,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_add(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_add(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         var ret : int = 0
@@ -10723,7 +10723,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_sub(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_sub(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         var ret : int = 0
@@ -10751,7 +10751,7 @@ public namespace raw {
 
     // ─── Multiplication ──────────────────────────────────────────────────
 
-    public func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         mpi_trim(a); mpi_trim(b)
@@ -10783,7 +10783,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_mul_int(x : *mut Mpi, a : *mut Mpi, b : u32) : int {
+    public unsafe func mpi_mul_int(x : *mut Mpi, a : *mut Mpi, b : u32) : int {
         unsafe {
 
         if(b == 0 || mpi_is_zero(a)) { mpi_lset(x, 0); return 0 }
@@ -11017,7 +11017,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_div(q : *mut Mpi, r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_div(q : *mut Mpi, r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         mpi_trim(b)
@@ -11077,7 +11077,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_mod(r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_mod(r : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         // Handle negative dividend: result must be non-negative modulo |b|
@@ -11108,7 +11108,7 @@ public namespace raw {
     // The divisor is never zero in practice (only the small-prime table is
     // passed here), and there is no error channel, so zero is defined as 0
     // rather than trapping.
-    public func mpi_mod_small(a : *mut Mpi, d : u32) : u32 {
+    public unsafe func mpi_mod_small(a : *mut Mpi, d : u32) : u32 {
         unsafe {
 
         if(d == 0) { return 0 }
@@ -11235,7 +11235,7 @@ public namespace raw {
     }
 
     func from_montgomery(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {
-        var one : Mpi; mpi_init(unsafe(&raw mut one)); mpi_lset(unsafe(&raw mut one), 1)
+        var one : Mpi; unsafe(mpi_init(unsafe(&raw mut one))); unsafe(mpi_lset(unsafe(&raw mut one), 1))
         return montgomery_mul(x, a, unsafe(&raw mut one), n, n_inv0)
     }
 
@@ -11292,7 +11292,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_exp_mod(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
+    public unsafe func mpi_exp_mod(x : *mut Mpi, a : *mut Mpi, e : *mut Mpi, n : *mut Mpi) : int {
         unsafe {
 
         if(mpi_cmp_int(n, 0) <= 0) {
@@ -11406,82 +11406,82 @@ public namespace raw {
     // Intermediates are kept in [0, n): an odd x is reduced by adding n before
     // halving, and a subtraction that would go negative adds n first.
     func mpi_mod_inv_binary(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
-        var U : Mpi; mpi_init(unsafe(&raw mut U))
-        var V : Mpi; mpi_init(unsafe(&raw mut V))
-        var X1 : Mpi; mpi_init(unsafe(&raw mut X1))
-        var X2 : Mpi; mpi_init(unsafe(&raw mut X2))
-        var Amod : Mpi; mpi_init(unsafe(&raw mut Amod))
-        var T : Mpi; mpi_init(unsafe(&raw mut T))
+        var U : Mpi; unsafe(mpi_init(unsafe(&raw mut U)))
+        var V : Mpi; unsafe(mpi_init(unsafe(&raw mut V)))
+        var X1 : Mpi; unsafe(mpi_init(unsafe(&raw mut X1)))
+        var X2 : Mpi; unsafe(mpi_init(unsafe(&raw mut X2)))
+        var Amod : Mpi; unsafe(mpi_init(unsafe(&raw mut Amod)))
+        var T : Mpi; unsafe(mpi_init(unsafe(&raw mut T)))
 
-        var ret = mpi_mod(unsafe(&raw mut Amod), a, n)
+        var ret = unsafe(mpi_mod(unsafe(&raw mut Amod), a, n))
         if(ret < 0) { return ret }
-        mpi_copy(unsafe(&raw mut U), unsafe(&raw mut Amod))
-        mpi_copy(unsafe(&raw mut V), n)
-        mpi_lset(unsafe(&raw mut X1), 1)
-        mpi_lset(unsafe(&raw mut X2), 0)
+        unsafe(mpi_copy(unsafe(&raw mut U), unsafe(&raw mut Amod)))
+        unsafe(mpi_copy(unsafe(&raw mut V), n))
+        unsafe(mpi_lset(unsafe(&raw mut X1), 1))
+        unsafe(mpi_lset(unsafe(&raw mut X2), 0))
 
         // u + v strictly decreases every iteration and both carry no more than
         // bitlen(n) bits, so ~2*bitlen(n) iterations is a generous bound.
-        var limit = mpi_bitlen(n) * 3 + 64
+        var limit = unsafe(mpi_bitlen(n)) * 3 + 64
         var steps : size_t = 0
         while(!mpi_is_one(unsafe(&raw mut U)) && !mpi_is_one(unsafe(&raw mut V))) {
             if(steps > limit) { return ERR_MPI_BAD_INPUT_DATA }
             steps += 1
 
-            while(!mpi_is_zero(unsafe(&raw mut U)) && mpi_is_even(unsafe(&raw mut U))) {
-                mpi_shift_r(unsafe(&raw mut U), 1)
+            while(!(unsafe(mpi_is_zero(unsafe(&raw mut U)))) && mpi_is_even(unsafe(&raw mut U))) {
+                unsafe(mpi_shift_r(unsafe(&raw mut U), 1))
                 if(!mpi_is_even(unsafe(&raw mut X1))) {
-                    ret = mpi_add(unsafe(&raw mut X1), unsafe(&raw mut X1), n)
+                    ret = unsafe(mpi_add(unsafe(&raw mut X1), unsafe(&raw mut X1), n))
                     if(ret < 0) { return ret }
                 }
-                mpi_shift_r(unsafe(&raw mut X1), 1)
+                unsafe(mpi_shift_r(unsafe(&raw mut X1), 1))
             }
-            while(!mpi_is_zero(unsafe(&raw mut V)) && mpi_is_even(unsafe(&raw mut V))) {
-                mpi_shift_r(unsafe(&raw mut V), 1)
+            while(!(unsafe(mpi_is_zero(unsafe(&raw mut V)))) && mpi_is_even(unsafe(&raw mut V))) {
+                unsafe(mpi_shift_r(unsafe(&raw mut V), 1))
                 if(!mpi_is_even(unsafe(&raw mut X2))) {
-                    ret = mpi_add(unsafe(&raw mut X2), unsafe(&raw mut X2), n)
+                    ret = unsafe(mpi_add(unsafe(&raw mut X2), unsafe(&raw mut X2), n))
                     if(ret < 0) { return ret }
                 }
-                mpi_shift_r(unsafe(&raw mut X2), 1)
+                unsafe(mpi_shift_r(unsafe(&raw mut X2), 1))
             }
             // A zero operand means gcd(a, n) > 1: no inverse exists.
-            if(mpi_is_zero(unsafe(&raw mut U)) || mpi_is_zero(unsafe(&raw mut V))) {
+            if(unsafe(mpi_is_zero(unsafe(&raw mut U))) || unsafe(mpi_is_zero(unsafe(&raw mut V)))) {
                 return ERR_MPI_BAD_INPUT_DATA
             }
 
-            if(mpi_cmp(unsafe(&raw mut U), unsafe(&raw mut V)) >= 0) {
-                ret = mpi_sub(unsafe(&raw mut U), unsafe(&raw mut U), unsafe(&raw mut V))
+            if(unsafe(mpi_cmp(unsafe(&raw mut U), unsafe(&raw mut V))) >= 0) {
+                ret = unsafe(mpi_sub(unsafe(&raw mut U), unsafe(&raw mut U), unsafe(&raw mut V)))
                 if(ret < 0) { return ret }
-                if(mpi_cmp(unsafe(&raw mut X1), unsafe(&raw mut X2)) < 0) {
-                    ret = mpi_add(unsafe(&raw mut X1), unsafe(&raw mut X1), n)
+                if(unsafe(mpi_cmp(unsafe(&raw mut X1), unsafe(&raw mut X2))) < 0) {
+                    ret = unsafe(mpi_add(unsafe(&raw mut X1), unsafe(&raw mut X1), n))
                     if(ret < 0) { return ret }
                 }
-                ret = mpi_sub(unsafe(&raw mut X1), unsafe(&raw mut X1), unsafe(&raw mut X2))
+                ret = unsafe(mpi_sub(unsafe(&raw mut X1), unsafe(&raw mut X1), unsafe(&raw mut X2)))
                 if(ret < 0) { return ret }
             } else {
-                ret = mpi_sub(unsafe(&raw mut V), unsafe(&raw mut V), unsafe(&raw mut U))
+                ret = unsafe(mpi_sub(unsafe(&raw mut V), unsafe(&raw mut V), unsafe(&raw mut U)))
                 if(ret < 0) { return ret }
-                if(mpi_cmp(unsafe(&raw mut X2), unsafe(&raw mut X1)) < 0) {
-                    ret = mpi_add(unsafe(&raw mut X2), unsafe(&raw mut X2), n)
+                if(unsafe(mpi_cmp(unsafe(&raw mut X2), unsafe(&raw mut X1))) < 0) {
+                    ret = unsafe(mpi_add(unsafe(&raw mut X2), unsafe(&raw mut X2), n))
                     if(ret < 0) { return ret }
                 }
-                ret = mpi_sub(unsafe(&raw mut X2), unsafe(&raw mut X2), unsafe(&raw mut X1))
+                ret = unsafe(mpi_sub(unsafe(&raw mut X2), unsafe(&raw mut X2), unsafe(&raw mut X1)))
                 if(ret < 0) { return ret }
             }
         }
 
-        if(mpi_is_one(unsafe(&raw mut U))) { mpi_copy(x, unsafe(&raw mut X1)) }
-        else { mpi_copy(x, unsafe(&raw mut X2)) }
+        if(mpi_is_one(unsafe(&raw mut U))) { unsafe(mpi_copy(x, unsafe(&raw mut X1))) }
+        else { unsafe(mpi_copy(x, unsafe(&raw mut X2))) }
 
-        ret = mpi_mod(x, x, n)
+        ret = unsafe(mpi_mod(x, x, n))
         if(ret < 0) { return ret }
 
         // The loop exits on u == 1 or v == 1, which a non-coprime input can
         // also reach (e.g. a=3, n=9 reaches v=3 then u=0, but a shared even
         // factor would not). Verify rather than trust the exit condition.
-        ret = mpi_mul(unsafe(&raw mut T), unsafe(&raw mut Amod), x)
+        ret = unsafe(mpi_mul(unsafe(&raw mut T), unsafe(&raw mut Amod), x))
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut T), unsafe(&raw mut T), n)
+        ret = unsafe(mpi_mod(unsafe(&raw mut T), unsafe(&raw mut T), n))
         if(ret < 0) { return ret }
         if(!mpi_is_one(unsafe(&raw mut T))) { return ERR_MPI_BAD_INPUT_DATA }
         return 0
@@ -11491,52 +11491,52 @@ public namespace raw {
     // (division-based). Unlike the binary extended GCD, this works for any
     // modulus (odd or even) and for any a coprime to n.
     func mpi_mod_inv_euclid(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
-        if(mpi_cmp_int(n, 1) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
+        if(unsafe(mpi_cmp_int(n, 1)) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
 
         // r0 = n, r1 = a mod n
-        var r0 : Mpi; mpi_init(unsafe(&raw mut r0))
-        var r1 : Mpi; mpi_init(unsafe(&raw mut r1))
-        mpi_copy(unsafe(&raw mut r0), n)
-        var ret = mpi_mod(unsafe(&raw mut r1), a, n)
+        var r0 : Mpi; unsafe(mpi_init(unsafe(&raw mut r0)))
+        var r1 : Mpi; unsafe(mpi_init(unsafe(&raw mut r1)))
+        unsafe(mpi_copy(unsafe(&raw mut r0), n))
+        var ret = unsafe(mpi_mod(unsafe(&raw mut r1), a, n))
         if(ret < 0) { return ret }
 
         // t0 = 0, t1 = 1  (Bezout coefficients for r0 and r1)
-        var t0 : Mpi; mpi_init(unsafe(&raw mut t0)); mpi_lset(unsafe(&raw mut t0), 0)
-        var t1 : Mpi; mpi_init(unsafe(&raw mut t1)); mpi_lset(unsafe(&raw mut t1), 1)
+        var t0 : Mpi; unsafe(mpi_init(unsafe(&raw mut t0))); unsafe(mpi_lset(unsafe(&raw mut t0), 0))
+        var t1 : Mpi; unsafe(mpi_init(unsafe(&raw mut t1))); unsafe(mpi_lset(unsafe(&raw mut t1), 1))
 
-        while(!mpi_is_zero(unsafe(&raw mut r1))) {
+        while(!(unsafe(mpi_is_zero(unsafe(&raw mut r1))))) {
             // q = r0 / r1, r2 = r0 mod r1
-            var q : Mpi; mpi_init(unsafe(&raw mut q))
-            var r2 : Mpi; mpi_init(unsafe(&raw mut r2))
-            ret = mpi_div(unsafe(&raw mut q), unsafe(&raw mut r2), unsafe(&raw mut r0), unsafe(&raw mut r1))
+            var q : Mpi; unsafe(mpi_init(unsafe(&raw mut q)))
+            var r2 : Mpi; unsafe(mpi_init(unsafe(&raw mut r2)))
+            ret = unsafe(mpi_div(unsafe(&raw mut q), unsafe(&raw mut r2), unsafe(&raw mut r0), unsafe(&raw mut r1)))
             if(ret < 0) { return ret }
 
             // t2 = t0 - q * t1
-            var qt : Mpi; mpi_init(unsafe(&raw mut qt))
-            ret = mpi_mul(unsafe(&raw mut qt), unsafe(&raw mut q), unsafe(&raw mut t1))
+            var qt : Mpi; unsafe(mpi_init(unsafe(&raw mut qt)))
+            ret = unsafe(mpi_mul(unsafe(&raw mut qt), unsafe(&raw mut q), unsafe(&raw mut t1)))
             if(ret < 0) { return ret }
-            var t2 : Mpi; mpi_init(unsafe(&raw mut t2))
-            ret = mpi_sub(unsafe(&raw mut t2), unsafe(&raw mut t0), unsafe(&raw mut qt))
+            var t2 : Mpi; unsafe(mpi_init(unsafe(&raw mut t2)))
+            ret = unsafe(mpi_sub(unsafe(&raw mut t2), unsafe(&raw mut t0), unsafe(&raw mut qt)))
             if(ret < 0) { return ret }
 
             // Shift: r0 = r1, r1 = r2; t0 = t1, t1 = t2
-            mpi_copy(unsafe(&raw mut r0), unsafe(&raw mut r1))
-            mpi_copy(unsafe(&raw mut r1), unsafe(&raw mut r2))
-            mpi_copy(unsafe(&raw mut t0), unsafe(&raw mut t1))
-            mpi_copy(unsafe(&raw mut t1), unsafe(&raw mut t2))
+            unsafe(mpi_copy(unsafe(&raw mut r0), unsafe(&raw mut r1)))
+            unsafe(mpi_copy(unsafe(&raw mut r1), unsafe(&raw mut r2)))
+            unsafe(mpi_copy(unsafe(&raw mut t0), unsafe(&raw mut t1)))
+            unsafe(mpi_copy(unsafe(&raw mut t1), unsafe(&raw mut t2)))
         }
 
         // r0 = gcd(a, n). If it's not 1, no inverse exists.
-        if(mpi_cmp_int(unsafe(&raw mut r0), 1) != 0) {
+        if(unsafe(mpi_cmp_int(unsafe(&raw mut r0), 1)) != 0) {
             return ERR_MPI_BAD_INPUT_DATA
         }
 
         // t0 is the inverse (may be negative); reduce mod n
-        mpi_mod(x, unsafe(&raw mut t0), n)
+        unsafe(mpi_mod(x, unsafe(&raw mut t0), n))
         return 0
     }
 
-    public func mpi_mod_inv(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
+    public unsafe func mpi_mod_inv(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi) : int {
         unsafe {
 
         if(mpi_cmp_int(n, 1) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
@@ -11548,7 +11548,7 @@ public namespace raw {
 
     // ─── Shift Operations ──────────────────────────────────────────────
 
-    public func mpi_shift_l(m : *mut Mpi, count : size_t) : int {
+    public unsafe func mpi_shift_l(m : *mut Mpi, count : size_t) : int {
         unsafe {
 
         if(m.n == 0 || count == 0) { return 0 }
@@ -11589,7 +11589,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_shift_r(m : *mut Mpi, count : size_t) : int {
+    public unsafe func mpi_shift_r(m : *mut Mpi, count : size_t) : int {
         unsafe {
 
         if(m.n == 0 || count == 0) { return 0 }
@@ -11619,7 +11619,7 @@ public namespace raw {
 
     // ─── Import / Export ────────────────────────────────────────────────
 
-    public func mpi_read_binary(m : *mut Mpi, buf : *u8, buflen : size_t) : int {
+    public unsafe func mpi_read_binary(m : *mut Mpi, buf : *u8, buflen : size_t) : int {
         unsafe {
 
         mpi_init(m)
@@ -11639,7 +11639,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_write_binary(m : *mut Mpi, buf : *mut u8, buflen : size_t) : int {
+    public unsafe func mpi_write_binary(m : *mut Mpi, buf : *mut u8, buflen : size_t) : int {
         unsafe {
 
         var size = mpi_size(m)
@@ -11657,7 +11657,7 @@ public namespace raw {
     }
 }
 
-    public func mpi_gcd(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
+    public unsafe func mpi_gcd(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
         unsafe {
 
         var A : Mpi; mpi_init(unsafe(&raw mut A)); mpi_copy(unsafe(&raw mut A), a)
@@ -11687,7 +11687,7 @@ public namespace raw {
         var buf : [16]u8      // Encryption/decryption buffer for CBC
     }
 
-    public func aes_init(ctx : *mut AESContext) {
+    public unsafe func aes_init(ctx : *mut AESContext) {
         unsafe {
 
         ctx.nr = 0
@@ -12113,17 +12113,17 @@ public namespace raw {
     // ============================================================================
 
     // Set encryption key (16 or 32 bytes)
-    public func aes_setkey_enc(ctx : *mut AESContext, key : *u8, key_len : size_t) : int {
+    public unsafe func aes_setkey_enc(ctx : *mut AESContext, key : *u8, key_len : size_t) : int {
         return aes_key_expansion(ctx, key, key_len)
     }
 
     // Set decryption key (16 or 32 bytes) — for AES, decryption key is derived from encryption key
-    public func aes_setkey_dec(ctx : *mut AESContext, key : *u8, key_len : size_t) : int {
+    public unsafe func aes_setkey_dec(ctx : *mut AESContext, key : *u8, key_len : size_t) : int {
         return aes_key_expansion(ctx, key, key_len)
     }
 
     // AES-ECB encrypt/decrypt (single 16-byte block)
-    public func aes_crypt_ecb(ctx : *mut AESContext, mode : u32, input : *u8, output : *mut u8) : int {
+    public unsafe func aes_crypt_ecb(ctx : *mut AESContext, mode : u32, input : *u8, output : *mut u8) : int {
         if(mode == 0) { // Encrypt
             aes_internal_encrypt(ctx, input, output)
         } else { // Decrypt
@@ -12136,7 +12136,7 @@ public namespace raw {
     public comptime const AES_DECRYPT : u32 = 1
 
     // AES-CBC encrypt/decrypt
-    public func aes_crypt_cbc(ctx : *mut AESContext, mode : u32, length : size_t,
+    public unsafe func aes_crypt_cbc(ctx : *mut AESContext, mode : u32, length : size_t,
                                iv : *mut u8, input : *u8, output : *mut u8) : int {
                                    unsafe {
 
@@ -12212,7 +12212,7 @@ public namespace raw {
         var len : size_t             // Key length in bytes
     }
 
-    public func gcm_init(ctx : *mut GCMContext, key : *u8, key_len : size_t) : int {
+    public unsafe func gcm_init(ctx : *mut GCMContext, key : *u8, key_len : size_t) : int {
         unsafe {
 
         // Set AES key
@@ -12406,7 +12406,7 @@ public namespace raw {
     // plaintext: input data to encrypt
     // output: output buffer for ciphertext (same size as plaintext)
     // tag: 16-byte authentication tag
-    public func gcm_crypt_and_tag(ctx : *mut GCMContext,
+    public unsafe func gcm_crypt_and_tag(ctx : *mut GCMContext,
                                    iv : *u8, iv_len : size_t,
                                    aad : *u8, aad_len : size_t,
                                    plaintext : *u8, pt_len : size_t,
@@ -12479,7 +12479,7 @@ public namespace raw {
     // ─── GCM Decrypt ─────────────────────────────────────────────────────
 
     // GCM decrypt and verify tag
-    public func gcm_auth_decrypt(ctx : *mut GCMContext,
+    public unsafe func gcm_auth_decrypt(ctx : *mut GCMContext,
                                   iv : *u8, iv_len : size_t,
                                   aad : *u8, aad_len : size_t,
                                   ciphertext : *u8, ct_len : size_t,
@@ -12969,7 +12969,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     //            0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF]
 
     // Set all limbs to 0
-    public func fe_zero(f : *mut u32) {
+    public unsafe func fe_zero(f : *mut u32) {
         unsafe {
 
         var i : size_t = 0
@@ -12989,7 +12989,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // Set to value (only small values work, up to 2^31)
-    public func fe_set_small(f : *mut u32, val : u32) {
+    public unsafe func fe_set_small(f : *mut u32, val : u32) {
         unsafe {
 
         fe_zero(f)
@@ -12999,7 +12999,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // ─── Decode 32-byte little-endian to 8 limbs ─────────────────────────
-    public func fe_decode(f : *mut u32, data : *u8) {
+    public unsafe func fe_decode(f : *mut u32, data : *u8) {
         unsafe {
 
         var i : size_t = 0
@@ -13018,7 +13018,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // ─── Encode 8 limbs to 32-byte little-endian ─────────────────────────
-    public func fe_encode(data : *mut u8, f : *u32) {
+    public unsafe func fe_encode(data : *mut u8, f : *u32) {
         unsafe {
 
         var i : size_t = 0
@@ -13153,7 +13153,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // ─── Addition mod p (fully reduced) ────────────────────────────────
-    public func fe_add(c : *mut u32, a : *u32, b : *u32) {
+    public unsafe func fe_add(c : *mut u32, a : *u32, b : *u32) {
         unsafe {
 
         var t : [8]u64
@@ -13177,7 +13177,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     func fe_debug_print(msg : *char, f : *u32) {
         if(!tls_config::EXTENSIVE_DEBUG_LOG) { return }
         var bytes : [32]u8
-        fe_encode(&raw mut bytes[0], f)
+        unsafe(fe_encode(&raw mut bytes[0], f))
         unsafe { printf("[FEDBG] %s: ", msg) }
         var i : size_t = 0
         while(i < 8) {
@@ -13195,7 +13195,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 
     // ─── Subtraction mod p (fully reduced) ─────────────────────────────
     // Computes c = a - b mod p = (a + (p - b)) mod p
-    public func fe_sub(c : *mut u32, a : *u32, b : *u32) {
+    public unsafe func fe_sub(c : *mut u32, a : *u32, b : *u32) {
         unsafe {
 
         // Step 1: compute p - b using borrow subtraction (b < p, so this is exact)
@@ -13262,7 +13262,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 
     // ─── Multiplication mod p ──────────────────────────────────────────
     // Schoolbook multiplication of two 8-limb numbers, then reduce mod p.
-    public func fe_mul(c : *mut u32, a : *u32, b : *u32) {
+    public unsafe func fe_mul(c : *mut u32, a : *u32, b : *u32) {
         unsafe {
 
         // Compute 16 partial products (256-bit * 256-bit = 512-bit result)
@@ -13356,7 +13356,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 
     // ─── Square (just calls fe_mul for correctness) ─────────────────────
     func fe_sq(c : *mut u32, a : *u32) {
-        fe_mul(c, a, a)
+        unsafe(fe_mul(c, a, a))
     }
 
     // ─── Helper: zero u64 array ─────────────────────────────────────────
@@ -13380,7 +13380,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
         // Square-and-multiply from bit 254 down to 0:
         // Start with r = 1, then for each bit: r = r^2, if bit set: r = r * a
 
-        var r : [8]u32; fe_set_small(&raw mut r[0], 1)
+        var r : [8]u32; unsafe(fe_set_small(&raw mut r[0], 1))
 
         var bit : i32 = 254
         while(bit >= 0) {
@@ -13403,7 +13403,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
             }
 
             if(do_mul) {
-                fe_mul(&raw mut r[0], &raw r[0], a)
+                unsafe(fe_mul(&raw mut r[0], &raw r[0], a))
             }
             bit -= 1
         }
@@ -13429,7 +13429,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // Clamp scalar per RFC 7748 Section 5
-    public func x25519_clamp_scalar(scalar : *mut u8) {
+    public unsafe func x25519_clamp_scalar(scalar : *mut u8) {
         unsafe {
 
         scalar[0] = scalar[0] & 0xF8 as u8
@@ -13442,7 +13442,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     // ─── Montgomery Ladder ──────────────────────────────────────────────
     // Implements RFC 7748 Section 5.
 
-    public func x25519_ladder(out : *mut u8, scalar : *u8, u : *u8) {
+    public unsafe func x25519_ladder(out : *mut u8, scalar : *u8, u : *u8) {
         unsafe {
 
         // Clamp scalar per RFC 7748 Section 5 (implementations MUST clamp)
@@ -13557,7 +13557,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 }
 
     // Generate an x25519 keypair
-    public func x25519_generate_keypair(priv : *mut u8, pub : *mut u8) : int {
+    public unsafe func x25519_generate_keypair(priv : *mut u8, pub : *mut u8) : int {
         unsafe {
         var rng_ret = random_fill(priv, 32)
         if(rng_ret < 0) { return rng_ret }
@@ -13569,7 +13569,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     }
 
     // Compute shared secret from private key and peer public key
-    public func x25519_compute_shared(priv : *u8, peer_pub : *u8, shared : *mut u8) : int {
+    public unsafe func x25519_compute_shared(priv : *u8, peer_pub : *u8, shared : *mut u8) : int {
         unsafe {
 
         // Per RFC 7748: rejecting all-zero output is mandatory.
@@ -13613,7 +13613,7 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     // Fill a buffer with cryptographically secure random bytes.
     // Delegates to osrand::raw::random_fill (shared OS entropy source).
     // Returns 0 on success, ERR_SSL_NO_RNG on failure.
-    public func random_fill(buf : *mut u8, len : size_t) : int {
+    public unsafe func random_fill(buf : *mut u8, len : size_t) : int {
         var ret = unsafe(osrand::raw::random_fill(buf, len))
         if(ret != 0) { return ERR_SSL_NO_RNG }
         return 0
@@ -13622,20 +13622,20 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     // ─── Convenience Functions ─────────────────────────────────────────────
 
     // Generate a 32-byte random value (e.g., for client random in ClientHello)
-    public func random_32(out : *mut [32]u8) : int {
-        return random_fill(out as *mut u8, 32)
+    public unsafe func random_32(out : *mut [32]u8) : int {
+        return unsafe(random_fill(out as *mut u8, 32))
     }
 
     // Generate a 48-byte random value (e.g., for pre-master secret)
-    public func random_48(out : *mut [48]u8) : int {
-        return random_fill(out as *mut u8, 48)
+    public unsafe func random_48(out : *mut [48]u8) : int {
+        return unsafe(random_fill(out as *mut u8, 48))
     }
 
     // Generate a single 32-bit random value
     // Returns 0 on failure (caller must not use this value for crypto)
     public func random_32bit() : u32 {
         var val : u32 = 0
-        var ret = random_fill(&raw mut val as *mut u8, 4)
+        var ret = unsafe(random_fill(&raw mut val as *mut u8, 4))
         if(ret < 0) {
             return 0xDEADBEEFu32
         }
@@ -13647,22 +13647,22 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
 
 // Connect + handshake. Returns 0 on success, <0 on failure (`tls_connect`).
 public async func tls_connect_async(ssl : *mut SSLContext, host : *char, port : uint) : int {
-    ssl_use_async_transport(ssl)
+    unsafe(ssl_use_async_transport(ssl))
     return await tls_connect_coro(ssl, host, port)
 }
 
 public async func ssl_handshake_async(ssl : *mut SSLContext) : int {
-    ssl_use_async_transport(ssl)
+    unsafe(ssl_use_async_transport(ssl))
     return await ssl_handshake_coro(ssl)
 }
 
 public async func ssl_read_async(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
-    ssl_use_async_transport(ssl)
+    unsafe(ssl_use_async_transport(ssl))
     return await ssl_read_coro(ssl, buf, len)
 }
 
 public async func ssl_write_async(ssl : *mut SSLContext, data : *u8, len : i32) : int {
-    ssl_use_async_transport(ssl)
+    unsafe(ssl_use_async_transport(ssl))
     return await ssl_write_coro(ssl, data, len)
 }
 

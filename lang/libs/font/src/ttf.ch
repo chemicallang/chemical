@@ -737,43 +737,43 @@ func impl_font_measure_text(font : *mut Font, text : *char, text_len : size_t, f
 // Raw byte/pointer entry points. Safe code uses `Font.from_path`/`Font.load`
 // and the `Font` accessors; these take C strings and `*mut Font` handles.
 public namespace raw {
-public func font_load(path : *char) : std::Result<Font, FontError> {
+public unsafe func font_load(path : *char) : std::Result<Font, FontError> {
     return impl_font_load(path)
 }
 
-public func font_units_per_em(font : *mut Font) : u16 {
+public unsafe func font_units_per_em(font : *mut Font) : u16 {
     return impl_font_units_per_em(font)
 }
 
-public func font_ascent(font : *mut Font) : i16 {
+public unsafe func font_ascent(font : *mut Font) : i16 {
     return impl_font_ascent(font)
 }
 
-public func font_descent(font : *mut Font) : i16 {
+public unsafe func font_descent(font : *mut Font) : i16 {
     return impl_font_descent(font)
 }
 
-public func font_num_glyphs(font : *mut Font) : u16 {
+public unsafe func font_num_glyphs(font : *mut Font) : u16 {
     return impl_font_num_glyphs(font)
 }
 
-public func font_line_height(font : *mut Font) : i32 {
+public unsafe func font_line_height(font : *mut Font) : i32 {
     return impl_font_line_height(font)
 }
 
-public func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
+public unsafe func font_get_glyph_metrics(font : *mut Font, glyph_id : u16) : std::Result<GlyphMetrics, FontError> {
     return impl_font_get_glyph_metrics(font, glyph_id)
 }
 
-public func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
+public unsafe func font_get_glyph_outline(font : *mut Font, glyph_id : u16) : std::Result<GlyphOutline, FontError> {
     return impl_font_get_glyph_outline(font, glyph_id)
 }
 
-public func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
+public unsafe func font_get_glyph(font : *mut Font, codepoint : u32) : std::Result<u16, FontError> {
     return impl_font_get_glyph(font, codepoint)
 }
 
-public func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
+public unsafe func font_measure_text(font : *mut Font, text : *char, text_len : size_t, font_size : float) : TextMetrics {
     return impl_font_measure_text(font, text, text_len, font_size)
 }
 } // end namespace raw

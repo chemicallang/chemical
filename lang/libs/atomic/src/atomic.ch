@@ -1268,15 +1268,15 @@ public struct atomic_flag {
     return 0
 }
 
-public func atomic_flag_test_and_set(flag : *mut atomic_flag) : bool {
+public unsafe func atomic_flag_test_and_set(flag : *mut atomic_flag) : bool {
     var expected : u32 = 0
     var val_ptr = flag as *mut u32
-    if(atomic_compare_exchange_strong_u32(val_ptr, &raw mut expected, 1, memory_order.seq_cst, memory_order.seq_cst)) {
+    if(unsafe(atomic_compare_exchange_strong_u32(val_ptr, &raw mut expected, 1, memory_order.seq_cst, memory_order.seq_cst))) {
         return false
     }
     return true
 }
 
-public func atomic_flag_clear(flag : *mut atomic_flag) {
-    atomic_store_u32(flag as *mut u32, 0, memory_order.seq_cst)
+public unsafe func atomic_flag_clear(flag : *mut atomic_flag) {
+    unsafe(atomic_store_u32(flag as *mut u32, 0, memory_order.seq_cst))
 }

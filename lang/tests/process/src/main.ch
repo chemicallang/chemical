@@ -17,5 +17,5 @@ func string_eq(a : *string, b : string_view) : bool {
     }
 
 public func main(argc : int, argv : **char) : int {
-    return test_runner(argc, argv)
+    return unsafe(test_runner(argc, argv))
 }

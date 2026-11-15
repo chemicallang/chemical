@@ -148,7 +148,7 @@ struct AsyncClosureCountdown {
     var value : int
 }
 
-func async_closure_countdown_poll(
+unsafe func async_closure_countdown_poll(
     frame : *mut void, cx : *mut core::async::Context
 ) : core::async::Poll<int> {
     unsafe {
@@ -161,7 +161,7 @@ func async_closure_countdown_poll(
     }
 }
 
-func async_closure_countdown_drop(frame : *mut void) { }
+unsafe func async_closure_countdown_drop(frame : *mut void) { }
 
 func async_closure_make_countdown(
     remaining : int, value : int

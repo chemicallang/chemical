@@ -38,7 +38,7 @@ func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
     }
 
 func impl_load_wav(path : *char) : std::Result<Audio, AudioError> {
-    var read_result = fs::raw::read_entire_file(path)
+    var read_result = unsafe(fs::raw::read_entire_file(path))
     if(read_result is Result.Err) {
         return std.Result.Err(AudioError.FileNotFound())
     }
@@ -487,47 +487,47 @@ func impl_audio_copy(audio : *mut Audio) : Audio {
 // Raw byte/pointer entry points. Safe code uses `Audio.load`/`Audio.from_*`
 // and `Audio.save`; these take C strings and `*mut Audio` handles.
 public namespace raw {
-public func load_wav(path : *char) : std::Result<Audio, AudioError> {
+public unsafe func load_wav(path : *char) : std::Result<Audio, AudioError> {
     return impl_load_wav(path)
 }
 
-public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioError> {
+public unsafe func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioError> {
     return impl_parse_wav(data, data_len)
 }
 
-public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
+public unsafe func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
     return impl_encode_wav(audio)
 }
 
-public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
+public unsafe func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
     return impl_save_wav(audio, path)
 }
 
-public func audio_duration_ms(audio : *mut Audio) : double {
+public unsafe func audio_duration_ms(audio : *mut Audio) : double {
     return impl_audio_duration_ms(audio)
 }
 
-public func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
+public unsafe func audio_trim(audio : *mut Audio, start_ms : double, end_ms : double) : Audio {
     return impl_audio_trim(audio, start_ms, end_ms)
 }
 
-public func audio_volume(audio : *mut Audio, factor : float) {
+public unsafe func audio_volume(audio : *mut Audio, factor : float) {
     impl_audio_volume(audio, factor)
 }
 
-public func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+public unsafe func audio_mix(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
     return impl_audio_mix(a, b)
 }
 
-public func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
+public unsafe func audio_append(a : *mut Audio, b : *mut Audio) : std::Result<Audio, AudioError> {
     return impl_audio_append(a, b)
 }
 
-public func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
+public unsafe func audio_resample(audio : *mut Audio, target_rate : u32) : Audio {
     return impl_audio_resample(audio, target_rate)
 }
 
-public func audio_copy(audio : *mut Audio) : Audio {
+public unsafe func audio_copy(audio : *mut Audio) : Audio {
     return impl_audio_copy(audio)
 }
 } // end namespace raw

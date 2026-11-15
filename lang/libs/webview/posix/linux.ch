@@ -67,78 +67,78 @@ const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
 // lifetime of the web view (no manual unreference needed).
 
 // GTK functions
-@extern public func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
+@extern public unsafe func gtk_init(argc : *mut int, argv : *mut *mut *char) : int
 @extern public func gtk_main()
 @extern public func gtk_main_quit()
 @extern public func gtk_main_iteration() : int
 @extern public func gtk_events_pending() : int
-@extern public func gtk_widget_show_all(widget : *mut GtkWidget)
-@extern public func gtk_widget_destroy(widget : *mut GtkWidget)
-@extern public func gtk_widget_set_size_request(widget : *mut GtkWidget, width : int, height : int)
+@extern public unsafe func gtk_widget_show_all(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_destroy(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_set_size_request(widget : *mut GtkWidget, width : int, height : int)
 
 @extern public func gtk_window_new(type_ : int) : *mut GtkWidget
-@extern public func gtk_window_set_title(window : *mut GtkWindow, title : *char)
-@extern public func gtk_window_set_default_size(window : *mut GtkWindow, width : int, height : int)
-@extern public func gtk_window_set_position(window : *mut GtkWindow, position : int)
-@extern public func gtk_window_set_resizable(window : *mut GtkWindow, resizable : int)
-@extern public func g_idle_add(function : *mut void, data : *mut void) : u32
+@extern public unsafe func gtk_window_set_title(window : *mut GtkWindow, title : *char)
+@extern public unsafe func gtk_window_set_default_size(window : *mut GtkWindow, width : int, height : int)
+@extern public unsafe func gtk_window_set_position(window : *mut GtkWindow, position : int)
+@extern public unsafe func gtk_window_set_resizable(window : *mut GtkWindow, resizable : int)
+@extern public unsafe func g_idle_add(function : *mut void, data : *mut void) : u32
 @extern public func gtk_window_get_type() : size_t
 
 @extern public func gtk_box_new(orientation : int, spacing : int) : *mut GtkWidget
-@extern public func gtk_box_pack_start(box : *mut GtkBox, child : *mut GtkWidget, expand : int, fill : int, padding : u32)
+@extern public unsafe func gtk_box_pack_start(box : *mut GtkBox, child : *mut GtkWidget, expand : int, fill : int, padding : u32)
 
 // GtkFixed: absolute-positioning container used by webview_attach to place the
 // webview in a section of an existing app window/container
 @extern public func gtk_fixed_new() : *mut GtkWidget
-@extern public func gtk_fixed_put(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
-@extern public func gtk_fixed_move(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
-@extern public func gtk_widget_show(widget : *mut GtkWidget)
-@extern public func gtk_widget_hide(widget : *mut GtkWidget)
-@extern public func gtk_bin_get_child(bin : *mut GtkBin) : *mut GtkWidget
+@extern public unsafe func gtk_fixed_put(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
+@extern public unsafe func gtk_fixed_move(fixed : *mut GtkFixed, widget : *mut GtkWidget, x : int, y : int)
+@extern public unsafe func gtk_widget_show(widget : *mut GtkWidget)
+@extern public unsafe func gtk_widget_hide(widget : *mut GtkWidget)
+@extern public unsafe func gtk_bin_get_child(bin : *mut GtkBin) : *mut GtkWidget
 
 // WebKit functions
 @extern public func webkit_web_view_new() : *mut GtkWidget
 @extern public func webkit_web_view_get_type() : size_t
-@extern public func webkit_web_view_load_uri(web_view : *mut WebKitWebView, uri : *char)
-@extern public func webkit_web_view_load_html(web_view : *mut WebKitWebView, content : *char, base_uri : *char)
-@extern public func webkit_web_view_run_javascript(web_view : *mut WebKitWebView, script : *char, cancellable : *mut void, callback : *mut void, user_data : *mut void)
-@extern public func webkit_web_view_get_title(web_view : *mut WebKitWebView) : *char
-@extern public func webkit_web_view_get_settings(web_view : *mut WebKitWebView) : *mut WebKitSettings
+@extern public unsafe func webkit_web_view_load_uri(web_view : *mut WebKitWebView, uri : *char)
+@extern public unsafe func webkit_web_view_load_html(web_view : *mut WebKitWebView, content : *char, base_uri : *char)
+@extern public unsafe func webkit_web_view_run_javascript(web_view : *mut WebKitWebView, script : *char, cancellable : *mut void, callback : *mut void, user_data : *mut void)
+@extern public unsafe func webkit_web_view_get_title(web_view : *mut WebKitWebView) : *char
+@extern public unsafe func webkit_web_view_get_settings(web_view : *mut WebKitWebView) : *mut WebKitSettings
 
-@extern public func webkit_settings_set_allow_file_access_from_file_urls(settings : *mut WebKitSettings, allowed : int)
+@extern public unsafe func webkit_settings_set_allow_file_access_from_file_urls(settings : *mut WebKitSettings, allowed : int)
 
-@extern public func webkit_web_view_evaluate_javascript(web_view : *mut WebKitWebView, script : *char, length : isize, source_uri : *char, cancellable : *mut void, callback : *mut void, user_data : *mut void)
+@extern public unsafe func webkit_web_view_evaluate_javascript(web_view : *mut WebKitWebView, script : *char, length : isize, source_uri : *char, cancellable : *mut void, callback : *mut void, user_data : *mut void)
 
 // GLib signal connection
 // NOTE: g_signal_connect / g_signal_connect_swapped are header macros in C
 // (they expand to g_signal_connect_data), so the actual exported symbol is
 // g_signal_connect_data (lives in libgobject-2.0).
-@extern public func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
+@extern public unsafe func g_signal_connect_data(instance : *mut void, signal : *char, handler : *mut void, data : *mut void, destroy_data : *mut void, connect_flags : int) : u64
 
 // GMainLoop
 @no_init @extern public struct GMainLoop {}
-@extern public func g_main_loop_new(context : *mut void, is_running : int) : *mut GMainLoop
-@extern public func g_main_loop_quit(loop : *mut GMainLoop)
+@extern public unsafe func g_main_loop_new(context : *mut void, is_running : int) : *mut GMainLoop
+@extern public unsafe func g_main_loop_quit(loop : *mut GMainLoop)
 
 // JavaScriptCore for result extraction
 @no_init @extern public struct JSCValue {}
 @no_init @extern public struct JSGlobalContextRef {}
 
-@extern public func jsc_value_to_string(value : *mut JSCValue) : *char
-@extern public func jsc_value_is_string(value : *mut JSCValue) : int
+@extern public unsafe func jsc_value_to_string(value : *mut JSCValue) : *char
+@extern public unsafe func jsc_value_is_string(value : *mut JSCValue) : int
 
 // WebKit async JS result (webkit_web_view_run_javascript_finish)
 @no_init @extern public struct WebKitJavascriptResult {}
-@extern public func webkit_web_view_run_javascript_finish(web_view : *mut WebKitWebView, res : *mut void, error : *mut *mut void) : *mut WebKitJavascriptResult
-@extern public func webkit_javascript_result_get_js_value(result : *mut WebKitJavascriptResult) : *mut JSCValue
-@extern public func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult) : *mut WebKitJavascriptResult
+@extern public unsafe func webkit_web_view_run_javascript_finish(web_view : *mut WebKitWebView, res : *mut void, error : *mut *mut void) : *mut WebKitJavascriptResult
+@extern public unsafe func webkit_javascript_result_get_js_value(result : *mut WebKitJavascriptResult) : *mut JSCValue
+@extern public unsafe func webkit_javascript_result_unref(result : *mut WebKitJavascriptResult) : *mut WebKitJavascriptResult
 
 // User content manager + script-message-received (JS<->native bridge) APIs
-@extern public func webkit_web_view_get_user_content_manager(web_view : *mut WebKitWebView) : *mut WebKitUserContentManager
+@extern public unsafe func webkit_web_view_get_user_content_manager(web_view : *mut WebKitWebView) : *mut WebKitUserContentManager
 @extern public func webkit_user_content_manager_new() : *mut WebKitUserContentManager
-@extern public func webkit_user_content_manager_add_script(manager : *mut WebKitUserContentManager, script : *mut WebKitUserScript)
-@extern public func webkit_user_content_manager_register_script_message_handler(manager : *mut WebKitUserContentManager, name : *char) : int
-@extern public func webkit_user_script_new(source : *char, injected_frames : int, injection_time : int, allow_list : *mut *mut void, block_list : *mut *mut void) : *mut WebKitUserScript
+@extern public unsafe func webkit_user_content_manager_add_script(manager : *mut WebKitUserContentManager, script : *mut WebKitUserScript)
+@extern public unsafe func webkit_user_content_manager_register_script_message_handler(manager : *mut WebKitUserContentManager, name : *char) : int
+@extern public unsafe func webkit_user_script_new(source : *char, injected_frames : int, injection_time : int, allow_list : *mut *mut void, block_list : *mut *mut void) : *mut WebKitUserScript
 
 // Per-call context for webview_evaluate_js_result (freed in the callback).
 public struct JsEvalHandler {
@@ -222,7 +222,7 @@ func linux_on_navigation_complete(web_view : *mut WebKitWebView, event : int, da
 // Raw platform API: `webview::NativeWebView` (platform state) + `webview::raw`. The safe handle is `webview::WebView`.
 public namespace raw {
 
-public func webview_create(wv : *mut NativeWebView) : std::Result<std::Unit, WebViewError> {
+public unsafe func webview_create(wv : *mut NativeWebView) : std::Result<std::Unit, WebViewError> {
     unsafe {
 
     // WebKit's JavaScriptCore reads the process environment through glibc's
@@ -692,7 +692,7 @@ func linux_on_message(wv : *mut NativeWebView, msg : *char) {
 // The handler runs on the GTK main loop; it must not block for long. The
 // script-message-received signal is connected here, after the caller owns the
 // final NativeWebView address returned by create().
-public func webview_bind(wv : *mut NativeWebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
+public unsafe func webview_bind(wv : *mut NativeWebView, handler : JsBindHandler) : std::Result<std::Unit, WebViewError> {
     unsafe {
 
     if(wv.web_view == null) {
@@ -747,7 +747,7 @@ func gtk_container_add(container : *mut GtkContainer, child : *mut GtkWidget)
 // inside a GtkFixed that is added to the app's window; native UI can live in
 // the rest of the app's window. Move the section with webview_set_bounds. The
 // parent must already be created via window::raw::window_create.
-public func webview_attach(
+public unsafe func webview_attach(
     wv : *mut NativeWebView,
     parent : *mut window::NativeWindow,
     x : int,
@@ -819,7 +819,7 @@ public func webview_attach(
 
 // Move/resize the webview section inside the attached parent window (in the
 // parent's coordinate space). No-op in standalone mode.
-public func webview_set_bounds(wv : *mut NativeWebView, x : int, y : int, width : int, height : int) {
+public unsafe func webview_set_bounds(wv : *mut NativeWebView, x : int, y : int, width : int, height : int) {
     unsafe {
 
     if(!wv.attached) {
@@ -837,7 +837,7 @@ public func webview_set_bounds(wv : *mut NativeWebView, x : int, y : int, width 
 }
 }
 
-public func webview_destroy(wv : *mut NativeWebView) {
+public unsafe func webview_destroy(wv : *mut NativeWebView) {
     unsafe {
 
     wv.initialized = false
@@ -895,7 +895,7 @@ public func webview_destroy(wv : *mut NativeWebView) {
 }
 }
 
-public func webview_load_url(wv : *mut NativeWebView, url : *char) {
+public unsafe func webview_load_url(wv : *mut NativeWebView, url : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -905,7 +905,7 @@ public func webview_load_url(wv : *mut NativeWebView, url : *char) {
 }
 }
 
-public func webview_load_html(wv : *mut NativeWebView, html : *char) {
+public unsafe func webview_load_html(wv : *mut NativeWebView, html : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -915,7 +915,7 @@ public func webview_load_html(wv : *mut NativeWebView, html : *char) {
 }
 }
 
-public func webview_evaluate_js(wv : *mut NativeWebView, script : *char) {
+public unsafe func webview_evaluate_js(wv : *mut NativeWebView, script : *char) {
     unsafe {
 
     if(wv.web_view != null) {
@@ -975,7 +975,7 @@ func linux_js_callback(web_view : *mut WebKitWebView, res : *mut void, user_data
 }
 }
 
-public func webview_evaluate_js_result(
+public unsafe func webview_evaluate_js_result(
     wv : *mut NativeWebView,
     script : *char,
     cb : JsResultCallback,
@@ -1003,7 +1003,7 @@ public func webview_evaluate_js_result(
 }
 }
 
-public func webview_title(wv : *mut NativeWebView) : string {
+public unsafe func webview_title(wv : *mut NativeWebView) : string {
     unsafe {
 
     if(wv.web_view != null) {
@@ -1025,7 +1025,7 @@ public func webview_title(wv : *mut NativeWebView) : string {
 }
 }
 
-public func webview_set_title(wv : *mut NativeWebView, title : *char) {
+public unsafe func webview_set_title(wv : *mut NativeWebView, title : *char) {
     unsafe {
 
     wv.title = string("")
@@ -1037,7 +1037,7 @@ public func webview_set_title(wv : *mut NativeWebView, title : *char) {
 }
 }
 
-public func webview_set_size(wv : *mut NativeWebView, width : int, height : int) {
+public unsafe func webview_set_size(wv : *mut NativeWebView, width : int, height : int) {
     unsafe {
 
     wv.width = width
@@ -1049,7 +1049,7 @@ public func webview_set_size(wv : *mut NativeWebView, width : int, height : int)
 }
 }
 
-public func webview_show(wv : *mut NativeWebView) {
+public unsafe func webview_show(wv : *mut NativeWebView) {
     unsafe {
 
     if(wv.attached) {
@@ -1067,7 +1067,7 @@ public func webview_show(wv : *mut NativeWebView) {
 }
 }
 
-public func webview_hide(wv : *mut NativeWebView) {
+public unsafe func webview_hide(wv : *mut NativeWebView) {
     unsafe {
 
     wv.visible = false
@@ -1082,7 +1082,7 @@ public func webview_hide(wv : *mut NativeWebView) {
 }
 }
 
-public func webview_run(wv : *mut NativeWebView) {
+public unsafe func webview_run(wv : *mut NativeWebView) {
     unsafe {
 
     if(!wv.attached) {
@@ -1100,7 +1100,7 @@ public func webview_run(wv : *mut NativeWebView) {
 }
 }
 
-public func webview_stop(wv : *mut NativeWebView) {
+public unsafe func webview_stop(wv : *mut NativeWebView) {
     window::raw::window_quit()
 }
 
@@ -1108,7 +1108,7 @@ public func webview_stop(wv : *mut NativeWebView) {
 // (`window_run_async`), so tasks submitted with `async::raw::spawn_local` are polled
 // on the UI thread. Use this when the app's bridge handlers await background
 // work and must touch the webview in the continuation.
-public func webview_run_async(wv : *mut NativeWebView) {
+public unsafe func webview_run_async(wv : *mut NativeWebView) {
     unsafe {
 
     if(!wv.attached) {
@@ -1133,7 +1133,7 @@ public func webview_run_async(wv : *mut NativeWebView) {
 // mode it is the parent window the webview was attached to. Use it to mix
 // native UI with the webview — add controls, handle callbacks, set
 // title/size, etc. — all through the window library's API.
-public func webview_window(wv : *mut NativeWebView) : *mut window::NativeWindow {
+public unsafe func webview_window(wv : *mut NativeWebView) : *mut window::NativeWindow {
     unsafe {
 
     if(wv.attached && wv.parent_win != null) {
@@ -1171,7 +1171,7 @@ func linux_dispatch_idle(data : *mut void) : i32 {
 }
 
 // Schedule a function to run on the GTK main loop. Thread-safe.
-public func webview_dispatch(wv : *mut NativeWebView, fn : DispatchCallback, arg : *mut void) {
+public unsafe func webview_dispatch(wv : *mut NativeWebView, fn : DispatchCallback, arg : *mut void) {
     unsafe {
 
     if(fn == null) {
@@ -1189,7 +1189,7 @@ public func webview_dispatch(wv : *mut NativeWebView, fn : DispatchCallback, arg
 }
 
 // Set window size with a hint (none / min / max / fixed).
-public func webview_set_size_hints(wv : *mut NativeWebView, width : int, height : int, hint : int) {
+public unsafe func webview_set_size_hints(wv : *mut NativeWebView, width : int, height : int, hint : int) {
     unsafe {
 
     wv.width = width
@@ -1216,7 +1216,7 @@ public func webview_set_size_hints(wv : *mut NativeWebView, width : int, height 
 }
 
 // Inject JavaScript that runs on every page load.
-public func webview_init(wv : *mut NativeWebView, js : *char) {
+public unsafe func webview_init(wv : *mut NativeWebView, js : *char) {
     unsafe {
 
     if(wv.web_view == null) {
@@ -1240,7 +1240,7 @@ public func webview_init(wv : *mut NativeWebView, js : *char) {
 }
 
 // Remove a binding (single global handler on this backend).
-public func webview_unbind(wv : *mut NativeWebView, name : *char) {
+public unsafe func webview_unbind(wv : *mut NativeWebView, name : *char) {
     unsafe {
 
     var was_bound = wv.bind_handler_set
@@ -1265,7 +1265,7 @@ public func webview_unbind(wv : *mut NativeWebView, name : *char) {
 }
 
 // Respond to an async binding call (used by handlers invoked from other threads).
-public func webview_return(wv : *mut NativeWebView, id : *char, status : int, result : *char) {
+public unsafe func webview_return(wv : *mut NativeWebView, id : *char, status : int, result : *char) {
     unsafe {
 
     if(wv.web_view == null) {
@@ -1314,7 +1314,7 @@ public func webview_return(wv : *mut NativeWebView, id : *char, status : int, re
 }
 
 // Get a native handle by kind.
-public func webview_get_native_handle(wv : *mut NativeWebView, kind : int) : *mut void {
+public unsafe func webview_get_native_handle(wv : *mut NativeWebView, kind : int) : *mut void {
     unsafe {
 
     if(wv.web_view == null) {
@@ -1343,17 +1343,17 @@ public func webview_version() : WebViewVersion {
 
 @no_init @extern public struct GtkFileChooserNative {}
 
-@extern public func gtk_file_chooser_native_new(title : *char, parent : *mut GtkWindow, action : int, accept_label : *char, cancel_label : *char) : *mut GtkFileChooserNative
-@extern public func gtk_native_dialog_run(dialog : *mut GtkFileChooserNative) : int
-@extern public func gtk_file_chooser_get_filename(chooser : *mut void) : *char
+@extern public unsafe func gtk_file_chooser_native_new(title : *char, parent : *mut GtkWindow, action : int, accept_label : *char, cancel_label : *char) : *mut GtkFileChooserNative
+@extern public unsafe func gtk_native_dialog_run(dialog : *mut GtkFileChooserNative) : int
+@extern public unsafe func gtk_file_chooser_get_filename(chooser : *mut void) : *char
 
-@extern public func g_object_unref(object : *mut void)
+@extern public unsafe func g_object_unref(object : *mut void)
 
 const GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER = 2
 const GTK_RESPONSE_ACCEPT = -3
 
 // Show a native folder-picker dialog. Returns the selected path or empty string.
-public func webview_browse_folder(title : *char) : string {
+public unsafe func webview_browse_folder(title : *char) : string {
     unsafe {
 
     var dlg = unsafe(gtk_file_chooser_native_new(title, null, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Open", "_Cancel"))

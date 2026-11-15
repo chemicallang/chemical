@@ -35,7 +35,7 @@ public struct ComponentSignature {
     var className : std::string_view
 }
 
-public func get_module_scoped_name(functionNode : *mut ASTNode, name : std::string_view, str : &mut std::string) {
+public unsafe func get_module_scoped_name(functionNode : *mut ASTNode, name : std::string_view, str : &mut std::string) {
         unsafe {
         if(functionNode != null) {
             const modScope = functionNode.getModScope();

@@ -110,11 +110,11 @@ public struct Audio {
     public func is_loaded(&self) : bool { return self.loaded_flag }
 
     func duration_ms(&self) : double {
-        return raw::audio_duration_ms(unsafe(self as *mut Audio))
+        return unsafe(raw::audio_duration_ms(unsafe(self as *mut Audio)))
     }
 
     func duration(&self) : double {
-        return raw::audio_duration_ms(unsafe(self as *mut Audio))
+        return unsafe(raw::audio_duration_ms(unsafe(self as *mut Audio)))
     }
 
     func frame_count(&self) : size_t {
@@ -138,28 +138,28 @@ public struct Audio {
     // ── safe transformations ─────────────────────────────────────────────
 
     func trim(&self, start_ms : double, end_ms : double) : Audio {
-        return raw::audio_trim(unsafe(self as *mut Audio), start_ms, end_ms)
+        return unsafe(raw::audio_trim(unsafe(self as *mut Audio), start_ms, end_ms))
     }
 
     // Scale every sample in place by `factor` (clamped to the i16 range).
     func volume(&mut self, factor : float) {
-        raw::audio_volume(unsafe(self as *mut Audio), factor)
+        unsafe(raw::audio_volume(unsafe(self as *mut Audio), factor))
     }
 
     func set_volume(&mut self, factor : float) {
-        raw::audio_volume(unsafe(self as *mut Audio), factor)
+        unsafe(raw::audio_volume(unsafe(self as *mut Audio), factor))
     }
 
     func mix(&self, other : &Audio) : std::Result<Audio, AudioError> {
-        return raw::audio_mix(unsafe(self as *mut Audio), unsafe(other as *mut Audio))
+        return unsafe(raw::audio_mix(unsafe(self as *mut Audio), unsafe(other as *mut Audio)))
     }
 
     func append(&self, other : &Audio) : std::Result<Audio, AudioError> {
-        return raw::audio_append(unsafe(self as *mut Audio), unsafe(other as *mut Audio))
+        return unsafe(raw::audio_append(unsafe(self as *mut Audio), unsafe(other as *mut Audio)))
     }
 
     func resample(&self, target_rate : u32) : Audio {
-        return raw::audio_resample(unsafe(self as *mut Audio), target_rate)
+        return unsafe(raw::audio_resample(unsafe(self as *mut Audio), target_rate))
     }
 
     // ── safe encoding / saving ───────────────────────────────────────────

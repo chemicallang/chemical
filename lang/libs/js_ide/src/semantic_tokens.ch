@@ -51,7 +51,7 @@ func putJsToken(analyzer : &mut SemanticTokensAnalyzer, token : *mut Token) {
 }
 
 @no_mangle
-public func js_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *mut Token, end : *Token) : *Token {
+public unsafe func js_semanticTokensPut(analyzer : &mut SemanticTokensAnalyzer, start : *mut Token, end : *Token) : *Token {
     var current = start
     analyzer.putToken(current, SemanticTokenTypes.Macro, 0)
     current++

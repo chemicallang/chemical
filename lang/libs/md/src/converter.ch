@@ -26,7 +26,7 @@ func render_to_html(root : *mut MdRoot, highlighter : (lang : std::string_view, 
 
 func (converter : &mut MdConverter) convertMdRoot(root : *mut MdRoot) {
     if(root != null) {
-        md_convert_md_node(&mut converter.str, root as *mut MdNode, converter as *mut MdEmitter, converter.highlighter, converter.link_rewriter)
+        unsafe(md_convert_md_node(&mut converter.str, root as *mut MdNode, converter as *mut MdEmitter, converter.highlighter, converter.link_rewriter))
     }
 }
 

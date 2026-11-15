@@ -21,7 +21,7 @@ func mkdir_p(path : std::string_view) {
     }
 }
 
-public func build_docs(root_path : *char, output_path : *char, index_path : *char, syntax_args : *char, explicit_output : bool, favicon : *char, logo : *char, description : *char, author : *char, keywords : *char, base_url : *char) : int {
+public unsafe func build_docs(root_path : *char, output_path : *char, index_path : *char, syntax_args : *char, explicit_output : bool, favicon : *char, logo : *char, description : *char, author : *char, keywords : *char, base_url : *char) : int {
     var root_str = std::string(root_path);
     var summary_path = std::string();
     var base_dir = std::string();
@@ -113,7 +113,7 @@ public func build_docs(root_path : *char, output_path : *char, index_path : *cha
     return 0;
 }
 
-public func main(argc : int, argv : **char) : int {
+public unsafe func main(argc : int, argv : **char) : int {
     if(argc < 2) {
         printf("Usage: docgen <root_dir> [-o output_dir] [--index index.html] [--syntax-highlight list] [--favicon path] [--logo path] [--description text] [--author name] [--keywords keywords] [--base-url url]\n");
         return 1;

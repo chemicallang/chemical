@@ -1,5 +1,5 @@
 @no_mangle
-public func css_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func css_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         visitor.visitEmbeddedNode(node)
         const resolver = visitor.getSymbolResolver();
@@ -11,7 +11,7 @@ public func css_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNo
     }
 
 @no_mangle
-public func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut CSSOM;
@@ -56,16 +56,16 @@ func css_page_noarg_call(converter : &mut ASTConverter, fnNode : *mut ASTNode, f
         }
     }
 
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
 }
 
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null;
 }
 
 @no_mangle
-public func css_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
+public unsafe func css_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
         unsafe {
         visitor.visitEmbeddedValue(value)
         const resolver = visitor.getSymbolResolver();
@@ -78,7 +78,7 @@ public func css_symResValue(visitor : *mut SymResLinkBody, value : *mut Embedded
     }
 
 @no_mangle
-public func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
+public unsafe func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut CSSOM;
@@ -109,7 +109,7 @@ public func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut AST
     }
 
 @no_mangle
-public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public unsafe func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -130,7 +130,7 @@ public func css_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder)
     }
 
 @no_mangle
-public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -155,7 +155,7 @@ public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) 
 // one attached, falling back to the page. It reuses the `css` embedded value
 // with `shared = true`, so it shares the CSS emission and symres machinery.
 @no_mangle
-public func globalcss_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func globalcss_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -197,7 +197,7 @@ public func getNextToken(css : &mut CSSLexer, lexer : &mut Lexer) : Token {
 }
 
 @no_mangle
-public func css_initializeLexer(lexer : *mut Lexer) {
+public unsafe func css_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(CSSLexer), alignof(CSSLexer)) as *mut CSSLexer;

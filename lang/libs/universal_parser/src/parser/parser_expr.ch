@@ -420,7 +420,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
              node = arr as *mut JsNode;
         } else if(token.type == JsTokenType.Style as int) {
             if(jsParser.style_fn != null) {
-                node = jsParser.style_fn(parser, builder, jsParser.dyn_values)
+                node = unsafe(jsParser.style_fn(parser, builder, jsParser.dyn_values))
             } else {
                 parser.error("style blocks are not supported here")
                 node = null

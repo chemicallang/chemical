@@ -87,8 +87,8 @@ func spawn_send_owned_frame_completes(env : &mut TestEnv) {
 @test
 func spawn_send_handle_moves_to_thread(env : &mut TestEnv) {
     var handle = async::spawn_send(pf_send_owned(22))
-    var thread = std::thread.spawn<core::async::SendFutureHandle<int>, int>(
-        pf_consume_send, handle)
+    var thread = unsafe(std::thread.spawn<core::async::SendFutureHandle<int>, int>(
+        pf_consume_send, handle))
     if(thread.join() != 22) {
         env.error("SendFutureHandle did not complete after moving to a worker")
     }

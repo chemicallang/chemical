@@ -1,11 +1,11 @@
 @extern
-public func pthread_mutexattr_init(attr : *mut u8) : int
+public unsafe func pthread_mutexattr_init(attr : *mut u8) : int
 
 @extern
-public func pthread_mutexattr_settype(attr : *mut u8, type : int) : int
+public unsafe func pthread_mutexattr_settype(attr : *mut u8, type : int) : int
 
 @extern
-public func pthread_mutexattr_destroy(attr : *mut u8) : int
+public unsafe func pthread_mutexattr_destroy(attr : *mut u8) : int
 
 // pthread_mutex_* functions are declared in mutex.ch (same module)
 
@@ -23,16 +23,16 @@ public namespace std {
             var attr_storage : [PTHREAD_MUTEXATTR_T_SIZE]u8
             var rc = unsafe(pthread_mutexattr_init(&raw mut attr_storage[0]))
             if(rc != 0) {
-                panic("pthread_mutexattr_init failed")
+                unsafe(panic("pthread_mutexattr_init failed"))
             }
             rc = unsafe(pthread_mutexattr_settype(&raw mut attr_storage[0], PTHREAD_MUTEX_RECURSIVE))
             if(rc != 0) {
-                panic("pthread_mutexattr_settype failed")
+                unsafe(panic("pthread_mutexattr_settype failed"))
             }
             rc = unsafe(pthread_mutex_init(&raw mut m.storage[0], &raw mut attr_storage[0]))
             unsafe { pthread_mutexattr_destroy(&raw mut attr_storage[0]) }
             if(rc != 0) {
-                panic("pthread_mutex_init failed")
+                unsafe(panic("pthread_mutex_init failed"))
             }
             return m
         }
@@ -40,7 +40,7 @@ public namespace std {
         func lock(&mut self) {
             var rc = unsafe(pthread_mutex_lock(&raw mut storage[0]))
             if(rc != 0) {
-                panic("pthread_mutex_lock failed")
+                unsafe(panic("pthread_mutex_lock failed"))
             }
         }
 
@@ -52,7 +52,7 @@ public namespace std {
         func unlock(&mut self) {
             var rc = unsafe(pthread_mutex_unlock(&raw mut storage[0]))
             if(rc != 0) {
-                panic("pthread_mutex_unlock failed")
+                unsafe(panic("pthread_mutex_unlock failed"))
             }
         }
 

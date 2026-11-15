@@ -16,4 +16,4 @@ public type __pid_t = pid_t
    This function is a cancellation point and therefore not marked with
    __THROW.  */
 @extern
-public func waitpid(__pid : __pid_t, __stat_loc : *mut int, __options : int) : __pid_t
+public unsafe func waitpid(__pid : __pid_t, __stat_loc : *mut int, __options : int) : __pid_t

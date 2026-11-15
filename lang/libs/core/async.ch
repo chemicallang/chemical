@@ -77,10 +77,12 @@ public namespace async {
         func poll(&mut self, cx : *mut Context) : Poll<T>
     }
 
-    // The vtable behind every runtime future handle.
+    // The vtable behind every runtime future handle. Both entries take a raw
+    // frame pointer the callee cannot validate, so they are `unsafe` function
+    // types: assigning or calling one is a runtime-ABI assertion.
     public struct FutureTable<T> {
-        var poll : (frame : *mut void, cx : *mut Context) => Poll<T>
-        var drop : (frame : *mut void) => void
+        var poll : unsafe (frame : *mut void, cx : *mut Context) => Poll<T>
+        var drop : unsafe (frame : *mut void) => void
     }
 
     // The concrete, move-only representation of every future. `@delete` is what
@@ -197,7 +199,7 @@ public namespace async {
 
     // Frame allocation hooks, provided by the runtime library (`lang/libs/async`).
     @extern public func chemical_async_frame_alloc(size : u64, align : u64) : *mut void
-    @extern public func chemical_async_frame_free(ptr : *mut void, size : u64, align : u64)
+    @extern public unsafe func chemical_async_frame_free(ptr : *mut void, size : u64, align : u64)
 
 }
 }

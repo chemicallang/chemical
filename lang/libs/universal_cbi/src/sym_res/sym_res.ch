@@ -1,5 +1,5 @@
 @no_mangle
-public func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
+public unsafe func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
         unsafe {
         // no type or value is included in this node which requires resolution at link signature
         // other than HtmlPage type, however we are comfortable resolving that after
@@ -8,7 +8,7 @@ public func universal_symResSigNode(visitor : *mut SymResLinkSignature, node : *
     }
 
 @no_mangle
-public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         const resolver = visitor.getSymbolResolver();
         const table = visitor.getSymbolTable();
@@ -79,7 +79,7 @@ public func universal_symResNode(visitor : *mut SymResLinkBody, node : *mut Embe
     }
 
 @no_mangle
-public func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public unsafe func universal_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
         unsafe {
         const comp = node.getDataPtr() as *mut JsComponentDecl;
         resolver.declare_tld_default(&comp.signature.name, node);

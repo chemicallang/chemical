@@ -160,7 +160,7 @@ public func remainderl(x : longdouble, y : longdouble) : longdouble
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
 @extern
-public func remquof(x : float, y : float, quo : *mut int) : float
+public unsafe func remquof(x : float, y : float, quo : *mut int) : float
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -175,7 +175,7 @@ public func remquof(x : float, y : float, quo : *mut int) : float
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
 @extern
-public func remquo(x : double, y : double, quo : *mut int) : double
+public unsafe func remquo(x : double, y : double, quo : *mut int) : double
 
 /**
  * Computes the floating-point remainder of the division operation x/y as the remainder() function does. Additionally, the sign and at least the three of the last bits of x/y will be stored in quo, sufficient to determine the octant of the result within a period.
@@ -190,7 +190,7 @@ public func remquo(x : double, y : double, quo : *mut int) : double
  * @see https://en.cppreference.com/w/c/numeric/math/remquo
  */
 @extern
-public func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
+public unsafe func remquol(x : longdouble, y : longdouble, quo : *mut int) : longdouble
 
 /**
  * Computes (x * y) + z as if to infinite precision and rounded only once to fit the result type.
@@ -333,7 +333,7 @@ public func fdiml(x : longdouble, y : longdouble) : longdouble
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nanf(arg : *char) : float
+public unsafe func nanf(arg : *char) : float
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -347,7 +347,7 @@ public func nanf(arg : *char) : float
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nan(arg : *char) : double
+public unsafe func nan(arg : *char) : double
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -361,7 +361,7 @@ public func nan(arg : *char) : double
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nanl(arg : *char) : longdouble
+public unsafe func nanl(arg : *char) : longdouble
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -375,7 +375,7 @@ public func nanl(arg : *char) : longdouble
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nand32(arg : *char) : _Decimal32
+public unsafe func nand32(arg : *char) : _Decimal32
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -389,7 +389,7 @@ public func nand32(arg : *char) : _Decimal32
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nand64(arg : *char) : _Decimal64
+public unsafe func nand64(arg : *char) : _Decimal64
 
 /**
  * Converts the implementation-defined character string arg into the corresponding quiet NaN value, as if by calling the appropriate parsing function strtoX, as follows:
@@ -403,7 +403,7 @@ public func nand64(arg : *char) : _Decimal64
  * @see https://en.cppreference.com/w/c/numeric/math/nan
  */
 @extern
-public func nand128(arg : *char) : _Decimal128
+public unsafe func nand128(arg : *char) : _Decimal128
 
 /**
  * Computes e (Euler's number, 2.7182818...) raised to the given power arg.
@@ -1854,7 +1854,7 @@ public func llrintl(arg : __float_128) : bigint
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
 @extern
-public func frexpf(arg : float, exp : *int) : float
+public unsafe func frexpf(arg : float, exp : *int) : float
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1867,7 +1867,7 @@ public func frexpf(arg : float, exp : *int) : float
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
 @extern
-public func frexp(arg : double, exp : *int) : double
+public unsafe func frexp(arg : double, exp : *int) : double
 
 /**
  * Decomposes given floating-point value x into a normalized fraction and an integral power of two.
@@ -1880,7 +1880,7 @@ public func frexp(arg : double, exp : *int) : double
  * @see https://en.cppreference.com/w/c/numeric/math/frexp
  */
 @extern
-public func frexpl(arg : __float_128, exp : *int) : __float_128
+public unsafe func frexpl(arg : __float_128, exp : *int) : __float_128
 
 /**
  * Multiplies a floating-point value arg by the number 2 raised to the exp power.
@@ -1927,7 +1927,7 @@ public func ldexpl(arg : __float_128, exp : int) : __float_128
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
 @extern
-public func modff(arg : float, iptr : *float) : float
+public unsafe func modff(arg : float, iptr : *float) : float
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1938,7 +1938,7 @@ public func modff(arg : float, iptr : *float) : float
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
 @extern
-public func modf(arg : double, iptr : *double) : double
+public unsafe func modf(arg : double, iptr : *double) : double
 
 /**
  * Decomposes given floating-point value arg into integral and fractional parts, each having the same type and sign as arg. The integral part (in floating-point format) is stored in the object pointed to by iptr.
@@ -1949,7 +1949,7 @@ public func modf(arg : double, iptr : *double) : double
  * @see https://en.cppreference.com/w/c/numeric/math/modf
  */
 @extern
-public func modfl(arg : __float_128, iptr : *__float_128) : __float_128
+public unsafe func modfl(arg : __float_128, iptr : *__float_128) : __float_128
 
 /**
  * Multiplies a floating-point value arg by FLT_RADIX raised to power exp.

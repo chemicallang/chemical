@@ -110,10 +110,10 @@ if(def.windows) {
  * @return 0 on success, –1 on error.
  */
 @extern
-public func stat(pathname : *char, buf : *mut Stat) : int
+public unsafe func stat(pathname : *char, buf : *mut Stat) : int
 
 @extern
-public func fstat(fd : int, buf : *mut Stat) : int
+public unsafe func fstat(fd : int, buf : *mut Stat) : int
 
 // File type mask
 public comptime const _S_IFMT = 0xF000

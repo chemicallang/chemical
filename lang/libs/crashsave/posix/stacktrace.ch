@@ -1,6 +1,6 @@
 /* unistd.h */
 @extern
-public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t
+public unsafe func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t
 
 @extern
 public func _exit(status : int) : void
@@ -121,7 +121,7 @@ func handle_crash_linux(sig : int) : void {
 }
 
 /* Install signal handlers */
-public func install_crash_handler(exe_path : *char, onCrash : () => void) {
+public unsafe func install_crash_handler(exe_path : *char, onCrash : () => void) {
     g_on_crash = onCrash;
     signal(SIGSEGV, handle_crash_linux);
     signal(SIGFPE, handle_crash_linux);

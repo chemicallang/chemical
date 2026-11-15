@@ -25,7 +25,7 @@ public struct Archive {
     var loaded : bool
 }
 
-public func open(path : *char) : std::Result<Archive, ArchiveError> {
+public unsafe func open(path : *char) : std::Result<Archive, ArchiveError> {
     // Initialize with proper values at declaration so no destructor is called
     // on uninitialized garbage (which would happen with field assignments).
     var archive = Archive{
@@ -34,13 +34,13 @@ public func open(path : *char) : std::Result<Archive, ArchiveError> {
         archive_type: 0,
         loaded: false
     }
-    var zip_result = open_zip(path, &raw mut archive.zip_data)
+    var zip_result = unsafe(open_zip(path, &raw mut archive.zip_data))
     if(zip_result is Result.Ok) {
         archive.archive_type = 1
         archive.loaded = true
         return std.Result.Ok(archive)
     }
-    var tar_result = open_tar(path, &raw mut archive.tar_data)
+    var tar_result = unsafe(open_tar(path, &raw mut archive.tar_data))
     if(tar_result is Result.Ok) {
         archive.archive_type = 2
         archive.loaded = true
@@ -49,7 +49,7 @@ public func open(path : *char) : std::Result<Archive, ArchiveError> {
     return std.Result.Err(ArchiveError.InvalidFormat(string("not a recognized archive format")))
 }
 
-public func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
+public unsafe func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
         unsafe {
         if(archive.archive_type == 1) {
             return zip_entries(&raw mut archive.zip_data)
@@ -60,7 +60,7 @@ public func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
         }
     }
 
-public func entry_count(archive : *mut Archive) : size_t {
+public unsafe func entry_count(archive : *mut Archive) : size_t {
         unsafe {
         if(archive.archive_type == 1) {
             return zip_entry_count(&raw mut archive.zip_data)
@@ -71,7 +71,7 @@ public func entry_count(archive : *mut Archive) : size_t {
         }
     }
 
-public func contains(archive : *mut Archive, name : *char) : bool {
+public unsafe func contains(archive : *mut Archive, name : *char) : bool {
         unsafe {
         if(archive.archive_type == 1) {
             return zip_contains(&raw mut archive.zip_data, name)
@@ -82,7 +82,7 @@ public func contains(archive : *mut Archive, name : *char) : bool {
         }
     }
 
-public func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+public unsafe func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>, ArchiveError> {
         unsafe {
         if(archive.archive_type == 1) {
             return zip_read_file(&raw mut archive.zip_data, name)
@@ -93,7 +93,7 @@ public func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>,
         }
     }
 
-public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func extract(archive : *mut Archive, dest : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         if(archive.archive_type == 1) {
             return zip_extract_all(&raw mut archive.zip_data, dest)
@@ -104,7 +104,7 @@ public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Uni
         }
     }
 
-public func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var entry : ArchiveEntry
         if(archive.archive_type == 1) {
@@ -140,7 +140,7 @@ public struct ZipArchive {
     var data_loaded : bool
 }
 
-public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
+public unsafe func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
@@ -162,7 +162,7 @@ public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::
         }
     }
 
-public func open_zip_bytes(data : *u8, data_len : size_t, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
+public unsafe func open_zip_bytes(data : *u8, data_len : size_t, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var vec = vector<u8>()
         vec.resize(data_len)
@@ -269,14 +269,14 @@ func parse_zip_central_dir(archive : *mut ZipArchive) : std::Result<std::Unit, A
         }
     }
 
-public func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
+public unsafe func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
         unsafe {
         return &raw mut archive.entries
 
         }
     }
 
-public func zip_entry_count(archive : *mut ZipArchive) : size_t {
+public unsafe func zip_entry_count(archive : *mut ZipArchive) : size_t {
         unsafe {
         return archive.entries.size()
 
@@ -297,7 +297,7 @@ func str_equals_cstr(s : *mut string, cstr : *char) : bool {
         }
     }
 
-public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
+public unsafe func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var i : size_t = 0
         while(i < archive.entries.size()) {
@@ -319,7 +319,7 @@ public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mu
         }
     }
 
-public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
+public unsafe func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         if(!archive.data_loaded) {
             return std.Result.Err(ArchiveError.IoError(string("archive data not loaded")))
@@ -378,21 +378,21 @@ public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry,
         }
     }
 
-public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+public unsafe func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
     var entry : ArchiveEntry
-    var entry_result = zip_find_entry(archive, name, unsafe(&raw mut entry))
+    var entry_result = unsafe(zip_find_entry(archive, name, unsafe(&raw mut entry)))
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
     }
     var content = vector<u8>()
-    var content_result = zip_read_entry(archive, unsafe(&raw mut entry), &raw mut content)
+    var content_result = unsafe(zip_read_entry(archive, unsafe(&raw mut entry), &raw mut content))
     if(content_result is Result.Err) {
         return std.Result.Err(ArchiveError.DecompressionFailed(string("failed to read entry")))
     }
     return std.Result.Ok(content)
 }
 
-public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
+public unsafe func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
     var entry = ArchiveEntry {
         name : string(),
         size : 0u,
@@ -402,11 +402,11 @@ public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
         is_directory : false,
         offset : 0u
     }
-    var r = zip_find_entry(archive, name, unsafe(&raw mut entry))
+    var r = unsafe(zip_find_entry(archive, name, unsafe(&raw mut entry)))
     return r is Result.Ok
 }
 
-public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var content = vector<u8>()
         var content_result = zip_read_entry(archive, entry, &raw mut content)
@@ -443,7 +443,7 @@ public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEnt
         }
     }
 
-public func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         fs::raw::create_dir_all(dest_dir)
         var i : size_t = 0
@@ -469,7 +469,7 @@ public struct TarArchive {
     var data_loaded : bool
 }
 
-public func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
+public unsafe func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var read_result = fs::raw::read_entire_file(path)
         if(read_result is Result.Err) {
@@ -589,21 +589,21 @@ func tar_parse_octal(str : *mut string) : u64 {
         }
     }
 
-public func tar_entries(archive : *mut TarArchive) : *mut vector<ArchiveEntry> {
+public unsafe func tar_entries(archive : *mut TarArchive) : *mut vector<ArchiveEntry> {
         unsafe {
         return &raw mut archive.entries
 
         }
     }
 
-public func tar_entry_count(archive : *mut TarArchive) : size_t {
+public unsafe func tar_entry_count(archive : *mut TarArchive) : size_t {
         unsafe {
         return archive.entries.size()
 
         }
     }
 
-public func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
+public unsafe func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var i : size_t = 0
         while(i < archive.entries.size()) {
@@ -625,7 +625,7 @@ public func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mu
         }
     }
 
-public func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
+public unsafe func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         if(!archive.data_loaded) {
             return std.Result.Err(ArchiveError.IoError(string("archive data not loaded")))
@@ -651,21 +651,21 @@ public func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry,
         }
     }
 
-public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+public unsafe func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
     var entry : ArchiveEntry
-    var entry_result = tar_find_entry(archive, name, unsafe(&raw mut entry))
+    var entry_result = unsafe(tar_find_entry(archive, name, unsafe(&raw mut entry)))
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
     }
     var content = vector<u8>()
-    var content_result = tar_read_entry(archive, unsafe(&raw mut entry), &raw mut content)
+    var content_result = unsafe(tar_read_entry(archive, unsafe(&raw mut entry), &raw mut content))
     if(content_result is Result.Err) {
         return std.Result.Err(ArchiveError.IoError(string("failed to read entry data")))
     }
     return std.Result.Ok(content)
 }
 
-public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
+public unsafe func tar_contains(archive : *mut TarArchive, name : *char) : bool {
     var entry = ArchiveEntry {
         name : string(),
         size : 0u,
@@ -675,11 +675,11 @@ public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
         is_directory : false,
         offset : 0u
     }
-    var r = tar_find_entry(archive, name, unsafe(&raw mut entry))
+    var r = unsafe(tar_find_entry(archive, name, unsafe(&raw mut entry)))
     return r is Result.Ok
 }
 
-public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         var full_path = unsafe(string(dest_dir))
         if(full_path.size() > 0 && full_path.at(full_path.size() - 1) != '/' as char) {
@@ -710,7 +710,7 @@ public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEnt
         }
     }
 
-public func tar_extract_all(archive : *mut TarArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func tar_extract_all(archive : *mut TarArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         fs::raw::create_dir_all(dest_dir)
         var i : size_t = 0
@@ -745,7 +745,7 @@ public struct ZipWriteEntry {
     var local_header_offset : u32
 }
 
-public func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
+public unsafe func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
         unsafe {
         var crc = crc32_compute(file_data, file_len)
 
@@ -772,12 +772,12 @@ public func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data
         }
     }
 
-public func zip_writer_add_bytes(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
-    zip_writer_add_file(writer, name, data, data_len)
+public unsafe func zip_writer_add_bytes(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
+    unsafe(zip_writer_add_file(writer, name, data, data_len))
 }
 
-public func zip_writer_add_store(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
-    zip_writer_add_file(writer, name, data, data_len)
+public unsafe func zip_writer_add_store(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
+    unsafe(zip_writer_add_file(writer, name, data, data_len))
 }
 
 func write_local_header(writer : *mut ZipWriter, name : *char, size : u32, crc : u32) {
@@ -821,7 +821,7 @@ func write_local_header(writer : *mut ZipWriter, name : *char, size : u32, crc :
         }
     }
 
-public func zip_writer_close(writer : *mut ZipWriter) {
+public unsafe func zip_writer_close(writer : *mut ZipWriter) {
         unsafe {
         var cd_offset = writer.data.size() as u32
         var cd_size : u32 = 0
@@ -890,7 +890,7 @@ public func zip_writer_close(writer : *mut ZipWriter) {
         }
     }
 
-public func zip_writer_to_bytes(writer : *mut ZipWriter) : *mut vector<u8> {
+public unsafe func zip_writer_to_bytes(writer : *mut ZipWriter) : *mut vector<u8> {
         unsafe {
         zip_writer_close(writer)
         return &raw mut writer.data
@@ -898,7 +898,7 @@ public func zip_writer_to_bytes(writer : *mut ZipWriter) : *mut vector<u8> {
         }
     }
 
-public func zip_writer_save(writer : *mut ZipWriter, path : *char) : std::Result<std::Unit, ArchiveError> {
+public unsafe func zip_writer_save(writer : *mut ZipWriter, path : *char) : std::Result<std::Unit, ArchiveError> {
         unsafe {
         zip_writer_close(writer)
 
@@ -929,7 +929,7 @@ func crc32_table_entry(i : u32) : u32 {
     return crc;
 }
 
-public func crc32_compute(data : *u8, data_len : size_t) : u32 {
+public unsafe func crc32_compute(data : *u8, data_len : size_t) : u32 {
         unsafe {
         var crc : u32 = 0xFFFFFFFFu32;
         var i : size_t = 0;
@@ -944,7 +944,7 @@ public func crc32_compute(data : *u8, data_len : size_t) : u32 {
         }
     }
 
-public func crc32_update(crc : u32, data : *u8, data_len : size_t) : u32 {
+public unsafe func crc32_update(crc : u32, data : *u8, data_len : size_t) : u32 {
         unsafe {
         var c = crc ^ 0xFFFFFFFFu32;
         var i : size_t = 0;
@@ -1118,7 +1118,7 @@ func decode_huffman(reader : *mut BitReader, table : *mut HuffTable) : u16 {
         }
     }
 
-public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8, output_capacity : size_t) : std::Result<size_t, ArchiveError> {
+public unsafe func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8, output_capacity : size_t) : std::Result<size_t, ArchiveError> {
         unsafe {
         var reader = BitReader.init(input, input_len)
         var out_pos : size_t = 0
@@ -1300,14 +1300,14 @@ public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8
 // ── from endian.ch ─────────────────────────────────────────────
 
 
-public func read_u16_le(data : *u8, offset : size_t) : u16 {
+public unsafe func read_u16_le(data : *u8, offset : size_t) : u16 {
         unsafe {
         return (data[offset] as u16) | ((data[offset + 1] as u16) << 8)
 
         }
     }
 
-public func read_u32_le(data : *u8, offset : size_t) : u32 {
+public unsafe func read_u32_le(data : *u8, offset : size_t) : u32 {
         unsafe {
         return (data[offset] as u32) | ((data[offset + 1] as u32) << 8) |
                ((data[offset + 2] as u32) << 16) | ((data[offset + 3] as u32) << 24)
@@ -1315,7 +1315,7 @@ public func read_u32_le(data : *u8, offset : size_t) : u32 {
         }
     }
 
-public func read_u64_le(data : *u8, offset : size_t) : u64 {
+public unsafe func read_u64_le(data : *u8, offset : size_t) : u64 {
         unsafe {
         return (data[offset] as u64) | ((data[offset + 1] as u64) << 8) |
                ((data[offset + 2] as u64) << 16) | ((data[offset + 3] as u64) << 24) |
@@ -1325,7 +1325,7 @@ public func read_u64_le(data : *u8, offset : size_t) : u64 {
         }
     }
 
-public func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
+public unsafe func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
         unsafe {
         out[offset] = (val & 0xFFu16) as u8
         out[offset + 1] = ((val >> 8) & 0xFFu16) as u8
@@ -1333,7 +1333,7 @@ public func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
         }
     }
 
-public func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
+public unsafe func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
         unsafe {
         out[offset] = (val & 0xFFu32) as u8
         out[offset + 1] = ((val >> 8) & 0xFFu32) as u8
@@ -1343,7 +1343,7 @@ public func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
         }
     }
 
-public func write_u64_le(out : *mut u8, offset : size_t, val : u64) {
+public unsafe func write_u64_le(out : *mut u8, offset : size_t, val : u64) {
         unsafe {
         out[offset] = (val & 0xFFu64) as u8
         out[offset + 1] = ((val >> 8) & 0xFFu64) as u8

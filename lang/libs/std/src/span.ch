@@ -27,7 +27,7 @@ public struct span_windows<T> {
     }
 
     func get(&self, index : size_t) : span<T> {
-        if(index >= size()) panic("span window index out of bounds")
+        if(index >= size()) unsafe(panic("span window index out of bounds"))
         return _source.subview(index, index + _width)
     }
 }
@@ -47,7 +47,7 @@ public struct span_chunks<T> {
     }
 
     func get(&self, index : size_t) : span<T> {
-        if(index >= size()) panic("span chunk index out of bounds")
+        if(index >= size()) unsafe(panic("span chunk index out of bounds"))
         var start = index * _width
         var end = start + _width
         if(end > _source.size()) end = _source.size()
@@ -70,7 +70,7 @@ public struct span_split<T> {
     }
 
     func get(&self, index : size_t) : span<T> where T: Copy {
-        if(index >= _count) panic("span split index out of bounds")
+        if(index >= _count) unsafe(panic("span split index out of bounds"))
         var start : size_t = 0
         var segment : size_t = 0
         var i : size_t = 0
@@ -106,7 +106,7 @@ public struct span_delim_split<T> {
     }
 
     func get(&self, index : size_t) : span<T> where T: Copy + core::ops::PartialEq {
-        if(index >= _count) panic("span split index out of bounds")
+        if(index >= _count) unsafe(panic("span split index out of bounds"))
         var start : size_t = 0
         var segment : size_t = 0
         var i : size_t = 0
@@ -173,7 +173,7 @@ public struct span<'a, T> {
 
     func at(&self, loc : size_t) : *T {
         if(loc >= _size) {
-            panic("span index out of bounds")
+            unsafe(panic("span index out of bounds"))
         }
         return unsafe(_data + loc);
     }
@@ -192,7 +192,7 @@ public struct span<'a, T> {
 
     func subview(&self, start : size_t, end : size_t) : span<'self, T> {
         if(start > end || end > _size) {
-            panic("span subview out of bounds")
+            unsafe(panic("span subview out of bounds"))
         }
         var ptr : *T = null
         if(start < _size) {
@@ -203,7 +203,7 @@ public struct span<'a, T> {
 
     func split_at(&self, at : size_t) : slice_pair<T> {
         if(at > _size) {
-            panic("span split_at out of bounds")
+            unsafe(panic("span split_at out of bounds"))
         }
         var left_ptr : *T = null
         if(at != 0) {
@@ -227,7 +227,7 @@ public struct span<'a, T> {
     }
 
     func chunks(&self, width : size_t) : span_chunks<T> {
-        if(width == 0) panic("span chunks width must be non-zero")
+        if(width == 0) unsafe(panic("span chunks width must be non-zero"))
         return span_chunks<T> {
             _source : unsafe(span<T>(_data, _size)),
             _width : width
@@ -335,7 +335,7 @@ public struct mut_span<'a, T> {
 
     func at(&self, loc : size_t) : *mut T {
         if(loc >= _size) {
-            panic("mut_span index out of bounds")
+            unsafe(panic("mut_span index out of bounds"))
         }
         return unsafe(_data + loc);
     }
@@ -350,7 +350,7 @@ public struct mut_span<'a, T> {
 
     func set(&mut self, loc : size_t, value : T) {
         if(loc >= _size) {
-            panic("mut_span index out of bounds")
+            unsafe(panic("mut_span index out of bounds"))
         }
         unsafe { _data[loc] = value; }
     }
@@ -365,7 +365,7 @@ public struct mut_span<'a, T> {
 
     func subview(&mut self, start : size_t, end : size_t) : mut_span<'self, T> {
         if(start > end || end > _size) {
-            panic("mut_span subview out of bounds")
+            unsafe(panic("mut_span subview out of bounds"))
         }
         var ptr : *mut T = null
         if(start < _size) {
@@ -376,7 +376,7 @@ public struct mut_span<'a, T> {
 
     func split_at(&mut self, at : size_t) : mut_slice_pair<T> {
         if(at > _size) {
-            panic("mut_span split_at out of bounds")
+            unsafe(panic("mut_span split_at out of bounds"))
         }
         var left_ptr : *mut T = null
         if(at != 0) {

@@ -84,7 +84,7 @@ public func universal_style_css_next(css : &mut CSSLexer, lexer : &mut Lexer) : 
 // Parses `style { … }` (current token is the `Style` token) into a CSS embedded
 // value wrapped as a JS chemical value, exactly like `${ #css { … } }`. The
 // class name it denotes is a compile-time constant.
-public func universal_parse_style_block(parser : *mut Parser, builder : *mut ASTBuilder, dyn_values : *mut std::vector<*mut Value>) : *mut JsNode {
+public unsafe func universal_parse_style_block(parser : *mut Parser, builder : *mut ASTBuilder, dyn_values : *mut std::vector<*mut Value>) : *mut JsNode {
         unsafe {
         const loc = parser.getEncodedLocation(parser.getToken())
         parser.increment() // consume `style`; the next `{` hands off to the CSS lexer

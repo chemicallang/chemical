@@ -65,7 +65,7 @@ public func test_router_redirect_overrides_url_match(env : &mut TestEnv) {
     const dashActive = std::string_view("data-uni-route=\"main#/dashboard\" data-uni-route-active=\"true\"")
     if(html.find_or_npos(&dashActive) == std::NPOS) {
         env.error("a redirect should win over the request URL match")
-        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0))
         return
     }
     const projActive = std::string_view("data-uni-route=\"main#/projects/{id}\" data-uni-route-active=\"true\"")

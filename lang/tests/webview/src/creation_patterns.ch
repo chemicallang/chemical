@@ -224,7 +224,7 @@ public func test_create_pattern_b_evaluate_js(env : &mut TestEnv) {
 public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
     // Pattern B: verify set_size triggers webview_rebind before MoveWindow,
     // so the resize callback reads the correct WebView pointer.
-    var wv_result = webview::create_native("PatB Size\0" as *char, 640, 480)
+    var wv_result = unsafe(webview::create_native("PatB Size\0" as *char, 640, 480))
     if(wv_result is std::Result.Err) {
         env.error("webview::create failed (Pattern B size)")
         return
@@ -233,18 +233,18 @@ public func test_create_pattern_b_set_size_live(env : &mut TestEnv) {
 
     // set_size on a by-value webview — triggers MoveWindow → WM_SIZE →
     // resize callback reads user data. webview_rebind corrects it.
-    webview::raw::webview_set_size(&raw mut wv, 1024, 768)
+    unsafe(webview::raw::webview_set_size(&raw mut wv, 1024, 768))
     if(wv.width != 1024) {
         env.error("Pattern B set_size did not update width")
-        webview::raw::webview_destroy(&raw mut wv)
+        unsafe(webview::raw::webview_destroy(&raw mut wv))
         return
     }
     if(wv.height != 768) {
         env.error("Pattern B set_size did not update height")
-        webview::raw::webview_destroy(&raw mut wv)
+        unsafe(webview::raw::webview_destroy(&raw mut wv))
         return
     }
-    webview::raw::webview_destroy(&raw mut wv)
+    unsafe(webview::raw::webview_destroy(&raw mut wv))
 }
 
 @test

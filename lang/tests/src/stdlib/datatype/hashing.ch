@@ -13,32 +13,32 @@ enum HashingResult {
 }
 
 func check_str_hash(s : *char) : HashingResult {
-    switch(fnv1_hash(s)) {
-        comptime { fnv1_hash("first") } => {
+    switch(unsafe(fnv1_hash(s))) {
+        comptime { unsafe(fnv1_hash("first")) } => {
             return HashingResult.First
         }
-        comptime { fnv1_hash("second") } => {
+        comptime { unsafe(fnv1_hash("second")) } => {
             return HashingResult.Second
         }
-        comptime { fnv1_hash("third") } => {
+        comptime { unsafe(fnv1_hash("third")) } => {
             return HashingResult.Third
         }
-        comptime { fnv1_hash("hello") } => {
+        comptime { unsafe(fnv1_hash("hello")) } => {
             return HashingResult.Hello
         }
-        comptime { fnv1_hash("wello") } => {
+        comptime { unsafe(fnv1_hash("wello")) } => {
             return HashingResult.Wello
         }
-        comptime { fnv1_hash("dello") } => {
+        comptime { unsafe(fnv1_hash("dello")) } => {
             return HashingResult.Dello
         }
-        comptime_fnv1_hash("jello") => {
+        unsafe(comptime_fnv1_hash("jello")) => {
             return HashingResult.Jello
         }
-        comptime { fnv1_hash("nello") } => {
+        comptime { unsafe(fnv1_hash("nello")) } => {
             return HashingResult.Nello
         }
-        comptime { fnv1_hash("xello") } => {
+        comptime { unsafe(fnv1_hash("xello")) } => {
             return HashingResult.Xello
         }
         default => {
@@ -48,32 +48,32 @@ func check_str_hash(s : *char) : HashingResult {
 }
 
 func check_str_hash32(s : *char) : HashingResult {
-    switch(fnv1a_hash_32(s)) {
-        comptime { fnv1a_hash_32("first") } => {
+    switch(unsafe(fnv1a_hash_32(s))) {
+        comptime { unsafe(fnv1a_hash_32("first")) } => {
             return HashingResult.First
         }
-        comptime { fnv1a_hash_32("second") } => {
+        comptime { unsafe(fnv1a_hash_32("second")) } => {
             return HashingResult.Second
         }
-        comptime { fnv1a_hash_32("third") } => {
+        comptime { unsafe(fnv1a_hash_32("third")) } => {
             return HashingResult.Third
         }
-        comptime { fnv1a_hash_32("hello") } => {
+        comptime { unsafe(fnv1a_hash_32("hello")) } => {
             return HashingResult.Hello
         }
-        comptime { fnv1a_hash_32("wello") } => {
+        comptime { unsafe(fnv1a_hash_32("wello")) } => {
             return HashingResult.Wello
         }
-        comptime { fnv1a_hash_32("dello") } => {
+        comptime { unsafe(fnv1a_hash_32("dello")) } => {
             return HashingResult.Dello
         }
-        comptime { fnv1a_hash_32("jello") } => {
+        comptime { unsafe(fnv1a_hash_32("jello")) } => {
             return HashingResult.Jello
         }
-        comptime { fnv1a_hash_32("nello") } => {
+        comptime { unsafe(fnv1a_hash_32("nello")) } => {
             return HashingResult.Nello
         }
-        comptime { fnv1a_hash_32("xello") } => {
+        comptime { unsafe(fnv1a_hash_32("xello")) } => {
             return HashingResult.Xello
         }
         default => {
@@ -83,11 +83,11 @@ func check_str_hash32(s : *char) : HashingResult {
 }
 
 comptime func comptime_murmur(s : *char) : u32 {
-    return murmurhash(s, intrinsics::size(s), 0)
+    return unsafe(murmurhash(s, intrinsics::size(s), 0))
 }
 
 func wrap_murmur(s : *char) : u32 {
-    return murmurhash(s, unsafe(strlen(s)), 0)
+    return unsafe(murmurhash(s, unsafe(strlen(s)), 0))
 }
 
 /**
@@ -129,28 +129,28 @@ func check_murmur_hash(s : *char) : HashingResult {
 
 func test_hashing() {
     test("hashing algo fnv1 results in same hash in comptime and runtime mode - 1", () => {
-        return comptime { fnv1_hash("next") } == fnv1_hash("next")
+        return comptime { unsafe(fnv1_hash("next")) } == unsafe(fnv1_hash("next"))
     })
     test("hashing algo fnv1 results in same hash in comptime and runtime mode - 2", () => {
-        return comptime { fnv1_hash("mango") } == fnv1_hash("mango")
+        return comptime { unsafe(fnv1_hash("mango")) } == unsafe(fnv1_hash("mango"))
     })
     test("hashing algo fnv1 results in same hash in comptime and runtime mode - 3", () => {
-        return comptime { fnv1_hash("my first day in paris") } == fnv1_hash("my first day in paris")
+        return comptime { unsafe(fnv1_hash("my first day in paris")) } == unsafe(fnv1_hash("my first day in paris"))
     })
     test("hashing algo fnv1 results in same hash in comptime and runtime mode - 4", () => {
-        return comptime { fnv1_hash("i love switzerland") } == fnv1_hash("i love switzerland")
+        return comptime { unsafe(fnv1_hash("i love switzerland")) } == unsafe(fnv1_hash("i love switzerland"))
     })
     test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 1", () => {
-        return comptime { fnv1a_hash_32("next") } == fnv1a_hash_32("next")
+        return comptime { unsafe(fnv1a_hash_32("next")) } == unsafe(fnv1a_hash_32("next"))
     })
     test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 2", () => {
-        return comptime { fnv1a_hash_32("mango") } == fnv1a_hash_32("mango")
+        return comptime { unsafe(fnv1a_hash_32("mango")) } == unsafe(fnv1a_hash_32("mango"))
     })
     test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 3", () => {
-        return comptime { fnv1a_hash_32("my first day in paris") } == fnv1a_hash_32("my first day in paris")
+        return comptime { unsafe(fnv1a_hash_32("my first day in paris")) } == unsafe(fnv1a_hash_32("my first day in paris"))
     })
     test("hashing algo fnv1a_hash_32 results in same hash in comptime and runtime mode - 4", () => {
-        return comptime { fnv1a_hash_32("i love switzerland") } == fnv1a_hash_32("i love switzerland")
+        return comptime { unsafe(fnv1a_hash_32("i love switzerland")) } == unsafe(fnv1a_hash_32("i love switzerland"))
     })
     /**
     test("hashing algo murmur results in same hash in comptime and runtime mode - 1", () => {

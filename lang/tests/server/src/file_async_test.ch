@@ -36,7 +36,7 @@ func write_server_fixture() : bool {
     path.append('/')
     var fixture_name = string_view("chemical_tier6_server_test.txt")
     path.append_view(&fixture_name)
-    var r = fs::raw::write_text_file(path.data(), content.data() as *mut u8, content.size())
+    var r = unsafe(fs::raw::write_text_file(path.data(), content.data() as *mut u8, content.size()))
     return r is std::Result.Ok
 }
 

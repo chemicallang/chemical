@@ -44,7 +44,7 @@ public struct Buffer {
 
     /// Raw append. Prefer `append(&[u8])`; kept for C-side callers that already
     /// hold a pointer/length pair.
-    public func append_bytes(&mut self, src:*u8, n: usize) {
+    public unsafe func append_bytes(&mut self, src:*u8, n: usize) {
         if(n == 0u) { return }
         var view = unsafe(std::span<u8>(src, n))
         append(view)

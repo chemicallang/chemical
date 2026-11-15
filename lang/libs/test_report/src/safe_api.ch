@@ -214,7 +214,7 @@ public func (h : &TestRunnerHandle) tests_count_value() : size_t {
 }
 
 /** Build a runner handle without exposing its raw fields. */
-public func make_runner_handle(name : string_view, tests_ptr : *void, tests_count : size_t, run_fn : (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int) : TestRunnerHandle {
+public unsafe func make_runner_handle(name : string_view, tests_ptr : *void, tests_count : size_t, run_fn : (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int) : TestRunnerHandle {
     return TestRunnerHandle {
         name : name,
         tests_ptr : tests_ptr,
@@ -224,7 +224,7 @@ public func make_runner_handle(name : string_view, tests_ptr : *void, tests_coun
 }
 
 /** Does `argv` contain `flag` (searched from index 1, like main)? */
-public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
+public unsafe func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
         unsafe {
         var i : int = 1
         while(i < argc) {
@@ -237,12 +237,12 @@ public func argv_has_flag(argv : **char, argc : int, flag : *char) : bool {
     }
 
 /** Safe `&str` spelling of `argv_has_flag`. */
-public func argv_has_flag_str(argv : **char, argc : int, flag : &str) : bool {
+public unsafe func argv_has_flag_str(argv : **char, argc : int, flag : &str) : bool {
     if(argv == null || argc <= 0) { return false }
     var made = std::cstring_make(flag)
     if(made is std::Result.Err) { return false }
     var Ok(c) = made else unsafe { unreachable }
-    return argv_has_flag(argv, argc, unsafe(c.as_ptr()))
+    return unsafe(argv_has_flag(argv, argc, unsafe(c.as_ptr())))
 }
 
 /** Compare a runner name against a C string without allocating. */

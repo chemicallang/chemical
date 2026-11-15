@@ -7,7 +7,7 @@
  * @see https://en.cppreference.com/w/c/string/byte/strcpy
  */
 @extern
-public func strcpy(dest : *mut char, src : *char) : *mut char
+public unsafe func strcpy(dest : *mut char, src : *char) : *mut char
 
 /**
  * Same as strcpy, except that it may clobber the rest of the destination array with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -24,7 +24,7 @@ public func strcpy(dest : *mut char, src : *char) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strcpy
  */
 @extern
-public func strcpy_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
+public unsafe func strcpy_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
 
 /**
  * Copies at most count characters of the character array pointed to by src (including the terminating null character, but not any of the characters that follow the null character) to character array pointed to by dest.
@@ -38,7 +38,7 @@ public func strcpy_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
  * @see https://en.cppreference.com/w/c/string/byte/strncpy
  */
 @extern
-public func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
+public unsafe func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
 
 /**
  * Same as strncpy, except that the function does not continue writing zeroes into the destination array to pad up to count, it stops after writing the terminating null character (if there was no null in the source, it writes one at dest[count] and then stops). Also, the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -57,7 +57,7 @@ public func strncpy(dest : *mut char, src : *char, count : size_t) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strncpy
  */
 @extern
-public func strncpy_s(dest : *mut char, destsz : rsize_t, src : *char, count : rsize_t ) : errno_t
+public unsafe func strncpy_s(dest : *mut char, destsz : rsize_t, src : *char, count : rsize_t ) : errno_t
 
 /**
  * Appends a copy of the null-terminated byte string pointed to by src to the end of the null-terminated byte string pointed to by dest. The character src[0] replaces the null terminator at the end of dest. The resulting byte string is null-terminated.
@@ -69,7 +69,7 @@ public func strncpy_s(dest : *mut char, destsz : rsize_t, src : *char, count : r
  * @see https://en.cppreference.com/w/c/string/byte/strcat
  */
 @extern
-public func strcat(dest : *mut char, src : *char) : *mut char
+public unsafe func strcat(dest : *mut char, src : *char) : *mut char
 
 /**
  * Same as strcat, except that it may clobber the rest of the destination array (from the last character written to destsz) with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -87,7 +87,7 @@ public func strcat(dest : *mut char, src : *char) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strcat
  */
 @extern
-public func strcat_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
+public unsafe func strcat_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
 
 /**
  * Appends at most count characters from the character array pointed to by src, stopping if the null character is found, to the end of the null-terminated byte string pointed to by dest. The character src[0] replaces the null terminator at the end of dest. The terminating null character is always appended in the end (so the maximum number of bytes the function may write is count+1).
@@ -99,7 +99,7 @@ public func strcat_s(dest : *mut char, destsz : rsize_t, src : *char) : errno_t
  * @see https://en.cppreference.com/w/c/string/byte/strncat
  */
 @extern
-public func strncat(dest : *mut char, src : *char, count : size_t) : *mut char
+public unsafe func strncat(dest : *mut char, src : *char, count : size_t) : *mut char
 
 /**
  * Same as strncat, except that this function may clobber the remainder of the destination array (from the last byte written to destsz) and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -118,7 +118,7 @@ public func strncat(dest : *mut char, src : *char, count : size_t) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strncat
  */
 @extern
-public func strncat_s(dest : *char, destsz : rsize_t, src : *char, count : rsize_t) : errno_t
+public unsafe func strncat_s(dest : *char, destsz : rsize_t, src : *char, count : rsize_t) : errno_t
 
 /**
  * Transforms the null-terminated byte string pointed to by src into the implementation-defined form such that comparing two transformed strings with strcmp gives the same result as comparing the original strings with strcoll, in the current C locale.
@@ -132,7 +132,7 @@ public func strncat_s(dest : *char, destsz : rsize_t, src : *char, count : rsize
  * @see https://en.cppreference.com/w/c/string/byte/strxfrm
  */
 @extern
-public func strxfrm(dest : *mut char, src : *char, count : size_t) : size_t
+public unsafe func strxfrm(dest : *mut char, src : *char, count : size_t) : size_t
 
 /**
  * Returns a pointer to a null-terminated byte string, which is a duplicate of the string pointed to by src. The space for the new string is obtained as if the malloc was invoked. The returned pointer must be passed to free to avoid a memory leak.
@@ -142,7 +142,7 @@ public func strxfrm(dest : *mut char, src : *char, count : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/byte/strdup
  */
 @extern
-public func strdup(src : *char) : *mut char
+public unsafe func strdup(src : *char) : *mut char
 
 /**
  * Returns a pointer to a null-terminated byte string, which contains copies of at most size bytes from the string pointed to by src. The space for the new string is obtained as if malloc was called. If the null terminator is not encountered in the first size bytes, it is appended to the duplicated string.
@@ -153,7 +153,7 @@ public func strdup(src : *char) : *mut char
  * @return A pointer to the newly allocated string, or a null pointer if an error occurred.
  */
 @extern
-public func strndup(src : *char, size : size_t) : *mut char
+public unsafe func strndup(src : *char, size : size_t) : *mut char
 
 /**
  * Returns the length of the given null-terminated byte string, that is, the number of characters in a character array whose first element is pointed to by str up to and not including the first null character.
@@ -163,7 +163,7 @@ public func strndup(src : *char, size : size_t) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strlen
  */
 @extern
-public func strlen(str : *char) : size_t
+public unsafe func strlen(str : *char) : size_t
 
 /**
  * Same as strlen, except that the function returns zero if str is a null pointer and returns strsz if the null character was not found in the first strsz bytes of str.
@@ -175,7 +175,7 @@ public func strlen(str : *char) : size_t
  * @see https://en.cppreference.com/w/c/string/byte/strlen
  */
 @extern
-public func strnlen_s(str : *char, strsz : size_t) : size_t
+public unsafe func strnlen_s(str : *char, strsz : size_t) : size_t
 
 /**
  * Compares two null-terminated byte strings lexicographically.
@@ -188,7 +188,7 @@ public func strnlen_s(str : *char, strsz : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/byte/strcmp
  */
 @extern
-public func strcmp(lhs : *char, rhs : *char) : int
+public unsafe func strcmp(lhs : *char, rhs : *char) : int
 
 /**
  * Compares at most count characters of two possibly null-terminated arrays. The comparison is done lexicographically. Characters following the null character are not compared.
@@ -202,7 +202,7 @@ public func strcmp(lhs : *char, rhs : *char) : int
  * @see https://en.cppreference.com/w/c/string/byte/strncmp
  */
 @extern
-public func strncmp(lhs : *char, rhs : *char, count : size_t) : int
+public unsafe func strncmp(lhs : *char, rhs : *char, count : size_t) : int
 
 /**
  * Compares two null-terminated byte strings according to the current locale as defined by the LC_COLLATE category.
@@ -213,7 +213,7 @@ public func strncmp(lhs : *char, rhs : *char, count : size_t) : int
  * @see https://en.cppreference.com/w/c/string/byte/strcoll
  */
 @extern
-public func strcoll(lhs : *char, rhs : *char) : int
+public unsafe func strcoll(lhs : *char, rhs : *char) : int
 
 /**
  * Finds the first occurrence of ch (after conversion to char as if by (char)ch) in the null-terminated byte string pointed to by str (each character interpreted as unsigned char). The terminating null character is considered to be a part of the string and can be found when searching for '\0'.
@@ -223,7 +223,7 @@ public func strcoll(lhs : *char, rhs : *char) : int
  * @see https://en.cppreference.com/w/c/string/byte/strchr
  */
 @extern
-public func strchr(str : *char, ch : int) : *mut char
+public unsafe func strchr(str : *char, ch : int) : *mut char
 
 /**
  * Finds the last occurrence of ch (after conversion to char as if by (char)ch) in the null-terminated byte string pointed to by str (each character interpreted as unsigned char). The terminating null character is considered to be a part of the string and can be found if searching for '\0'.
@@ -233,7 +233,7 @@ public func strchr(str : *char, ch : int) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strrchr
  */
 @extern
-public func strrchr(str : *char, ch : int) : *mut char
+public unsafe func strrchr(str : *char, ch : int) : *mut char
 
 /**
  * Returns the length of the maximum initial segment (span) of the null-terminated byte string pointed to by dest, that consists of only the characters found in the null-terminated byte string pointed to by src.
@@ -244,7 +244,7 @@ public func strrchr(str : *char, ch : int) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strspn
  */
 @extern
-public func strspn(dest : *char, src : *char) : size_t
+public unsafe func strspn(dest : *char, src : *char) : size_t
 
 /**
  * Returns the length of the maximum initial segment of the null-terminated byte string pointed to by dest, that consists of only the characters not found in the null-terminated byte string pointed to by src.
@@ -255,7 +255,7 @@ public func strspn(dest : *char, src : *char) : size_t
  * @see https://en.cppreference.com/w/c/string/byte/strcspn
  */
 @extern
-public func strcspn(dest : *char, src : *char) : size_t
+public unsafe func strcspn(dest : *char, src : *char) : size_t
 
 /**
  * Scans the null-terminated byte string pointed to by dest for any character from the null-terminated byte string pointed to by breakset, and returns a pointer to that character.
@@ -265,7 +265,7 @@ public func strcspn(dest : *char, src : *char) : size_t
  * @see https://en.cppreference.com/w/c/string/byte/strpbrk
  */
 @extern
-public func strpbrk(dest : *char, breakset : *char) : *mut char
+public unsafe func strpbrk(dest : *char, breakset : *char) : *mut char
 
 /**
  * Finds the first occurrence of the null-terminated byte string pointed to by substr in the null-terminated byte string pointed to by str. The terminating null characters are not compared.
@@ -275,7 +275,7 @@ public func strpbrk(dest : *char, breakset : *char) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strstr
  */
 @extern
-public func strstr(str : *char, substr : *char) : *mut char
+public unsafe func strstr(str : *char, substr : *char) : *mut char
 
 /**
  * Finds the next token in a null-terminated byte string pointed to by str. The separator characters are identified by null-terminated byte string pointed to by delim.
@@ -294,7 +294,7 @@ public func strstr(str : *char, substr : *char) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strtok
  */
 @extern
-public func strtok(str : *mut char, delim : *char) : *mut char
+public unsafe func strtok(str : *mut char, delim : *char) : *mut char
 
 /**
  * Same as strtok, except that on every step, writes the number of characters left to see in str into *strmax and writes the tokenizer's internal state to *ptr. Repeat calls (with null str) must pass strmax and ptr with the values stored by the previous call. Also, the following errors are detected at runtime and call the currently installed constraint handler function, without storing anything in the object pointed to by ptr
@@ -313,7 +313,7 @@ public func strtok(str : *mut char, delim : *char) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strtok
  */
 @extern
-public func strtok_s(str : *mut char, strmax : *mut rsize_t, delim : *char, ptr : **mut char) : *mut char
+public unsafe func strtok_s(str : *mut char, strmax : *mut rsize_t, delim : *char, ptr : **mut char) : *mut char
 
 /**
  * Finds the first occurrence of (unsigned char)ch in the initial count bytes (each interpreted as unsigned char) of the object pointed to by ptr.
@@ -324,7 +324,7 @@ public func strtok_s(str : *mut char, strmax : *mut rsize_t, delim : *char, ptr 
  * @see https://en.cppreference.com/w/c/string/byte/memchr
  */
 @extern
-public func memchr(ptr : *void, ch : int, count : size_t) : *mut void
+public unsafe func memchr(ptr : *void, ch : int, count : size_t) : *mut void
 
 /**
  * Compares the first count bytes of the objects pointed to by lhs and rhs. The comparison is done lexicographically.
@@ -338,7 +338,7 @@ public func memchr(ptr : *void, ch : int, count : size_t) : *mut void
  * @see https://en.cppreference.com/w/c/string/byte/memcmp
  */
 @extern
-public func memcmp(lhs : *void, rhs : *void, count : size_t) : int
+public unsafe func memcmp(lhs : *void, rhs : *void, count : size_t) : int
 
 /**
  * Copies the value (unsigned char)ch into each of the first count characters of the object pointed to by dest.
@@ -350,7 +350,7 @@ public func memcmp(lhs : *void, rhs : *void, count : size_t) : int
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
 @extern
-public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
+public unsafe func memset(dest : *mut void, ch : int, count : size_t) : *mut void
 
 /**
  * Same as memset, except that is safe for sensitive information.
@@ -361,7 +361,7 @@ public func memset(dest : *mut void, ch : int, count : size_t) : *mut void
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
 @extern
-public func memset_explicit(dest : *mut void, ch : int, count : size_t) : *mut void
+public unsafe func memset_explicit(dest : *mut void, ch : int, count : size_t) : *mut void
 
 /**
  * Same as (1), except that the following errors are detected at runtime and call the currently installed constraint handler function after storing ch in every location of the destination range [dest, dest+destsz) if dest and destsz are themselves valid:
@@ -378,7 +378,7 @@ public func memset_explicit(dest : *mut void, ch : int, count : size_t) : *mut v
  * @see https://en.cppreference.com/w/c/string/byte/memset
  */
 @extern
-public func memset_s(dest : *mut void, destsz : rsize_t, ch : int, count : rsize_t) : errno_t
+public unsafe func memset_s(dest : *mut void, destsz : rsize_t, ch : int, count : rsize_t) : errno_t
 
 /**
  * Copies count characters from the object pointed to by src to the object pointed to by dest. Both objects are interpreted as arrays of unsigned char.
@@ -390,7 +390,7 @@ public func memset_s(dest : *mut void, destsz : rsize_t, ch : int, count : rsize
  * @see https://en.cppreference.com/w/c/string/byte/memcpy
  */
 @extern
-public func memcpy(dest : *mut void, src : *void, count : size_t) : *mut void
+public unsafe func memcpy(dest : *mut void, src : *void, count : size_t) : *mut void
 
 /**
  * Same as memcpy, except that the following errors are detected at runtime and cause the entire destination range [dest, dest+destsz) to be zeroed out (if both dest and destsz are valid), as well as call the currently installed constraint handler function:
@@ -408,7 +408,7 @@ public func memcpy(dest : *mut void, src : *void, count : size_t) : *mut void
  * @see https://en.cppreference.com/w/c/string/byte/memcpy
  */
 @extern
-public func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
+public unsafe func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
 
 /**
  * Copies count characters from the object pointed to by src to the object pointed to by dest. Both objects are interpreted as arrays of unsigned char. The objects may overlap: copying takes place as if the characters were copied to a temporary character array and then the characters were copied from the array to dest.
@@ -421,7 +421,7 @@ public func memcpy_s(dest : *mut void, destsz : rsize_t, src : *void, count : rs
  * @see https://en.cppreference.com/w/c/string/byte/memmove
  */
 @extern
-public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
+public unsafe func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
 
 /**
  * Same as memmove, except when detecting the following errors at runtime, it zeroes out the entire destination range [dest, dest+destsz) (if both dest and destsz are valid) and calls the currently installed constraint handler function:
@@ -438,7 +438,7 @@ public func memmove(dest : *mut void, src : *void, count : size_t) : *mut void
  * @see https://en.cppreference.com/w/c/string/byte/memmove
  */
 @extern
-public func memmove_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
+public unsafe func memmove_s(dest : *mut void, destsz : rsize_t, src : *void, count : rsize_t) : errno_t
 
 /**
  * Copies bytes from the object pointed to by src to the object pointed to by dest, stopping after any of the next two conditions are satisfied:
@@ -456,7 +456,7 @@ public func memmove_s(dest : *mut void, destsz : rsize_t, src : *void, count : r
  * @return If the byte (unsigned char)c was found, memccpy returns a pointer to the next byte in dest after (unsigned char)c. Otherwise it returns a null pointer.
  */
 @extern
-public func memccpy(dest : *mut void, src : *void, c : int, count : size_t) : *mut void
+public unsafe func memccpy(dest : *mut void, src : *void, c : int, count : size_t) : *mut void
 
 /**
  * Returns a pointer to the textual description of the system error code errnum, identical to the description that would be printed by perror().
@@ -483,7 +483,7 @@ public func strerror(errnum : int) : *mut char
  * @see https://en.cppreference.com/w/c/string/byte/strerror
  */
 @extern
-public func strerror_s(buf : *mut char, bufsz : rsize_t, errnum : errno_t) : errno_t
+public unsafe func strerror_s(buf : *mut char, bufsz : rsize_t, errnum : errno_t) : errno_t
 
 /**
  * Computes the length of the untruncated locale-specific error message that strerror_s would write if it were called with errnum. The length does not include the null terminator.

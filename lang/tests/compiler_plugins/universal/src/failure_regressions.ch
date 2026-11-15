@@ -30,7 +30,7 @@ public func universal_effect_deps_state_not_derefsed(env : &mut TestEnv) {
         env.success("useEffect deps array keeps signal reference")
     } else {
         env.error("useEffect deps array was dereferenced to .value (effect will never re-run)")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
     if(js.contains("[showCreate.value]")) {
         env.error("deps array contains showCreate.value — primitive captured at registration")
@@ -55,7 +55,7 @@ public func universal_effect_deps_multi_not_derefsed(env : &mut TestEnv) {
         env.success("multi-element deps array keeps signal references")
     } else {
         env.error("multi-element deps array was dereferenced")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -79,7 +79,7 @@ public func universal_effect_body_still_derefsed(env : &mut TestEnv) {
         env.success("effect body still reads show.value")
     } else {
         env.error("skip_reactive_deref leaked into effect body (if(show) instead of if(show.value))")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -106,7 +106,7 @@ public func universal_empty_single_quotes_js(env : &mut TestEnv) {
         env.success("'' empty string compiles in JS context")
     } else {
         env.error("'' handling produced unexpected JS")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -125,7 +125,7 @@ public func universal_single_quoted_string_js(env : &mut TestEnv) {
         env.success("single-quoted JS strings work")
     } else {
         env.error("single-quoted JS string failed to convert")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -157,7 +157,7 @@ public func universal_empty_block_else_if(env : &mut TestEnv) {
         env.success("{} empty block compiles")
     } else {
         env.error("empty {} block broke conversion")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -178,7 +178,7 @@ public func universal_empty_block_if_body(env : &mut TestEnv) {
         env.success("{} as full if-body compiles")
     } else {
         env.error("{} if-body dropped following statements")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -203,7 +203,7 @@ public func universal_throw_new_error_emitted(env : &mut TestEnv) {
         env.success("throw new Error(...) is emitted")
     } else {
         env.error("throw new Error(...) was dropped from generated JS")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -229,7 +229,7 @@ public func universal_cond_child_wraps_in_ucs(env : &mut TestEnv) {
         env.success("conditional child wrapped in $_ucs")
     } else {
         env.error("conditional child is not reactive (no $_ucs wrap)")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -254,6 +254,6 @@ public func universal_early_return_null_compiles(env : &mut TestEnv) {
         env.success("early return null compiles")
     } else {
         env.error("early return null pattern broken")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }

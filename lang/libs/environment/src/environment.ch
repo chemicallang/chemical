@@ -259,7 +259,7 @@ func push_arg(out : *mut vector<string>, view : string_view) : Result<UnitTy, En
         return Result.Err(EnvError.InvalidInput())
     }
     var Ok(text) = made else unsafe { unreachable }
-    if(!unsafe(out.try_push(string(text.to_view())))) {
+    if(!(unsafe(out.try_push(string(text.to_view()))))) {
         return Result.Err(EnvError.OutOfMemory())
     }
     return Result.Ok(UnitTy{})

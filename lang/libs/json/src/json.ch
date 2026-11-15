@@ -134,18 +134,18 @@ private:
                 /* leading zero must not be followed by digit */
                 if (!at_end() && unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "leading zero in number");
             } else {
-                if (!unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid number");
+                if (!(unsafe(isdigit(cur() as int)))) return json::raw::ParseResult::Err(pos, "invalid number");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             if (!at_end() && cur() == '.') {
                 advance();
-                if (at_end() || !unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid fraction");
+                if (at_end() || !(unsafe(isdigit(cur() as int)))) return json::raw::ParseResult::Err(pos, "invalid fraction");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             if (!at_end() && (cur() == 'e' || cur() == 'E')) {
                 advance();
                 if (!at_end() && (cur() == '+' || cur() == '-')) advance();
-                if (at_end() || !unsafe(isdigit(cur() as int))) return json::raw::ParseResult::Err(pos, "invalid exponent");
+                if (at_end() || !(unsafe(isdigit(cur() as int)))) return json::raw::ParseResult::Err(pos, "invalid exponent");
                 while (!at_end() && unsafe(isdigit(cur() as int))) { advance(); }
             }
             var nlen : size_t = pos - start;
@@ -440,13 +440,13 @@ public struct ParseResult {
 
 
 // Raw parser entry point. `parse_view` on JsonParser is the safe wrapper.
-public func parse(parser : &mut JsonParser, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
+public unsafe func parse(parser : &mut JsonParser, buffer : *char, length : size_t, h : &mut JsonSaxHandler) : ParseResult {
     return parser.parse(buffer, length, h)
 }
 
 // Append `str[0..len]` as a JSON string literal (including quotes). Internal
 // callers that already own a string use `json_escape_into`.
-public func json_escape_into_raw(output : &mut std::string, str : *char, len : u64) {
+public unsafe func json_escape_into_raw(output : &mut std::string, str : *char, len : u64) {
     unsafe {
         output.append('"')
         for(var i : u64 = 0; i < len; i++) {
@@ -456,7 +456,7 @@ public func json_escape_into_raw(output : &mut std::string, str : *char, len : u
     }
 }
 
-public func parse_i64(s : *char) : i64 {
+public unsafe func parse_i64(s : *char) : i64 {
     unsafe {
         var i : int = 0
         var negative = false
@@ -471,7 +471,7 @@ public func parse_i64(s : *char) : i64 {
     }
 }
 
-public func parse_u64(s : *char) : u64 {
+public unsafe func parse_u64(s : *char) : u64 {
     unsafe {
         var i : int = 0
         var result : u64 = 0
@@ -483,7 +483,7 @@ public func parse_u64(s : *char) : u64 {
     }
 }
 
-public func parse_double(s : *char) : double {
+public unsafe func parse_double(s : *char) : double {
     unsafe {
         var i : int = 0
         var negative = false
@@ -543,7 +543,7 @@ public func try_parse(text : std::string_view) : std::Option<JsonValue> {
     return std::Option.Some<JsonValue>(std::replace(&mut v, JsonValue.Null()))
 }
 
-public func container_begin_item(buffer : *mut std::string, counts : *mut std::vector<u64>) { unsafe {
+public unsafe func container_begin_item(buffer : *mut std::string, counts : *mut std::vector<u64>) { unsafe {
     var cnt = counts.get_ptr(counts.size() - 1)
     if(*cnt > 0) {
         buffer.append(',')

@@ -71,7 +71,7 @@ public comptime const FILE_SUPPORTS_GHOSTING =              0x40000000
 @dllimport
 @stdcall
 @extern
-public func GetFullPathNameW(
+public unsafe func GetFullPathNameW(
     lpFileName : LPCWSTR,
     nBufferLength : DWORD,
     lpBuffer : LPWSTR,
@@ -139,7 +139,7 @@ public func SetFileAttributesW(
 @dllimport
 @stdcall
 @extern
-public func SetFileTime(
+public unsafe func SetFileTime(
     hFile : HANDLE,
     lpCreationTime : *FILETIME,
     lpLastAccessTime : *FILETIME,
@@ -311,8 +311,8 @@ comptime const FILE_FLAG_FIRST_PIPE_INSTANCE =   0x00080000
 //     var cAlternateFileName: [14]u16;
 // }
 
-@extern @dllimport @stdcall public func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
-@extern @dllimport @stdcall public func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
+@extern @dllimport @stdcall public unsafe func FindFirstFileW(pattern : LPCWSTR, out : *mut WIN32_FIND_DATAW) : HANDLE;
+@extern @dllimport @stdcall public unsafe func FindNextFileW(h : HANDLE, out : *mut WIN32_FIND_DATAW) : BOOL;
 // @extern @dllimport @stdcall public func FindClose(h : HANDLE) : BOOL;
 // @extern @dllimport @stdcall public func DeleteFileW(path : LPCWSTR) : BOOL;
 // @extern @dllimport @stdcall public func RemoveDirectoryW(path : LPCWSTR) : BOOL;

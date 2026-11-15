@@ -105,11 +105,11 @@ public namespace mime {
     // functions above.
     public namespace raw {
     // Legacy C-string form of `get_type`. New code should pass a `&str`.
-    public func get_type_cstr(ext : *char) : std::string_view {
+    public unsafe func get_type_cstr(ext : *char) : std::string_view {
         return get_type(std::str.make_view(unsafe(std::string_view.make_no_len(ext))))
     }
     // Legacy C-string form of `extension`. New code should pass a `&str`.
-    public func extension_cstr(path : *char) : std::string {
+    public unsafe func extension_cstr(path : *char) : std::string {
         unsafe {
             var last_dot : size_t = 0
             var found_dot = false
@@ -140,11 +140,11 @@ public namespace mime {
         }
     }
     // Legacy C-string form of `is_text`. New code should pass a `&str`.
-    public func is_text_cstr(content_type : *char) : bool {
+    public unsafe func is_text_cstr(content_type : *char) : bool {
         return is_text(std::str.make_view(unsafe(std::string_view.make_no_len(content_type))))
     }
     // Legacy C-string form of `is_image`. New code should pass a `&str`.
-    public func is_image_cstr(content_type : *char) : bool {
+    public unsafe func is_image_cstr(content_type : *char) : bool {
         return is_image(std::str.make_view(unsafe(std::string_view.make_no_len(content_type))))
     }
     }

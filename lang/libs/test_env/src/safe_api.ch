@@ -148,15 +148,15 @@ public func <'a> (env : &'a mut TestEnv) handle() : TestEnvHandle<'a> {
 /// Raw CBI message/quit hooks. Normal tests use the `&str` methods above.
 public namespace ffi {
 
-    public func log_cstr(env : &TestEnv, type : LogType, msg : *char, line : uint, character : uint) {
+    public unsafe func log_cstr(env : &TestEnv, type : LogType, msg : *char, line : uint, character : uint) {
         env.logIt(type, msg, line, character)
     }
 
-    public func quit_current_group_cstr(env : &TestEnv, reason : *char) {
+    public unsafe func quit_current_group_cstr(env : &TestEnv, reason : *char) {
         env.quit_current_group(reason)
     }
 
-    public func quit_all_tests_cstr(env : &TestEnv, reason : *char) {
+    public unsafe func quit_all_tests_cstr(env : &TestEnv, reason : *char) {
         env.quit_all_tests(reason)
     }
 

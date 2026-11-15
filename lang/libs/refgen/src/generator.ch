@@ -468,7 +468,7 @@ public struct Generator {
         }
     }    // Add more recursive containers if needed (variants, unions, etc.)
 
-    public func index_module(&mut self, module : *TransformerModule) {
+    public unsafe func index_module(&mut self, module : *TransformerModule) {
         var mod_name = module.getName();
         var count = module.getFileCount();
         for (var i = 0u; i < count; i++) {
@@ -497,7 +497,7 @@ public struct Generator {
         }
     }
 
-    public func generate(&mut self, module : *TransformerModule) {
+    public unsafe func generate(&mut self, module : *TransformerModule) {
         var res = fs::raw::create_dir_all(self.output_dir.data());
         if (res is std::Result.Err) {
             var Err(e) = res else unsafe { unreachable };

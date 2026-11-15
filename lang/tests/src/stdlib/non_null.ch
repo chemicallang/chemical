@@ -4,7 +4,7 @@
 func non_null_wraps_and_unwraps(env : &mut TestEnv) {
     var value = 41
     var p = unsafe(&raw mut value)
-    var nn = std::non_null(p)
+    var nn = unsafe(std::non_null(p))
     if(nn.is_null()) {
         env.error("NonNull::is_null reported a non-null pointer as null")
         return
@@ -24,7 +24,7 @@ using std::Option;
 @test
 func non_null_try_rejects_null(env : &mut TestEnv) {
     var p : *mut int = null
-    var maybe = std::non_null_try(p)
+    var maybe = unsafe(std::non_null_try(p))
     if(maybe is Option.Some) {
         env.error("non_null_try accepted a null pointer")
     }
@@ -34,7 +34,7 @@ func non_null_try_rejects_null(env : &mut TestEnv) {
 func non_null_try_accepts_non_null(env : &mut TestEnv) {
     var value = 7
     var p = unsafe(&raw mut value)
-    var maybe = std::non_null_try(p)
+    var maybe = unsafe(std::non_null_try(p))
     if(maybe is Option.None) {
         env.error("non_null_try rejected a non-null pointer")
         return

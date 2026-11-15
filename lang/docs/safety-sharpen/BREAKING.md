@@ -3,6 +3,55 @@
 This release is allowed to break. The migration mapping is in
 [`REMOVED.md`](REMOVED.md) and will be expanded per Phase 2 library job.
 
+## Raw surface requires `unsafe` (2026-11-15)
+
+**Every public library function that accepts a raw pointer is now
+`unsafe func`.** This is the soundness fix, and the one migration this release
+requires of code that uses `<lib>::raw`.
+
+Why: a raw-pointer parameter is an assertion that the pointer — and any length
+handed over with it — is valid. The callee cannot check either. As a plain
+`safe` call, safe code could therefore write out of bounds with no `unsafe`
+token:
+
+```chemical
+// before: compiled clean, wrote 100 bytes into a 4-byte buffer
+var buf : [4]u8 = zeroed<[4]u8>()
+var r = encoding::raw::hex_decode(huge_hex, &raw mut buf[0], 100)
+```
+
+Migration:
+
+| Before | After |
+|---|---|
+| `encoding::raw::hex_decode(h, p, n)` | `unsafe(encoding::raw::hex_decode(h, p, n))` |
+| `fs::raw::file_write(f, buf, len)` | `unsafe(fs::raw::file_write(f, buf, len))` |
+| `net::raw::dial(host, port)` | `unsafe(net::raw::dial(host, port))` |
+| `std::raw::<platform binding>(...)` | `unsafe(std::raw::<binding>(...))` |
+
+`unsafe(expr)` is the existing expression form; a statement-position call is
+`unsafe { call(...) }`. The call, its arguments, and its behaviour are
+unchanged — only the caller now states the obligation explicitly.
+
+- **Prefer the safe name.** Normal code should not need this at all: the plain
+  name is the safe API (`encoding::hex_encode`, `fs::read`, `net::TcpStream`).
+  Reach for `::raw` only when you own a buffer and a length.
+- **Prefer a view over `(ptr, len)`.** A wrapper that takes
+  `string_view`/`str`/`span`/`mut_span` is sound without `unsafe`, because the
+  length travels with the pointer. That is the preferred shape for new code.
+- **A raw-pointer *return* is not affected.** `span::data`, `vector::data`,
+  `CString::as_ptr`, `Box::as_ptr`, `window::Window::native_handle` stay safe:
+  obtaining a pointer asserts nothing about the caller.
+- **Stored raw callbacks are `unsafe (...)` function types.** If you implement a
+  vtable-style callback that receives a raw frame/node pointer
+  (`FutureTable::poll`/`drop`, `TaskVTable`, `JsStyleBlockFn`, the CBI
+  `EmbeddedNode*` callback aliases), the stored function value must be
+  `unsafe func`. A *safe* function no longer coerces to an `unsafe` slot, so a
+  callback that only became unsafe because of the new rule needs the keyword.
+- Gate: `scripts/safety-raw-surface-audit.py` (called by
+  `scripts/safety-sharpen-api-audit.sh`) fails the build if any public function
+  accepts a raw pointer without `unsafe func`.
+
 ## Printing / formatting wave (2026-11-14)
 
 - **`print`/`println` now work, and they render through `string`.** They used to

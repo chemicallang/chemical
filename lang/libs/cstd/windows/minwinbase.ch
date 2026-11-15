@@ -3,15 +3,15 @@
 
 @stdcall
 @extern
-public func RtlMoveMemory(Destination : *mut void, Source : *void, Length : SIZE_T);
+public unsafe func RtlMoveMemory(Destination : *mut void, Source : *void, Length : SIZE_T);
 
 @stdcall
 @extern
-public func RtlFillMemory(Destination : *mut void, Length : SIZE_T, Fill : uchar);
+public unsafe func RtlFillMemory(Destination : *mut void, Length : SIZE_T, Fill : uchar);
 
 @stdcall
 @extern
-public func RtlZeroMemory(Destination : *mut void, Length : SIZE_T);
+public unsafe func RtlZeroMemory(Destination : *mut void, Length : SIZE_T);
 
 /* MoveMemory: overlap-safe move (maps to RtlMoveMemory / memmove) */
 // TODO: make this comptime

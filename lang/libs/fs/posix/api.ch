@@ -20,20 +20,20 @@ public struct statvfs {
 
 public namespace fs {
 
-    @extern public func realpath(path : *char, resolved : *mut char) : *char;
-    @extern public func chmod(path : *char, mode : u32) : int;
+    @extern public unsafe func realpath(path : *char, resolved : *mut char) : *char;
+    @extern public unsafe func chmod(path : *char, mode : u32) : int;
 
     const AT_FDCWD = -100;               // use current working directory
     const AT_SYMLINK_NOFOLLOW = 0x100;   // do not follow symlinks (Linux typical)
-    @extern public func utimensat(dirfd : int, pathname : *char, times : *timespec, flags : int) : int;
+    @extern public unsafe func utimensat(dirfd : int, pathname : *char, times : *timespec, flags : int) : int;
     @extern public func fsync(fd : int) : int;
     @extern public func lseek(fd : int, offset : longlong, whence : int) : longlong;
 
-    @extern public func link(oldpath : *char, newpath : *char) : int;
-    @extern public func symlink(target : *char, linkpath : *char) : int;
+    @extern public unsafe func link(oldpath : *char, newpath : *char) : int;
+    @extern public unsafe func symlink(target : *char, linkpath : *char) : int;
 
     // Returns file descriptor on success, -1 on error (and modifies template in-place).
-    @extern public func mkstemp(template : *mut char) : int;
+    @extern public unsafe func mkstemp(template : *mut char) : int;
 
     public struct Statvfs {
         var f_bsize   : ulong;   // file system block size
@@ -48,7 +48,7 @@ public namespace fs {
         var f_flag    : ulong;   // mount flags
         var f_namemax : ulong;   // maximum filename length
     }
-    @extern public func statvfs(path : *char, out : *mut Statvfs) : int;
+    @extern public unsafe func statvfs(path : *char, out : *mut Statvfs) : int;
 
     @extern public func flock(fd : int, operation : int) : int;
 
@@ -61,19 +61,19 @@ public namespace fs {
 
     // POSIX readlink declaration:
     // ssize_t readlink(const char *path, char *buf, size_t bufsiz);
-    @extern public func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t;
+    @extern public unsafe func readlink(path : *char, buf : *mut char, bufsiz : size_t) : ssize_t;
 
-    @extern public func unlink(path : *char) : int;
-    @extern public func rmdir(path : *char) : int;
+    @extern public unsafe func unlink(path : *char) : int;
+    @extern public unsafe func rmdir(path : *char) : int;
 
 
-    @extern public func openat(dirfd : int, path : *char, flags : int, mode : u32) : int;
+    @extern public unsafe func openat(dirfd : int, path : *char, flags : int, mode : u32) : int;
     @extern public func dup(fd : int) : int;
     @extern public func fdopendir(fd : int) : *mut DIR;
 
-    @extern public func fstatat(dirfd : int, pathname : *char, out : *mut Stat, flags : int) : int;
+    @extern public unsafe func fstatat(dirfd : int, pathname : *char, out : *mut Stat, flags : int) : int;
 
-    @extern public func unlinkat(dirfd : int, pathname : *char, flags : int) : int;
+    @extern public unsafe func unlinkat(dirfd : int, pathname : *char, flags : int) : int;
 
     const O_EXCL  = 0x80;
     const O_APPEND = 0x400;

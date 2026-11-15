@@ -399,6 +399,60 @@ with compile-time-validated format specs.
 - Gates: main 2485/2485, libs 904/904, plugins 1305/1305, safety 193/193,
   negative 884/884, server 10/10, async 84/84, interpretation 1938/1938.
 
+## Raw-surface soundness wave (2026-11-15)
+
+The safe surface was sound but the `::raw` escape hatch was not enforced: a
+public function that *accepts* a raw pointer asserts caller-verified validity,
+yet it was an ordinary safe call. Safe code could therefore reach an
+out-of-bounds write with no `unsafe` token:
+
+```chemical
+var buf : [4]u8 = zeroed<[4]u8>()
+var p = &raw mut buf[0]
+var r = encoding::raw::hex_decode("<200 hex chars>", p, 100)  // 100 bytes into 4
+```
+
+`hex_decode` writes `hex_len/2` bytes into `out` whenever `byte_count <=
+out_len`; both the pointer and the length are caller-supplied and the callee
+cannot check the real capacity. This compiled clean and ran, corrupting the
+stack. The same shape existed in `fs::raw::file_read`/`file_write` (66 public
+raw-pointer functions, 0 `unsafe`), `archive` (41/0), `image` (33/0),
+`crypto` (22/0), `encoding` (13/0), and the rest of the audited surface.
+
+**Rule adopted:** a public function whose *parameter list* mentions a raw
+pointer is `unsafe func`. A raw-pointer *return* is fine (returning a pointer
+does not trust the caller), which is why `span::data`, `CString::as_ptr`, and
+`vector::data` stay safe. Taking a view (`string_view`/`str`/`span`) instead of
+`(ptr, len)` keeps a wrapper sound without `unsafe`, and is the preferred fix
+where a safe wrapper exists.
+
+- **~1370 declarations marked `unsafe func`** across 189 library files (1433
+  total now). The migration is mechanical: `unsafe func` bodies are *not*
+  implicitly unsafe, so in-library raw→raw calls are wrapped explicitly too.
+- **~1900 call sites wrapped** in `unsafe(...)` (`unsafe(expr)` is the
+  expression form; no new syntax).
+- **Vtable/ABI function types are `unsafe (...)`**: `core::async::FutureTable`
+  (`poll`/`drop`), `async::raw::TaskVTable`, `universal_parser`'s
+  `JsStyleBlockFn`, and the CBI callback aliases
+  (`EmbeddedNodeKnownTypeFunc`, `EmbeddedNodeChildResolutionFunc`,
+  `CrossModuleSymbolDeclarerFn`, `CrossModuleSymbolDeclarerProxyFn`). A frame
+  pointer or compiler node pointer is exactly the caller-assertion case, and
+  the stored callbacks that implement them are `unsafe func`.
+- **Regression gate:** `scripts/safety-raw-surface-audit.py`, wired into
+  `scripts/safety-sharpen-api-audit.sh`, fails if any public function accepts a
+  raw pointer without `unsafe func` (parameters only, multi-line aware). The
+  previous `RAW_NONRAW` counter measured *namespace placement*, which is why
+  moving a function into `namespace raw` could satisfy the "safe surface" gate
+  while leaving it safe-callable.
+- **Tests:** `neg_raw_api_requires_unsafe` (a safe `encoding::raw::hex_decode`
+  call is `SAFE-UNSAFE-002`) and `neg_raw_api_allowed_inside_unsafe` (the same
+  call inside `unsafe(...)` compiles).
+- **Not gated, deliberately:** `cstd`/`@extern` declarations already require
+  `unsafe` (`SAFE-FFI-001`), and the platform `window`/`webview` handles expose
+  a documented `native_handle` accessor that returns a pointer (no caller
+  assertion).
+- Gates: main 2485/2485, libs 904/904.
+
 ## Phase 1 notes
 
 - `dyn`/`DynBox`, tuple structs, unit tuple, core tuples, flat destructuring, slices/`str`, and generic impls stay.

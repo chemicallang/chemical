@@ -129,7 +129,7 @@ public struct TcpListener {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
         var Ok(host) = made else unsafe { unreachable }
-        var s = raw::try_listen_addr(unsafe(host.as_ptr()), port as uint)
+        var s = unsafe(raw::try_listen_addr(unsafe(host.as_ptr()), port as uint))
         if(s == 0 as raw::Socket) {
             return Result.Err(io_error())
         }
@@ -205,7 +205,7 @@ public struct TcpStream {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
         var Ok(host) = made else unsafe { unreachable }
-        var s = raw::dial(unsafe(host.as_ptr()), port as uint)
+        var s = unsafe(raw::dial(unsafe(host.as_ptr()), port as uint))
         if(s == 0 as raw::Socket) {
             return Result.Err(NetError.Kind(std::io::IoErrorKind.ConnectionRefused()))
         }
@@ -220,7 +220,7 @@ public struct TcpStream {
         if(buf.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
-        var n = raw::recv_all(self.fd, buf.data(), buf.size())
+        var n = unsafe(raw::recv_all(self.fd, buf.data(), buf.size()))
         if(n < 0) {
             return Result.Err(io_error())
         }
@@ -235,7 +235,7 @@ public struct TcpStream {
         if(buf.size() > 2147483647 as size_t) {
             return Result.Err(std::io::IoError.Kind(std::io::IoErrorKind.InvalidInput()))
         }
-        var n = raw::send_all(self.fd, buf.data() as *char, buf.size() as int)
+        var n = unsafe(raw::send_all(self.fd, buf.data() as *char, buf.size() as int))
         if(n < 0) {
             return Result.Err(io_error())
         }

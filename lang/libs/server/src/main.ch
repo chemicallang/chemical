@@ -1,6 +1,6 @@
 public namespace server {
 
-public func main(argc : int, argv : **char) : int { unsafe {
+public unsafe func main(argc : int, argv : **char) : int { unsafe {
     var port = 8080u;
     var root = std::string::make_no_len(".");
     var addr = std::string::make_no_len("0.0.0.0");
@@ -110,5 +110,5 @@ func strlen(s: *char): usize {
 }
 
 protected func main(argc : int, argv : **char) : int {
-    return server::main(argc, argv);
+    return unsafe(server::main(argc, argv));
 }

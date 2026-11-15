@@ -364,7 +364,7 @@ public func SetLastError(dwErrCode : DWORD) : void
 @extern
 @stdcall
 @dllimport
-public func CreateFileA(
+public unsafe func CreateFileA(
     lpFileName : LPCSTR,
     dwDesiredAccess : DWORD,
     dwShareMode : DWORD,
@@ -386,7 +386,7 @@ public func CreateFileA(
 @extern
 @stdcall
 @dllimport
-public func ReadFile(
+public unsafe func ReadFile(
     hFile : HANDLE,
     lpBuffer : LPVOID,
     nNumberOfBytesToRead : DWORD,
@@ -406,7 +406,7 @@ public func ReadFile(
 @extern
 @stdcall
 @dllimport
-public func WriteFile(
+public unsafe func WriteFile(
     hFile : HANDLE,
     lpBuffer : LPCVOID,
     nNumberOfBytesToWrite : DWORD,
@@ -463,7 +463,7 @@ public func MoveFileA(
 @extern
 @stdcall
 @dllimport
-public func GetFileSizeEx(
+public unsafe func GetFileSizeEx(
     hFile : HANDLE,
     lpFileSize : *mut LARGE_INTEGER // Using LARGE_INTEGER for 64-bit size
 ) : BOOL
@@ -479,7 +479,7 @@ public func GetFileSizeEx(
 @extern
 @stdcall
 @dllimport
-public func SetFilePointerEx(
+public unsafe func SetFilePointerEx(
     hFile : HANDLE,
     liDistanceToMove : LARGE_INTEGER,
     lpNewFilePointer : *mut LARGE_INTEGER,
@@ -522,7 +522,7 @@ public func SetFileAttributesA(
 @extern
 @stdcall
 @dllimport
-public func GetFullPathNameA(
+public unsafe func GetFullPathNameA(
     lpFileName : LPCSTR,
     nBufferLength : DWORD,
     lpBuffer : LPSTR,
@@ -664,7 +664,7 @@ public func MessageBoxA(
 @extern
 @stdcall
 @dllimport
-public func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND_DATAA) : HANDLE
+public unsafe func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND_DATAA) : HANDLE
 
 /**
  * @brief Continues a file search.
@@ -675,7 +675,7 @@ public func FindFirstFileA(lpFileName : LPCSTR, lpFindFileData : *mut WIN32_FIND
 @extern
 @stdcall
 @dllimport
-public func FindNextFileA(hFindFile : HANDLE, lpFindFileData : *mut WIN32_FIND_DATAA) : BOOL
+public unsafe func FindNextFileA(hFindFile : HANDLE, lpFindFileData : *mut WIN32_FIND_DATAA) : BOOL
 
 /**
  * @brief Closes a search handle.
@@ -696,7 +696,7 @@ public func FindClose(hFindFile : HANDLE) : BOOL
 @extern
 @stdcall
 @dllimport
-public func CreateDirectoryA(lpPathName : LPCSTR, lpSecurityAttributes : *mut SECURITY_ATTRIBUTES) : BOOL
+public unsafe func CreateDirectoryA(lpPathName : LPCSTR, lpSecurityAttributes : *mut SECURITY_ATTRIBUTES) : BOOL
 
 /**
  * @brief Removes an existing empty directory.
@@ -735,7 +735,7 @@ public func GetStdHandle(nStdHandle : DWORD) : HANDLE
 @extern
 @stdcall
 @dllimport
-public func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
+public unsafe func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
 
 /**
  * @brief Retrieves the current local date and time.
@@ -744,7 +744,7 @@ public func GetSystemTime(lpSystemTime : *mut SYSTEMTIME) : void
 @extern
 @stdcall
 @dllimport
-public func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
+public unsafe func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
 
 /**
  * @brief Converts a file time to system time format.
@@ -755,7 +755,7 @@ public func GetLocalTime(lpLocalTime : *mut SYSTEMTIME) : void
 @extern
 @stdcall
 @dllimport
-public func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYSTEMTIME) : BOOL
+public unsafe func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYSTEMTIME) : BOOL
 
 /**
  * @brief Converts a system time to file time format.
@@ -766,7 +766,7 @@ public func FileTimeToSystemTime(lpFileTime : *FILETIME, lpSystemTime : *mut SYS
 @extern
 @stdcall
 @dllimport
-public func SystemTimeToFileTime(lpSystemTime : *SYSTEMTIME, lpFileTime : *mut FILETIME) : BOOL
+public unsafe func SystemTimeToFileTime(lpSystemTime : *SYSTEMTIME, lpFileTime : *mut FILETIME) : BOOL
 
 
 /**
@@ -804,7 +804,7 @@ public func GetCurrentThreadId() : DWORD
 @extern
 @stdcall
 @dllimport
-public func CreateProcessA(
+public unsafe func CreateProcessA(
     lpApplicationName : LPCSTR,
     lpCommandLine : LPSTR, // Note: Can be modified by the function, thus LPSTR not LPCSTR
     lpProcessAttributes : *mut SECURITY_ATTRIBUTES,
@@ -832,7 +832,7 @@ public func CreateProcessA(
 @extern
 @stdcall
 @dllimport
-public func RegOpenKeyExA(
+public unsafe func RegOpenKeyExA(
     hKey : HKEY,
     lpSubKey : LPCSTR,
     ulOptions : DWORD,
@@ -885,7 +885,7 @@ public func RegQueryValueExA(
  @extern
 @stdcall
 @dllimport
-public func RegSetValueExA(
+public unsafe func RegSetValueExA(
     hKey : HKEY,
     lpValueName : LPCSTR,
     Reserved : DWORD,

@@ -145,7 +145,7 @@ public func iswctype(wc : wint_t, desc : wctype_t) : int
  * @see https://en.cppreference.com/w/c/string/wide/wctype
  */
 @extern
-public func wctype(str : *char) : wctype_t
+public unsafe func wctype(str : *char) : wctype_t
 
 /**
  * Converts the given wide character to lowercase, if possible.
@@ -186,4 +186,4 @@ public func towctrans(wc : wint_t, desc : wctrans_t) : wint_t
  * @see https://en.cppreference.com/w/c/string/wide/wctrans
  */
 @extern
-public func wctrans(str : *char) : wctrans_t
+public unsafe func wctrans(str : *char) : wctrans_t

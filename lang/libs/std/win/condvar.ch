@@ -1,23 +1,23 @@
 @dllimport
 @stdcall
 @extern
-public func InitializeConditionVariable(cond : *mut u8) : void
+public unsafe func InitializeConditionVariable(cond : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func WakeConditionVariable(cond : *mut u8) : void
+public unsafe func WakeConditionVariable(cond : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func WakeAllConditionVariable(cond : *mut u8) : void
+public unsafe func WakeAllConditionVariable(cond : *mut u8) : void
 
 // (SleepConditionVariableSRW returns nonzero on success; 0 on timeout or failure)
 @dllimport
 @stdcall
 @extern
-public func SleepConditionVariableSRW(cond : *mut u8, srw : *mut u8, ms : ulong, flags : ulong) : int
+public unsafe func SleepConditionVariableSRW(cond : *mut u8, srw : *mut u8, ms : ulong, flags : ulong) : int
 
 public namespace std {
 
@@ -41,7 +41,7 @@ public namespace std {
         func wait(&mut self, mutex : &mut std::mutex) {
             var ok = unsafe(SleepConditionVariableSRW(&raw mut storage[0], &raw mut mutex.storage[0], 0xFFFFFFFFu, 0u)) // INFINITE
             if(ok == 0) {
-                panic("SleepConditionVariableSRW failed in wait")
+                unsafe(panic("SleepConditionVariableSRW failed in wait"))
             }
         }
 

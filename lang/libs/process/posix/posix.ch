@@ -432,23 +432,23 @@ func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
         }
     }
 
-@extern public func pipe(pipefd : *mut int) : int
+@extern public unsafe func pipe(pipefd : *mut int) : int
 @extern public func fork() : int
 @extern public func dup2(oldfd : int, newfd : int) : int
-@extern public func execvp(file : *char, argv : **char) : int
-@extern public func execve(file : *char, argv : **char, envp : **char) : int
-@extern public func waitpid(pid : int, status : *mut int, options : int) : int
+@extern public unsafe func execvp(file : *char, argv : **char) : int
+@extern public unsafe func execve(file : *char, argv : **char, envp : **char) : int
+@extern public unsafe func waitpid(pid : int, status : *mut int, options : int) : int
 @extern public func _exit(status : int)
 @extern public func close(fd : int) : int
-@extern public func read(fd : int, buf : *mut void, count : size_t) : isize
-@extern public func write(fd : int, buf : *void, count : size_t) : isize
+@extern public unsafe func read(fd : int, buf : *mut void, count : size_t) : isize
+@extern public unsafe func write(fd : int, buf : *void, count : size_t) : isize
 @extern public func getpid() : int
 @extern public func usleep(usec : int) : int
-@extern public func chdir(path : *char) : int
+@extern public unsafe func chdir(path : *char) : int
 @extern public func kill(pid : int, sig : int) : int
 @extern public func fcntl(fd : int, cmd : int, _ : any...) : int
 @extern public func __errno_location() : *mut int
-@extern public func access(path : *char, mode : int) : int
+@extern public unsafe func access(path : *char, mode : int) : int
 
 const F_GETFL = 3
 const F_SETFL = 4

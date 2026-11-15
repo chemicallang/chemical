@@ -32,7 +32,7 @@ public struct RouteRequest {
 // Store a caller-owned request pointer on the page. The struct must outlive
 // the render; use `router::set_request` for page-owned copies.
 public func (html_page : &mut HtmlPage) set_request(req : &RouteRequest) {
-    html_page.add_parameter_object_raw(std::string_view("__request"), req as *mut void)
+    unsafe(html_page.add_parameter_object_raw(std::string_view("__request"), req as *mut void))
 }
 
 public func (page : &mut HtmlPage) get_request() : *mut RouteRequest {

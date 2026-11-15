@@ -728,7 +728,7 @@ func generate_sitemap(config : &DocConfig, urls : &std::vector<std::string>) {
     printf("Generated sitemap at %s\n", sitemap_path.c_str());
 }
 
-public func generate(config : DocConfig, summary : *Summary) {
+public unsafe func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
     fs::raw::mkdir(config.build_dir.data());
     

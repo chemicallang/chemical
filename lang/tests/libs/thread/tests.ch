@@ -16,7 +16,7 @@ func thread_worker_len(s : std::string) : int {
 
 @test
 func thread_spawn_join_result(env : &mut TestEnv) {
-    var h = std::thread.spawn<int, int>(thread_worker_add, 41)
+    var h = unsafe(std::thread.spawn<int, int>(thread_worker_add, 41))
     var value = h.join()
     if(value != 42) {
         env.error("safe thread did not return its joined result")
@@ -32,7 +32,7 @@ func thread_spawn_void_joins(env : &mut TestEnv) {
 @test
 func thread_spawn_moves_send_argument(env : &mut TestEnv) {
     var text = std::string("thread")
-    var h = std::thread.spawn<std::string, int>(thread_worker_len, text)
+    var h = unsafe(std::thread.spawn<std::string, int>(thread_worker_len, text))
     var length = h.join()
     if(length != 6) {
         env.error("safe thread did not receive the moved string")
@@ -41,7 +41,7 @@ func thread_spawn_moves_send_argument(env : &mut TestEnv) {
 
 @test
 func thread_join_handle_drop_joins(env : &mut TestEnv) {
-    var h = std::thread.spawn<int, int>(thread_worker_add, 1)
+    var h = unsafe(std::thread.spawn<int, int>(thread_worker_add, 1))
     // The JoinHandle destructor joins; leaving the scope must not leak a
     // runnable thread or double-free the result cell.
 }
@@ -56,7 +56,7 @@ func thread_spawn_moves_send_container(env : &mut TestEnv) {
     values.push(1)
     values.push(2)
     values.push(3)
-    var h = std::thread.spawn<std::vector<int>, int>(thread_worker_vec_len, values)
+    var h = unsafe(std::thread.spawn<std::vector<int>, int>(thread_worker_vec_len, values))
     if(h.join() != 3) {
         env.error("safe thread did not receive the moved vector")
     }
@@ -72,10 +72,10 @@ func thread_increment(shared : std::Arc<std::Mutex<int> >) : int {
 @test
 func thread_arc_mutex_shared_mutation(env : &mut TestEnv) {
     var shared = std::arc(std::new_mutex(0))
-    var first = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        thread_increment, shared.clone())
-    var second = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        thread_increment, shared.clone())
+    var first = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        thread_increment, shared.clone()))
+    var second = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        thread_increment, shared.clone()))
     first.join()
     second.join()
     var guard = shared.get().lock()
@@ -90,8 +90,8 @@ func thread_worker_echo(s : std::string) : std::string {
 
 @test
 func thread_spawn_returns_send_value(env : &mut TestEnv) {
-    var h = std::thread.spawn<std::string, std::string>(
-        thread_worker_echo, std::string("echo"))
+    var h = unsafe(std::thread.spawn<std::string, std::string>(
+        thread_worker_echo, std::string("echo")))
     var out = h.join()
     if(out.size() != 4) {
         env.error("safe thread result was not moved back to the caller")
@@ -132,16 +132,16 @@ func <T> thread_needs_sync(v : &T) : int where T : Sync { return 0 }
 
 @test
 func thread_join_handle_is_sync(env : &mut TestEnv) {
-    var h = std::thread.spawn<int, int>(thread_worker_add, 1)
+    var h = unsafe(std::thread.spawn<int, int>(thread_worker_add, 1))
     if(thread_needs_sync(&h) != 0) {
         env.error("JoinHandle should be Sync when T is Send")
     }
     h.join()
 }
 func scoped_scope_worker(scope : &mut std::thread.ScopedScope<std::Arc<std::Mutex<int> > >) {
-    scope.spawn(scoped_increment)
-    scope.spawn(scoped_increment)
-    scope.spawn(scoped_increment)
+    unsafe(scope.spawn(scoped_increment))
+    unsafe(scope.spawn(scoped_increment))
+    unsafe(scope.spawn(scoped_increment))
 }
 
 @test
@@ -310,8 +310,8 @@ func thread_condvar_notify_wakes_waiter(env : &mut TestEnv) {
         m : std::new_mutex(0),
         cv : std::new_condvar()
     })
-    var handle = std::thread.spawn<std::Arc<ThreadSignal>, int>(
-        thread_condvar_waiter, sig.clone())
+    var handle = unsafe(std::thread.spawn<std::Arc<ThreadSignal>, int>(
+        thread_condvar_waiter, sig.clone()))
     std::concurrent.sleep_ms(20u)
     {
         var guard = sig.get().m.lock()
@@ -337,8 +337,8 @@ func thread_condvar_wait_timeout_returns(env : &mut TestEnv) {
         m : std::new_mutex(0),
         cv : std::new_condvar()
     })
-    var handle = std::thread.spawn<std::Arc<ThreadSignal>, bool>(
-        thread_condvar_timeout_waiter, sig.clone())
+    var handle = unsafe(std::thread.spawn<std::Arc<ThreadSignal>, bool>(
+        thread_condvar_timeout_waiter, sig.clone()))
     if(handle.join()) {
         env.error("Condvar wait_timeout must report a timeout without notify")
     }

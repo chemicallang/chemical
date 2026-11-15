@@ -14,7 +14,10 @@ raw-pointer functions declared **outside** `raw`/`ffi`/`sys`, and `SAFE_NAMED`,
 the count of public names still carrying a `safe` qualifier. `RAW_NONRAW` is
 zero for 21 of 29 libraries; `SAFE_NAMED` is zero everywhere.
 
-Reviewed explicit raw accessors (allowed):
+Reviewed explicit raw accessors (allowed). Every raw-pointer-taking public
+function in this list is `unsafe func` (2026-11-15): the entry points below are
+the reviewed *naming* remainder, and calling one requires an `unsafe` boundary
+because the callee cannot check a caller-supplied pointer or length.
 
 - `std::span::data`, `std::mut_span::data` -- view construction/inspection.
 - `std::CString::as_ptr` -- audited C interop.

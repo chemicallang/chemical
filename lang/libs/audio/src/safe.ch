@@ -32,13 +32,13 @@ func decode_any(data : *u8, len : size_t) : Result<Audio, AudioError> {
 }
 
 func decode_wav(data : *u8, len : size_t) : Result<Audio, AudioError> {
-    return raw::parse_wav(data, len)
+    return unsafe(raw::parse_wav(data, len))
 }
 
 // ── encoding / saving ─────────────────────────────────────────────────────
 
 func encode_wav_bytes(a : &Audio) : Result<vector<u8>, AudioError> {
-    return raw::encode_wav(unsafe(a as *mut Audio))
+    return unsafe(raw::encode_wav(unsafe(a as *mut Audio)))
 }
 
 func save_to_path(a : &Audio, path : &path::Path) : Result<std::Unit, AudioError> {

@@ -56,7 +56,7 @@ for lib in "${LIBS[@]}"; do
           }
           if (code ~ /^[ \t]*(public[ \t]+)?namespace[ \t]+(raw|ffi|sys)[ \t]*\{/) { rawdepth = depth + 1 }
           israw = (rawdepth >= 0 && depth >= rawdepth)
-          if (code ~ /^[ \t]*public[ \t]+(unsafe[ \t]+)?func/ && code ~ /\*/) {
+          if (code ~ /^[ \t]*public[ \t]+(comptime[ \t]+)?(unsafe[ \t]+)?func/ && code ~ /\*/) {
             raw++
             if (israw) inside++; else outside++
           }
@@ -78,10 +78,15 @@ for lib in "${LIBS[@]}"; do
 done
 
 echo
-echo "RAW_NONRAW is the safe-surface gate (reviewed allowlist: API_ALLOWLIST.md)."
+echo "RAW_NONRAW is the naming gate (reviewed allowlist: API_ALLOWLIST.md)."
 if [ -n "$nonzero_nonraw" ]; then
     echo "reviewed non-raw raw-pointer surface:$nonzero_nonraw"
 fi
+# The soundness gate (parameters only, multi-line aware): accepting a raw
+# pointer asserts caller-verified validity, so the declaration must be
+# `unsafe func`. A safe-callable raw API lets safe code reach undefined
+# behaviour through a caller-supplied length.
+python3 "$ROOT/scripts/safety-raw-surface-audit.py" || exit 1
 # Safe-by-default convention: the plain name is safe; no `*_safe`/`safe_*` API.
 if [ "$total_safe_named" -ne 0 ]; then
     echo "error: $total_safe_named public API name(s) still carry a 'safe' qualifier;" >&2

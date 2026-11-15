@@ -44,7 +44,7 @@ public func UNIT_record_consume_single(env : &mut TestEnv) {
     unsafe { ctx.in_msglen = 4 }  // 4 bytes payload
 
     // Consume the record
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // After consuming: in_left should be 0 (no more data)
     if(unsafe(ctx.in_left) != 0) {
@@ -93,7 +93,7 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
     ctx.in_hdr[4] = rec1[4]
 
     // Consume first record (5 header + 4 payload = 9 bytes)
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // After consuming: in_left should be 8 (the second record)
     if(unsafe(ctx.in_left) != 8) {
@@ -150,7 +150,7 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
     ctx.in_hdr[4] = ccs_rec[4]
 
     // Consume CCS (5 header + 1 payload = 6 bytes)
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // After consuming CCS: in_left should be 9 (the handshake record)
     if(unsafe(ctx.in_left) != 9) {
@@ -199,7 +199,7 @@ public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
     ctx.in_hdr[4] = record[4]
 
     // Consume (5 header + 0 payload = 5 bytes)
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // in_left should be 0
     if(unsafe(ctx.in_left) != 0) {
@@ -217,7 +217,7 @@ public func UNIT_record_consume_empty(env : &mut TestEnv) {
     unsafe { ctx.in_left = 0 }
     unsafe { ctx.in_msglen = 0 }
 
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // Should still be 0
     if(unsafe(ctx.in_left) != 0) {
@@ -236,7 +236,7 @@ public func UNIT_record_consume_capped(env : &mut TestEnv) {
     unsafe { ctx.in_left = 7 }
     unsafe { ctx.in_msglen = 5 }  // claims 5 bytes payload but only 2 available
 
-    ssl_consume_record(unsafe(&raw mut ctx))
+    unsafe(ssl_consume_record(unsafe(&raw mut ctx)))
 
     // Should consume all 7 bytes (capped)
     if(unsafe(ctx.in_left) != 0) {

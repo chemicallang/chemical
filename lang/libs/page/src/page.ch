@@ -205,7 +205,7 @@ public struct HtmlPage {
     // Raw pointer attach (legacy). The page does not take ownership; the sink
     // must outlive every attached page. Prefer `attach_shared_ref` /
     // `SharedAssetsHandle`.
-    public func attach_shared(&mut self, s : *mut SharedAssets) {
+    public unsafe func attach_shared(&mut self, s : *mut SharedAssets) {
         shared = s
     }
 
@@ -492,7 +492,7 @@ public struct HtmlPage {
 
     // Raw object-parameter write. Kept as a public raw method for
     // `router::raw`; `raw::add_parameter_object` forwards to this.
-    public func add_parameter_object_raw(&mut self, key : std::string_view, ptr : *mut void) {
+    public unsafe func add_parameter_object_raw(&mut self, key : std::string_view, ptr : *mut void) {
         parameters.insert(key, PageParameter.Object(ptr))
     }
 
@@ -3318,14 +3318,14 @@ public struct HtmlPage {
 
     func writeToFile(&self, path : &std::string_view) {
         var completePage = toString();
-        fs::raw::write_text_file(path.data(), completePage.data() as *u8, completePage.size())
+        unsafe(fs::raw::write_text_file(path.data(), completePage.data() as *u8, completePage.size()))
     }
 
     // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
     func writeToDirectory(&self, path : &std::string_view, name : &std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") {
 
         // TODO only if not exists
-        fs::raw::mkdir(path.data());
+        unsafe(fs::raw::mkdir(path.data()));
 
         // creating the route file at
         var htmlFile = unsafe(std::string(path.data(), path.size()))
@@ -3335,7 +3335,7 @@ public struct HtmlPage {
 
         // writing only html to route
         var htmlPage = htmlPageToString(name, lang, htmlClass, bodyClass)
-        fs::raw::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size())
+        unsafe(fs::raw::write_text_file(htmlFile.data(), htmlPage.data() as *u8, htmlPage.size()))
 
         // {name}.css
         if(!pageCss.empty()) {
@@ -3344,7 +3344,7 @@ public struct HtmlPage {
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
-            fs::raw::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size())
+            unsafe(fs::raw::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size()))
         }
 
         // {name}_head.js
@@ -3353,7 +3353,7 @@ public struct HtmlPage {
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
-            fs::raw::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size())
+            unsafe(fs::raw::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size()))
         }
 
         // {name}.js
@@ -3363,7 +3363,7 @@ public struct HtmlPage {
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".js")
-            fs::raw::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size())
+            unsafe(fs::raw::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size()))
         }
 
         // {name}.routes.json — static-export deep-link manifest (§13.2.3)
@@ -3373,7 +3373,7 @@ public struct HtmlPage {
             manifestFile.append('/');
             manifestFile.append_view(name)
             manifestFile.append_view(".routes.json")
-            fs::raw::write_text_file(manifestFile.data(), manifest.data() as *u8, manifest.size())
+            unsafe(fs::raw::write_text_file(manifestFile.data(), manifest.data() as *u8, manifest.size()))
         }
 
     }

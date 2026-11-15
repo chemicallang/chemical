@@ -6,7 +6,7 @@
 public namespace osrand {
 
     if(def.windows) {
-        @extern public func BCryptGenRandom(hAlgorithm : uintptr_t, pbBuffer : *mut u8, cbBuffer : u32, dwFlags : u32) : long
+        @extern public unsafe func BCryptGenRandom(hAlgorithm : uintptr_t, pbBuffer : *mut u8, cbBuffer : u32, dwFlags : u32) : long
         const BCRYPT_USE_SYSTEM_PREFERRED_RNG : u32 = 0x00000002
     }
 

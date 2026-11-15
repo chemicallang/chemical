@@ -98,4 +98,4 @@ public func S_ISREG(mode : uint) : bool {
 }
 
 @extern
-public func lstat(pathname : *char, buf : *mut Stat) : int
+public unsafe func lstat(pathname : *char, buf : *mut Stat) : int

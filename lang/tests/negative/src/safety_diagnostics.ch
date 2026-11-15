@@ -2570,3 +2570,22 @@ func neg_printf_spec_on_hook_without_spec_param(env : &mut TestEnv) {
     var ch = "using namespace std;\npublic struct P {\n    var x : int\n    func stream(&self, s : &mut StringStream) {\n        s.writeSigned(self.x as bigint, 0u64)\n    }\n}\npublic func main() : int {\n    var p = P { x : 1 }\n    println(`${p:>8}`)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "printf_spec_hook_no_spec", ch, "does not accept a format spec", NEG_MOD_STD_CORE)
 }
+// A library `::raw` entry point takes a caller-owned pointer and a length it
+// cannot validate, so calling one is an `unsafe` operation. This pins the rule
+// for the whole raw surface: if a raw API is ever declared without `unsafe`,
+// the property silently regresses and safe code can write out of bounds again.
+@test
+func neg_raw_api_requires_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var buf : [4]u8 = zeroed<[4]u8>()\n    var p = &raw mut buf[0]\n    var r = encoding::raw::hex_decode(\"41424344\", p, 64)\n    return 0\n}\n"
+    var mod = "module neg_test\nsource \".\"\nimport std\nimport encoding\n"
+    expect_compile_error_with_mod(env, "raw_api_requires_unsafe", ch, "SAFE-UNSAFE-002", mod)
+}
+
+@test
+func neg_raw_api_allowed_inside_unsafe(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int {\n    var buf : [4]u8 = zeroed<[4]u8>()\n    var p = &raw mut buf[0]\n    var r = unsafe(encoding::raw::hex_decode(\"41424344\", p, 64))\n    return 0\n}\n"
+    var mod = "module neg_test\nsource \".\"\nimport std\nimport encoding\n"
+    expect_compile_success_with_mod(env, "raw_api_allowed_inside_unsafe", ch, mod)
+}

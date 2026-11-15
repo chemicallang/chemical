@@ -2,7 +2,7 @@
 // the runtime `js` package). Delegates to the canonical parser in
 // universal_parser; the JSX branches never run because the plain-JS lexer does
 // not emit JSX tokens.
-public func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
+public unsafe func parseJsRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *JsRoot {
         unsafe {
         var root = builder.allocate<JsRoot>()
         new (root) JsRoot {

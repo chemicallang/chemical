@@ -664,15 +664,15 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     var ssl = SSLContext()
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(unsafe(&raw mut ssl), &raw mut cfg)
+    unsafe(ssl_set_config(unsafe(&raw mut ssl), &raw mut cfg))
 
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    tls13_derive_handshake_keys(unsafe(&raw mut ssl), &raw ss[0], 32, &raw hh[0])
-    tls13_derive_application_keys(unsafe(&raw mut ssl), &raw hh[0], 32)
+    unsafe(tls13_derive_handshake_keys(unsafe(&raw mut ssl), &raw ss[0], 32, &raw hh[0]))
+    unsafe(tls13_derive_application_keys(unsafe(&raw mut ssl), &raw hh[0], 32))
 
     var ct_buf : [17408]u8
-    var ct_len = tls13_encrypt_record(unsafe(&raw mut ssl), 23 as u8, &raw pt_data[0], pt_len, &raw mut ct_buf[0], 17408)
+    var ct_len = unsafe(tls13_encrypt_record(unsafe(&raw mut ssl), 23 as u8, &raw pt_data[0], pt_len, &raw mut ct_buf[0], 17408))
     if(ct_len < 0) { env.error("encrypt max-size record failed"); return } else {}
 
     ssl.in_hdr[0] = ct_buf[0]
@@ -684,7 +684,7 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     var ct_payload_len = (ct_len as size_t) - 5
     var inner_ct : u8 = 0
     var dec_buf : [17408]u8
-    var dec_len = tls13_decrypt_record(unsafe(&raw mut ssl), &raw ct_buf[5], ct_payload_len, &raw mut dec_buf[0], 17408, &raw mut inner_ct)
+    var dec_len = unsafe(tls13_decrypt_record(unsafe(&raw mut ssl), &raw ct_buf[5], ct_payload_len, &raw mut dec_buf[0], 17408, &raw mut inner_ct))
     if(dec_len < 0) { env.error("decrypt max-size record failed"); return } else {}
     if(inner_ct != 23) { env.error("inner content type mismatch"); return } else {}
     if(dec_len as size_t != pt_len) { env.error("decrypted length mismatch"); return } else {}
@@ -707,18 +707,18 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19970_cert.pem /tmp/tls_19970_key.pem 19970 102400"))
     test_server_wait()
 
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut config))
 
-    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19970u)
+    var ret = unsafe(tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19970u))
     if(ret < 0) { env.error("tls13 large stream: connect failed"); return } else {}
 
     // Write a request so the server starts streaming.
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
+    unsafe(ssl_write(unsafe(&raw mut ctx), req as *u8, 18))
 
     // Read with a small 1000-byte buffer so individual 16 KiB records are
     // delivered across many calls (exercises the partial-record path).
@@ -727,7 +727,7 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     var ok = true
     var guard = 0
     while(total < PAYLOAD && guard < 10000) {
-            var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000)
+            var n = unsafe(ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000))
         if(n < 0) { ok = false; break }
         if(n == 0) { break }
         total = total + (n as size_t)
@@ -736,11 +736,11 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     if(!ok || total != PAYLOAD) {
         env.error("tls13 large stream: incomplete read (got ")
         var tstr = string(); tstr.append_uinteger(total as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, tstr.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, tstr.data(), 0, 0))
         env.error(" want 102400)")
     }
-    ssl_close_notify(unsafe(&raw mut ctx))
-    ssl_free(unsafe(&raw mut ctx))
+    unsafe(ssl_close_notify(unsafe(&raw mut ctx)))
+    unsafe(ssl_free(unsafe(&raw mut ctx)))
     test_kill_port(19970u)
 }
 
@@ -770,17 +770,17 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
 
     // IMPORTANT: max_tls_version stays at TLS 1.3 (the default), so the client
     // advertises both versions. The server only supports TLS 1.2.
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut config))
 
-    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19971u)
+    var ret = unsafe(tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19971u))
     if(ret < 0) {
         env.error("tls13 config could not connect to TLS 1.2 only server")
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
-        ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
+        unsafe(ssl_write(unsafe(&raw mut ctx), req as *u8, 18))
         // The server streams 131072 bytes; read with a small buffer to also
         // exercise partial-record delivery over the TLS 1.2 record layer.
         var buf : [1000]u8
@@ -788,7 +788,7 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
         var ok = true
         var guard = 0
         while(total < 131072 && guard < 10000) {
-        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000)
+        var n = unsafe(ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000))
             if(n < 0) { ok = false; break }
             if(n == 0) { break }
             total = total + (n as usize)
@@ -797,10 +797,10 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
         if(!ok || total != 131072) {
             env.error("tls12 fallback stream incomplete")
         } else {
-            ssl_close_notify(unsafe(&raw mut ctx))
+            unsafe(ssl_close_notify(unsafe(&raw mut ctx)))
         }
     }
-    ssl_free(unsafe(&raw mut ctx))
+    unsafe(ssl_free(unsafe(&raw mut ctx)))
     test_kill_port(19971u)
 }
 

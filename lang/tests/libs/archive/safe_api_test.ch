@@ -31,8 +31,8 @@ func archive_safe_bytes_equal(v : &vector<u8>, expected : *u8, n : size_t) : boo
 
 func archive_safe_build_zip(name : *char, data : *u8, n : size_t) : vector<u8> {
     var writer = archive::raw::ZipWriter{entries: vector<archive::raw::ZipWriteEntry>(), data: vector<u8>()}
-    archive::raw::zip_writer_add_file(&raw mut writer, name, data, n)
-    archive::raw::zip_writer_close(&raw mut writer)
+    unsafe(archive::raw::zip_writer_add_file(&raw mut writer, name, data, n))
+    unsafe(archive::raw::zip_writer_close(&raw mut writer))
     // Copy rather than returning the field: moving a vector field out of a
     // destructor-bearing local would leave the writer's drop glue live.
     var out = vector<u8>()
@@ -77,7 +77,7 @@ public func archive_safe_zip_read_entry_and_open(env : &mut TestEnv) {
 
     var zip_path = archive_safe_temp_pathbuf("p24_safe_archive.zip")
     var zs = zip_path.as_string()
-    var wr = fs::raw::write_text_file(zs.c_str(), zip.data(), zip.size())
+    var wr = unsafe(fs::raw::write_text_file(zs.c_str(), zip.data(), zip.size()))
     if(wr is Result.Err) { env.error("failed to write zip fixture"); return }
 
     var opened = archive::Archive.open(&zip_path.as_path())
@@ -127,20 +127,20 @@ public func archive_safe_extract_writes_entries(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_safe_archive_dest")
     var ds = dest.as_string()
-    fs::raw::remove_dir_all_recursive(ds.c_str())
-    fs::raw::create_dir_all(ds.c_str())
+    unsafe(fs::raw::remove_dir_all_recursive(ds.c_str()))
+    unsafe(fs::raw::create_dir_all(ds.c_str()))
 
     var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Err) { env.error("extract should succeed"); return }
 
     ds.append_view("/nested/hello.txt")
-    var read_back = fs::raw::read_entire_file(ds.c_str())
+    var read_back = unsafe(fs::raw::read_entire_file(ds.c_str()))
     if(read_back is Result.Err) { env.error("extracted file should exist"); return }
     var Ok(bytes) = read_back else unsafe { unreachable }
     if(!archive_safe_bytes_equal(&bytes, &raw payload[0], 3)) { env.error("extracted content mismatch") }
 
     var cleanup = dest.as_string()
-    fs::raw::remove_dir_all_recursive(cleanup.c_str())
+    unsafe(fs::raw::remove_dir_all_recursive(cleanup.c_str()))
 }
 
 @test
@@ -234,14 +234,14 @@ public func archive_safe_extract_rejects_dotdot(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_zip_slip_dest")
     var ds = dest.as_string()
-    fs::raw::create_dir_all(ds.c_str())
+    unsafe(fs::raw::create_dir_all(ds.c_str()))
 
     var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Ok) { env.error("path traversal must be rejected"); return }
     var Err(err) = extracted else unsafe { unreachable }
     if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath error") }
 
-    fs::raw::remove_dir_all_recursive(ds.c_str())
+    unsafe(fs::raw::remove_dir_all_recursive(ds.c_str()))
 }
 
 @test
@@ -255,14 +255,14 @@ public func archive_safe_extract_rejects_absolute(env : &mut TestEnv) {
 
     var dest = archive_safe_temp_pathbuf("p24_absolute_dest")
     var ds = dest.as_string()
-    fs::raw::create_dir_all(ds.c_str())
+    unsafe(fs::raw::create_dir_all(ds.c_str()))
 
     var extracted = handle.extract(&dest.as_path())
     if(extracted is Result.Ok) { env.error("absolute path must be rejected"); return }
     var Err(err) = extracted else unsafe { unreachable }
     if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath error") }
 
-    fs::raw::remove_dir_all_recursive(ds.c_str())
+    unsafe(fs::raw::remove_dir_all_recursive(ds.c_str()))
 }
 
 @test

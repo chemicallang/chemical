@@ -3,14 +3,14 @@ public namespace std {
 @retained
 public func __vector_bounds_check(index : size_t, size : size_t) {
     if(index >= size) {
-        panic("vector index out of bounds")
+        unsafe(panic("vector index out of bounds"))
     }
 }
 
 @retained
 public func __vector_nonempty_check(size : size_t) {
     if(size == 0) {
-        panic("vector is empty")
+        unsafe(panic("vector is empty"))
     }
 }
 
@@ -30,7 +30,7 @@ public struct vector<T> {
             // pointer arithmetic and the empty-element destructor are valid.
             ptr = unsafe(malloc(1)) as *mut T
             if(ptr == null) {
-                panic("vector allocation failed")
+                unsafe(panic("vector allocation failed"))
             }
         }
         return vector<T> {
@@ -58,7 +58,7 @@ public struct vector<T> {
         if(elem_size == 0) {
             var zptr = unsafe(malloc(1)) as *mut T
             if(zptr == null) {
-                panic("vector allocation failed")
+                unsafe(panic("vector allocation failed"))
             }
             return vector<T> {
                 data_ptr : zptr,
@@ -67,11 +67,11 @@ public struct vector<T> {
             }
         }
         if(init_cap > ((0 as size_t) - 1) / elem_size) {
-            panic("vector capacity overflow")
+            unsafe(panic("vector capacity overflow"))
         }
         var ptr = unsafe(malloc(sizeof(T) * init_cap)) as *mut T
         if(ptr == null && init_cap != 0) {
-            panic("vector allocation failed")
+            unsafe(panic("vector allocation failed"))
         }
         return vector<T> {
             data_ptr : ptr,
@@ -100,7 +100,7 @@ public struct vector<T> {
             const max_cap = ((0 as size_t) - 1);
             while (new_cap < new_size) {
                 if(new_cap > max_cap / 2) {
-                    panic("vector capacity overflow")
+                    unsafe(panic("vector capacity overflow"))
                 }
                 new_cap = new_cap * 2;
             }
@@ -153,7 +153,7 @@ public struct vector<T> {
 
     func reserve(&mut self, new_cap : size_t) {
         if(!try_reserve(new_cap)) {
-            panic("failed to resize vector")
+            unsafe(panic("failed to resize vector"))
         }
     }
 
@@ -169,7 +169,7 @@ public struct vector<T> {
 
     func ensure_capacity_for_one_more(&mut self) {
         if(!try_ensure_capacity_for_one_more()) {
-            panic("failed to resize vector")
+            unsafe(panic("failed to resize vector"))
         }
     }
 
@@ -188,7 +188,7 @@ public struct vector<T> {
 
     func push(&mut self, value : T) {
         if(!try_push(value)) {
-            panic("failed to resize vector")
+            unsafe(panic("failed to resize vector"))
         }
     }
 

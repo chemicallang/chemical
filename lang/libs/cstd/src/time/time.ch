@@ -14,7 +14,7 @@ public func difftime(time_end : time_t, time_beg : time_t) : double
  * @see https://en.cppreference.com/w/c/chrono/time
  */
 @extern
-public func time(arg : *mut time_t) : time_t
+public unsafe func time(arg : *mut time_t) : time_t
 
 /**
  * Returns the approximate processor time used by the process since the beginning of an implementation-defined era related to the program's execution. To convert result value to seconds, divide it by CLOCKS_PER_SEC.
@@ -42,7 +42,7 @@ public comptime const TIME_UTC = 1
  * @see https://en.cppreference.com/w/c/chrono/timespec_get
  */
 @extern
-public func timespec_get(ts : *mut timespec, base : int) : int
+public unsafe func timespec_get(ts : *mut timespec, base : int) : int
 
 /**
  * TODO macro TIME_UTC
@@ -60,7 +60,7 @@ public func timespec_get(ts : *mut timespec, base : int) : int
  * @see https://en.cppreference.com/w/c/chrono/timespec_getres
  */
 @extern
-public func timespec_getres(ts : *mut timespec, base : int) : int
+public unsafe func timespec_getres(ts : *mut timespec, base : int) : int
 
 /**
  * Converts the date and time information from a given calendar time tp to a null-terminated multibyte character string str according to format string format. Up to count bytes are written.
@@ -72,7 +72,7 @@ public func timespec_getres(ts : *mut timespec, base : int) : int
  * @see https://en.cppreference.com/w/c/chrono/strftime
  */
 @extern
-public func strftime(str : *mut char, count : size_t, format : *char, tp : *tm) : size_t
+public unsafe func strftime(str : *mut char, count : size_t, format : *char, tp : *tm) : size_t
 
 /**
  * Converts given time since epoch (a time_t value pointed to by timer) into calendar time, expressed in Coordinated Universal Time (UTC) in the struct tm format. The result is stored in static storage and a pointer to that static storage is returned.
@@ -81,7 +81,7 @@ public func strftime(str : *mut char, count : size_t, format : *char, tp : *tm) 
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
 @extern
-public func gmtime(timer : *time_t) : *mut tm
+public unsafe func gmtime(timer : *time_t) : *mut tm
 
 /**
  * Same as gmtime, except that the function uses user-provided storage buf for the result.
@@ -91,7 +91,7 @@ public func gmtime(timer : *time_t) : *mut tm
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
 @extern
-public func gmtime_r(timer : *time_t, buf : *mut tm) : *mut tm
+public unsafe func gmtime_r(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
  * Same as (1), except that the function uses user-provided storage buf for the result and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -103,7 +103,7 @@ public func gmtime_r(timer : *time_t, buf : *mut tm) : *mut tm
  * @see https://en.cppreference.com/w/c/chrono/gmtime
  */
 @extern
-public func gmtime_s(timer : *time_t, buf : *mut tm) : *mut tm
+public unsafe func gmtime_s(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
  * Converts given time since epoch (a time_t value pointed to by timer) into calendar time, expressed in local time, in the struct tm format. The result is stored in static storage and a pointer to that static storage is returned.
@@ -113,7 +113,7 @@ public func gmtime_s(timer : *time_t, buf : *mut tm) : *mut tm
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
 @extern
-public func localtime(timer : *time_t) : *mut tm
+public unsafe func localtime(timer : *time_t) : *mut tm
 
 /**
  * Same as (1), except that the function uses user-provided storage buf for the result.
@@ -123,7 +123,7 @@ public func localtime(timer : *time_t) : *mut tm
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
 @extern
-public func localtime_r(timer : *time_t, buf : *mut tm) : *mut tm
+public unsafe func localtime_r(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
  * Same as (1), except that the function uses user-provided storage buf for the result and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -135,7 +135,7 @@ public func localtime_r(timer : *time_t, buf : *mut tm) : *mut tm
  * @see https://en.cppreference.com/w/c/chrono/localtime
  */
 @extern
-public func localtime_s(timer : *time_t, buf : *mut tm) : *mut tm
+public unsafe func localtime_s(timer : *time_t, buf : *mut tm) : *mut tm
 
 /**
  * Renormalizes local calendar time expressed as a struct tm object and also converts it to time since epoch as a time_t object. arg->tm_wday and arg->tm_yday are ignored. The values in arg are not checked for being out of range.
@@ -146,7 +146,7 @@ public func localtime_s(timer : *time_t, buf : *mut tm) : *mut tm
  * @see time since epoch as a time_t object on success, or -1 if arg cannot be represented as a time_t object (POSIX also requires EOVERFLOW to be stored in errno in this case).
  */
 @extern
-public func mktime(arg : *mut tm) : time_t
+public unsafe func mktime(arg : *mut tm) : time_t
 
 /**
  * TODO macro CLOCKS_PER_SEC

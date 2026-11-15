@@ -76,7 +76,7 @@ public func SetUnhandledExceptionFilter(lpTopLevelExceptionFilter : LPTOP_LEVEL_
 public type PHANDLER_ROUTINE = (dwCtrlType : DWORD) => BOOL
 
 @extern @dllimport @stdcall public func SetConsoleCtrlHandler(HandlerRoutine : PHANDLER_ROUTINE, Add : BOOL) : BOOL
-@extern @dllimport @stdcall public func RtlCaptureStackBackTrace(FramesToSkip : DWORD, FramesToCapture : DWORD, BackTrace : *mut PVOID, BackTraceHash : *mut DWORD) : USHORT
+@extern @dllimport @stdcall public unsafe func RtlCaptureStackBackTrace(FramesToSkip : DWORD, FramesToCapture : DWORD, BackTrace : *mut PVOID, BackTraceHash : *mut DWORD) : USHORT
 
 /* PSAPI functions */
 public struct _MODULEINFO {
@@ -87,10 +87,10 @@ public struct _MODULEINFO {
 
 public type MODULEINFO = _MODULEINFO
 
-@extern @dllimport @stdcall public func EnumProcessModules(hProcess : HANDLE, lphModule : *mut void, cb : DWORD, lpcbNeeded : LPDWORD) : BOOL
-@extern @dllimport @stdcall public func GetModuleInformation(hProcess : HANDLE, hModule : *mut void, pmi : *mut MODULEINFO, cb : DWORD) : BOOL
-@extern @dllimport @stdcall public func GetModuleFileNameExA(hProcess : HANDLE, hModule : *mut void, lpFilename : LPSTR, nSize : DWORD) : DWORD
-@extern @dllimport @stdcall public func GetModuleBaseNameA(hProcess : HANDLE, hModule : *mut void, lpBaseName : LPSTR, nSize : DWORD) : DWORD
+@extern @dllimport @stdcall public unsafe func EnumProcessModules(hProcess : HANDLE, lphModule : *mut void, cb : DWORD, lpcbNeeded : LPDWORD) : BOOL
+@extern @dllimport @stdcall public unsafe func GetModuleInformation(hProcess : HANDLE, hModule : *mut void, pmi : *mut MODULEINFO, cb : DWORD) : BOOL
+@extern @dllimport @stdcall public unsafe func GetModuleFileNameExA(hProcess : HANDLE, hModule : *mut void, lpFilename : LPSTR, nSize : DWORD) : DWORD
+@extern @dllimport @stdcall public unsafe func GetModuleBaseNameA(hProcess : HANDLE, hModule : *mut void, lpBaseName : LPSTR, nSize : DWORD) : DWORD
 
 /* IMAGEHLP / DbgHelp types */
 comptime const IMAGE_FILE_MACHINE_I386 =   0x014c
@@ -176,8 +176,8 @@ public type PIMAGEHLP_LINE64 = *mut _IMAGEHLP_LINE64
 @extern @dllimport @stdcall public func SymInitialize(hProcess : HANDLE, UserSearchPath : LPCSTR, fInvadeProcess : BOOL) : BOOL
 @extern @dllimport @stdcall public func SymCleanup(hProcess : HANDLE) : BOOL
 @extern @dllimport @stdcall public func SymSetOptions(SymOptions : DWORD) : DWORD
-@extern @dllimport @stdcall public func SymFromAddr(hProcess : HANDLE, Address : DWORD64, Displacement : *mut DWORD64, Symbol : PSYMBOL_INFO) : BOOL
-@extern @dllimport @stdcall public func SymGetLineFromAddr64(hProcess : HANDLE, qwAddr : DWORD64, pdwDisplacement : *mut DWORD, Line : PIMAGEHLP_LINE64) : BOOL
+@extern @dllimport @stdcall public unsafe func SymFromAddr(hProcess : HANDLE, Address : DWORD64, Displacement : *mut DWORD64, Symbol : PSYMBOL_INFO) : BOOL
+@extern @dllimport @stdcall public unsafe func SymGetLineFromAddr64(hProcess : HANDLE, qwAddr : DWORD64, pdwDisplacement : *mut DWORD, Line : PIMAGEHLP_LINE64) : BOOL
 @extern @dllimport @stdcall public func SymFunctionTableAccess64(hProcess : HANDLE, AddrBase : DWORD64) : PVOID
 @extern @dllimport @stdcall public func SymGetModuleBase64(hProcess : HANDLE, Addr : DWORD64) : DWORD64
 
@@ -200,9 +200,9 @@ public func StackWalk64(
 ) : BOOL
 
 @extern @dllimport @stdcall
-public func SymLoadModule64(hProcess : HANDLE, hFile : *mut void, ImageName : LPCSTR, ModuleName : LPCSTR, BaseOfDll : DWORD64, SizeOfDll : DWORD) : DWORD64
+public unsafe func SymLoadModule64(hProcess : HANDLE, hFile : *mut void, ImageName : LPCSTR, ModuleName : LPCSTR, BaseOfDll : DWORD64, SizeOfDll : DWORD) : DWORD64
 
-@extern @dllimport @stdcall public func ImageNtHeader(Base : *void) : *mut IMAGE_NT_HEADERS;
+@extern @dllimport @stdcall public unsafe func ImageNtHeader(Base : *void) : *mut IMAGE_NT_HEADERS;
 
 var g_crashing : int = 0
 var g_on_crash : () => void = null
@@ -325,7 +325,7 @@ func CrashHandlerException(ep_void : *mut void) : LONG {
 }
 
 /* Install handler via SetUnhandledExceptionFilter */
-public func install_crash_handler(exe_path : *char, onCrash : () => void) {
+public unsafe func install_crash_handler(exe_path : *char, onCrash : () => void) {
     g_on_crash = onCrash;
     SetUnhandledExceptionFilter(CrashHandlerException as LPTOP_LEVEL_EXCEPTION_FILTER);
 }

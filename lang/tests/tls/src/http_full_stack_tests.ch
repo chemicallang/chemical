@@ -371,7 +371,7 @@ public func FULL_https_concurrent_clients_parallel_handshakes(env : &mut TestEnv
         env.error("concurrent clients: expected 24 successes")
         var msg = string("got ")
         msg.append_uinteger(cap.success as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0))
     }
 
     test_kill_port(PORT as int)
@@ -400,7 +400,7 @@ public func FULL_https_large_post_100k_echo_exact(env : &mut TestEnv) {
         env.error("large POST echo length mismatch")
         var msg = string("got ")
         msg.append_uinteger(v.size() as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0))
     } else if(!v.equals_view(payload.to_view())) {
         env.error("large POST echo bytes mismatch")
     }
@@ -724,7 +724,7 @@ public func FULL_https_thirty_sequential_handshakes(env : &mut TestEnv) {
         env.error("sequential handshakes: some rounds failed")
         var msg = string("ok=")
         msg.append_uinteger(ok_count as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0))
     }
 
     test_kill_port(PORT as int)
@@ -749,7 +749,7 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
     test_py_run_background(srv_cmd.to_view())
     test_server_wait()
 
-    var root = x509_crt_load_pem_file("/tmp/tls_fsi13_root.pem")
+    var root = unsafe(x509_crt_load_pem_file("/tmp/tls_fsi13_root.pem"))
     if(root == null) { env.error("could not load generated root"); test_kill_port(PORT as int); return }
 
     var client = Client()
@@ -759,18 +759,18 @@ public func FULL_https_two_level_ca_chain_verification(env : &mut TestEnv) {
     var res = client.get_view(string_view("https://localhost:20313/hello"))
     if(res is Result.Err) {
         env.error("verified request via two-level chain failed")
-        cert_chain_free(root)
+        unsafe(cert_chain_free(root))
         test_kill_port(PORT as int)
         return
     }
     var Ok(r) = res else unsafe { unreachable };
     if(r.status != 200u) { env.error("chain test expected 200") }
     var b = r.body.text()
-    if(b is std.Option.None) { env.error("chain test body read failed"); cert_chain_free(root); test_kill_port(PORT as int); return }
+    if(b is std.Option.None) { env.error("chain test body read failed"); unsafe(cert_chain_free(root)); test_kill_port(PORT as int); return }
     var Some(v) = b else unsafe { unreachable };
     if(!v.equals_view("world")) { env.error("chain test body mismatch") }
 
-    cert_chain_free(root)
+    unsafe(cert_chain_free(root))
     test_kill_port(PORT as int)
 }
 
@@ -822,7 +822,7 @@ public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
         env.error("streaming read mismatch")
         var msg = string("total=")
         msg.append_uinteger(total as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0))
     }
 
     test_kill_port(PORT as int)

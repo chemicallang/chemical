@@ -335,12 +335,12 @@ public func css_write_css_string_to_buffer(text : std::string_view, str : &mut s
 
 // ─── Selector serialization ──────────────────────────────────────────────────
 
-public func css_has_ampersand_simple(s : *mut SimpleSelector) : bool {
+public unsafe func css_has_ampersand_simple(s : *mut SimpleSelector) : bool {
         unsafe {     return s.kind == SimpleSelectorKind.Ampersand 
         }
     }
 
-public func css_has_ampersand_compound(c : *mut CompoundSelector) : bool {
+public unsafe func css_has_ampersand_compound(c : *mut CompoundSelector) : bool {
         unsafe {
         var i : uint = 0
         while(i < c.simple_selectors.size()) {
@@ -352,7 +352,7 @@ public func css_has_ampersand_compound(c : *mut CompoundSelector) : bool {
         }
     }
 
-public func css_has_ampersand_complex(c : *mut ComplexSelector) : bool {
+public unsafe func css_has_ampersand_complex(c : *mut ComplexSelector) : bool {
         unsafe {
         if(css_has_ampersand_compound(c.compound)) return true
         if(c.next != null) return css_has_ampersand_complex(c.next)
@@ -361,7 +361,7 @@ public func css_has_ampersand_complex(c : *mut ComplexSelector) : bool {
         }
     }
 
-public func css_serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replacement : std::string_view) {
+public unsafe func css_serialize_simple(s : *mut SimpleSelector, out : &mut std::string, replacement : std::string_view) {
         unsafe {
         if(s.kind == SimpleSelectorKind.Ampersand) { out.append_view(&replacement); return }
         if(s.kind == SimpleSelectorKind.Attribute) {
@@ -381,7 +381,7 @@ public func css_serialize_simple(s : *mut SimpleSelector, out : &mut std::string
         }
     }
 
-public func css_serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
+public unsafe func css_serialize_compound(c : *mut CompoundSelector, out : &mut std::string, replacement : std::string_view) {
         unsafe {
         var i : uint = 0
         while(i < c.simple_selectors.size()) { css_serialize_simple(c.simple_selectors.at(i), out, replacement); i++ }
@@ -389,7 +389,7 @@ public func css_serialize_compound(c : *mut CompoundSelector, out : &mut std::st
         }
     }
 
-public func css_serialize_complex(c : *mut ComplexSelector, out : &mut std::string, replacement : std::string_view) {
+public unsafe func css_serialize_complex(c : *mut ComplexSelector, out : &mut std::string, replacement : std::string_view) {
         unsafe {
         css_serialize_compound(c.compound, out, replacement)
         if(c.next != null) {
@@ -413,7 +413,7 @@ public func css_append_media_root_selector(out : &mut std::string, className : s
 
 // ─── WriteCssValueToBuffer — main value conversion ──────────────────────────
 
-public func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         switch(value.kind) {
             CSSValueKind.Multiple => {
@@ -506,7 +506,7 @@ public func writeCssValueToBuffer(value : &mut CSSValue, str : &mut std::string,
 
 // ─── Compound value writers ──────────────────────────────────────────────────
 
-public func css_write_border_radius_value_data(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_border_radius_value_data(ptr : &mut CSSBorderRadiusValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         if(ptr.first.kind != CSSValueKind.Unknown) { writeCssValueToBuffer(&mut ptr.first, str, emitter) }
         if(ptr.second.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut ptr.second, str, emitter) }
@@ -517,7 +517,7 @@ public func css_write_border_radius_value_data(ptr : &mut CSSBorderRadiusValueDa
         }
     }
 
-public func css_write_font_value_data(ptr : &CSSFontValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_font_value_data(ptr : &CSSFontValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         css_write_font_style(&ptr.style, str)
         if(ptr.fontVariant.kind != CSSKeywordKind.Unknown) { str.append(' '); str.append_view(&ptr.fontVariant.value) }
@@ -531,7 +531,7 @@ public func css_write_font_value_data(ptr : &CSSFontValueData, str : &mut std::s
         }
     }
 
-public func css_write_text_shadow_value_data(value : &mut CSSTextShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_text_shadow_value_data(value : &mut CSSTextShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         if(value.offsetX.kind != CSSValueKind.Unknown) { writeCssValueToBuffer(&mut value.offsetX, str, emitter) }
         if(value.offsetY.kind != CSSValueKind.Unknown) { str.append(' '); writeCssValueToBuffer(&mut value.offsetY, str, emitter) }
@@ -542,7 +542,7 @@ public func css_write_text_shadow_value_data(value : &mut CSSTextShadowValueData
         }
     }
 
-public func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         if(value.inset) { str.append_view("inset"); }
         if(value.offsetX.kind != CSSValueKind.Unknown) { if(value.inset) { str.append(' '); } writeCssValueToBuffer(&mut value.offsetX, str, emitter) }
@@ -555,7 +555,7 @@ public func css_write_box_shadow_value_data(value : &mut CSSBoxShadowValueData, 
         }
     }
 
-public func css_write_transform_node(ptr : &mut CSSTransformLengthNode, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_transform_node(ptr : &mut CSSTransformLengthNode, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         writeCssValueToBuffer(&mut ptr.value, str, emitter)
         if(ptr.next != null && ptr.next.value.kind != CSSValueKind.Unknown) { str.append(','); css_write_transform_node(&mut *ptr.next, str, emitter) }
@@ -563,7 +563,7 @@ public func css_write_transform_node(ptr : &mut CSSTransformLengthNode, str : &m
         }
     }
 
-public func css_write_transform_value_data(ptr : &mut CSSTransformValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_transform_value_data(ptr : &mut CSSTransformValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         str.append_view(&ptr.transformFunction.value); str.append('(')
         if(ptr.node != null) { css_write_transform_node(&mut *ptr.node, str, emitter) } else { str.append_view("none") }
@@ -581,7 +581,7 @@ public func css_write_background_image_url(url : &mut UrlData, str : &mut std::s
         }
     }
 
-public func css_write_linear_gradient_data(data : &mut LinearGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_linear_gradient_data(data : &mut LinearGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         css_write_length(&mut data.angle, str)
         if(data.angle.kind != CSSLengthKind.Unknown) { str.append(','); }
@@ -603,7 +603,7 @@ public func css_write_linear_gradient_data(data : &mut LinearGradientData, str :
         }
     }
 
-public func css_write_radial_gradient_data(data : &mut RadialGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_radial_gradient_data(data : &mut RadialGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         var has_shape_or_size = false
         if(data.shape.kind != CSSKeywordKind.Unknown) { str.append_view(&data.shape.value); has_shape_or_size = true }
@@ -624,7 +624,7 @@ public func css_write_radial_gradient_data(data : &mut RadialGradientData, str :
         }
     }
 
-public func css_write_conic_gradient_data(data : &mut ConicGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_conic_gradient_data(data : &mut ConicGradientData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         var has_from_or_at = false
         if(data.from.kind != CSSValueKind.Unknown) { str.append_view("from "); writeCssValueToBuffer(&mut data.from, str, emitter); has_from_or_at = true }
@@ -643,7 +643,7 @@ public func css_write_conic_gradient_data(data : &mut ConicGradientData, str : &
         }
     }
 
-public func css_write_background_image_data(ptr : &mut BackgroundImageData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_background_image_data(ptr : &mut BackgroundImageData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         if(ptr.is_url) { css_write_background_image_url(&mut ptr.url, str) } else {
             switch(ptr.gradient.kind) {
@@ -660,7 +660,7 @@ public func css_write_background_image_data(ptr : &mut BackgroundImageData, str 
         }
     }
 
-public func css_write_background_value_data(ptr : &mut CSSBackgroundValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_background_value_data(ptr : &mut CSSBackgroundValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         var start = ptr.layers.data(); const end = start + ptr.layers.size()
         while(start != end) {
@@ -684,7 +684,7 @@ public func css_write_background_value_data(ptr : &mut CSSBackgroundValueData, s
         }
     }
 
-public func css_write_calc_expression(expr : &CSSCalcExpression, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_calc_expression(expr : &CSSCalcExpression, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         switch(expr.kind) {
             CSSCalcExpressionKind.Literal => { const val = expr.data as *mut CSSValue; writeCssValueToBuffer(&mut *val, str, emitter) }
@@ -695,7 +695,7 @@ public func css_write_calc_expression(expr : &CSSCalcExpression, str : &mut std:
         }
     }
 
-public func css_write_outline_value_data(ptr : &mut CSSOutlineValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_outline_value_data(ptr : &mut CSSOutlineValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         const has_style = ptr.style.kind != CSSValueKind.Unknown; const has_color = ptr.color.kind != CSSValueKind.Unknown
         if(ptr.width.kind != CSSValueKind.Unknown) { writeCssValueToBuffer(&mut ptr.width, str, emitter); if(has_style || has_color) { str.append(' ') } }
@@ -705,7 +705,7 @@ public func css_write_outline_value_data(ptr : &mut CSSOutlineValueData, str : &
         }
     }
 
-public func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         str.append_view(&ptr.function.value)
         if(!ptr.arguments.empty()) {
@@ -719,7 +719,7 @@ public func css_write_backdrop_filter_value_data(ptr : &mut CSSBackdropFilterVal
         }
     }
 
-public func css_write_animation_value_data(value : &mut CSSAnimationValueData, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_animation_value_data(value : &mut CSSAnimationValueData, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {     unsafe {
         var has_val = false
         if(!value.name.empty()) { str.append_view(&value.name); has_val = true }
@@ -764,7 +764,7 @@ public func css_write_comparison_operator(op : MediaFeatureComparison, str : &mu
         }
     }
 
-public func css_write_media_feature(feature : *mut MediaFeature, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_media_feature(feature : *mut MediaFeature, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         str.append('(')
         if(feature.leftOp != MediaFeatureComparison.None) {
@@ -780,7 +780,7 @@ public func css_write_media_feature(feature : *mut MediaFeature, str : &mut std:
         }
     }
 
-public func css_write_media_condition(condition : *mut MediaCondition, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_media_condition(condition : *mut MediaCondition, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         if(condition == null) { return }
         if(condition.isNot) { str.append_view("not ") }
@@ -797,7 +797,7 @@ public func css_write_media_condition(condition : *mut MediaCondition, str : &mu
         }
     }
 
-public func css_write_media_query(query : *mut MediaQuery, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_media_query(query : *mut MediaQuery, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         switch(query.modifier) {
             MediaModifier.Only => { str.append_view("only ") }
@@ -813,7 +813,7 @@ public func css_write_media_query(query : *mut MediaQuery, str : &mut std::strin
         }
     }
 
-public func css_write_media_query_list(queryList : *mut MediaQueryList, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_media_query_list(queryList : *mut MediaQueryList, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         var i : uint = 0; const size = queryList.queries.size()
         while(i < size) { if(i > 0) { str.append_view(", "); } css_write_media_query(queryList.queries.at(i), str, emitter); i++ }
@@ -821,7 +821,7 @@ public func css_write_media_query_list(queryList : *mut MediaQueryList, str : &m
         }
     }
 
-public func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut std::string, parent_selectors : &mut std::vector<std::string>, emitter : *mut CssEmitter) {
+public unsafe func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut std::string, parent_selectors : &mut std::vector<std::string>, emitter : *mut CssEmitter) {
         unsafe {
         var current_selectors = std::vector<std::string>()
         if(rule.selector != null) {
@@ -874,7 +874,7 @@ public func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut st
         }
     }
 
-public func css_write_keyframes_rule(rule : *mut CSSKeyframesRule, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_keyframes_rule(rule : *mut CSSKeyframesRule, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         str.append_view("@keyframes "); str.append_view(&rule.name); str.append_view(" { ")
         var i : uint = 0
@@ -894,7 +894,7 @@ public func css_write_keyframes_rule(rule : *mut CSSKeyframesRule, str : &mut st
 // query belong to when the rule has no root class (a global `#css` block passes
 // `:root`). When empty, such declarations are dropped, which is the behaviour
 // for callers that emit media queries without any root scope.
-public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view, emitter : *mut CssEmitter, decl_root : std::string_view = "") {
+public unsafe func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view, emitter : *mut CssEmitter, decl_root : std::string_view = "") {
         unsafe {
         str.append_view("@media ")
         css_write_media_query_list(rule.queryList, str, emitter)
@@ -923,7 +923,7 @@ public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::strin
         }
     }
 
-public func css_write_declaration_text(decl : *mut CSSDeclaration, str : &mut std::string, emitter : *mut CssEmitter) {
+public unsafe func css_write_declaration_text(decl : *mut CSSDeclaration, str : &mut std::string, emitter : *mut CssEmitter) {
         unsafe {
         str.append_view(&decl.property.name); str.append(':')
         writeCssValueToBuffer(&mut decl.value, str, emitter)

@@ -1,5 +1,5 @@
 
-public func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
+public unsafe func parseHtmlRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *HtmlRoot {
         unsafe {
         var root = builder.allocate<HtmlRoot>()
         new (root) HtmlRoot {

@@ -424,7 +424,7 @@ func test_pool_future_moves_across_threads() : bool {
     var pool = std::concurrent::create_pool(2u)
     var x = 41
     var f = std::concurrent.submit_closure(|x|() => { return x + 1 }, &pool)
-    var t = std::thread.spawn<std::concurrent.Future<int>, int>(consume_pool_future, f)
+    var t = unsafe(std::thread.spawn<std::concurrent.Future<int>, int>(consume_pool_future, f))
     return t.join() == 42
 }
 

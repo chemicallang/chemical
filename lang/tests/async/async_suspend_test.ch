@@ -27,7 +27,7 @@ struct Countdown {
     var value : int
 }
 
-func countdown_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
+unsafe func countdown_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
         unsafe {
         suspend_polls = suspend_polls + 1;
         var f = frame as *mut Countdown
@@ -41,7 +41,7 @@ func countdown_poll(frame : *mut void, cx : *mut core::async::Context) : core::a
         }
     }
 
-func countdown_drop(frame : *mut void) { }
+unsafe func countdown_drop(frame : *mut void) { }
 
 func make_countdown(remaining : int, value : int) : core::async::FutureHandle<int> {
         unsafe {
@@ -506,7 +506,7 @@ struct CancelChild {
     var remaining : int
 }
 
-func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
+unsafe func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
         unsafe {
         var f = frame as *mut CancelChild
         if(f.remaining > 0) {
@@ -519,7 +519,7 @@ func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core
         }
     }
 
-func cancel_child_drop(frame : *mut void) {
+unsafe func cancel_child_drop(frame : *mut void) {
         unsafe {
         child_cancel_drops = child_cancel_drops + 1
         unsafe { free(frame) }
@@ -915,7 +915,7 @@ func test_async_spawn_send_owned_frame(env : &mut TestEnv) {
 @test
 func test_async_spawn_send_cross_thread(env : &mut TestEnv) {
     var handle = async::spawn_send(send_frame_work())
-    var worker = std::thread.spawn(send_frame_consume, handle)
+    var worker = unsafe(std::thread.spawn(send_frame_consume, handle))
     var r = worker.join()
     if(r != 2) {
         env.error("SendFutureHandle should move to a worker and complete")

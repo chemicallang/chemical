@@ -105,7 +105,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
     const PORT : uint = 20451u
     const SEND_LEN : usize = 1000u
 
-    var ls = listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(listen_addr("127.0.0.1", PORT))
     if(ls == 0 as Socket) { env.error("listen failed"); return }
 
     var sender = unsafe(std.concurrent.spawn(||(arg : *void) => {
@@ -131,7 +131,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
 
     set_recv_timeout(cs, 3, 0)
     var buf : [4096]u8
-    var n = recv_all(cs, &raw mut buf[0], 4096)
+    var n = unsafe(recv_all(cs, &raw mut buf[0], 4096))
 
     if(n <= 0) {
         env.error("no data received before close")
@@ -158,7 +158,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
 public func NET_dial_resolves_localhost_hostname(env : &mut TestEnv) {
     const PORT : uint = 20452u
 
-    var ls = listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(listen_addr("127.0.0.1", PORT))
     if(ls == 0 as Socket) { env.error("listen failed"); return }
 
     var connector = unsafe(std.concurrent.spawn(||(arg : *void) => {
@@ -181,7 +181,7 @@ public func NET_dial_resolves_localhost_hostname(env : &mut TestEnv) {
 
     set_recv_timeout(cs, 3, 0)
     var buf : [32]u8
-    var n = recv_all(cs, &raw mut buf[0], 31)
+    var n = unsafe(recv_all(cs, &raw mut buf[0], 31))
 
     var ok = true
     if(n != 13) { ok = false } else {

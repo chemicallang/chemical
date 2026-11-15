@@ -73,7 +73,7 @@ public struct default_function_instance {
             align = 1
         }
         if((align & (align - 1)) != 0) {
-            panic("function capture alignment must be a power of two")
+            unsafe(panic("function capture alignment must be a power of two"))
         }
         var total : size_t = size_data
         if(total == 0) {
@@ -83,7 +83,7 @@ public struct default_function_instance {
         }
         var base = unsafe(malloc(total)) as *mut char
         if(base == null) {
-            panic("function capture allocation failed")
+            unsafe(panic("function capture allocation failed"))
         }
         const raw = base as usize
         const aligned = (raw + align - 1) & ~(align - 1)

@@ -115,7 +115,7 @@ func (converter : &mut HtmlRuntimeConverter) convert_child(child : *mut HtmlChil
         }
     }
 
-public func convert_html_root(root : *mut HtmlRoot, str : &mut std::string) {
+public unsafe func convert_html_root(root : *mut HtmlRoot, str : &mut std::string) {
         unsafe {
         var converter = make_html_runtime_converter(str)
         for(var i = 0u; i < root.children.size(); i++) {

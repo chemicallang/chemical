@@ -6,7 +6,7 @@ public struct pollfd {
 }
 
 @extern
-public func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
+public unsafe func poll(fds : *mut pollfd, nfds : ulong, timeout : int) : int
 
 @extern
 public func kill(pid : pid_t, sig : int) : int

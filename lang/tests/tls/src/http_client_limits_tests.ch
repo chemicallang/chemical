@@ -63,7 +63,7 @@ public func LIMIT_max_body_len_enforced(env : &mut TestEnv) {
         env.error("control download length mismatch")
         var msg = string("got ")
         msg.append_uinteger(v2.size() as ubigint)
-        test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg.data(), 0, 0))
     }
 
     test_kill_port(PORT as int)

@@ -1,18 +1,18 @@
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func node_known_type_func(value : *EmbeddedNode) : *BaseType {
         unsafe {
         return null;
 
         }
     }
 
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
         unsafe {
         return null;
 
         }
     }
 
-public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
+public unsafe func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
         unsafe {
         const comp = node.getDataPtr() as *mut JsComponentDecl;
         if (comp.signature.access == AccessSpecifier.Public) {
@@ -23,7 +23,7 @@ public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNod
     }
 
 @no_mangle
-public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
+public unsafe func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
         unsafe {
 
         const location = parser.getEncodedLocation(parser.getToken());
@@ -139,7 +139,7 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     }
 
 @no_mangle
-public func universal_initializeLexer(lexer : *mut Lexer) {
+public unsafe func universal_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(JsLexer), alignof(JsLexer)) as *mut JsLexer;

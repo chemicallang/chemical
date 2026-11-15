@@ -317,14 +317,14 @@ public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv
         var m = string("bodyless GET: expected REMAINING:0 (empty body), got: ")
         var got = resp.to_view()
         m.append_view(&got)
-        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
     } else if(el > FRAM_BUDGET_MS) {
         var m = string("bodyless GET: answered in ")
         m.append_uinteger(el as ubigint)
         m.append_view("ms, budget is ")
         m.append_uinteger(FRAM_BUDGET_MS as ubigint)
         m.append_view("ms")
-        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
     }
 
     // Control: an explicit Content-Length must still be honored, so a "fix"
@@ -338,7 +338,7 @@ public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv
         var m = string("Content-Length: 7: expected REMAINING:7, got: ")
         var got = resp2.to_view()
         m.append_view(&got)
-        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
     }
 
     stop.shutdown()
@@ -495,12 +495,12 @@ public func FRAM_truncated_chunked_body_terminates_at_body_timeout(env : &mut Te
         var m = string("truncated chunked body: took ")
         m.append_uinteger(el as ubigint)
         m.append_view("ms, must be bounded by the body timeout")
-        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
     } else if(!resp.starts_with("HTTP/1.1 400")) {
         var m = string("truncated chunked body: expected a 400 rejection once the body timeout fires, got: ")
         var got = resp.to_view()
         m.append_view(&got)
-        test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
     }
 
     stop.shutdown()

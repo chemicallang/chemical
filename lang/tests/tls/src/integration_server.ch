@@ -474,7 +474,7 @@ public func INT_srv_python_https_get_validated(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is20_cert.pem /tmp/tls_is20_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "", "", "/tmp/hcli_r20.txt")
@@ -505,7 +505,7 @@ public func INT_srv_python_post_50k_echo(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is21_cert.pem /tmp/tls_is21_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "post", "", "", "/tmp/hcli_r21.txt")
@@ -536,7 +536,7 @@ public func INT_srv_python_slowpost_reassembled(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is22_cert.pem /tmp/tls_is22_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "slowpost", "", "", "/tmp/hcli_r22.txt")
@@ -568,7 +568,7 @@ public func INT_srv_python_keepalive_two_requests(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is23_cert.pem /tmp/tls_is23_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "keepalive", "", "", "/tmp/hcli_r23.txt")
@@ -599,7 +599,7 @@ public func INT_srv_big_response_streamed_300k(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is24_cert.pem /tmp/tls_is24_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "bigresp", "", "", "/tmp/hcli_r24.txt")
@@ -630,7 +630,7 @@ public func INT_srv_verified_client_trusts_root(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("ca /tmp/tls_is25ca localhost"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "/tmp/tls_is25ca_root.pem", "", "/tmp/hcli_r25.txt")
@@ -661,7 +661,7 @@ public func INT_srv_tls12_rsa_get_validated(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is26_cert.pem /tmp/tls_is26_key.pem localhost rsa"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     // OpenSSL 3 disables static-RSA key exchange at the default level.
@@ -693,7 +693,7 @@ public func INT_srv_two_clients_both_served(env : &mut TestEnv) {
     test_server_wait()
     test_py_run_foreground(string_view("cert /tmp/tls_is27_cert.pem /tmp/tls_is27_key.pem localhost ec"))
 
-    var ls = net::raw::listen_addr("127.0.0.1", PORT)
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1", PORT))
     if(ls == 0 as net::raw::Socket) { env.error("listen failed"); return }
 
     srv_launch_hcli(PORT, "localhost", "get", "", "", "/tmp/hcli_r27a.txt")

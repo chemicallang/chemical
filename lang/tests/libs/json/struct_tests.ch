@@ -453,7 +453,7 @@ func test_manual_json_impl_scalar_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, output.data(), output.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, output.data(), output.size(), &mut ph))
     if(!pr.ok) { env.error("parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JStructScalar>()
@@ -502,7 +502,7 @@ func test_manual_json_impl_nested_struct_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, output.data(), output.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, output.data(), output.size(), &mut ph))
     if(!pr.ok) { env.error("parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JParent>()
@@ -532,7 +532,7 @@ func test_manual_json_impl_string_escapes_roundtrip(env : &mut TestEnv) {
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var pr = json::raw::parse(&mut parser, output.data(), output.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, output.data(), output.size(), &mut ph))
     if(!pr.ok) { env.error("parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JChild>()
@@ -561,7 +561,7 @@ func test_manual_json_impl_generic_string_encode_decode(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("\"hello\"")
-    var pr = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!pr.ok) { env.error("decode string parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<std::string>()
@@ -578,7 +578,7 @@ func test_manual_json_impl_decode_rejects_non_object_root(env : &mut TestEnv) {
     // the root JSON value is not an object.
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var r = json::raw::parse(&mut parser, "5", 1, &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, "5", 1, &mut ph))
     if(!r.ok) { env.error("root number parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JTwoInt>()
@@ -586,7 +586,7 @@ func test_manual_json_impl_decode_rejects_non_object_root(env : &mut TestEnv) {
 
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(128, 4096)
-    var r2 = json::raw::parse(&mut parser2, "[1,2]", 5, &mut ph2)
+    var r2 = unsafe(json::raw::parse(&mut parser2, "[1,2]", 5, &mut ph2))
     if(!r2.ok) { env.error("root array parse failed"); return }
     var dec2 = JsonDecoder { value : &ph2.root }
     var res2 = dec2.decode<JTwoInt>()
@@ -600,7 +600,7 @@ func test_manual_json_impl_decode_field_type_mismatch(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":\"not a number\",\"b\":2}")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("type mismatch parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JTwoInt>()
@@ -613,7 +613,7 @@ func test_manual_json_impl_decode_missing_field(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":1}")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("missing field parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JTwoInt>()
@@ -627,7 +627,7 @@ func test_manual_json_impl_decode_extra_fields_ignored(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("{\"a\":11,\"b\":22,\"extra\":true,\"other\":9}")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("extra fields parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<JTwoInt>()

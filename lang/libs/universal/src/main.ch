@@ -28,7 +28,7 @@ public func parse_universal(view : std::string_view) : std::string {
     var allocator = ASTAllocator.make()
     var builder = ASTBuilder { allocator : (&raw mut allocator) as *mut BatchAllocator, typeBuilder : null }
 
-    const root = parseUniversalRoot((&raw mut parser) as *mut Parser, &raw mut builder)
+    const root = unsafe(parseUniversalRoot((&raw mut parser) as *mut Parser, &raw mut builder))
     if(root == null) {
         allocator.deinit()
         return std::string()
@@ -36,15 +36,15 @@ public func parse_universal(view : std::string_view) : std::string {
 
     var out = std::string()
     var converter = JsRuntimeConverter { str : &raw mut out }
-    convert_universal_root(root, &mut converter)
+    unsafe(convert_universal_root(root, &mut converter))
     allocator.deinit()
     return out
 }
 
-public func convert_universal_node_to_string(node : *mut JsNode) : std::string {
+public unsafe func convert_universal_node_to_string(node : *mut JsNode) : std::string {
     var out = std::string()
     var converter = JsRuntimeConverter { str : &raw mut out }
-    convert_universal_node(node, &mut converter)
+    unsafe(convert_universal_node(node, &mut converter))
     return out
 }
 

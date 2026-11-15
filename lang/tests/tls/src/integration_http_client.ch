@@ -345,7 +345,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     test_py_run_background(string_view("httpsrv /tmp/tls_vci20209_chain.crt /tmp/tls_vci20209_leaf.key 20209 8"))
     test_server_wait()
 
-    var root = x509_crt_load_pem_file("/tmp/tls_vci20209_root.pem")
+    var root = unsafe(x509_crt_load_pem_file("/tmp/tls_vci20209_root.pem"))
     if(root == null) { env.error("could not load generated root"); return }
 
     var client = Client()
@@ -355,7 +355,7 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     var res = client.get_view(string_view("https://localhost:20209/hello"))
     if(res is Result.Err) {
         env.error("verified https via custom CA failed")
-        cert_chain_free(root)
+        unsafe(cert_chain_free(root))
         test_kill_port(20209u)
         return
     }
@@ -363,11 +363,11 @@ public func INT_https_verified_with_custom_ca(env : &mut TestEnv) {
     if(r.status != 200u) { env.error("expected 200") }
 
     var body_opt = r.body.text()
-    if(body_opt is std.Option.None) { env.error("body read failed"); cert_chain_free(root); return }
+    if(body_opt is std.Option.None) { env.error("body read failed"); unsafe(cert_chain_free(root)); return }
     var Some(body) = body_opt else unsafe { unreachable };
     if(!body.equals_view("world")) { env.error("body mismatch on verified connection") }
 
-    cert_chain_free(root)
+    unsafe(cert_chain_free(root))
     test_kill_port(20209u)
 }
 
@@ -384,7 +384,7 @@ public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
     test_py_run_background(string_view("httpsrv /tmp/tls_uca20210a_chain.crt /tmp/tls_uca20210a_leaf.key 20210 8"))
     test_server_wait()
 
-    var wrong_root = x509_crt_load_pem_file("/tmp/tls_uca20210b_root.pem")
+    var wrong_root = unsafe(x509_crt_load_pem_file("/tmp/tls_uca20210b_root.pem"))
     if(wrong_root == null) { env.error("could not load unrelated root"); return }
 
     var client = Client()
@@ -394,12 +394,12 @@ public func INT_https_untrusted_ca_fails(env : &mut TestEnv) {
     var res = client.get_view(string_view("https://localhost:20210/hello"))
     if(res is Result.Ok) {
         env.error("handshake MUST fail when the server chains to an untrusted root")
-        cert_chain_free(wrong_root)
+        unsafe(cert_chain_free(wrong_root))
         test_kill_port(20210u)
         return
     }
 
-    cert_chain_free(wrong_root)
+    unsafe(cert_chain_free(wrong_root))
     test_kill_port(20210u)
 }
 
@@ -417,7 +417,7 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
     test_py_run_background(string_view("httpsrv /tmp/tls_hnm20211_chain.crt /tmp/tls_hnm20211_leaf.key 20211 8"))
     test_server_wait()
 
-    var root = x509_crt_load_pem_file("/tmp/tls_hnm20211_root.pem")
+    var root = unsafe(x509_crt_load_pem_file("/tmp/tls_hnm20211_root.pem"))
     if(root == null) { env.error("could not load root"); return }
 
     var client = Client()
@@ -427,7 +427,7 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
     var res = client.get_view(string_view("https://127.0.0.1:20211/hello"))
     if(res is Result.Ok) {
         env.error("hostname mismatch (IP vs DNS SAN) must fail under verification")
-        cert_chain_free(root)
+        unsafe(cert_chain_free(root))
         test_kill_port(20211u)
         return
     }
@@ -436,12 +436,12 @@ public func INT_https_hostname_mismatch_fails_verification(env : &mut TestEnv) {
     var res2 = client.get_view(string_view("https://localhost:20211/hello"))
     if(res2 is Result.Err) {
         env.error("control: same client should succeed with matching hostname")
-        cert_chain_free(root)
+        unsafe(cert_chain_free(root))
         test_kill_port(20211u)
         return
     }
 
-    cert_chain_free(root)
+    unsafe(cert_chain_free(root))
     test_kill_port(20211u)
 }
 

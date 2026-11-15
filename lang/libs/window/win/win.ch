@@ -208,7 +208,7 @@ public comptime const VK_MENU : int = 0x12
 @extern @stdcall @dllimport public func LoadLibraryW(lpLibFileName : LPCWSTR) : HMODULE
 
 // user32 (DPI)
-@extern @stdcall @dllimport public func SetProcessDpiAwarenessContext(value : *mut void) : BOOL
+@extern @stdcall @dllimport public unsafe func SetProcessDpiAwarenessContext(value : *mut void) : BOOL
 @extern @stdcall @dllimport public func EnableNonClientDpiScaling(hwnd : HWND) : BOOL
 @extern @stdcall @dllimport public func GetDpiForWindow(hwnd : HWND) : UINT
 @extern @stdcall @dllimport public func AdjustWindowRectExForDpi(lpRect : LPRECT, dwStyle : DWORD, bMenu : BOOL, dwExStyle : DWORD, dpi : UINT) : BOOL
@@ -265,7 +265,7 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
         }}
 
 // user32 (windows)
-@extern @stdcall @dllimport public func RegisterClassExW(lpWndClass : *mut WNDCLASSEXW) : ATOM
+@extern @stdcall @dllimport public unsafe func RegisterClassExW(lpWndClass : *mut WNDCLASSEXW) : ATOM
 @extern @stdcall @dllimport public func CreateWindowExW(
     dwExStyle : DWORD,
     lpClassName : LPCWSTR,
@@ -289,9 +289,9 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 @extern @stdcall @dllimport public func MoveWindow(hwnd : HWND, x : int, y : int, nWidth : int, nHeight : int, bRepaint : BOOL) : BOOL
 @extern @stdcall @dllimport public func DestroyWindow(hwnd : HWND) : BOOL
 @extern @stdcall @dllimport public func PostQuitMessage(nExitCode : int) : void
-@extern @stdcall @dllimport public func GetMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT) : BOOL
-@extern @stdcall @dllimport public func TranslateMessage(lpMsg : *mut MSG) : BOOL
-@extern @stdcall @dllimport public func DispatchMessageW(lpMsg : *mut MSG) : LRESULT
+@extern @stdcall @dllimport public unsafe func GetMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT) : BOOL
+@extern @stdcall @dllimport public unsafe func TranslateMessage(lpMsg : *mut MSG) : BOOL
+@extern @stdcall @dllimport public unsafe func DispatchMessageW(lpMsg : *mut MSG) : LRESULT
 @extern @stdcall @dllimport public func ShowWindow(hwnd : HWND, nCmdShow : int) : BOOL
 @extern @stdcall @dllimport public func UpdateWindow(hwnd : HWND) : BOOL
 @extern @stdcall @dllimport public func SetFocus(hwnd : HWND) : HWND
@@ -302,7 +302,7 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 @extern @stdcall @dllimport public func LoadCursorW(hInstance : HINSTANCE, name : LPCWSTR) : HCURSOR
 @extern @stdcall @dllimport public func SetCursor(hCursor : HCURSOR) : HCURSOR
 @extern @stdcall @dllimport public func MonitorFromWindow(hwnd : HWND, dwFlags : DWORD) : HMONITOR
-@extern @stdcall @dllimport public func GetMonitorInfoW(hmonitor : HMONITOR, lpmi : *mut MONITORINFO) : BOOL
+@extern @stdcall @dllimport public unsafe func GetMonitorInfoW(hmonitor : HMONITOR, lpmi : *mut MONITORINFO) : BOOL
 @extern @stdcall @dllimport public func EnumDisplayMonitors(hdc : HDC, lprcClip : LPRECT, proc : MONITORENUMPROC, data : LPARAM) : BOOL
 @extern @stdcall @dllimport public func GetSystemMetrics(nIndex : int) : int
 // NOTE: the SDK header maps LoadImage -> LoadImageW (the real user32 export).
@@ -324,10 +324,10 @@ func win_set_layered_alpha(hwnd : HWND, alpha : BYTE) {
 @extern @stdcall @dllimport public func GlobalUnlock(hMem : HANDLE) : BOOL
 @extern @stdcall @dllimport public func GlobalSize(hMem : HANDLE) : size_t
 @extern @stdcall @dllimport public func GlobalAlloc(uFlags : UINT, dwBytes : size_t) : HANDLE
-@extern @stdcall @dllimport public func lstrlenA(lpString : *char) : int
+@extern @stdcall @dllimport public unsafe func lstrlenA(lpString : *char) : int
 
 // user32 (timer)
-@extern @stdcall @dllimport public func SetTimer(hWnd : HWND, nIDEvent : UINT, uElapse : UINT, lpTimerFunc : *mut void) : UINT
+@extern @stdcall @dllimport public unsafe func SetTimer(hWnd : HWND, nIDEvent : UINT, uElapse : UINT, lpTimerFunc : *mut void) : UINT
 @extern @stdcall @dllimport public func KillTimer(hWnd : HWND, nIDEvent : UINT) : BOOL
 
 comptime const CF_TEXT : UINT = 1 as UINT
@@ -668,7 +668,7 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
 // Raw platform API: `window::NativeWindow` (platform state) + `window::raw`. The safe handle is `window::Window`.
 public namespace raw {
 
-public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
+public unsafe func window_create(w : *mut NativeWindow) : std::Result<std::Unit, WindowError> {
         unsafe {
     if(w.created) {
         return std.Result.Err(WindowError.InvalidState(string("window_create: window already created")))
@@ -740,7 +740,7 @@ public func window_create(w : *mut NativeWindow) : std::Result<std::Unit, Window
 
         }}
 
-public func window_destroy(w : *mut NativeWindow) {
+public unsafe func window_destroy(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         DestroyWindow(w.hwnd)
@@ -751,7 +751,7 @@ public func window_destroy(w : *mut NativeWindow) {
 
         }}
 
-public func window_is_created(w : *mut NativeWindow) : bool {
+public unsafe func window_is_created(w : *mut NativeWindow) : bool {
         unsafe {
     return w.created && w.hwnd != null
 
@@ -759,13 +759,13 @@ public func window_is_created(w : *mut NativeWindow) : bool {
 
 // --- title ---
 
-public func window_title(w : *mut NativeWindow) : string {
+public unsafe func window_title(w : *mut NativeWindow) : string {
         unsafe {
     return w.title.copy()
 
         }}
 
-public func window_set_title(w : *mut NativeWindow, title : *char) {
+public unsafe func window_set_title(w : *mut NativeWindow, title : *char) {
         unsafe {
     w.title = string("")
     w.title.append_char_ptr(title)
@@ -779,14 +779,14 @@ public func window_set_title(w : *mut NativeWindow, title : *char) {
 
 // --- size / position (logical units) ---
 
-public func window_size(w : *mut NativeWindow) : Size {
+public unsafe func window_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.width, w.height)
 
         }}
 
 // Physical client size (for native layout/rendering code).
-public func window_client_size(w : *mut NativeWindow) : Size {
+public unsafe func window_client_size(w : *mut NativeWindow) : Size {
         unsafe {
     if(w.hwnd != null) {
         var rc : RECT
@@ -798,7 +798,7 @@ public func window_client_size(w : *mut NativeWindow) : Size {
 
         }}
 
-public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.width = width
     w.height = height
@@ -827,7 +827,7 @@ public func window_set_size(w : *mut NativeWindow, width : int, height : int) {
 
         }}
 
-public func window_position(w : *mut NativeWindow) : Position {
+public unsafe func window_position(w : *mut NativeWindow) : Position {
         unsafe {
     if(w.hwnd != null) {
         var rc : RECT
@@ -839,7 +839,7 @@ public func window_position(w : *mut NativeWindow) : Position {
 
         }}
 
-public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
+public unsafe func window_set_position(w : *mut NativeWindow, x : int, y : int) {
         unsafe {
     w.x = x
     w.y = y
@@ -851,19 +851,19 @@ public func window_set_position(w : *mut NativeWindow, x : int, y : int) {
 
 // --- min / max size (logical units) ---
 
-public func window_min_size(w : *mut NativeWindow) : Size {
+public unsafe func window_min_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.min_w, w.min_h)
 
         }}
 
-public func window_max_size(w : *mut NativeWindow) : Size {
+public unsafe func window_max_size(w : *mut NativeWindow) : Size {
         unsafe {
     return Size.make(w.max_w, w.max_h)
 
         }}
 
-public func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_min_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.min_w = width
     w.min_h = height
@@ -871,7 +871,7 @@ public func window_set_min_size(w : *mut NativeWindow, width : int, height : int
 
         }}
 
-public func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
+public unsafe func window_set_max_size(w : *mut NativeWindow, width : int, height : int) {
         unsafe {
     w.max_w = width
     w.max_h = height
@@ -881,7 +881,7 @@ public func window_set_max_size(w : *mut NativeWindow, width : int, height : int
 
 // --- state ---
 
-public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
+public unsafe func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
         unsafe {
     if(w.hwnd == null || fullscreen == w.fullscreen) {
         return
@@ -919,13 +919,13 @@ public func window_set_fullscreen(w : *mut NativeWindow, fullscreen : bool) {
 
         }}
 
-public func window_is_fullscreen(w : *mut NativeWindow) : bool {
+public unsafe func window_is_fullscreen(w : *mut NativeWindow) : bool {
         unsafe {
     return w.fullscreen
 
         }}
 
-public func window_maximize(w : *mut NativeWindow) {
+public unsafe func window_maximize(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MAXIMIZE)
@@ -933,7 +933,7 @@ public func window_maximize(w : *mut NativeWindow) {
 
         }}
 
-public func window_minimize(w : *mut NativeWindow) {
+public unsafe func window_minimize(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_MINIMIZE)
@@ -941,7 +941,7 @@ public func window_minimize(w : *mut NativeWindow) {
 
         }}
 
-public func window_restore(w : *mut NativeWindow) {
+public unsafe func window_restore(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         ShowWindow(w.hwnd, SW_RESTORE)
@@ -949,7 +949,7 @@ public func window_restore(w : *mut NativeWindow) {
 
         }}
 
-public func window_show(w : *mut NativeWindow) {
+public unsafe func window_show(w : *mut NativeWindow) {
         unsafe {
     w.visible = true
     if(w.hwnd != null) {
@@ -959,7 +959,7 @@ public func window_show(w : *mut NativeWindow) {
 
         }}
 
-public func window_hide(w : *mut NativeWindow) {
+public unsafe func window_hide(w : *mut NativeWindow) {
         unsafe {
     w.visible = false
     if(w.hwnd != null) {
@@ -968,7 +968,7 @@ public func window_hide(w : *mut NativeWindow) {
 
         }}
 
-public func window_focus(w : *mut NativeWindow) {
+public unsafe func window_focus(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         SetForegroundWindow(w.hwnd)
@@ -977,7 +977,7 @@ public func window_focus(w : *mut NativeWindow) {
 
         }}
 
-public func window_close(w : *mut NativeWindow) {
+public unsafe func window_close(w : *mut NativeWindow) {
         unsafe {
     if(w.hwnd != null) {
         SendMessageW(w.hwnd, WM_CLOSE, 0, 0)
@@ -987,14 +987,14 @@ public func window_close(w : *mut NativeWindow) {
 
 // --- visual ---
 
-public func window_set_cursor(w : *mut NativeWindow, cursor : int) {
+public unsafe func window_set_cursor(w : *mut NativeWindow, cursor : int) {
         unsafe {
     w.cursor = cursor
     SetCursor(cursor_for_kind(cursor))
 
         }}
 
-public func window_set_icon(w : *mut NativeWindow, path : *char) {
+public unsafe func window_set_icon(w : *mut NativeWindow, path : *char) {
         unsafe {
     if(w.hwnd == null) {
         return
@@ -1016,7 +1016,7 @@ public func window_set_icon(w : *mut NativeWindow, path : *char) {
 
         }}
 
-public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
+public unsafe func window_set_opacity(w : *mut NativeWindow, opacity : double) {
         unsafe {
     w.opacity = opacity
     if(w.hwnd == null) {
@@ -1034,7 +1034,7 @@ public func window_set_opacity(w : *mut NativeWindow, opacity : double) {
 
         }}
 
-public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
+public unsafe func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
         unsafe {
     w.always_on_top = on_top
     if(w.hwnd != null) {
@@ -1047,7 +1047,7 @@ public func window_set_always_on_top(w : *mut NativeWindow, on_top : bool) {
 
         }}
 
-public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
+public unsafe func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
         unsafe {
     if(decorated == w.decorated) {
         return
@@ -1069,7 +1069,7 @@ public func window_set_decorated(w : *mut NativeWindow, decorated : bool) {
 
 // --- DPI / scale ---
 
-public func window_dpi(w : *mut NativeWindow) : int {
+public unsafe func window_dpi(w : *mut NativeWindow) : int {
         unsafe {
     if(w.hwnd != null) {
         var dpi = GetDpiForWindow(w.hwnd) as int
@@ -1081,7 +1081,7 @@ public func window_dpi(w : *mut NativeWindow) : int {
 
         }}
 
-public func window_scale_factor(w : *mut NativeWindow) : double {
+public unsafe func window_scale_factor(w : *mut NativeWindow) : double {
         unsafe {
     return (window_dpi(w) as double) / 96.0
 
@@ -1134,43 +1134,43 @@ public func window_monitor_scale(index : int) : double {
 
 // --- callbacks ---
 
-public func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
+public unsafe func window_set_user_data(w : *mut NativeWindow, data : *mut void) {
         unsafe {
     w.user_data = data
 
         }}
 
-public func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
+public unsafe func window_set_resize_callback(w : *mut NativeWindow, cb : ResizeCallback) {
         unsafe {
     w.resize_cb = cb
 
         }}
 
-public func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
+public unsafe func window_set_close_callback(w : *mut NativeWindow, cb : CloseCallback) {
         unsafe {
     w.close_cb = cb
 
         }}
 
-public func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
+public unsafe func window_set_focus_callback(w : *mut NativeWindow, cb : FocusCallback) {
         unsafe {
     w.focus_cb = cb
 
         }}
 
-public func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
+public unsafe func window_set_event_callback(w : *mut NativeWindow, cb : EventCallback) {
         unsafe {
     w.event_cb = cb
 
         }}
 
-public func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
+public unsafe func window_set_drop_callback(w : *mut NativeWindow, cb : DropCallback) {
         unsafe {
     w.drop_cb = cb
 
         }}
 
-public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
+public unsafe func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallback) {
         unsafe {
     w.command_cb = cb
 
@@ -1181,7 +1181,7 @@ public func window_set_command_callback(w : *mut NativeWindow, cb : CommandCallb
 // Returns the platform native handle: an HWND on Windows, a GtkWidget* on
 // Linux. Use with platform-specific code; the handle stays valid while the
 // window is created.
-public func window_native_handle(w : *mut NativeWindow) : *mut void {
+public unsafe func window_native_handle(w : *mut NativeWindow) : *mut void {
         unsafe {
     return w.hwnd as *mut void
 
@@ -1317,7 +1317,7 @@ func win_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) : v
 
 /// Set a periodic timer that calls the callback every `interval_ms` milliseconds.
 /// Returns a timer ID (positive) on success, 0 on failure.
-public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
+public unsafe func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut void) : int {
         unsafe {
     // Find a free slot
     var idx = -1
@@ -1366,7 +1366,7 @@ public func window_cancel_timer(timer_id : int) {
 // UI-thread async bridge (Tier 5) — Win32 backend
 // ===========================================================================
 
-@extern @stdcall @dllimport public func PeekMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT, wRemoveMsg : UINT) : BOOL
+@extern @stdcall @dllimport public unsafe func PeekMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT, wRemoveMsg : UINT) : BOOL
 
 comptime const PM_REMOVE : UINT = 1
 // A reserved timer id for the executor tick (SetTimer with a NULL hwnd posts

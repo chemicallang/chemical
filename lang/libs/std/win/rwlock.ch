@@ -1,37 +1,37 @@
 @dllimport
 @stdcall
 @extern
-public func InitializeSRWLock(srw : *mut u8) : void
+public unsafe func InitializeSRWLock(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func AcquireSRWLockShared(srw : *mut u8) : void
+public unsafe func AcquireSRWLockShared(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func TryAcquireSRWLockShared(srw : *mut u8) : u8
+public unsafe func TryAcquireSRWLockShared(srw : *mut u8) : u8
 
 @dllimport
 @stdcall
 @extern
-public func ReleaseSRWLockShared(srw : *mut u8) : void
+public unsafe func ReleaseSRWLockShared(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func AcquireSRWLockExclusive(srw : *mut u8) : void
+public unsafe func AcquireSRWLockExclusive(srw : *mut u8) : void
 
 @dllimport
 @stdcall
 @extern
-public func TryAcquireSRWLockExclusive(srw : *mut u8) : u8
+public unsafe func TryAcquireSRWLockExclusive(srw : *mut u8) : u8
 
 @dllimport
 @stdcall
 @extern
-public func ReleaseSRWLockExclusive(srw : *mut u8) : void
+public unsafe func ReleaseSRWLockExclusive(srw : *mut u8) : void
 
 public namespace std {
 

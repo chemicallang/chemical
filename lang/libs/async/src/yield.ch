@@ -11,7 +11,7 @@ struct YieldState {
     var vtbl : *mut core::async::FutureTable<core::async::Unit>
 }
 
-func yield_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
+unsafe func yield_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
         unsafe {
         var st = frame as *mut YieldState
         if(st.yielded) {
@@ -26,7 +26,7 @@ func yield_poll(frame : *mut void, cx : *mut core::async::Context) : core::async
         }
     }
 
-func yield_drop(frame : *mut void) {
+unsafe func yield_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut YieldState
         var vtbl = st.vtbl

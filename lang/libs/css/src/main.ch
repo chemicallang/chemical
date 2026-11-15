@@ -27,19 +27,19 @@ public func parse_css(view : std::string_view) : std::string {
     var allocator = ASTAllocator.make()
     var builder = ASTBuilder { allocator : (&raw mut allocator) as *mut BatchAllocator, typeBuilder : null }
 
-    const root = parseCSSOM((&raw mut parser) as *mut Parser, &raw mut builder)
+    const root = unsafe(parseCSSOM((&raw mut parser) as *mut Parser, &raw mut builder))
     if(root == null) {
         allocator.deinit()
         return std::string()
     }
 
     var out = std::string()
-    convert_css_root(root as *mut CSSOM, &mut out)
+    unsafe(convert_css_root(root as *mut CSSOM, &mut out))
     allocator.deinit()
     return out
 }
 
-public func parse_css_root(view : std::string_view, allocator : *mut ASTAllocator) : *mut CSSOM {
+public unsafe func parse_css_root(view : std::string_view, allocator : *mut ASTAllocator) : *mut CSSOM {
     var tokens = tokenize_css_impl(view)
 
     var parser = RuntimeParser { current : null, tokens : std::vector<Token>(), parent : null }
@@ -47,12 +47,12 @@ public func parse_css_root(view : std::string_view, allocator : *mut ASTAllocato
 
     var builder = ASTBuilder { allocator : allocator as *mut BatchAllocator, typeBuilder : null }
 
-    return parseCSSOM((&raw mut parser) as *mut Parser, &raw mut builder) as *mut CSSOM
+    return unsafe(parseCSSOM((&raw mut parser) as *mut Parser, &raw mut builder)) as *mut CSSOM
 }
 
-public func convert_css_root_to_string(root : *mut CSSOM) : std::string {
+public unsafe func convert_css_root_to_string(root : *mut CSSOM) : std::string {
     var out = std::string()
-    convert_css_root(root, &mut out)
+    unsafe(convert_css_root(root, &mut out))
     return out
 }
 

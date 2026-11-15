@@ -1,17 +1,17 @@
 @extern
-public func pthread_mutex_init(m : *mut u8, attr : *void) : int
+public unsafe func pthread_mutex_init(m : *mut u8, attr : *void) : int
 
 @extern
-public func pthread_mutex_lock(m : *mut u8) : int
+public unsafe func pthread_mutex_lock(m : *mut u8) : int
 
 @extern
-public func pthread_mutex_trylock(m : *mut u8) : int
+public unsafe func pthread_mutex_trylock(m : *mut u8) : int
 
 @extern
-public func pthread_mutex_unlock(m : *mut u8) : int
+public unsafe func pthread_mutex_unlock(m : *mut u8) : int
 
 @extern
-public func pthread_mutex_destroy(m : *mut u8) : int
+public unsafe func pthread_mutex_destroy(m : *mut u8) : int
 
 public namespace std {
 
@@ -30,7 +30,7 @@ public namespace std {
             var res = unsafe(pthread_mutex_init(&raw mut m.storage[0], null))
             // If initialization fails, we abort (you can change behavior to return an error)
             if(res != 0) {
-                panic("pthread_mutex_init failed")
+                unsafe(panic("pthread_mutex_init failed"))
             }
             return m;
         }
@@ -39,7 +39,7 @@ public namespace std {
         func lock(&mut self) {
             var res = unsafe(pthread_mutex_lock(&raw mut storage[0]))
             if(res != 0) {
-                panic("pthread_mutex_lock failed")
+                unsafe(panic("pthread_mutex_lock failed"))
             }
         }
 
@@ -59,7 +59,7 @@ public namespace std {
         func unlock(&mut self) {
             var res = unsafe(pthread_mutex_unlock(&raw mut storage[0]))
             if(res != 0) {
-                panic("pthread_mutex_unlock failed")
+                unsafe(panic("pthread_mutex_unlock failed"))
             }
         }
 

@@ -7,7 +7,7 @@
  * @see https://en.cppreference.com/w/c/io/fwide
  */
 @extern
-public func fwide(stream : *mut FILE, mode : int) : int
+public unsafe func fwide(stream : *mut FILE, mode : int) : int
 
 /**
  * Reads the next wide character from the given input stream. getwc() may be implemented as a macro and may evaluate stream more than once.
@@ -18,7 +18,7 @@ public func fwide(stream : *mut FILE, mode : int) : int
  * @see https://en.cppreference.com/w/c/io/fgetwc
  */
 @extern
-public func fgetwc(stream : *mut FILE) : wint_t
+public unsafe func fgetwc(stream : *mut FILE) : wint_t
 
 /**
  * Reads the next wide character from the given input stream. getwc() may be implemented as a macro and may evaluate stream more than once.
@@ -29,7 +29,7 @@ public func fgetwc(stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fgetwc
  */
 @extern
-public func getwc(stream : *mut FILE) : wint_t
+public unsafe func getwc(stream : *mut FILE) : wint_t
 
 /**
  * Reads at most count - 1 wide characters from the given file stream and stores them in str. The produced wide string is always null-terminated. Parsing stops if end-of-file occurs or a newline wide character is found, in which case str will contain that wide newline character.
@@ -40,7 +40,7 @@ public func getwc(stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fgetws
  */
 @extern
-public func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut wchar_t
+public unsafe func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut wchar_t
 
 /**
  * Writes a wide character ch to the given output stream stream.
@@ -52,7 +52,7 @@ public func fgetws(str : *mut wchar_t, count : int, stream : *mut FILE) : *mut w
  * @see https://en.cppreference.com/w/c/io/fputwc
  */
 @extern
-public func fputwc(ch : wchar_t, stream : *mut FILE) : wint_t
+public unsafe func fputwc(ch : wchar_t, stream : *mut FILE) : wint_t
 
 /**
  * Writes a wide character ch to the given output stream stream.
@@ -64,7 +64,7 @@ public func fputwc(ch : wchar_t, stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fputwc
  */
 @extern
-public func putwc(ch : wchar_t, stream : *mut FILE) : wint_t
+public unsafe func putwc(ch : wchar_t, stream : *mut FILE) : wint_t
 
 /**
  * Writes every character from the null-terminated wide string str to the output stream stream, as if by repeatedly executing fputwc.
@@ -76,7 +76,7 @@ public func putwc(ch : wchar_t, stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fputws
  */
 @extern
-public func fputws(str : *wchar_t, stream : *mut FILE) : int
+public unsafe func fputws(str : *wchar_t, stream : *mut FILE) : int
 
 /**
  * Reads the next wide character from stdin.
@@ -109,7 +109,7 @@ public func putwchar(ch : wchar_t) : wint_t
  * @see https://en.cppreference.com/w/c/io/ungetwc
  */
 @extern
-public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
+public unsafe func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -131,7 +131,7 @@ public func ungetwc(ch : wint_t, stream : *mut FILE) : wint_t
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func wscanf(format : *wchar_t, _ : any... ) : int
+public unsafe func wscanf(format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -153,7 +153,7 @@ public func wscanf(format : *wchar_t, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
+public unsafe func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -175,7 +175,7 @@ public func fwscanf(stream : *mut FILE, format : *wchar_t, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
+public unsafe func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -202,7 +202,7 @@ public func swscanf(buffer : *wchar_t, format : *wchar_t, _ : any... ) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func wscanf_s(format : *wchar_t, _ : any...) : int
+public unsafe func wscanf_s(format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -229,7 +229,7 @@ public func wscanf_s(format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
+public unsafe func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into given locations.
@@ -256,7 +256,7 @@ public func fwscanf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwscanf
  */
 @extern
-public func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
+public unsafe func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -278,7 +278,7 @@ public func swscanf_s( s : *wchar_t, format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vwscanf(format : *wchar_t, vlist : va_list) : int
+public unsafe func vwscanf(format : *wchar_t, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -300,7 +300,7 @@ public func vwscanf(format : *wchar_t, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+public unsafe func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -322,7 +322,7 @@ public func vfwscanf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : i
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
+public unsafe func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -349,7 +349,7 @@ public func vswscanf(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : in
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vwscanf_s(format : *wchar_t, vlist : va_list) : int
+public unsafe func vwscanf_s(format : *wchar_t, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -376,7 +376,7 @@ public func vwscanf_s(format : *wchar_t, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+public unsafe func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Reads data from the a variety of sources, interprets it according to format and stores the results into locations defined by vlist.
@@ -403,7 +403,7 @@ public func vfwscanf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) :
  * @see https://en.cppreference.com/w/c/io/vfwscanf
  */
 @extern
-public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
+public unsafe func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -429,7 +429,7 @@ public func vswscanf_s(buffer : *wchar_t, format : *wchar_t, vlist : va_list) : 
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func wprintf(format : *wchar_t, _ : any...) : int
+public unsafe func wprintf(format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -455,7 +455,7 @@ public func wprintf(format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
+public unsafe func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -481,7 +481,7 @@ public func fwprintf(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _ : any...) : int
+public unsafe func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -513,7 +513,7 @@ public func swprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, _
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func wprintf_s(format : *wchar_t, _ : any...) : int
+public unsafe func wprintf_s(format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -545,7 +545,7 @@ public func wprintf_s(format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
+public unsafe func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -577,7 +577,7 @@ public func fwprintf_s(stream : *mut FILE, format : *wchar_t, _ : any...) : int
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, _ : any...) : int
+public unsafe func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from the given locations, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -604,7 +604,7 @@ public func swprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t
  * @see https://en.cppreference.com/w/c/io/fwprintf
  */
 @extern
-public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : any...) : int
+public unsafe func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : any...) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -630,7 +630,7 @@ public func snwprintf_s(s : *mut wchar_t, n : rsize_t, format : *wchar_t, _ : an
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vwprintf(format : *wchar_t, vlist : va_list) : int
+public unsafe func vwprintf(format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -656,7 +656,7 @@ public func vwprintf(format : *wchar_t, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vfwprintf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+public unsafe func vfwprintf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -682,7 +682,7 @@ public func vfwprintf(stream : *mut FILE, format : *wchar_t, vlist : va_list) : 
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, vlist : va_list) : int
+public unsafe func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -714,7 +714,7 @@ public func vswprintf(buffer : *mut wchar_t, bufsz : size_t, format : *wchar_t, 
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vwprintf_s(format : *wchar_t, vlist : va_list) : int
+public unsafe func vwprintf_s(format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -746,7 +746,7 @@ public func vwprintf_s(format : *wchar_t, vlist : va_list) : int
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
+public unsafe func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -778,7 +778,7 @@ public func vfwprintf_s(stream : *mut FILE, format : *wchar_t, vlist : va_list) 
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
+public unsafe func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * Loads the data from locations, defined by vlist, converts them to wide string equivalents and writes the results to a variety of sinks.
@@ -805,7 +805,7 @@ public func vswprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_
  * @see https://en.cppreference.com/w/c/io/vfwprintf
  */
 @extern
-public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
+public unsafe func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar_t, vlist : va_list) : int
 
 /**
  * If ps is not a null pointer, the mbsinit function determines whether the pointed-to mbstate_t object describes the initial conversion state.
@@ -814,7 +814,7 @@ public func vsnwprintf_s(buffer : *mut wchar_t, bufsz : rsize_t, format : *wchar
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsinit
  */
 @extern
-public func mbsinit(ps : *mbstate_t) : int
+public unsafe func mbsinit(ps : *mbstate_t) : int
 
 /**
  * Widens a single-byte character c (reinterpreted as unsigned char) to its wide character equivalent.
@@ -852,7 +852,7 @@ public func wctob(c : wint_t) : int
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrlen
  */
 @extern
-public func mbrlen(s : *char, n : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbrlen(s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Determines the size, in bytes, of the representation of a multibyte character.
@@ -868,7 +868,7 @@ public func mbrlen(s : *char, n : size_t, ps : *mut mbstate_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/mbrlen
  */
 @extern
-public func mbrtowc(pwc : *mut wchar_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbrtowc(pwc : *mut wchar_t, s : *char, n : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * If s is not a null pointer, the function determines the number of bytes necessary to store the multibyte character representation of wc (including any shift sequences, and taking into account the current multibyte conversion state *ps), and stores the multibyte character representation in the character array whose first element is pointed to by s, updating *ps as necessary. At most MB_CUR_MAX bytes can be written by this function.
@@ -885,7 +885,7 @@ public func mbrtowc(pwc : *mut wchar_t, s : *char, n : size_t, ps : *mut mbstate
  * @see https://en.cppreference.com/w/c/string/multibyte/wcrtomb
  */
 @extern
-public func wcrtomb(s : *mut char, wc : wchar_t, ps : *mut mbstate_t) : size_t
+public unsafe func wcrtomb(s : *mut char, wc : wchar_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Same as (1), except that
@@ -906,7 +906,7 @@ public func wcrtomb(s : *mut char, wc : wchar_t, ps : *mut mbstate_t) : size_t
  * @see https://en.cppreference.com/w/c/string/multibyte/wcrtomb
  */
 @extern
-public func wcrtomb_s(retval : *mut size_t, s : *mut char, ssz : rsize_t, wc : wchar_t, ps : *mut mbstate_t) : errno_t
+public unsafe func wcrtomb_s(retval : *mut size_t, s : *mut char, ssz : rsize_t, wc : wchar_t, ps : *mut mbstate_t) : errno_t
 
 /**
  * Converts a null-terminated multibyte character sequence, which begins in the conversion state described by *ps, from the array whose first element is pointed to by *src to its wide character representation. If dst is not null, converted characters are stored in the successive elements of the wchar_t array pointed to by dst. No more than len wide characters are written to the destination array. Each multibyte character is converted as if by a call to mbrtowc. The conversion stops if:
@@ -923,7 +923,7 @@ public func wcrtomb_s(retval : *mut size_t, s : *mut char, ssz : rsize_t, wc : w
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs
  */
 @extern
-public func mbsrtowcs(dst : *mut wchar_t, src : **mut char, len : size_t, ps : *mut mbstate_t) : size_t
+public unsafe func mbsrtowcs(dst : *mut wchar_t, src : **mut char, len : size_t, ps : *mut mbstate_t) : size_t
 
 /**
  * Same as (1), except that
@@ -947,7 +947,7 @@ public func mbsrtowcs(dst : *mut wchar_t, src : **mut char, len : size_t, ps : *
  * @see https://en.cppreference.com/w/c/string/multibyte/mbsrtowcs
  */
 @extern
-public func mbsrtowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : **char, len : rsize_t, ps : *mut mbstate_t) : errno_t
+public unsafe func mbsrtowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_t, src : **char, len : rsize_t, ps : *mut mbstate_t) : errno_t
 
 /**
  * Converts a sequence of wide characters from the array whose first element is pointed to by *src to its narrow multibyte representation that begins in the conversion state described by *ps. If dst is not null, converted characters are stored in the successive elements of the char array pointed to by dst. No more than len bytes are written to the destination array. Each character is converted as if by a call to wcrtomb. The conversion stops if:
@@ -964,7 +964,7 @@ public func mbsrtowcs_s(retval : *mut size_t, dst : *mut wchar_t, dstsz : rsize_
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
 @extern
-public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbstate_t) : size_t
+public unsafe func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbstate_t) : size_t
 
 /**
  * Same as (1), except that
@@ -988,7 +988,7 @@ public func wcsrtombs(dst : *mut char, src : **wchar_t, len : size_t, ps : *mbst
  * @see https://en.cppreference.com/w/c/string/multibyte/wcsrtombs
  */
 @extern
-public func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, src : **wchar_t, len : rsize_t, ps : *mut mbstate_t) : errno_t
+public unsafe func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, src : **wchar_t, len : rsize_t, ps : *mut mbstate_t) : errno_t
 
 /**
  * Converts the date and time information from a given calendar time time to a null-terminated wide character string str according to format string format. Up to count bytes are written.
@@ -999,7 +999,7 @@ public func wcsrtombs_s(retval : *mut size_t, dst : *mut char, dstsz : rsize_t, 
  * @see https://en.cppreference.com/w/c/chrono/wcsftime
  */
 @extern
-public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time : *tm) : size_t
+public unsafe func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time : *tm) : size_t
 
 /**
  * Interprets an integer value in a wide string pointed to by str.
@@ -1020,7 +1020,7 @@ public func wcsftime(str : *mut wchar_t, count : size_t, format : *wchar_t, time
  * @see https://en.cppreference.com/w/c/string/wide/wcstol
  */
 @extern
-public func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
+public unsafe func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
 
 /**
  * Interprets an integer value in a wide string pointed to by str.
@@ -1041,7 +1041,7 @@ public func wcstol(str : *wchar_t, str_end : **mut wchar_t, base : int) : long
  * @see https://en.cppreference.com/w/c/string/wide/wcstol
  */
 @extern
-public func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigint
+public unsafe func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigint
 
 /**
  * Interprets an unsigned integer value in a wide string pointed to by str.
@@ -1062,7 +1062,7 @@ public func wcstoll(str : *wchar_t, str_end : **mut wchar_t, base : int) : bigin
  * @see https://en.cppreference.com/w/c/string/wide/wcstoul
  */
 @extern
-public func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
+public unsafe func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
 
 /**
  * Interprets an unsigned integer value in a wide string pointed to by str.
@@ -1083,7 +1083,7 @@ public func wcstoul(str : *wchar_t, str_end : **mut wchar_t, base : int) : ulong
  * @see https://en.cppreference.com/w/c/string/wide/wcstoul
  */
 @extern
-public func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubigint
+public unsafe func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubigint
 
 /**
  * Interprets a floating-point value in a wide string pointed to by str.
@@ -1110,7 +1110,7 @@ public func wcstoull(str : *wchar_t, str_end : **mut wchar_t, base : int) : ubig
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
 @extern
-public func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
+public unsafe func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
 
 /**
  * Interprets a floating-point value in a wide string pointed to by str.
@@ -1137,7 +1137,7 @@ public func wcstof(str : *wchar_t, str_end : **mut wchar_t) : float
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
 @extern
-public func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
+public unsafe func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
 
 /**
  * Interprets a floating-point value in a wide string pointed to by str.
@@ -1164,7 +1164,7 @@ public func wcstod(str : *wchar_t, str_end : **mut wchar_t) : double
  * @see https://en.cppreference.com/w/c/string/wide/wcstof
  */
 @extern
-public func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
+public unsafe func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
 
 /**
  * Copies the wide string pointed to by src (including the terminating null wide character) to wide character array pointed to by dest. The behavior is undefined if the dest array is not large enough. The behavior is undefined if the strings overlap.
@@ -1175,7 +1175,7 @@ public func wcstold(str : *wchar_t, str_end : **mut wchar_t) : longdouble
  * @see https://en.cppreference.com/w/c/string/wide/wcscpy
  */
 @extern
-public func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
+public unsafe func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
  * Same as (1), except that it may clobber the rest of the destination array with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1191,7 +1191,7 @@ public func wcscpy(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcscpy
  */
 @extern
-public func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
+public unsafe func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
 
 /**
  * Copies at most count characters of the wide string pointed to by src (including the terminating null wide character) to wide character array pointed to by dest.
@@ -1206,7 +1206,7 @@ public func wcscpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t) : errno_
  * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
  */
 @extern
-public func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
+public unsafe func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
 
 /**
  * Same as (1), except that the function does not continue writing zeroes into the destination array to pad up to count, it stops after writing the terminating null character (if there was no null in the source, it writes one at dest[count] and then stops). Also, the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1223,7 +1223,7 @@ public func wcsncpy(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut 
  * @see https://en.cppreference.com/w/c/string/wide/wcsncpy
  */
 @extern
-public func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+public unsafe func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
  * Appends a copy of the wide string pointed to by src to the end of the wide string pointed to by dest. The wide character src[0] replaces the null terminator at the end of dest. The resulting wide string is null-terminated. The behavior is undefined if the destination array is not large enough for the contents of both str and dest and the terminating null wide character. The behavior is undefined if the strings overlap.
@@ -1234,7 +1234,7 @@ public func wcsncpy_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t, cou
  * @see https://en.cppreference.com/w/c/string/wide/wcscat
  */
 @extern
-public func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
+public unsafe func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
  * Same as (1), except that it may clobber the rest of the destination array (from the last character written to destsz) with unspecified values and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1251,7 +1251,7 @@ public func wcscat(dest : *mut wchar_t, src : *wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcscat
  */
 @extern
-public func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
+public unsafe func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : errno_t
 
 /**
  * Appends at most count wide characters from the wide string pointed to by src, stopping if the null terminator is copied, to the end of the character string pointed to by dest. The wide character src[0] replaces the null terminator at the end of dest. The null terminator is always appended in the end (so the maximum number of wide characters the function may write is count+1).
@@ -1264,7 +1264,7 @@ public func wcscat_s(dest : *mut wchar_t, destsz : rsize_t, src : *wchar_t) : er
  * @return returns a copy of dest
  */
 @extern
-public func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
+public unsafe func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut wchar_t
 
 /**
  * Same as (1), except that this function may clobber the remainder of the destination array (from the last wide character written to destsz) and that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1282,7 +1282,7 @@ public func wcsncat(dest : *mut wchar_t, src : *wchar_t, count : size_t) : *mut 
  * @see https://en.cppreference.com/w/c/string/wide/wcsncat
  */
 @extern
-public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+public unsafe func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
  * Transforms the null-terminated wide string pointed to by src into the implementation-defined form such that comparing two transformed strings with wcscmp gives the same result as comparing the original strings with wcscoll, in the current C locale.
@@ -1295,7 +1295,7 @@ public func wcsncat_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count :
  * @see https://en.cppreference.com/w/c/string/wide/wcsxfrm
  */
 @extern
-public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_t
+public unsafe func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_t
 
 /**
  * Returns the length of a wide string, that is the number of non-null wide characters that precede the terminating null wide character.
@@ -1305,7 +1305,7 @@ public func wcsxfrm(dest : *mut wchar_t, src : *wchar_t, count : size_t) : size_
  * @see https://en.cppreference.com/w/c/string/wide/wcslen
  */
 @extern
-public func wcslen(str : *wchar_t) : size_t
+public unsafe func wcslen(str : *wchar_t) : size_t
 
 /**
  * Same as (1), except that the function returns zero if str is a null pointer and returns strsz if the null wide character was not found in the first strsz wide characters of src
@@ -1316,7 +1316,7 @@ public func wcslen(str : *wchar_t) : size_t
  * @see https://en.cppreference.com/w/c/string/wide/wcslen
  */
 @extern
-public func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
+public unsafe func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
 
 /**
  * Compares two null-terminated wide strings lexicographically.
@@ -1329,7 +1329,7 @@ public func wcsnlen_s(str : *wchar_t, strsz : size_t) : size_t
  * @see https://en.cppreference.com/w/c/string/wide/wcscmp
  */
 @extern
-public func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
+public unsafe func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
 
 /**
  * Compares at most count wide characters of two null-terminated wide strings. The comparison is done lexicographically.
@@ -1343,7 +1343,7 @@ public func wcscmp(lhs : *wchar_t, rhs : *wchar_t) : int
  * @see https://en.cppreference.com/w/c/string/wide/wcsncmp
  */
 @extern
-public func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
+public unsafe func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
 
 /**
  * Compares two null-terminated wide strings according to the collation order defined by the LC_COLLATE category of the currently installed locale.
@@ -1354,7 +1354,7 @@ public func wcsncmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
  * @see https://en.cppreference.com/w/c/string/wide/wcscoll
  */
 @extern
-public func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
+public unsafe func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
 
 /**
  * Finds the first occurrence of the wide character ch in the wide string pointed to by str.
@@ -1364,7 +1364,7 @@ public func wcscoll(lhs : *wchar_t, rhs : *wchar_t) : int
  * @see https://en.cppreference.com/w/c/string/wide/wcschr
  */
 @extern
-public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
+public unsafe func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1385,7 +1385,7 @@ public func wcschr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcsrchr
  */
 @extern
-public func wcsrchr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
+public unsafe func wcsrchr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1406,7 +1406,7 @@ public func wcsrchr(str : *wchar_t, ch : wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcsspn
  */
 @extern
-public func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
+public unsafe func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
 
 /**
  * Returns the length of the maximum initial segment of the wide string pointed to by dest, that consists of only the characters not found in wide string pointed to by src.
@@ -1416,7 +1416,7 @@ public func wcsspn(dest : *wchar_t, src : *wchar_t) : size_t
  * @see https://en.cppreference.com/w/c/string/wide/wcscspn
  */
 @extern
-public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
+public unsafe func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
 
 /**
  * Finds the first character in wide string pointed to by dest, that is also in wide string pointed to by str.
@@ -1426,7 +1426,7 @@ public func wcscspn(dest : *wchar_t, src : *wchar_t) : size_t
  * @see https://en.cppreference.com/w/c/string/wide/wcspbrk
  */
 @extern
-public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *mut wchar_t
+public unsafe func wcspbrk(dest : *wchar_t, str : *wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1442,7 +1442,7 @@ public func wcspbrk(dest : *wchar_t, str : *wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcsstr
  */
 @extern
-public func wcsstr(dest : *wchar_t, src : *wchar_t) : *mut wchar_t
+public unsafe func wcsstr(dest : *wchar_t, src : *wchar_t) : *mut wchar_t
 
 /**
  * TODO macro
@@ -1468,7 +1468,7 @@ public func wcsstr(dest : *wchar_t, src : *wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wcstok
  */
 @extern
-public func wcstok(str : *mut wchar_t, delim : *wchar_t) : *mut wchar_t
+public unsafe func wcstok(str : *mut wchar_t, delim : *wchar_t) : *mut wchar_t
 
 /**
  * Copies exactly count successive wide characters from the wide character array pointed to by src to the wide character array pointed to by dest. If the objects overlap, the behavior is undefined. If count is zero, the function does nothing.
@@ -1480,7 +1480,7 @@ public func wcstok(str : *mut wchar_t, delim : *wchar_t) : *mut wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wmemcpy
  */
 @extern
-public func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
+public unsafe func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
 
 /**
  * Same as (1), except that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1496,7 +1496,7 @@ public func wmemcpy(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
  * @return returns zero on success, returns non-zero on error. Also, on error, fills the entire dst up to and not including dst+dstsz with null wide characters, L'\0' (unless dest is null or destsz is greater than RSIZE_MAX/sizeof(wchar_t))
  */
 @extern
-public func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+public unsafe func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
  * Copies exactly count successive wide characters from the wide character array pointed to by src to the wide character array pointed to by dest. If count is zero, the function does nothing. The arrays may overlap: copying takes place as if the wide characters were copied to a temporary wide character array and then copied from the temporary array to dest.
@@ -1508,7 +1508,7 @@ public func wmemcpy_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count :
  * @see https://en.cppreference.com/w/c/string/wide/wmemmove
  */
 @extern
-public func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
+public unsafe func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
 
 /**
  * Same as (1), except that the following errors are detected at runtime and call the currently installed constraint handler function:
@@ -1524,7 +1524,7 @@ public func wmemmove(dest : *wchar_t, src : *wchar_t, count : size_t) : *wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wmemmove
  */
 @extern
-public func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
+public unsafe func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count : rsize_t) : errno_t
 
 /**
  * Compares the first count wide characters of the wide character (or compatible integer type) arrays pointed to by lhs and rhs. The comparison is done lexicographically.
@@ -1538,7 +1538,7 @@ public func wmemmove_s(dest : *wchar_t, destsz : rsize_t, src : *wchar_t, count 
  * @see https://en.cppreference.com/w/c/string/wide/wmemcmp
  */
 @extern
-public func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
+public unsafe func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
 
 /**
  * Locates the first occurrence of wide character ch in the initial count wide characters of the wide character array or integer array of compatible type, pointed to by ptr.
@@ -1549,7 +1549,7 @@ public func wmemcmp(lhs : *wchar_t, rhs : *wchar_t, count : size_t) : int
  * @see https://en.cppreference.com/w/c/string/wide/wmemchr
  */
 @extern
-public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
+public unsafe func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
 
 /**
  * Type-generic function equivalent to (1). Let T be an unqualified wide character object type.
@@ -1573,4 +1573,4 @@ public func wmemchr(ptr : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
  * @see https://en.cppreference.com/w/c/string/wide/wmemset
  */
 @extern
-public func wmemset(dest : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t
+public unsafe func wmemset(dest : *wchar_t, ch : wchar_t, count : size_t) : *wchar_t

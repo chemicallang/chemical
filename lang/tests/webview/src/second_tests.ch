@@ -47,7 +47,7 @@ func eval_cb(data : *mut void, result : *char) : void {
 public func test_webview_bind_before_init(env : &mut TestEnv) {
     // Binding before the webview is initialized (web_view == null) must fail.
     var wv = webview::NativeWebView.make()
-    var res = webview::raw::webview_bind(&raw mut wv, (m, a) => string(""))
+    var res = unsafe(webview::raw::webview_bind(&raw mut wv, (m, a) => string("")))
     if(res is std::Result.Ok) {
         env.error("webview_bind should fail when the webview is not initialized")
         return
@@ -59,14 +59,14 @@ public func test_webview_noop_on_uninitialized(env : &mut TestEnv) {
     // Every operation that touches a native window must be a safe no-op (and not
     // crash) when the webview was never initialized.
     var wv = webview::NativeWebView.make()
-    webview::raw::webview_load_html(&raw mut wv, "x\0" as *char)
-    webview::raw::webview_load_url(&raw mut wv, "about:blank\0" as *char)
-    webview::raw::webview_show(&raw mut wv)
-    webview::raw::webview_hide(&raw mut wv)
-    webview::raw::webview_evaluate_js(&raw mut wv, "1\0" as *char)
-    webview::raw::webview_set_bounds(&raw mut wv, 0, 0, 10, 10)
-    webview::raw::webview_evaluate_js_result(&raw mut wv, "1\0" as *char, eval_cb, null)
-    webview::raw::webview_destroy(&raw mut wv)
+    unsafe(webview::raw::webview_load_html(&raw mut wv, "x\0" as *char))
+    unsafe(webview::raw::webview_load_url(&raw mut wv, "about:blank\0" as *char))
+    unsafe(webview::raw::webview_show(&raw mut wv))
+    unsafe(webview::raw::webview_hide(&raw mut wv))
+    unsafe(webview::raw::webview_evaluate_js(&raw mut wv, "1\0" as *char))
+    unsafe(webview::raw::webview_set_bounds(&raw mut wv, 0, 0, 10, 10))
+    unsafe(webview::raw::webview_evaluate_js_result(&raw mut wv, "1\0" as *char, eval_cb, null))
+    unsafe(webview::raw::webview_destroy(&raw mut wv))
 }
 
 @test

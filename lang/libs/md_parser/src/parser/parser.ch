@@ -267,7 +267,7 @@ func (md : &mut MdParser) tryParseTaskCheckbox(parser : *mut Parser) : *mut MdNo
         }
     }
 
-public func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut MdRoot {
+public unsafe func parseMdRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut MdRoot {
         unsafe {
         var root = builder.allocate<MdRoot>()
         new (root) MdRoot {
@@ -1204,7 +1204,7 @@ func (md : &mut MdParser) parseBoldOrItalic(parser : *mut Parser, marker : char)
             var text = builder.allocate<MdText>()
             new (text) MdText {
                 base : MdNode { kind : MdNodeKind.Text },
-                value : unsafe(unsafe(std::string_view(ptr, count as size_t)))
+                value : unsafe(std::string_view(ptr, count as size_t))
             }
             return text as *mut MdNode;
         }
@@ -1669,7 +1669,7 @@ func (md : &mut MdParser) parseLink(parser : *mut Parser) : *mut MdNode {
                                  // Lexer probably includes them? Yes usually text token. 
                                  // But wait, if text token is "Title", it has quotes.
                                  if(ttxt.data()[ttxt.size()-1] == '"') {
-                                     const title_raw2 = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+                                     const title_raw2 = unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2))
                                      title = builder.allocate_view(&title_raw2);
                                  } else {
                                      title = builder.allocate_view(&ttxt);
@@ -1777,7 +1777,7 @@ func (md : &mut MdParser) parseImage(parser : *mut Parser) : *mut MdNode {
                                  const ttxt = parser.getToken().value;
                                  if(ttxt.size() >= 2 && ttxt.data()[0] == '"') {
                                      if(ttxt.data()[ttxt.size()-1] == '"') {
-                                         const title_raw = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+                                         const title_raw = unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2))
                                          title = builder.allocate_view(&title_raw);
                                      } else {
                                          title = builder.allocate_view(&ttxt);
@@ -1907,7 +1907,7 @@ func (md : &mut MdParser) parseReferenceDefinition(parser : *mut Parser) : *mut 
         if(isTextToken(parser.getToken().type)) {
             const ttxt = parser.getToken().value;
             if(ttxt.size() >= 2 && ttxt.data()[0] == '"' && ttxt.data()[ttxt.size()-1] == '"') {
-                const title_raw = unsafe(unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2)))
+                const title_raw = unsafe(std::string_view(ttxt.data() + 1, ttxt.size() - 2))
                 title = md.builder.allocate_view(&title_raw);
                 parser.increment();
             }

@@ -62,15 +62,15 @@ public func md_get_align_style(align : MdTableAlign) : std::string_view {
     }
 }
 
-public func md_convert_children(str : &mut std::string, children : &std::vector<*mut MdNode>, emitter : *mut MdEmitter, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) {
+public unsafe func md_convert_children(str : &mut std::string, children : &std::vector<*mut MdNode>, emitter : *mut MdEmitter, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) {
     var i = 0u
     while(i < children.size()) {
-        md_convert_md_node(str, children.at(i), emitter, highlighter, link_rewriter)
+        unsafe(md_convert_md_node(str, children.at(i), emitter, highlighter, link_rewriter))
         i++
     }
 }
 
-public func md_convert_md_node(str : &mut std::string, node : *mut MdNode, emitter : *mut MdEmitter, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) {
+public unsafe func md_convert_md_node(str : &mut std::string, node : *mut MdNode, emitter : *mut MdEmitter, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) {
         unsafe {
         if(node == null) return
         switch(node.kind) {

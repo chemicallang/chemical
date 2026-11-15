@@ -42,7 +42,7 @@ public func GetCurrentProcessId() : DWORD;
 public func Sleep(dwMilliseconds : DWORD) : void;
 
 @dllimport @extern @stdcall
-public func CreatePipe(
+public unsafe func CreatePipe(
     hReadPipe : *mut HANDLE,
     hWritePipe : *mut HANDLE,
     lpPipeAttributes : *mut SECURITY_ATTRIBUTES,

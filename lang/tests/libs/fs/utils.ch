@@ -3,15 +3,15 @@ using namespace std;
 // Small helpers for fs tests. Keep things C-like and explicit.
 
 public func env_fail(env : &mut TestEnv, msg : *char) {
-    test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
+    unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0));
 }
 
 public func env_info(env : &mut TestEnv, msg : *char) {
-    test_env::ffi::log_cstr(env, LogType.Information, msg, 0, 0);
+    unsafe(test_env::ffi::log_cstr(env, LogType.Information, msg, 0, 0));
 }
 public func expect_eq_usize(env : &mut TestEnv, actual : size_t, expected : size_t, msg : *char) : bool {
     if(actual != expected) {
-        test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0);
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, msg, 0, 0));
         return false;
     }
     return true;

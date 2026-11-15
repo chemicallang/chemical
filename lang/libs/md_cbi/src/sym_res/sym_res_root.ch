@@ -1,4 +1,4 @@
-public func sym_res_root(root : *mut MdRoot, visitor : *mut SymResLinkBody, loc : ubigint) {
+public unsafe func sym_res_root(root : *mut MdRoot, visitor : *mut SymResLinkBody, loc : ubigint) {
         unsafe {
         const pageNode = visitor.resolve(std::string_view("page"))
         if(pageNode == null) {

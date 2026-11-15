@@ -12,7 +12,7 @@ struct SleepState {
     var vtbl : *mut core::async::FutureTable<core::async::Unit>
 }
 
-func sleep_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
+unsafe func  sleep_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
         unsafe {
         var st = frame as *mut SleepState
         if(std::now_milli() - st.start_ms >= st.millis) {
@@ -23,7 +23,7 @@ func sleep_poll(frame : *mut void, cx : *mut core::async::Context) : core::async
         }
     }
 
-func sleep_drop(frame : *mut void) {
+unsafe func sleep_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut SleepState
         var vtbl = st.vtbl

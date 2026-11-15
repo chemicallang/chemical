@@ -95,7 +95,7 @@ public func read(path : &Path) : Result<vector<u8>, FsError> {
     var out = vector<u8>()
     var chunk : [8192]u8
     while(true) {
-        var r = raw::file_read(&raw mut f, &raw mut chunk[0], 8192 as size_t)
+        var r = unsafe(raw::file_read(&raw mut f, &raw mut chunk[0], 8192 as size_t))
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             var _ = raw::file_close_ref(&mut f)
@@ -133,7 +133,7 @@ public func write(path : &Path, data : &[u8]) : Result<UnitTy, FsError> {
         var _ = raw::file_close_ref(&mut f)
         return Result.Err(e)
     }
-    var fr = raw::file_flush(&raw mut f)
+    var fr = unsafe(raw::file_flush(&raw mut f))
     if(fr is Result.Err) {
         var Err(e) = fr else unsafe { unreachable }
         var _ = raw::file_close_ref(&mut f)
@@ -168,13 +168,13 @@ public func create_dir(path : &Path) : Result<UnitTy, FsError> {
     var native = path.native_ptr()
     if(native != null) { return raw::create_dir_native(native) }
     var text = path.as_string()
-    return raw::create_dir(text.c_str())
+    return unsafe(raw::create_dir(text.c_str()))
 }
 
 public func create_dir_all(path : &Path) : Result<UnitTy, FsError> {
     if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
     var text = path.as_string()
-    return raw::create_dir_all(text.c_str())
+    return unsafe(raw::create_dir_all(text.c_str()))
 }
 
 public func remove_dir(path : &Path) : Result<UnitTy, FsError> {
@@ -182,7 +182,7 @@ public func remove_dir(path : &Path) : Result<UnitTy, FsError> {
     var native = path.native_ptr()
     if(native != null) { return raw::remove_dir_native(native) }
     var text = path.as_string()
-    return raw::remove_dir(text.c_str())
+    return unsafe(raw::remove_dir(text.c_str()))
 }
 
 public func remove_dir_all(path : &Path) : Result<UnitTy, FsError> {
@@ -190,7 +190,7 @@ public func remove_dir_all(path : &Path) : Result<UnitTy, FsError> {
     var native = path.native_ptr()
     if(native != null) { return raw::remove_dir_all_recursive_native(native) }
     var text = path.as_string()
-    return raw::remove_dir_all_recursive(text.c_str())
+    return unsafe(raw::remove_dir_all_recursive(text.c_str()))
 }
 
 public func remove_file(path : &Path) : Result<UnitTy, FsError> {
@@ -198,7 +198,7 @@ public func remove_file(path : &Path) : Result<UnitTy, FsError> {
     var native = path.native_ptr()
     if(native != null) { return raw::remove_file_native(native) }
     var text = path.as_string()
-    return raw::remove_file(text.c_str())
+    return unsafe(raw::remove_file(text.c_str()))
 }
 
 public func copy_file(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
@@ -210,20 +210,20 @@ public func copy_file(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
     }
     var stext = src.as_string()
     var dtext = dst.as_string()
-    return raw::copy_file(stext.c_str(), dtext.c_str())
+    return unsafe(raw::copy_file(stext.c_str(), dtext.c_str()))
 }
 
 public func move_path(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
     if(src.has_nul() || dst.has_nul()) { return Result.Err(FsError.InvalidInput()) }
     var stext = src.as_string()
     var dtext = dst.as_string()
-    return raw::move_path(stext.c_str(), dtext.c_str())
+    return unsafe(raw::move_path(stext.c_str(), dtext.c_str()))
 }
 
 public func metadata(path : &Path) : Result<Metadata, FsError> {
     if(path.has_nul()) { return Result.Err(FsError.InvalidInput()) }
     var text = path.as_string()
-    return raw::metadata(text.c_str())
+    return unsafe(raw::metadata(text.c_str()))
 }
 
 public func exists(path : &Path) : bool {
@@ -284,14 +284,14 @@ public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
             impl.path = std::replace<PathBuf>(&mut child, std::mem.zeroed_unchecked<PathBuf>())
             impl.name = std::replace<string>(&mut name_str, std::mem.zeroed_unchecked<string>())
         }
-        if(!unsafe(state.out.try_push(DirEntry { _impl : impl }))) {
+        if(!(unsafe(state.out.try_push(DirEntry { _impl : impl })))) {
             unsafe { state.failed = true; state.err = FsError.OutOfMemory() }
             return false
         }
         return true
     }
     var text = path.as_string()
-    var r = raw::read_dir(text.c_str(), adapted)
+    var r = unsafe(raw::read_dir(text.c_str(), adapted))
     if(r is Result.Err) {
         var Err(e) = r else unsafe { unreachable }
         return Result.Err(e)
@@ -310,7 +310,7 @@ public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
 impl std::io::Read for File {
 
     func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-        var r = raw::file_read(self as *mut File, buf.data(), buf.size())
+        var r = unsafe(raw::file_read(self as *mut File, buf.data(), buf.size()))
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -322,7 +322,7 @@ impl std::io::Read for File {
     func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
-            var r = raw::file_read(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
+            var r = unsafe(raw::file_read(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos))
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -340,7 +340,7 @@ impl std::io::Read for File {
         var chunk : [8192]u8
         var total : size_t = 0
         while(true) {
-            var r = raw::file_read(self as *mut File, &raw mut chunk[0], 8192 as size_t)
+            var r = unsafe(raw::file_read(self as *mut File, &raw mut chunk[0], 8192 as size_t))
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -363,7 +363,7 @@ impl std::io::Read for File {
 impl std::io::Write for File {
 
     func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-        var r = raw::file_write(self as *mut File, buf.data(), buf.size())
+        var r = unsafe(raw::file_write(self as *mut File, buf.data(), buf.size()))
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -375,7 +375,7 @@ impl std::io::Write for File {
     func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
         var pos : size_t = 0
         while(pos < buf.size()) {
-            var r = raw::file_write(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos)
+            var r = unsafe(raw::file_write(self as *mut File, unsafe(buf.data() + pos), buf.size() - pos))
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(io_error(e))
@@ -390,7 +390,7 @@ impl std::io::Write for File {
     }
 
     func flush(&mut self) : Result<size_t, std::io::IoError> {
-        var r = raw::file_flush(self as *mut File)
+        var r = unsafe(raw::file_flush(self as *mut File))
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))
@@ -409,7 +409,7 @@ impl std::io::Seek for File {
             Current(o) => { offset = o; whence = 1 }
             End(o) => { offset = o; whence = 2 }
         }
-        var r = raw::file_seek(self as *mut File, offset, whence)
+        var r = unsafe(raw::file_seek(self as *mut File, offset, whence))
         if(r is Result.Err) {
             var Err(e) = r else unsafe { unreachable }
             return Result.Err(io_error(e))

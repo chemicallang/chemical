@@ -78,7 +78,7 @@ public struct atomic<T> {
  * @see https://en.cppreference.com/w/c/atomic/atomic_is_lock_free
  */
 @extern
-public func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
+public unsafe func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
 
 /**
  * Atomically replaces the value of the atomic variable pointed to by obj with desired. The operation is atomic write operation.
@@ -89,7 +89,7 @@ public func <A> atomic_is_lock_free(obj : *atomic<A>) : bool
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
 @extern
-public func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
+public unsafe func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
 
 /**
  * Atomically replaces the value of the atomic variable pointed to by obj with desired. The operation is atomic write operation.
@@ -101,7 +101,7 @@ public func <A, C> atomic_store(obj : *mut atomic<A>, desired : atomic<C>);
  * @see https://en.cppreference.com/w/c/atomic/atomic_store
  */
 @extern
-public func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<C>, order : memory_order);
+public unsafe func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<C>, order : memory_order);
 
 /**
  * Atomically loads and returns the current value of the atomic variable pointed to by obj. The operation is atomic read operation.
@@ -113,7 +113,7 @@ public func <A, C> atomic_store_explicit(obj : *mut atomic<A>, desired : atomic<
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
 @extern
-public func <A, C> atomic_load(obj : *atomic<A>) : C
+public unsafe func <A, C> atomic_load(obj : *atomic<A>) : C
 
 /**
  * Atomically loads and returns the current value of the atomic variable pointed to by obj. The operation is atomic read operation.
@@ -126,7 +126,7 @@ public func <A, C> atomic_load(obj : *atomic<A>) : C
  * @see https://en.cppreference.com/w/c/atomic/atomic_load
  */
 @extern
-public func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) : atomic<C>
+public unsafe func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with desired and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -139,7 +139,7 @@ public func <A, C> atomic_load_explicit(obj : *atomic<A>, order : memory_order) 
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
 @extern
-public func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atomic<C>
+public unsafe func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with desired and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -152,7 +152,7 @@ public func <A, C> atomic_exchange(obj : *atomic<A>, desired : atomic<C>) : atom
  * @see https://en.cppreference.com/w/c/atomic/atomic_exchange
  */
 @extern
-public func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C>, order : memory_order) : atomic<C>
+public unsafe func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C>, order : memory_order) : atomic<C>
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -169,7 +169,7 @@ public func <A, C> atomic_exchange_explicit(obj : *atomic<A>, desired : atomic<C
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
 @extern
-public func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
+public unsafe func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -186,7 +186,7 @@ public func <A, C> atomic_compare_exchange_strong(obj : *atomic<A>, expected : *
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
 @extern
-public func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
+public unsafe func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>) : bool
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -203,7 +203,7 @@ public func <A, C> atomic_compare_exchange_weak(obj : *atomic<A>, expected : *at
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
 @extern
-public func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order);
+public unsafe func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order);
 
 /**
  * Atomically compares the contents of memory pointed to by obj with the contents of memory pointed to by expected, and if those are bitwise equal, replaces the former with desired (performs read-modify-write operation). Otherwise, loads the actual contents of memory pointed to by obj into *expected (performs load operation).
@@ -220,7 +220,7 @@ public func <A, C> atomic_compare_exchange_strong_explicit(obj : *atomic<A>, exp
  * @see https://en.cppreference.com/w/c/atomic/atomic_compare_exchange
  */
 @extern
-public func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order) : bool
+public unsafe func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expected : *atomic<C>, desired : atomic<C>, succ : memory_order, fail : memory_order) : bool
 
 /**
  * Atomically replaces the value pointed by obj with the result of addition of arg to the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -233,7 +233,7 @@ public func <A, C> atomic_compare_exchange_weak_explicit(obj : *atomic<A>, expec
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
 @extern
-public func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of addition of arg to the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -247,7 +247,7 @@ public func <A, M, C> atomic_fetch_add(obj : *atomic<A>, arg : atomic<M>) : atom
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_add
  */
 @extern
-public func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of subtraction of arg from the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -260,7 +260,7 @@ public func <A, M, C> atomic_fetch_add_explicit(obj : *atomic<A>, arg : atomic<M
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
 @extern
-public func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of subtraction of arg from the old value of obj, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -274,7 +274,7 @@ public func <A, M, C> atomic_fetch_sub(obj : *atomic<A>, arg : atomic<M>) : atom
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_sub
  */
 @extern
-public func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise OR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -286,7 +286,7 @@ public func <A, M, C> atomic_fetch_sub_explicit(obj : *atomic<A>, arg : atomic<M
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
 @extern
-public func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise OR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -299,7 +299,7 @@ public func <A, M, C> atomic_fetch_or(obj : *atomic<A>, arg : atomic<M>) : atomi
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_or
  */
 @extern
-public func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise XOR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -312,7 +312,7 @@ public func <A, M, C> atomic_fetch_or_explicit(obj : *atomic<A>, arg : atomic<M>
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
 @extern
-public func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise XOR between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -325,7 +325,7 @@ public func <A, M, C> atomic_fetch_xor(obj : *atomic<A>, arg : atomic<M>) : atom
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_xor
  */
 @extern
-public func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise AND between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -338,7 +338,7 @@ public func <A, M, C> atomic_fetch_xor_explicit(obj : *atomic<A>, arg : atomic<M
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
 @extern
-public func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atomic<C>
 
 /**
  * Atomically replaces the value pointed by obj with the result of bitwise AND between the old value of obj and arg, and returns the value obj held previously. The operation is read-modify-write operation. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -351,7 +351,7 @@ public func <A, M, C> atomic_fetch_and(obj : *atomic<A>, arg : atomic<M>) : atom
  * @see https://en.cppreference.com/w/c/atomic/atomic_fetch_and
  */
 @extern
-public func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
+public unsafe func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M>, order : memory_order) : atomic<C>
 
 /**
  * Atomically changes the state of a atomic_flag pointed to by obj to set (true) and returns the previous value. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -362,7 +362,7 @@ public func <A, M, C> atomic_fetch_and_explicit(obj : *atomic<A>, arg : atomic<M
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_test_and_set
  */
 @extern
-public func atomic_flag_test_and_set(obj : *atomic_flag) : bool
+public unsafe func atomic_flag_test_and_set(obj : *atomic_flag) : bool
 
 /**
  * Atomically changes the state of a atomic_flag pointed to by obj to set (true) and returns the previous value. The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -373,7 +373,7 @@ public func atomic_flag_test_and_set(obj : *atomic_flag) : bool
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_test_and_set
  */
 @extern
-public func atomic_flag_test_and_set_explicit(obj : *atomic_flag, order : memory_order) : bool
+public unsafe func atomic_flag_test_and_set_explicit(obj : *atomic_flag, order : memory_order) : bool
 
 /**
  * Atomically changes the state of a atomic_flag pointed to by obj to clear (false). The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -383,7 +383,7 @@ public func atomic_flag_test_and_set_explicit(obj : *atomic_flag, order : memory
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_clear
  */
 @extern
-public func atomic_flag_clear(obj : *atomic_flag)
+public unsafe func atomic_flag_clear(obj : *atomic_flag)
 
 /**
  * Atomically changes the state of a atomic_flag pointed to by obj to clear (false). The first version orders memory accesses according to memory_order_seq_cst, the second version orders memory accesses according to order.
@@ -393,7 +393,7 @@ public func atomic_flag_clear(obj : *atomic_flag)
  * @see https://en.cppreference.com/w/c/atomic/atomic_flag_clear
  */
 @extern
-public func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
+public unsafe func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
 
 /**
  * Initializes the default-constructed atomic object obj with the value desired. The function is not atomic: concurrent access from another thread, even through an atomic operation, is a data race.
@@ -404,7 +404,7 @@ public func atomic_flag_clear_explicit(obj : *atomic_flag, order : memory_order)
  * @see https://en.cppreference.com/w/c/atomic/atomic_init
  */
 @extern
-public func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
+public unsafe func <A, C> atomic_init(obj : *atomic<A>, desired : atomic<C>);
 
 /**
  * TODO macro

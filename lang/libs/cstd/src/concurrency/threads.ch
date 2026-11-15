@@ -95,7 +95,7 @@ public func thrd_current() : thrd_t
  * @see https://en.cppreference.com/w/c/thread/thrd_sleep
  */
 @extern
-public func thrd_sleep(duration : *timespec, remaining : *timespec) : int
+public unsafe func thrd_sleep(duration : *timespec, remaining : *timespec) : int
 
 /**
  * Provides a hint to the implementation to reschedule the execution of threads, allowing other threads to run.
@@ -136,7 +136,7 @@ public func thrd_detach(thr : thrd_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/thrd_join
  */
 @extern
-public func thrd_join(thr : thrd_t, res : *int) : thrd_result
+public unsafe func thrd_join(thr : thrd_t, res : *int) : thrd_result
 
 /**
  * Creates a new mutex object with type. The object pointed to by mutex is set to an identifier of the newly created mutex.
@@ -151,7 +151,7 @@ public func thrd_join(thr : thrd_t, res : *int) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_init
  */
 @extern
-public func mtx_init(mutex : *mut mtx_t, type : int ) : thrd_result
+public unsafe func mtx_init(mutex : *mut mtx_t, type : int ) : thrd_result
 
 /**
  * Blocks the current thread until the mutex pointed to by mutex is locked.
@@ -162,7 +162,7 @@ public func mtx_init(mutex : *mut mtx_t, type : int ) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_lock
  */
 @extern
-public func mtx_lock(mutex : *mut mtx_t) : thrd_result
+public unsafe func mtx_lock(mutex : *mut mtx_t) : thrd_result
 
 /**
  * Blocks the current thread until the mutex pointed to by mutex is locked or until the TIME_UTC based absolute calendar time point pointed to by time_point has been reached.
@@ -176,7 +176,7 @@ public func mtx_lock(mutex : *mut mtx_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_timedlock
  */
 @extern
-public func mtx_timedlock(mutex : *mtx_t, time_point : *timespec) : thrd_result
+public unsafe func mtx_timedlock(mutex : *mtx_t, time_point : *timespec) : thrd_result
 
 /**
  * Tries to lock the mutex pointed to by mutex without blocking. Returns immediately if the mutex is already locked.
@@ -186,7 +186,7 @@ public func mtx_timedlock(mutex : *mtx_t, time_point : *timespec) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_trylock
  */
 @extern
-public func mtx_trylock(mutex : *mtx_t) : thrd_result
+public unsafe func mtx_trylock(mutex : *mtx_t) : thrd_result
 
 /**
  * Unlocks the mutex pointed to by mutex.
@@ -197,7 +197,7 @@ public func mtx_trylock(mutex : *mtx_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_unlock
  */
 @extern
-public func mtx_unlock(mutex : *mtx_t) : thrd_result
+public unsafe func mtx_unlock(mutex : *mtx_t) : thrd_result
 
 /**
  * Destroys the mutex pointed to by mutex.
@@ -206,7 +206,7 @@ public func mtx_unlock(mutex : *mtx_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/mtx_destroy
  */
 @extern
-public func mtx_destroy(mutex : *mtx_t);
+public unsafe func mtx_destroy(mutex : *mtx_t);
 
 /**
  * When passed to mtx_init, identifies the type of a mutex to create.
@@ -225,7 +225,7 @@ enum mtx_type {
  * @see https://en.cppreference.com/w/c/thread/call_once
  */
 @extern
-public func call_once(flag : *mut once_flag, func : () => void);
+public unsafe func call_once(flag : *mut once_flag, func : () => void);
 
 /**
  * TODO typedef
@@ -247,7 +247,7 @@ public func call_once(flag : *mut once_flag, func : () => void);
  * @return thrd_success if the condition variable was successfully created. Otherwise returns thrd_nomem if there was insufficient amount of memory or thrd_error if another error occurred.
  */
 @extern
-public func cnd_init(cond : *mut cnd_t) : thrd_result
+public unsafe func cnd_init(cond : *mut cnd_t) : thrd_result
 
 /**
  * Unblocks one thread that currently waits on condition variable pointed to by cond. If no threads are blocked, does nothing and returns thrd_success.
@@ -256,7 +256,7 @@ public func cnd_init(cond : *mut cnd_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/cnd_signal
  */
 @extern
-public func cnd_signal(cond : *mut cnd_t) : thrd_result
+public unsafe func cnd_signal(cond : *mut cnd_t) : thrd_result
 
 /**
  * Unblocks all threads that are blocked on condition variable cond at the time of the call. If no threads are blocked on cond, the function does nothing and returns thrd_success.
@@ -265,7 +265,7 @@ public func cnd_signal(cond : *mut cnd_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/cnd_broadcast
  */
 @extern
-public func cnd_broadcast(cond : *cnd_t) : thrd_result
+public unsafe func cnd_broadcast(cond : *cnd_t) : thrd_result
 
 /**
  * Atomically unlocks the mutex pointed to by mutex and blocks on the condition variable pointed to by cond until the thread is signalled by cnd_signal or cnd_broadcast, or until a spurious wake-up occurs. The mutex is locked again before the function returns.
@@ -276,7 +276,7 @@ public func cnd_broadcast(cond : *cnd_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/cnd_wait
  */
 @extern
-public func cnd_wait(cond : *mut cnd_t, mutex : *mut mtx_t) : thrd_result
+public unsafe func cnd_wait(cond : *mut cnd_t, mutex : *mut mtx_t) : thrd_result
 
 /**
  * Atomically unlocks the mutex pointed to by mutex and blocks on the condition variable pointed to by cond until the thread is signalled by cnd_signal or cnd_broadcast, or until the TIME_UTC based time point pointed to by time_point has been reached, or until a spurious wake-up occurs. The mutex is locked again before the function returns.
@@ -288,7 +288,7 @@ public func cnd_wait(cond : *mut cnd_t, mutex : *mut mtx_t) : thrd_result
  * @see https://en.cppreference.com/w/c/thread/cnd_timedwait
  */
 @extern
-public func cnd_timedwait(cond : *mut cnd_t, mutex : *mut mtx_t, time_point : *timespec) : thrd_result
+public unsafe func cnd_timedwait(cond : *mut cnd_t, mutex : *mut mtx_t, time_point : *timespec) : thrd_result
 
 /**
  * Destroys the condition variable pointed to by cond.
@@ -297,7 +297,7 @@ public func cnd_timedwait(cond : *mut cnd_t, mutex : *mut mtx_t, time_point : *t
  * @see https://en.cppreference.com/w/c/thread/cnd_destroy
  */
 @extern
-public func cnd_destroy(cond : *mut cnd_t);
+public unsafe func cnd_destroy(cond : *mut cnd_t);
 
 /**
  * TODO macro TSS_DTOR_ITERATIONS
@@ -316,7 +316,7 @@ public func cnd_destroy(cond : *mut cnd_t);
  * @see https://en.cppreference.com/w/c/thread/tss_create
  */
 @extern
-public func tss_create(tss_key : *mut tss_t, destructor : tss_dtor_t) : thrd_result
+public unsafe func tss_create(tss_key : *mut tss_t, destructor : tss_dtor_t) : thrd_result
 
 /**
  * Returns the value held in thread-specific storage for the current thread identified by tss_key. Different threads may get different values identified by the same key.
@@ -337,7 +337,7 @@ public func tss_get(tss_key : tss_t) : *mut void
  * @see https://en.cppreference.com/w/c/thread/tss_set
  */
 @extern
-public func tss_set(tss_id : tss_t, val : *mut void) : thrd_result
+public unsafe func tss_set(tss_id : tss_t, val : *mut void) : thrd_result
 
 /**
  * Destroys the thread-specific storage identified by tss_id.

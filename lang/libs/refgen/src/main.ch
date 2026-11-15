@@ -1,5 +1,5 @@
 @no_mangle
-public func transformer_main(ctx : *TransformerContext, argc : int, argv : **char) : int {
+public unsafe func transformer_main(ctx : *TransformerContext, argc : int, argv : **char) : int {
     printf("Refgen Transformer started\n");
 
     var output_dir = std::string("./docs");

@@ -27,7 +27,7 @@ public struct deque<T> {
     func reserve_blocks(&mut self, new_cap : size_t) {
         if(new_cap <= block_cap) return
         if(new_cap > ((0 as size_t) - 1) / sizeof(deque_block<T>)) {
-            panic("deque capacity overflow")
+            unsafe(panic("deque capacity overflow"))
         }
         const new_blocks = unsafe(realloc(blocks, sizeof(deque_block<T>) * new_cap)) as *mut deque_block<T>
         unsafe {

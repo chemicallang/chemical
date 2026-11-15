@@ -391,7 +391,7 @@ public func router_body_emitter_renders_into_route_host(env : &mut TestEnv) {
     const stub = std::string_view("window.$__uni_route_register(\"mainEmit\", \"dashboard\", { key: \"mainEmit#dashboard\", id: \"dashboard\", comp: null")
     if(js.find_or_npos(&stub) == std::NPOS) {
         env.error("an emitter-only route body must register with no client root")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
     }
 }
 
@@ -411,12 +411,12 @@ func router_build_app(page : &mut HtmlPage) {
 public func router_ssr_survives_a_shared_sink_hit(env : &mut TestEnv) {
     var shared = shared_assets("router")
     var p1 = HtmlPage()
-    p1.attach_shared(shared)
+    unsafe(p1.attach_shared(shared))
     p1.defaultUniversalSetup()
     router_build_app(&mut p1)
 
     var p2 = HtmlPage()
-    p2.attach_shared(shared)
+    unsafe(p2.attach_shared(shared))
     p2.defaultUniversalSetup()
     router_build_app(&mut p2)
 
@@ -425,7 +425,7 @@ public func router_ssr_survives_a_shared_sink_hit(env : &mut TestEnv) {
     const wrapper = std::string_view("class=\"chx-route\"")
     if(html.find_or_npos(&wrapper) == std::NPOS) {
         env.error("a router component already in the shared sink must still SSR its wrappers on a later page")
-        test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0))
         return
     }
     env.success("router SSR survives a shared-sink hit")
@@ -499,7 +499,7 @@ public func router_nested_url_emits_full_pattern_and_chain(env : &mut TestEnv) {
     const full = std::string_view("\"projects\", \"{id}\", \"settings\"")
     if(js.find_or_npos(&full) == std::NPOS) {
         env.error("a nested URL route should emit its full accumulated pattern")
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
         return
     }
     // ...and carries the derived-registry/id activation chain.

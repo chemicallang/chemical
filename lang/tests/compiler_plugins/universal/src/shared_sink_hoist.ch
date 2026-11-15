@@ -71,8 +71,8 @@ func sink_hoist_assert_no_inlined_definition(env : &mut TestEnv, label : &std::s
     var view = js.to_view()
     if(view.contains(&inlined_def)) {
         env.error("a component definition was emitted inside a call argument list instead of being hoisted")
-        test_env::ffi::log_cstr(env, LogType.Information, label.data(), 0, 0)
-        test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, label.data(), 0, 0))
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
         return false
     }
 
@@ -86,7 +86,7 @@ func sink_hoist_assert_no_inlined_definition(env : &mut TestEnv, label : &std::s
     var closes = sink_hoist_count_char(view, ')')
     if(opens != closes) {
         env.error("unbalanced parentheses in the emitted JS")
-        test_env::ffi::log_cstr(env, LogType.Information, label.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, label.data(), 0, 0))
         return false
     }
     return true

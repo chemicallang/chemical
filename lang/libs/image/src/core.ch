@@ -97,49 +97,49 @@ public func image_create_gray(w : int, h : int) : Image {
     return image_create(w, h, 1)
 }
 
-public func image_width(img : *mut Image) : int {
+public unsafe func image_width(img : *mut Image) : int {
         unsafe {
         return img.img_width
 
         }
     }
 
-public func image_height(img : *mut Image) : int {
+public unsafe func image_height(img : *mut Image) : int {
         unsafe {
         return img.img_height
 
         }
     }
 
-public func image_channels(img : *mut Image) : int {
+public unsafe func image_channels(img : *mut Image) : int {
         unsafe {
         return img.img_channels
 
         }
     }
 
-public func image_pixels(img : *mut Image) : *mut u8 {
+public unsafe func image_pixels(img : *mut Image) : *mut u8 {
         unsafe {
         return img.pixel_data.data() as *mut u8
 
         }
     }
 
-public func image_pixel_count(img : *mut Image) : size_t {
+public unsafe func image_pixel_count(img : *mut Image) : size_t {
         unsafe {
         return (img.img_width as size_t) * (img.img_height as size_t)
 
         }
     }
 
-public func image_bytes_per_row(img : *mut Image) : size_t {
+public unsafe func image_bytes_per_row(img : *mut Image) : size_t {
         unsafe {
         return (img.img_width as size_t) * (img.img_channels as size_t)
 
         }
     }
 
-public func image_total_bytes(img : *mut Image) : size_t {
+public unsafe func image_total_bytes(img : *mut Image) : size_t {
         unsafe {
         return image_bytes_per_row(img) * (img.img_height as size_t)
 
@@ -148,7 +148,7 @@ public func image_total_bytes(img : *mut Image) : size_t {
 
 // Read one pixel as RGBA. Grayscale (1ch) and gray+alpha (2ch) are expanded
 // to RGBA so callers get a uniform colour value for every supported layout.
-public func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGBA8, ImageError> {
+public unsafe func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGBA8, ImageError> {
         unsafe {
         if(x < 0 || x >= img.img_width || y < 0 || y >= img.img_height) {
             return std.Result.Err(ImageError.PixelOutOfBounds(x, y))
@@ -174,7 +174,7 @@ public func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGB
     }
 
 // Write one pixel, storing only the channels this image actually has.
-public func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
+public unsafe func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
         unsafe {
         if(x < 0 || x >= img.img_width || y < 0 || y >= img.img_height) {
             return std.Result.Err(ImageError.PixelOutOfBounds(x, y))
@@ -205,7 +205,7 @@ public func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : 
         }
     }
 
-public func image_fill(img : *mut Image, color : RGBA8) {
+public unsafe func image_fill(img : *mut Image, color : RGBA8) {
         unsafe {
         var bpp = img.img_channels as size_t
         var ptr = img.pixel_data.data() as *mut u8
@@ -221,7 +221,7 @@ public func image_fill(img : *mut Image, color : RGBA8) {
         }
     }
 
-public func image_copy(src : *mut Image) : Image {
+public unsafe func image_copy(src : *mut Image) : Image {
         unsafe {
         var dst = raw::image_create(src.img_width, src.img_height, src.img_channels)
         var total = image_total_bytes(src)
@@ -237,7 +237,7 @@ public func image_copy(src : *mut Image) : Image {
         }
     }
 
-public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
+public unsafe func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
         unsafe {
         if(x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > img.img_width || y + h > img.img_height) {
             return std.Result.Err(ImageError.InvalidDimensions(w, h))
@@ -263,7 +263,7 @@ public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : s
         }
     }
 
-public func image_flip_h(img : *mut Image) {
+public unsafe func image_flip_h(img : *mut Image) {
         unsafe {
         var bpp = img.img_channels as size_t
         var row_bytes = (img.img_width as size_t) * bpp
@@ -290,7 +290,7 @@ public func image_flip_h(img : *mut Image) {
         }
     }
 
-public func image_flip_v(img : *mut Image) {
+public unsafe func image_flip_v(img : *mut Image) {
         unsafe {
         var bpp = img.img_channels as size_t
         var row_bytes = (img.img_width as size_t) * bpp
@@ -313,7 +313,7 @@ public func image_flip_v(img : *mut Image) {
         }
     }
 
-public func image_rotate90(img : *mut Image) : Image {
+public unsafe func image_rotate90(img : *mut Image) : Image {
         unsafe {
         var rotated = raw::image_create(img.img_height, img.img_width, img.img_channels)
         var bpp = img.img_channels as size_t
@@ -341,7 +341,7 @@ public func image_rotate90(img : *mut Image) : Image {
         }
     }
 
-public func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
+public unsafe func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
         unsafe {
         var bpp = src.img_channels as size_t
         if(dst.img_channels != src.img_channels) {
@@ -373,7 +373,7 @@ public func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) :
         }
     }
 
-public func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int, color : RGBA8) {
+public unsafe func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int, color : RGBA8) {
         unsafe {
         var dx = x1 - x0
         var dy = y1 - y0
@@ -397,14 +397,14 @@ public func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int,
         }
     }
 
-public func image_rectangle(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
-    image_line(img, x, y, x + w - 1, y, color)
-    image_line(img, x + w - 1, y, x + w - 1, y + h - 1, color)
-    image_line(img, x + w - 1, y + h - 1, x, y + h - 1, color)
-    image_line(img, x, y + h - 1, x, y, color)
+public unsafe func image_rectangle(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
+    unsafe(image_line(img, x, y, x + w - 1, y, color))
+    unsafe(image_line(img, x + w - 1, y, x + w - 1, y + h - 1, color))
+    unsafe(image_line(img, x + w - 1, y + h - 1, x, y + h - 1, color))
+    unsafe(image_line(img, x, y + h - 1, x, y, color))
 }
 
-public func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
+public unsafe func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
         unsafe {
         var bpp = img.img_channels as size_t
         var ptr = img.pixel_data.data() as *mut u8
@@ -429,19 +429,19 @@ public func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int
         }
     }
 
-public func image_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
+public unsafe func image_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
     var x = radius
     var y = 0
     var err = 1 - radius
     while(x >= y) {
-        image_set_rgba(img, cx + x, cy + y, color)
-        image_set_rgba(img, cx + y, cy + x, color)
-        image_set_rgba(img, cx - y, cy + x, color)
-        image_set_rgba(img, cx - x, cy + y, color)
-        image_set_rgba(img, cx - x, cy - y, color)
-        image_set_rgba(img, cx - y, cy - x, color)
-        image_set_rgba(img, cx + y, cy - x, color)
-        image_set_rgba(img, cx + x, cy - y, color)
+        unsafe(image_set_rgba(img, cx + x, cy + y, color))
+        unsafe(image_set_rgba(img, cx + y, cy + x, color))
+        unsafe(image_set_rgba(img, cx - y, cy + x, color))
+        unsafe(image_set_rgba(img, cx - x, cy + y, color))
+        unsafe(image_set_rgba(img, cx - x, cy - y, color))
+        unsafe(image_set_rgba(img, cx - y, cy - x, color))
+        unsafe(image_set_rgba(img, cx + y, cy - x, color))
+        unsafe(image_set_rgba(img, cx + x, cy - y, color))
         y += 1
         if(err < 0) {
             err += 2 * y + 1
@@ -452,13 +452,13 @@ public func image_circle(img : *mut Image, cx : int, cy : int, radius : int, col
     }
 }
 
-public func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
+public unsafe func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
     var y = -radius
     while(y <= radius) {
         var x = -radius
         while(x <= radius) {
             if(x * x + y * y <= radius * radius) {
-                image_set_rgba(img, cx + x, cy + y, color)
+                unsafe(image_set_rgba(img, cx + x, cy + y, color))
             }
             x += 1
         }
@@ -468,51 +468,51 @@ public func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int
 
 // Raw byte/pointer codec entry points. Safe code uses `Image.load`/`Image.from_*`
 // and `Image.save` instead; these take C strings and raw pixel buffers.
-public func load_bmp(path : *char) : std::Result<Image, ImageError> {
+public unsafe func load_bmp(path : *char) : std::Result<Image, ImageError> {
     return impl_load_bmp(path)
 }
 
-public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+public unsafe func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
     return impl_parse_bmp(data, data_len)
 }
 
-public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+public unsafe func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
     return impl_encode_bmp(img)
 }
 
-public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+public unsafe func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     return impl_save_bmp(img, path)
 }
 
-public func load_png(path : *char) : std::Result<Image, ImageError> {
+public unsafe func load_png(path : *char) : std::Result<Image, ImageError> {
     return impl_load_png(path)
 }
 
-public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+public unsafe func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
     return impl_parse_png(data, data_len)
 }
 
-public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+public unsafe func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
     return impl_encode_png(img)
 }
 
-public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+public unsafe func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     return impl_save_png(img, path)
 }
 
-public func load_ppm(path : *char) : std::Result<Image, ImageError> {
+public unsafe func load_ppm(path : *char) : std::Result<Image, ImageError> {
     return impl_load_ppm(path)
 }
 
-public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+public unsafe func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
     return impl_parse_ppm(data, data_len)
 }
 
-public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+public unsafe func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
     return impl_encode_ppm(img)
 }
 
-public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+public unsafe func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     return impl_save_ppm(img, path)
 }
 } // end namespace raw

@@ -1,23 +1,23 @@
 @extern
-public func pthread_rwlock_init(lock : *mut u8, attr : *void) : int
+public unsafe func pthread_rwlock_init(lock : *mut u8, attr : *void) : int
 
 @extern
-public func pthread_rwlock_rdlock(lock : *mut u8) : int
+public unsafe func pthread_rwlock_rdlock(lock : *mut u8) : int
 
 @extern
-public func pthread_rwlock_tryrdlock(lock : *mut u8) : int
+public unsafe func pthread_rwlock_tryrdlock(lock : *mut u8) : int
 
 @extern
-public func pthread_rwlock_wrlock(lock : *mut u8) : int
+public unsafe func pthread_rwlock_wrlock(lock : *mut u8) : int
 
 @extern
-public func pthread_rwlock_trywrlock(lock : *mut u8) : int
+public unsafe func pthread_rwlock_trywrlock(lock : *mut u8) : int
 
 @extern
-public func pthread_rwlock_unlock(lock : *mut u8) : int
+public unsafe func pthread_rwlock_unlock(lock : *mut u8) : int
 
 @extern
-public func pthread_rwlock_destroy(lock : *mut u8) : int
+public unsafe func pthread_rwlock_destroy(lock : *mut u8) : int
 
 public namespace std {
 
@@ -35,7 +35,7 @@ public namespace std {
             var l = rwlock { storage : [] }
             var res = unsafe(pthread_rwlock_init(&raw mut l.storage[0], null))
             if(res != 0) {
-                panic("pthread_rwlock_init failed")
+                unsafe(panic("pthread_rwlock_init failed"))
             }
             return l
         }
@@ -43,7 +43,7 @@ public namespace std {
         func read_lock(&mut self) {
             var res = unsafe(pthread_rwlock_rdlock(&raw mut storage[0]))
             if(res != 0) {
-                panic("pthread_rwlock_rdlock failed")
+                unsafe(panic("pthread_rwlock_rdlock failed"))
             }
         }
 
@@ -54,7 +54,7 @@ public namespace std {
         func write_lock(&mut self) {
             var res = unsafe(pthread_rwlock_wrlock(&raw mut storage[0]))
             if(res != 0) {
-                panic("pthread_rwlock_wrlock failed")
+                unsafe(panic("pthread_rwlock_wrlock failed"))
             }
         }
 
@@ -65,7 +65,7 @@ public namespace std {
         func read_unlock(&mut self) {
             var res = unsafe(pthread_rwlock_unlock(&raw mut storage[0]))
             if(res != 0) {
-                panic("pthread_rwlock_unlock failed")
+                unsafe(panic("pthread_rwlock_unlock failed"))
             }
         }
 

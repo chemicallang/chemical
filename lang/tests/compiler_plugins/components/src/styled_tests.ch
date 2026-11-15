@@ -63,17 +63,17 @@ public func styled_assert_linked(env : &mut TestEnv, html : std::string_view, cs
         var info = std::string("class :\"")
         info.append_view(cls.to_view())
         info.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0))
         var html_ref = html
         var hinfo = std::string("html :\"")
         hinfo.append_view(&html_ref)
         hinfo.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, hinfo.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, hinfo.data(), 0, 0))
         var css_ref = css
         var cinfo = std::string("css :\"")
         cinfo.append_view(&css_ref)
         cinfo.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, cinfo.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, cinfo.data(), 0, 0))
     }
 
 }
@@ -89,12 +89,12 @@ public func styled_assert_prop(env : &mut TestEnv, css : std::string_view, prop 
     var p_ref = p.to_view()
     if(!css.contains(&p_ref)) {
         env.error("styled: css property not found")
-        test_env::ffi::log_cstr(env, LogType.Information, p.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, p.data(), 0, 0))
     }
     var v_ref = value
     if(!css.contains(&v_ref)) {
         env.error("styled: css value not found")
-        test_env::ffi::log_cstr(env, LogType.Information, value.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, value.data(), 0, 0))
     }
 }
 
@@ -171,7 +171,7 @@ public func styled_basic_no_user_class_is_only_hash(env : &mut TestEnv) {
         var info = std::string("class :\"")
         info.append_view(cls.to_view())
         info.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0))
     }
 }
 
@@ -317,8 +317,8 @@ public func styled_hash_is_deterministic(env : &mut TestEnv) {
     const cls2 = styled_extract_class_n(env, html.to_view(), 1)
     if(!cls1.to_view().equals(cls2.to_view())) {
         env.error("styled: hash class is not deterministic across instances")
-        test_env::ffi::log_cstr(env, LogType.Information, cls1.data(), 0, 0)
-        test_env::ffi::log_cstr(env, LogType.Information, cls2.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, cls1.data(), 0, 0))
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, cls2.data(), 0, 0))
     }
 }
 
@@ -427,7 +427,7 @@ public func styled_wrap_owns_css_linked_to_element(env : &mut TestEnv) {
         var info = std::string("class :\"")
         info.append_view(cls.to_view())
         info.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0))
     }
     // The wrapper's own `margin` rule must be linked to the wrapper's generated
     // class (the second token of the class attribute).
@@ -445,7 +445,7 @@ public func styled_wrap_owns_css_linked_to_element(env : &mut TestEnv) {
             var info = std::string("sel :\"")
             info.append_view(sel.to_view())
             info.append('"')
-            test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0)
+            unsafe(test_env::ffi::log_cstr(env, LogType.Information, info.data(), 0, 0))
         }
     }
 }
@@ -534,7 +534,7 @@ public func styled_identical_css_dedups_class(env : &mut TestEnv) {
         env.error("styled: identical css should produce identical hash class")
         var i = std::string("a:\"")
         i.append_view(&hashA); i.append('"'); i.append_view(std::string_view(" b:\"")); i.append_view(&hashB); i.append('"')
-        test_env::ffi::log_cstr(env, LogType.Information, i.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, i.data(), 0, 0))
     }
     var css = std::string()
     css.append_view(page.getCss())
@@ -546,7 +546,7 @@ public func styled_identical_css_dedups_class(env : &mut TestEnv) {
     var sel_ref = sel.to_view()
     if(styled_count_substr(css.to_view(), sel_ref) != 1) {
         env.error("styled: identical css rule should be emitted exactly once")
-        test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0))
     }
 }
 
@@ -579,7 +579,7 @@ public func styled_many_instances_emit_css_once(env : &mut TestEnv) {
     var sel_ref = sel.to_view()
     if(styled_count_substr(css.to_view(), sel_ref) != 1) {
         env.error("styled: css for repeated component should be emitted exactly once")
-        test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0))
     }
 }
 
@@ -650,7 +650,7 @@ public func styled_loop_emits_css_once(env : &mut TestEnv) {
     var sel_ref = sel.to_view()
     if(styled_count_substr(css.to_view(), sel_ref) != 1) {
         env.error("styled: css for loop-rendered component should be emitted exactly once")
-        test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0)
+        unsafe(test_env::ffi::log_cstr(env, LogType.Information, sel.data(), 0, 0))
     }
     styled_assert_linked(env, html.to_view(), css.to_view())
 }

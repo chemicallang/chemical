@@ -42,7 +42,7 @@ func tls13_dummy_accept_main(arg : *void) : *void {
     // A peer that speaks only TLS 1.3: accept, then immediately close without
     // completing a handshake. The client advertises TLS 1.3 but its 1.3 handshake
     // is a stub, so it cannot complete — the connection must fail.
-    var ls = net::raw::listen_addr("127.0.0.1" as *char, TLS13_TEST_PORT);
+    var ls = unsafe(net::raw::listen_addr("127.0.0.1" as *char, TLS13_TEST_PORT));
     var cs = net::raw::accept_socket(ls);
     if(cs != 0u) {
         net::raw::close_socket(cs);
@@ -97,14 +97,14 @@ func write_cn_cert_fixture(env : &mut TestEnv, path : *char) : bool {
 public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_match.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::raw::x509_crt_load_pem_file(path);
+    var cert = unsafe(tls::raw::x509_crt_load_pem_file(path));
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
-    var rc = tls::raw::x509_verify_hostname(cert, "test.example.com" as *char);
+    var rc = unsafe(tls::raw::x509_verify_hostname(cert, "test.example.com" as *char));
     if(rc != 0) {
-        tls::raw::cert_free(cert); unsafe { dealloc cert }
+        unsafe(tls::raw::cert_free(cert)); unsafe { dealloc cert }
         env.error("hostname matching CN should verify"); return
     }
-    tls::raw::cert_free(cert);
+    unsafe(tls::raw::cert_free(cert));
     unsafe { dealloc cert }
 }
 
@@ -112,15 +112,15 @@ public func https_hostname_verification_accepts_matching_cn(env : &mut TestEnv) 
 public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_san.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::raw::x509_crt_load_pem_file(path);
+    var cert = unsafe(tls::raw::x509_crt_load_pem_file(path));
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // SAN == CN here, so a SAN-aware or CN-aware check must accept.
-    var rc = tls::raw::x509_verify_hostname(cert, "test.example.com" as *char);
+    var rc = unsafe(tls::raw::x509_verify_hostname(cert, "test.example.com" as *char));
     if(rc != 0) {
-        tls::raw::cert_free(cert); unsafe { dealloc cert }
+        unsafe(tls::raw::cert_free(cert)); unsafe { dealloc cert }
         env.error("hostname matching SAN should verify"); return
     }
-    tls::raw::cert_free(cert);
+    unsafe(tls::raw::cert_free(cert));
     unsafe { dealloc cert }
 }
 
@@ -128,14 +128,14 @@ public func https_hostname_verification_accepts_matching_san(env : &mut TestEnv)
 public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_wrong.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::raw::x509_crt_load_pem_file(path);
+    var cert = unsafe(tls::raw::x509_crt_load_pem_file(path));
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
-    var rc = tls::raw::x509_verify_hostname(cert, "other.example.com" as *char);
+    var rc = unsafe(tls::raw::x509_verify_hostname(cert, "other.example.com" as *char));
     if(rc == 0) {
-        tls::raw::cert_free(cert); unsafe { dealloc cert }
+        unsafe(tls::raw::cert_free(cert)); unsafe { dealloc cert }
         env.error("hostname mismatch must be rejected"); return
     }
-    tls::raw::cert_free(cert);
+    unsafe(tls::raw::cert_free(cert));
     unsafe { dealloc cert }
 }
 
@@ -143,15 +143,15 @@ public func https_hostname_verification_rejects_wrong_host(env : &mut TestEnv) {
 public func https_hostname_verification_rejects_wrong_host_ip(env : &mut TestEnv) {
     const path = "/tmp/https_test_cn_cert_wrong_ip.pem" as *char;
     if(!write_cn_cert_fixture(env, path)) { return }
-    var cert = tls::raw::x509_crt_load_pem_file(path);
+    var cert = unsafe(tls::raw::x509_crt_load_pem_file(path));
     if(cert == null) { env.error("cert should load from embedded PEM"); return }
     // CN is a DNS name, not an IP; verifying against an IP literal must fail.
-    var rc = tls::raw::x509_verify_hostname(cert, "127.0.0.1" as *char);
+    var rc = unsafe(tls::raw::x509_verify_hostname(cert, "127.0.0.1" as *char));
     if(rc == 0) {
-        tls::raw::cert_free(cert); unsafe { dealloc cert }
+        unsafe(tls::raw::cert_free(cert)); unsafe { dealloc cert }
         env.error("IP literal must not match a DNS-only cert"); return
     }
-    tls::raw::cert_free(cert);
+    unsafe(tls::raw::cert_free(cert));
     unsafe { dealloc cert }
 }
 

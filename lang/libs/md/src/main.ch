@@ -43,7 +43,7 @@ public func lex(text : std::string_view) : std::vector<Token> {
     return tokenize_md_impl(text)
 }
 
-public func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoot {
+public unsafe func parse(tokens : *std::vector<Token>, arena : *mut Arena) : *mut MdRoot {
         unsafe {
         var tokens_copy = std::vector<Token>()
         var i = 0u
@@ -71,7 +71,7 @@ public func to_html(text : std::string_view, highlighter : (lang : std::string_v
     var allocator = ASTAllocator.make()
     var builder = ASTBuilder { allocator : (&raw mut allocator) as *mut BatchAllocator, typeBuilder : null }
 
-    const root = parseMdRoot((&raw mut parser) as *mut Parser, &raw mut builder)
+    const root = unsafe(parseMdRoot((&raw mut parser) as *mut Parser, &raw mut builder))
     if(root == null) {
         allocator.deinit()
         return std::string()
@@ -82,8 +82,8 @@ public func to_html(text : std::string_view, highlighter : (lang : std::string_v
     return out
 }
 
-public func file_to_html(path : *char, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : Result<std::string, MdError> {
-    var r = fs::raw::read_entire_file(path)
+public unsafe func file_to_html(path : *char, highlighter : (lang : std::string_view, code : std::string_view) => std::string, link_rewriter : (url : std::string_view) => std::string) : Result<std::string, MdError> {
+    var r = unsafe(fs::raw::read_entire_file(path))
     if(r is Result.Err) {
         var Err(value) = r else unsafe { unreachable };
         var msg = value.message()

@@ -1,5 +1,5 @@
 @no_mangle
-public func universal_foldingRangesPut(analyzer : &FoldingRangeAnalyzer, start : *Token, end : *Token) : *Token {
+public unsafe func universal_foldingRangesPut(analyzer : &FoldingRangeAnalyzer, start : *Token, end : *Token) : *Token {
 
     var current = start
 

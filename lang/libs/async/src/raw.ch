@@ -9,9 +9,10 @@ public namespace async {
 public namespace raw {
 
 // Type-erased poll/drop table for a spawned task. Non-generic on purpose (B20).
+// Both entries take a raw frame pointer, so they are `unsafe` function types.
 public struct TaskVTable {
-    internal var poll : (frame : *mut void, cx : *mut core::async::Context) => core::async::Poll<core::async::Unit>
-    internal var drop : (frame : *mut void) => void
+    internal var poll : unsafe (frame : *mut void, cx : *mut core::async::Context) => core::async::Poll<core::async::Unit>
+    internal var drop : unsafe (frame : *mut void) => void
 }
 
 // A queued, type-erased task. Non-generic on purpose (B20).
@@ -263,7 +264,7 @@ impl<T> !Send for SpawnTask<T> { }
 impl<T> !Sync for SpawnTask<T> { }
 
 @retained
-public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
+public unsafe func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
         var st = frame as *mut JoinState<T>
         st.m.lock()
@@ -290,7 +291,7 @@ public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Contex
     }
 
 @retained
-public func <T> spawn_join_drop(frame : *mut void) {
+public unsafe func <T> spawn_join_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut JoinState<T>
         var vtbl = st.vtbl
@@ -314,7 +315,7 @@ public func <T> spawn_join_drop(frame : *mut void) {
     }
 
 @retained
-public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
+public unsafe func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
         unsafe {
         var t = frame as *mut SpawnTask<T>
         var st = t.state
@@ -349,7 +350,7 @@ public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Contex
     }
 
 @retained
-public func <T> spawn_task_drop(frame : *mut void) {
+public unsafe func <T> spawn_task_drop(frame : *mut void) {
         unsafe {
         var t = frame as *mut SpawnTask<T>
         var st = t.state
@@ -632,7 +633,7 @@ public struct ReadyState {
 }
 
 @retained
-public func ready_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
+public unsafe func ready_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<core::async::Unit> {
         unsafe {
         var st = frame as *mut ReadyState
         // Register and yield once before reporting readiness. Awaiting a future that
@@ -652,7 +653,7 @@ public func ready_poll(frame : *mut void, cx : *mut core::async::Context) : core
     }
 
 @retained
-public func ready_drop(frame : *mut void) {
+public unsafe func ready_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut ReadyState
         var vtbl = st.vtbl
@@ -706,7 +707,7 @@ impl<T> !Send for BlockingState<T> { }
 impl<T> !Sync for BlockingState<T> { }
 
 @retained
-public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
+public unsafe func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<T> {
         unsafe {
         var st = frame as *mut BlockingState<T>
         st.m.lock()
@@ -724,7 +725,7 @@ public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context)
     }
 
 @retained
-public func <T> blocking_drop(frame : *mut void) {
+public unsafe func <T> blocking_drop(frame : *mut void) {
         unsafe {
         var st = frame as *mut BlockingState<T>
         var vtbl = st.vtbl
@@ -787,13 +788,13 @@ public func blocking_pool() : *mut std::concurrent.ThreadPool {
     public func chemical_async_frame_alloc(size : u64, align : u64) : *mut void {
         var frame = unsafe(malloc(size))
         if(frame == null) {
-            panic("failed to allocate async frame")
+            unsafe(panic("failed to allocate async frame"))
         }
         return frame
     }
 
     @no_mangle
-    public func chemical_async_frame_free(ptr : *mut void, size : u64, align : u64) {
+    public unsafe func chemical_async_frame_free(ptr : *mut void, size : u64, align : u64) {
         unsafe { free(ptr) }
     }
 

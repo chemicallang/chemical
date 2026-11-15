@@ -3,7 +3,7 @@
 //    These are all in old msvcrt.dll, so TCC will find them.
 //
 @extern public func   _open_osfhandle(h: intptr_t, flags: int) : int;
-@extern public func   _fdopen(fd: int, mode: *char)   : *mut FILE;
+@extern public unsafe func _fdopen(fd: int, mode: *char)   : *mut FILE;
 
 // Cache slots so we only do the syscall+CRT conversion once. They are
 // thread-local because the handles are process-wide but the FILE* cache must
@@ -50,8 +50,8 @@ public func get_stderr() : *mut FILE {
 
 // popen/pclose on Windows are named _popen/_pclose in the CRT.
 // We expose the POSIX names for cross-platform parity (see posix/io/stdio.ch).
-@extern public func _popen(__command : *char, __modes : *char) : *mut FILE;
-@extern public func _pclose(__stream : *mut FILE) : int;
+@extern public unsafe func _popen(__command : *char, __modes : *char) : *mut FILE;
+@extern public unsafe func _pclose(__stream : *mut FILE) : int;
 
 /* Create a new stream connected to a pipe running the given command. */
 public unsafe func popen(__command : *char, __modes : *char) : *mut FILE {

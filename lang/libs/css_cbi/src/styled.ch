@@ -28,15 +28,15 @@ public struct StyledComponent {
     var ssrTextNode : *mut ASTNode = null
 }
 
-public func styled_node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func styled_node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
 }
 
-public func styled_node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func styled_node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null;
 }
 
-public func styled_cross_mod_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
+public unsafe func styled_cross_mod_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) {
         unsafe {
         const comp = node.getDataPtr() as *mut StyledComponent;
         if (comp.signature.access == AccessSpecifier.Public) {
@@ -47,13 +47,13 @@ public func styled_cross_mod_proxy_fn(obj : *mut void, node : *mut EmbeddedNode,
     }
 
 @no_mangle
-public func styled_initializeLexer(lexer : *mut Lexer) {
+public unsafe func styled_initializeLexer(lexer : *mut Lexer) {
     // styled components reuse the css lexer for their body
-    css_initializeLexer(lexer)
+    unsafe(css_initializeLexer(lexer))
 }
 
 @no_mangle
-public func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
+public unsafe func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : AccessSpecifier) : *mut ASTNode {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -173,7 +173,7 @@ public func styled_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilde
     }
 
 @no_mangle
-public func styled_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public unsafe func styled_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
         unsafe {
         const comp = node.getDataPtr() as *mut StyledComponent;
         resolver.declare_tld_default(&comp.signature.name, node);
@@ -182,12 +182,12 @@ public func styled_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut
     }
 
 @no_mangle
-public func styled_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
+public unsafe func styled_symResSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
     // nothing to resolve at link-signature time
 }
 
 @no_mangle
-public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         const resolver = visitor.getSymbolResolver();
         const table = visitor.getSymbolTable();
@@ -326,7 +326,7 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
     }
 
 @no_mangle
-public func styled_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func styled_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut StyledComponent;
         return root.signature.functionNode;
@@ -382,7 +382,7 @@ func styled_make_children_call(builder : *mut ASTBuilder, pageParam : *mut ASTNo
     }
 
 @no_mangle
-public func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut StyledComponent;
         const funcNode = root.signature.functionNode;

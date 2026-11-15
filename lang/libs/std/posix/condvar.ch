@@ -1,23 +1,23 @@
 @extern
-public func pthread_cond_init(cond : *mut u8, attr : *void) : int
+public unsafe func pthread_cond_init(cond : *mut u8, attr : *void) : int
 
 @extern
-public func pthread_cond_destroy(cond : *mut u8) : int
+public unsafe func pthread_cond_destroy(cond : *mut u8) : int
 
 @extern
-public func pthread_cond_wait(cond : *mut u8, mutex : *mut u8) : int
+public unsafe func pthread_cond_wait(cond : *mut u8, mutex : *mut u8) : int
 
 @extern
-public func pthread_cond_timedwait(cond : *mut u8, mutex : *mut u8, abstime : *timespec) : int
+public unsafe func pthread_cond_timedwait(cond : *mut u8, mutex : *mut u8, abstime : *timespec) : int
 
 @extern
-public func pthread_cond_signal(cond : *mut u8) : int
+public unsafe func pthread_cond_signal(cond : *mut u8) : int
 
 @extern
-public func pthread_cond_broadcast(cond : *mut u8) : int
+public unsafe func pthread_cond_broadcast(cond : *mut u8) : int
 
 @extern
-public func clock_gettime(clk_id : int, ts : *mut timespec) : int
+public unsafe func clock_gettime(clk_id : int, ts : *mut timespec) : int
 
 public namespace std {
 
@@ -62,7 +62,7 @@ public namespace std {
             var c = CondVar { storage : [] }
             var res = unsafe(pthread_cond_init(&raw mut c.storage[0], null))
             if(res != 0) {
-                panic("pthread_cond_init failed")
+                unsafe(panic("pthread_cond_init failed"))
             }
             return c;
         }
@@ -72,7 +72,7 @@ public namespace std {
         func wait(&mut self, mutex : &mut std::mutex) {
             var r = unsafe(pthread_cond_wait(&raw mut storage[0], &raw mut mutex.storage[0]))
             if(r != 0) {
-                panic("pthread_cond_wait failed")
+                unsafe(panic("pthread_cond_wait failed"))
             }
         }
 
@@ -91,14 +91,14 @@ public namespace std {
         func notify_one(&mut self) {
             var r = unsafe(pthread_cond_signal(&raw mut storage[0]))
             if(r != 0) {
-                panic("pthread_cond_signal failed")
+                unsafe(panic("pthread_cond_signal failed"))
             }
         }
 
         func notify_all(&mut self) {
             var r = unsafe(pthread_cond_broadcast(&raw mut storage[0]))
             if(r != 0) {
-                panic("pthread_cond_broadcast failed")
+                unsafe(panic("pthread_cond_broadcast failed"))
             }
         }
 

@@ -5,7 +5,7 @@ using std::string;
 using std::vector;
 
 func impl_load_ppm(path : *char) : std::Result<Image, ImageError> {
-    var read_result = fs::raw::read_entire_file(path)
+    var read_result = unsafe(fs::raw::read_entire_file(path))
     if(read_result is Result.Err) {
         return std.Result.Err(ImageError.FileNotFound())
     }

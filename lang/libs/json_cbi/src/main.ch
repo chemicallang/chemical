@@ -11,7 +11,7 @@ func access_specifier_from_int(value : int) : AccessSpecifier {
 }
 
 @no_mangle
-public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : int) : *mut ASTNode {
+public unsafe func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut ASTBuilder, spec : int) : *mut ASTNode {
         unsafe {
         const location = parser.getEncodedLocation(parser.getToken())
 
@@ -95,13 +95,13 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
 // ===== Declare Phase =====
 
 @no_mangle
-public func json_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
+public unsafe func json_symResDeclareNode(resolver : *mut SymbolResolver, node : *mut EmbeddedNode) {
 }
 
 // ===== Link Signature Phase =====
 
 @no_mangle
-public func json_symResLinkSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
+public unsafe func json_symResLinkSigNode(visitor : *mut SymResLinkSignature, node : *mut EmbeddedNode) {
 }
 
 // ===== Link Body Phase =====
@@ -922,7 +922,7 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
     }
 
 @no_mangle
-public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         const resolver = visitor.getSymbolResolver()
         const info = node.getDataPtr() as *mut SerializableInfo
@@ -1101,7 +1101,7 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
 // the declare pass writes prototypes/vtables, the body pass writes definitions.
 
 @no_mangle
-public func json_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *ASTNode {
+public unsafe func json_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const info = node.getDataPtr() as *mut SerializableInfo
         return info.replacement_scope as *ASTNode
@@ -1110,7 +1110,7 @@ public func json_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *
     }
 
 @no_mangle
-public func json_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *mut ASTNode {
+public unsafe func json_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *mut ASTNode {
         unsafe {
         const info = node.getDataPtr() as *mut SerializableInfo
         return info.replacement_scope

@@ -23,7 +23,7 @@ using std::string_view
 // Send a fully pre-composed response (headers + body) over TLS.
 func sdv_send_raw(ssl : *mut SSLContext, resp : string) : int {
     if(resp.size() == 0u) { return -1 }
-    return ssl_write(ssl, resp.data() as *u8, resp.size() as i32)
+    return unsafe(ssl_write(ssl, resp.data() as *u8, resp.size() as i32))
 }
 
 // Extract the request target (path[?query]) from the request line.
@@ -82,20 +82,20 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     pk.append_view(hex_path.to_view())
     test_py_run_foreground(pk.to_view())
 
-    var cert = x509_crt_load_pem_file(cert_path.data())
+    var cert = unsafe(x509_crt_load_pem_file(cert_path.data()))
     if(cert == null) { env.error("cert load failed"); return false }
 
-    var priv_key = ec_privkey_load_hex_file(hex_path.data())
+    var priv_key = unsafe(ec_privkey_load_hex_file(hex_path.data()))
     if(priv_key == null) {
-        cert_free(cert); unsafe { dealloc cert }
+        unsafe(cert_free(cert)); unsafe { dealloc cert }
         env.error("private key load failed")
         return false
     }
 
-    var ls = listen_addr("127.0.0.1", port)
+    var ls = unsafe(listen_addr("127.0.0.1", port))
     if(ls == 0 as net::raw::Socket) {
-        cert_free(cert); unsafe { dealloc cert }
-        ecdsa_context_free(priv_key)
+        unsafe(cert_free(cert)); unsafe { dealloc cert }
+        unsafe(ecdsa_context_free(priv_key))
         env.error("listen failed")
         return false
     }
@@ -162,21 +162,21 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         }
 
         var ssl_mem = unsafe(malloc(sizeof(SSLContext))) as *mut SSLContext
-        ssl_init(ssl_mem)
-        ssl_set_socket(ssl_mem, cs)
+        unsafe(ssl_init(ssl_mem))
+        unsafe(ssl_set_socket(ssl_mem, cs))
         var cfg = ssl_config_init(SSL_IS_SERVER)
         cfg.own_cert = cert
         cfg.own_key = priv_key as *mut void
         cfg.max_tls_version = SSL_VERSION_TLS1_3
-        ssl_set_config(ssl_mem, &raw mut cfg)
+        unsafe(ssl_set_config(ssl_mem, &raw mut cfg))
 
-        var hret = ssl_handshake(ssl_mem)
+        var hret = unsafe(ssl_handshake(ssl_mem))
         if(hret < 0) {
             env.error("server handshake failed")
             var dmsg = string("handshake ret=")
             dmsg.append_integer(hret)
-            test_env::ffi::log_cstr(env, LogType.Error, dmsg.data(), 0, 0)
-            ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
+            unsafe(test_env::ffi::log_cstr(env, LogType.Error, dmsg.data(), 0, 0))
+            unsafe(ssl_free(ssl_mem)); unsafe { dealloc ssl_mem }
             net::raw::close_socket(cs)
             ok = false
             break
@@ -196,8 +196,8 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
             ok = false
         }
 
-        ssl_close_notify(ssl_mem)
-        ssl_free(ssl_mem)
+        unsafe(ssl_close_notify(ssl_mem))
+        unsafe(ssl_free(ssl_mem))
         unsafe { dealloc ssl_mem }
         net::raw::close_socket(cs)
         served += 1
@@ -211,9 +211,9 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         if(en2 > 0) { errbuf2[en2] = 0; unsafe { printf("[SDV py-stderr] %s\n", &raw errbuf2[0]) } }
     }
 
-    cert_free(cert)
+    unsafe(cert_free(cert))
     unsafe { dealloc cert }
-    ecdsa_context_free(priv_key)
+    unsafe(ecdsa_context_free(priv_key))
     net::raw::close_socket(ls)
     test_kill_port(port as int)
     return ok

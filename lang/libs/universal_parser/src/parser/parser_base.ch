@@ -1,4 +1,4 @@
-public type JsStyleBlockFn = (parser : *mut Parser, builder : *mut ASTBuilder, dyn_values : *mut std::vector<*mut Value>) => *mut JsNode
+public type JsStyleBlockFn = unsafe (parser : *mut Parser, builder : *mut ASTBuilder, dyn_values : *mut std::vector<*mut Value>) => *mut JsNode
 
 public struct JsParser {
     var dyn_values : *mut std::vector<*mut Value>

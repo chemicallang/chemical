@@ -1,5 +1,5 @@
 @no_mangle
-public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func universal_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut JsComponentDecl;
         return root.signature.functionNode ;
@@ -36,7 +36,7 @@ func make_set_component_hash_call_static(builder : *mut ASTBuilder, support : &m
     }
 
 @no_mangle
-public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const root = value.getDataPtr() as *mut JsComponentDecl;
         const funcNode = root.signature.functionNode;

@@ -6,7 +6,7 @@
  * package; the CBI plugin keeps its own component-declaration entry in
  * react/macro.ch.
  */
-public func parseUniversalRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsBlock {
+public unsafe func parseUniversalRoot(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsBlock {
         unsafe {
         var dyn_values = std::vector<*mut Value>()
         var components = std::vector<*mut JsJSXElement>()

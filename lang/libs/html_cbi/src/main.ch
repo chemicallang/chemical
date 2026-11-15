@@ -1,5 +1,5 @@
 @no_mangle
-public func html_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
+public unsafe func html_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNode) {
         unsafe {
         visitor.visitEmbeddedNode(node)
         const resolver = visitor.getSymbolResolver();
@@ -11,7 +11,7 @@ public func html_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
     }
 
 @no_mangle
-public func html_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
+public unsafe func html_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut HtmlRoot;
@@ -32,16 +32,16 @@ public func html_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut AST
         }
     }
 
-public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
+public unsafe func node_known_type_func(value : *EmbeddedNode) : *BaseType {
     return null;
 }
 
-public func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
+public unsafe func node_child_res_func(value : *EmbeddedNode, name : &std::string_view) : *ASTNode {
     return null;
 }
 
 @no_mangle
-public func html_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
+public unsafe func html_symResValue(visitor : *mut SymResLinkBody, value : *mut EmbeddedValue) : bool {
         unsafe {
         visitor.visitEmbeddedValue(value)
         const resolver = visitor.getSymbolResolver();
@@ -54,7 +54,7 @@ public func html_symResValue(visitor : *mut SymResLinkBody, value : *mut Embedde
     }
 
 @no_mangle
-public func html_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
+public unsafe func html_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
         unsafe {
         const loc = intrinsics::get_raw_location();
         const root = value.getDataPtr() as *mut HtmlRoot;
@@ -79,7 +79,7 @@ public func html_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut AS
     }
 
 @no_mangle
-public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
+public unsafe func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder) : *mut Value {
         unsafe {
         const tok = parser.getToken()
         const loc = parser.getEncodedLocation(tok)
@@ -100,7 +100,7 @@ public func html_parseMacroValue(parser : *mut Parser, builder : *mut ASTBuilder
     }
 
 @no_mangle
-public func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+public unsafe func html_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
         unsafe {
          const tok = parser.getToken()
          const loc = parser.getEncodedLocation(tok)
@@ -190,7 +190,7 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
 }
 
 @no_mangle
-public func html_initializeLexer(lexer : *mut Lexer) {
+public unsafe func html_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(HtmlLexer), alignof(HtmlLexer)) as *mut HtmlLexer;
@@ -282,7 +282,7 @@ public func ut_getNextToken(ut : &mut UTLexer, lexer : &mut Lexer) : Token {
 }
 
 @no_mangle
-public func ut_initializeLexer(lexer : *mut Lexer) {
+public unsafe func ut_initializeLexer(lexer : *mut Lexer) {
         unsafe {
         const file_allocator = lexer.getFileAllocator();
         const ptr = file_allocator.allocate_size(sizeof(UTLexer), alignof(UTLexer)) as *mut UTLexer;

@@ -178,7 +178,7 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
  * Returns 0 otherwise.
  */
 @retained
-public func run_test_runner_reporting(tests_view : std::span<TestFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
+public unsafe func run_test_runner_reporting(tests_view : std::span<TestFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int { unsafe {
 
     if(argc == 0) {
         // error out, the executable argument not given
@@ -219,9 +219,9 @@ public func run_test_runner_reporting(tests_view : std::span<TestFunction>, repo
 
 /** Single-runner entry point: streams to a default console reporter. */
 @retained
-public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
+public unsafe func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
     var console = new_console_reporter()
-    const is_child = run_test_runner_reporting(tests_view, &mut console, argc, argv)
+    const is_child = unsafe(run_test_runner_reporting(tests_view, &mut console, argc, argv))
     if(is_child == 0) {
         finish_reporter(&mut console)
     }
@@ -231,7 +231,7 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
 type TestHandleRunFn = (h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
 
 @retained
-public func test_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+public unsafe func test_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     unsafe {
         var ptr = h.tests_ptr_value() as *mut TestFunction
         var span = unsafe(std::span<TestFunction>(ptr, h.tests_count_value()))
@@ -241,12 +241,12 @@ public func test_handle_run(h : *mut test_report::ffi::TestRunnerHandle, reporte
 
 @retained
 public func make_test_runner_handle(tests : std::span<TestFunction>) : test_report::ffi::TestRunnerHandle {
-    return test_report::ffi::make_runner_handle(
+    return unsafe(test_report::ffi::make_runner_handle(
         std::string_view("test"),
         tests.data() as *void,
         tests.size(),
         test_handle_run as TestHandleRunFn
-    )
+    ))
 }
 
 /**
@@ -261,5 +261,5 @@ public comptime func test_runner_handle() : test_report::ffi::TestRunnerHandle {
 
 public comptime func test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {
     const t = get_tests()
-    return run_test_runner(std::span<TestFunction>(t), argc, argv)
+    return unsafe(run_test_runner(std::span<TestFunction>(t), argc, argv))
 }

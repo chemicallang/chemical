@@ -207,8 +207,8 @@ func safety_static_text_worker(text : &'static str) : int {
 @test
 func static_str_view_is_send(env : &mut TestEnv) {
     var text : &'static str = "static text"
-    var worker = std::thread.spawn<std::str<'static>, int>(
-        safety_static_text_worker, text)
+    var worker = unsafe(std::thread.spawn<std::str<'static>, int>(
+        safety_static_text_worker, text))
     var length = worker.join()
     if(length != 11) {
         env.error("a static string view should transfer and retain its length")
@@ -381,7 +381,7 @@ func vector_zero_sized_element_works(env : &mut TestEnv) {
     var rc = safety_compile_and_run(env, "vector_zero_sized_element_works", ch, &mut out)
     if(rc != 0) {
         env.error("zero-sized vector should compile and run")
-        if(out.size() > 0) { test_env::ffi::log_cstr(env, LogType.Error, out.data(), 0, 0) }
+        if(out.size() > 0) { unsafe(test_env::ffi::log_cstr(env, LogType.Error, out.data(), 0, 0)) }
     }
 }
 
@@ -1467,7 +1467,7 @@ func partial_array_reassignment_destroys_old_element(env : &mut TestEnv) {
 }
 
 public func main(argc : int, argv : **char) {
-    test_runner(argc, argv)
+    unsafe(test_runner(argc, argv))
 }
 
 

@@ -226,11 +226,11 @@ func (converter : &mut ASTConverter) put_chemical_value_in(value_ptr : *mut Valu
 // ─── CSS value writing (via shared standalone functions) ─────────────────────
 
 func (converter : &mut ASTConverter) writeValue(value : &mut CSSValue) {
-    writeCssValueToBuffer(value, &mut converter.str, converter.as_emitter())
+    unsafe(writeCssValueToBuffer(value, &mut converter.str, converter.as_emitter()))
 }
 
 func (converter : &mut ASTConverter) convertDeclaration(decl : *mut CSSDeclaration) {
-    css_write_declaration_text(decl, &mut converter.str, converter.as_emitter())
+    unsafe(css_write_declaration_text(decl, &mut converter.str, converter.as_emitter()))
 }
 
 // ─── CBI-specific entry points ──────────────────────────────────────────────

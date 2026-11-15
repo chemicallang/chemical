@@ -44,7 +44,7 @@ func test_invalid_trailing_comma(env : &mut TestEnv) {
     var ph = ASTJsonHandler();
     var parser = JsonParser(256, 8192);
     var doc = std::string_view("{\"a\":1,}");
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph);
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph));
     if (r.ok) {
         env.error("Expected error for trailing comma");
     }
@@ -97,7 +97,7 @@ func test_invalid_trailing_data(env : &mut TestEnv) {
     var ph = ASTJsonHandler();
     var parser = JsonParser(128, 4096);
     var doc = std::string_view("{\"a\":1} trailing");
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph);
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph));
     if (r.ok) {
         env.error("Expected error for trailing data");
     }
@@ -108,7 +108,7 @@ func test_invalid_missing_value(env : &mut TestEnv) {
     var ph = ASTJsonHandler();
     var parser = JsonParser(128, 4096);
     var doc = std::string_view("[1, , 2]");
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph);
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph));
     if (r.ok) {
         env.error("Expected error for missing value in array");
     }
@@ -119,13 +119,13 @@ func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
     var ph = ASTJsonHandler();
     var parser = JsonParser(128, 4096);
     var doc = std::string_view("name=howla&username=howla&email=howla%40gmail.com&password=howla&confirm_password=howla");
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph);
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph));
     if (r.ok) {
         env.error("Expected error for form-urlencoded data being parsed as JSON");
     } else {
         const msg_view = unsafe(std::string_view(r.msg))
         if (!msg_view.equals("invalid literal")) {
-             test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0);
+             unsafe(test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0));
         }
     }
 }
@@ -458,7 +458,7 @@ func test_encoder_encode_generic_float(env : &mut TestEnv) {
     if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var pr = json::raw::parse(&mut parser, output.data(), output.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, output.data(), output.size(), &mut ph))
     if(!pr.ok) { env.error("float re-parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<float>()
@@ -484,7 +484,7 @@ func test_encoder_encode_generic_double(env : &mut TestEnv) {
     }
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var pr = json::raw::parse(&mut parser, output.data(), output.size(), &mut ph)
+    var pr = unsafe(json::raw::parse(&mut parser, output.data(), output.size(), &mut ph))
     if(!pr.ok) { env.error("double re-parse failed"); return }
     var dec = JsonDecoder { value : &ph.root }
     var res = dec.decode<double>()
@@ -514,7 +514,7 @@ func test_decoder_decode_bool(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("true")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_bool()
@@ -528,7 +528,7 @@ func test_decoder_decode_i64(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("42")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_i64()
@@ -542,7 +542,7 @@ func test_decoder_decode_i64_negative(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("-7")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_i64()
@@ -556,7 +556,7 @@ func test_decoder_decode_u64(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("99")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_u64()
@@ -570,7 +570,7 @@ func test_decoder_decode_double(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("3.14")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_double()
@@ -584,7 +584,7 @@ func test_decoder_decode_float(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("2.5")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_float()
@@ -598,7 +598,7 @@ func test_decoder_decode_char(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("\"A\"")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_char()
@@ -612,7 +612,7 @@ func test_decoder_decode_str(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("\"hello\"")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_str()
@@ -635,7 +635,7 @@ func test_decoder_decode_null(env : &mut TestEnv) {
 
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("null")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var val = d.decode_null()
@@ -649,7 +649,7 @@ func test_decoder_decode_generic_bool(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("true")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<bool>()
@@ -665,7 +665,7 @@ func test_decoder_decode_generic_uint(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("42")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<uint>()
@@ -681,7 +681,7 @@ func test_decoder_decode_generic_float(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("3.14")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<float>()
@@ -697,7 +697,7 @@ func test_decoder_decode_generic_double(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("3.14")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<double>()
@@ -713,7 +713,7 @@ func test_decoder_decode_generic_string_view(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("\"hello world\"")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<std::string_view>()
@@ -731,12 +731,12 @@ func test_encode_json_roundtrip_simple(env : &mut TestEnv) {
     var input = std::string_view("{\"name\":\"Alice\",\"age\":30,\"tags\":[1,2,3]}")
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var r = json::raw::parse(&mut parser, input.data(), input.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, input.data(), input.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 8192)
-    var r2 = json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2)
+    var r2 = unsafe(json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2))
     if(!r2.ok) { env.error("roundtrip re-parse failed"); return }
     var encoded2 = json::stringify(&ph2.root)
     if(!encoded.to_view().equals(encoded2.to_view())) {
@@ -749,12 +749,12 @@ func test_encode_json_roundtrip_nested(env : &mut TestEnv) {
     var input = std::string_view("{\"a\":[1,null,{\"b\":false}],\"c\":\"d\"}")
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
-    var r = json::raw::parse(&mut parser, input.data(), input.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, input.data(), input.size(), &mut ph))
     if(!r.ok) { env.error("parse failed"); return }
     var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 8192)
-    var r2 = json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2)
+    var r2 = unsafe(json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2))
     if(!r2.ok) { env.error("roundtrip re-parse failed"); return }
     var encoded2 = json::stringify(&ph2.root)
     if(!encoded.to_view().equals(encoded2.to_view())) {
@@ -767,7 +767,7 @@ func test_double_encode_decode_number(env : &mut TestEnv) {
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
     var doc = std::string_view("42")
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if(!r.ok) { env.error("parse 42 failed"); return }
     if(!(ph.root is JsonValue.Number)) { env.error("expected Number variant"); return }
     var encoded = json::stringify(&ph.root)
@@ -838,12 +838,12 @@ func test_long_string_roundtrip(env : &mut TestEnv) {
     doc.append_view(std::string_view("\"}"))
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 1048576)
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
-    if (!r.ok) { test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0); return }
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
+    if (!r.ok) { unsafe(test_env::ffi::log_cstr(env, LogType.Error, r.msg, 0, 0)); return }
     var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 1048576)
-    var r2 = json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2)
+    var r2 = unsafe(json::raw::parse(&mut parser2, encoded.data(), encoded.size(), &mut ph2))
     if (!r2.ok) { env.error("roundtrip re-parse failed"); return }
     var encoded2 = json::stringify(&ph2.root)
     if (!encoded.to_view().equals(encoded2.to_view())) { env.error("long string roundtrip mismatch") }
@@ -902,6 +902,6 @@ func test_the_default_ceiling_still_refuses_a_long_string(env : &mut TestEnv) {
     doc.append_view(std::string_view("\"}"))
     var ph = ASTJsonHandler()
     var parser = JsonParser(128, 4096)
-    var r = json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph)
+    var r = unsafe(json::raw::parse(&mut parser, doc.data(), doc.size(), &mut ph))
     if (r.ok) { env.error("a 5000 char string must not pass the default 4096 ceiling"); return }
 }

@@ -61,7 +61,7 @@ public enum PermissionMode : uint {
  * @return File descriptor ≥0 on success, or –1 on error.
  */
 @extern
-public func open(pathname : *char, flags : int, mode : int) : int
+public unsafe func open(pathname : *char, flags : int, mode : int) : int
 
 /**
  * @brief Close a file descriptor.
@@ -79,7 +79,7 @@ public func close(fd : int) : int
  * @return Number of bytes read (≥0), or –1 on error.
  */
 @extern
-public func read(fd : int, buf : *mut void, count : ulong) : ssize_t
+public unsafe func read(fd : int, buf : *mut void, count : ulong) : ssize_t
 
 /**
  * @brief Write bytes to a file descriptor.
@@ -89,7 +89,7 @@ public func read(fd : int, buf : *mut void, count : ulong) : ssize_t
  * @return Number of bytes written (≥0), or –1 on error.
  */
 @extern
-public func write(fd : int, buf : *void, count : ulong) : ssize_t
+public unsafe func write(fd : int, buf : *void, count : ulong) : ssize_t
 
 /**
  * @brief Create a new directory.
@@ -98,4 +98,4 @@ public func write(fd : int, buf : *void, count : ulong) : ssize_t
  * @return 0 on success, –1 on error.
  */
 @extern
-public func mkdir(pathname : *char, mode : uint) : int
+public unsafe func mkdir(pathname : *char, mode : uint) : int

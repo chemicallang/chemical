@@ -61,6 +61,6 @@ struct SerializableInfo {
     var replacement_scope : *mut Scope = null
 }
 
-public func known_type_fn(value : *EmbeddedNode) : *BaseType { return null }
-public func child_res_fn(value : *EmbeddedNode, name : &std::string_view) : *ASTNode { return null }
-public func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) { }
+public unsafe func known_type_fn(value : *EmbeddedNode) : *BaseType { return null }
+public unsafe func child_res_fn(value : *EmbeddedNode, name : &std::string_view) : *ASTNode { return null }
+public unsafe func cross_mod_sym_decl_proxy_fn(obj : *mut void, node : *mut EmbeddedNode, fn : CrossModuleSymbolDeclarerFn, at_least_spec : AccessSpecifier) { }

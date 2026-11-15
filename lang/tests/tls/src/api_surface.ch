@@ -52,34 +52,34 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     if(ecp_curve_id() != 0) { env.error("curve id should be 0 for P-256"); return }
 
     var p : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var n : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gx : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gy : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var b : Mpi
-    ecp_curve_p(unsafe(&raw mut p)); ecp_curve_n(unsafe(&raw mut n))
-    ecp_curve_gx(unsafe(&raw mut gx)); ecp_curve_gy(unsafe(&raw mut gy)); ecp_curve_b(unsafe(&raw mut b))
+    unsafe(ecp_curve_p(unsafe(&raw mut p))); unsafe(ecp_curve_n(unsafe(&raw mut n)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut gx))); unsafe(ecp_curve_gy(unsafe(&raw mut gy))); unsafe(ecp_curve_b(unsafe(&raw mut b)))
 
     // P-256 prime: 2^256 - 2^224 + 2^192 + 2^96 - 1 → 256 bits
-    if(mpi_bitlen(unsafe(&raw mut p)) != 256) { env.error("P-256 p bitlen should be 256"); return }
+    if(unsafe(mpi_bitlen(unsafe(&raw mut p))) != 256) { env.error("P-256 p bitlen should be 256"); return }
     // Group order n is also 256 bits
-    if(mpi_bitlen(unsafe(&raw mut n)) != 256) { env.error("P-256 n bitlen should be 256"); return }
+    if(unsafe(mpi_bitlen(unsafe(&raw mut n))) != 256) { env.error("P-256 n bitlen should be 256"); return }
 
     // Generator coordinates are canonical 256-bit values (nonzero, < p).
-    if(mpi_cmp(unsafe(&raw mut gx), unsafe(&raw mut p)) >= 0) { env.error("P-256 Gx must be < p"); return }
-    if(mpi_is_zero(unsafe(&raw mut gx))) { env.error("P-256 Gx must not be zero"); return }
-    if(mpi_cmp(unsafe(&raw mut gy), unsafe(&raw mut p)) >= 0) { env.error("P-256 Gy must be < p"); return }
+    if(unsafe(mpi_cmp(unsafe(&raw mut gx), unsafe(&raw mut p))) >= 0) { env.error("P-256 Gx must be < p"); return }
+    if(unsafe(mpi_is_zero(unsafe(&raw mut gx)))) { env.error("P-256 Gx must not be zero"); return }
+    if(unsafe(mpi_cmp(unsafe(&raw mut gy), unsafe(&raw mut p))) >= 0) { env.error("P-256 Gy must be < p"); return }
 
     // Curve equation check: y^2 mod p == (x^3 + a*x + b) mod p with a = p-3.
     var y2 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var x3 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var ax : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var a : Mpi
     var rhs : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>())
     var three : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>())
-    mpi_lset(unsafe(&raw mut three), 3)
-    mpi_sub(unsafe(&raw mut a), unsafe(&raw mut p), unsafe(&raw mut three))
-    mpi_mul(unsafe(&raw mut y2), unsafe(&raw mut gy), unsafe(&raw mut gy))
-    mpi_mod(unsafe(&raw mut y2), unsafe(&raw mut y2), unsafe(&raw mut p))
-    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut gx), unsafe(&raw mut gx))
-    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut gx))
-    mpi_mul(unsafe(&raw mut ax), unsafe(&raw mut a), unsafe(&raw mut gx))
-    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut x3), unsafe(&raw mut ax))
-    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b))
-    mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-    if(mpi_cmp(unsafe(&raw mut y2), unsafe(&raw mut rhs)) != 0) {
+    unsafe(mpi_lset(unsafe(&raw mut three), 3))
+    unsafe(mpi_sub(unsafe(&raw mut a), unsafe(&raw mut p), unsafe(&raw mut three)))
+    unsafe(mpi_mul(unsafe(&raw mut y2), unsafe(&raw mut gy), unsafe(&raw mut gy)))
+    unsafe(mpi_mod(unsafe(&raw mut y2), unsafe(&raw mut y2), unsafe(&raw mut p)))
+    unsafe(mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut gx), unsafe(&raw mut gx)))
+    unsafe(mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut gx)))
+    unsafe(mpi_mul(unsafe(&raw mut ax), unsafe(&raw mut a), unsafe(&raw mut gx)))
+    unsafe(mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut x3), unsafe(&raw mut ax)))
+    unsafe(mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b)))
+    unsafe(mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p)))
+    if(unsafe(mpi_cmp(unsafe(&raw mut y2), unsafe(&raw mut rhs))) != 0) {
         env.error("P-256 generator must satisfy the curve equation")
         return
     }
@@ -89,14 +89,14 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     if(ecp_curve_id() != 1) { env.error("curve id should be 1 for P-384"); return }
 
     var p384 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var gx384 : Mpi = unsafe(std::mem.zeroed_unchecked<Mpi>()); var b384 : Mpi
-    ecp_curve_p(unsafe(&raw mut p384))
-    ecp_curve_gx(unsafe(&raw mut gx384))
-    ecp_curve_b(unsafe(&raw mut b384))
+    unsafe(ecp_curve_p(unsafe(&raw mut p384)))
+    unsafe(ecp_curve_gx(unsafe(&raw mut gx384)))
+    unsafe(ecp_curve_b(unsafe(&raw mut b384)))
 
     // P-384 prime: 2^384 - 2^128 - 2^96 + 2^32 - 1 → 384 bits
-    if(mpi_bitlen(unsafe(&raw mut p384)) != 384) { env.error("P-384 p bitlen should be 384"); return }
-    if(mpi_bitlen(unsafe(&raw mut gx384)) == 0) { env.error("P-384 Gx must be nonzero"); return }
-    if(mpi_cmp(unsafe(&raw mut gx384), unsafe(&raw mut p384)) >= 0) { env.error("P-384 Gx must be < p"); return }
+    if(unsafe(mpi_bitlen(unsafe(&raw mut p384))) != 384) { env.error("P-384 p bitlen should be 384"); return }
+    if(unsafe(mpi_bitlen(unsafe(&raw mut gx384))) == 0) { env.error("P-384 Gx must be nonzero"); return }
+    if(unsafe(mpi_cmp(unsafe(&raw mut gx384), unsafe(&raw mut p384))) >= 0) { env.error("P-384 Gx must be < p"); return }
 
     // Restore the default so any later logic relying on global state is sane.
     ecp_select_curve(0)
@@ -105,13 +105,13 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
 // ─── ssl_read_new_session_ticket without a transport fails cleanly ──────────
 @test
 public func API_ssl_read_new_session_ticket_no_socket_fails(env : &mut TestEnv) {
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
 
-    var ret = ssl_read_new_session_ticket(unsafe(&raw mut ctx))
+    var ret = unsafe(ssl_read_new_session_ticket(unsafe(&raw mut ctx)))
     if(ret >= 0) {
         env.error("reading a session ticket with no transport must fail")
     }
-    ssl_free(unsafe(&raw mut ctx))
+    unsafe(ssl_free(unsafe(&raw mut ctx)))
 }
 
 // ─── TLS 1.2 NewSessionTicket: received, decrypted and stored post-handshake
@@ -131,27 +131,27 @@ public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20130_cert.pem /tmp/tls_20130_key.pem 20130 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); ssl_init(unsafe(&raw mut ctx))
+    var ctx : SSLContext = unsafe(std::mem.zeroed_unchecked<SSLContext>()); unsafe(ssl_init(unsafe(&raw mut ctx)))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
     config.ciphersuite_list[0] = TLS_RSA_WITH_AES_128_GCM_SHA256 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    unsafe(ssl_set_config(unsafe(&raw mut ctx), &raw mut config))
 
-    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20130u)
+    var ret = unsafe(tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20130u))
     if(ret < 0) {
         env.error("TLS12 ticket: connect failed")
-        ssl_free(unsafe(&raw mut ctx))
+        unsafe(ssl_free(unsafe(&raw mut ctx)))
         test_kill_port(20130u)
         return
     }
 
-    if(unsafe(ctx.session == null)) { env.error("TLS12 ticket: session not allocated"); ssl_free(unsafe(&raw mut ctx)); test_kill_port(20130u); return }
+    if(unsafe(ctx.session == null)) { env.error("TLS12 ticket: session not allocated"); unsafe(ssl_free(unsafe(&raw mut ctx))); test_kill_port(20130u); return }
 
     // The server's NewSessionTicket arrives before its app-data response;
     // pull it explicitly through the dedicated post-handshake API.
-    ret = ssl_read_new_session_ticket(unsafe(&raw mut ctx))
+    ret = unsafe(ssl_read_new_session_ticket(unsafe(&raw mut ctx)))
     if(ret != 0) {
         // Legitimate gap: record what happened but do not mask it as success.
         env.error("TLS12 ticket: ssl_read_new_session_ticket did not accept the NST")
@@ -170,14 +170,14 @@ public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
 
     // The connection must remain fully usable afterwards.
     var ping = "t\0" as *char
-    ssl_write(unsafe(&raw mut ctx), ping as *u8, 1)
+    unsafe(ssl_write(unsafe(&raw mut ctx), ping as *u8, 1))
     var buf : [64]u8
-    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 64)
+    var n = unsafe(ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 64))
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 ticket: connection unusable after reading NST")
     }
 
-    ssl_close_notify(unsafe(&raw mut ctx))
-    ssl_free(unsafe(&raw mut ctx))
+    unsafe(ssl_close_notify(unsafe(&raw mut ctx)))
+    unsafe(ssl_free(unsafe(&raw mut ctx)))
     test_kill_port(20130u)
 }

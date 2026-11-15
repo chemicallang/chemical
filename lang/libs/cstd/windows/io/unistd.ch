@@ -2,10 +2,10 @@
 // On Windows the CRT names are _read/_write/_close (declared in <io.h>).
 // These wrappers match the POSIX signatures so cross-platform code compiles.
 
-@extern public func _read(fd : int, buf : *mut void, count : uint) : int
-@extern public func _write(fd : int, buf : *void, count : uint) : int
+@extern public unsafe func _read(fd : int, buf : *mut void, count : uint) : int
+@extern public unsafe func _write(fd : int, buf : *void, count : uint) : int
 @extern public func _close(fd : int) : int
-@extern public func _open(path : *char, flags : int, mode : int) : int
+@extern public unsafe func _open(path : *char, flags : int, mode : int) : int
 @extern public func _lseek(fd : int, offset : longlong, whence : int) : longlong
 @extern public func _get_osfhandle(fd : int) : intptr_t
 
@@ -23,7 +23,7 @@ public func close(fd : int) : int {
 
 // `open`/`lseek` keep the POSIX names so portable code (`http`'s `send_file`,
 // which opens a file and seeks it) compiles unchanged on Windows.
-public func open(path : *char, flags : int, mode : int) : int {
+public unsafe func open(path : *char, flags : int, mode : int) : int {
     return unsafe(_open(path, flags, mode))
 }
 

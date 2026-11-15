@@ -37,12 +37,12 @@ public struct posix_spawn_file_actions_t {
 
 /* Initialize data structure for file attribute for `spawn' call.  */
 @extern
-public func posix_spawn_file_actions_init(__file_actions : *mut posix_spawn_file_actions_t) : int
+public unsafe func posix_spawn_file_actions_init(__file_actions : *mut posix_spawn_file_actions_t) : int
 
 /* Add an action to FILE-ACTIONS which tells the implementation to call
    `dup2' for the given file descriptors during the `spawn' call.  */
 @extern
-public func posix_spawn_file_actions_adddup2(
+public unsafe func posix_spawn_file_actions_adddup2(
     __file_actions : *mut posix_spawn_file_actions_t,
     __fd : int,
     __newfd : int
@@ -52,20 +52,20 @@ public func posix_spawn_file_actions_adddup2(
 /* Add an action to FILE-ACTIONS which tells the implementation to call
    `close' for the given file descriptor during the `spawn' call.  */
 @extern
-public func posix_spawn_file_actions_addclose(
+public unsafe func posix_spawn_file_actions_addclose(
     __file_actions : *mut posix_spawn_file_actions_t,
     __fd : int
 ) : int
 
 /* Free resources associated with FILE-ACTIONS.  */
 @extern
-public func posix_spawn_file_actions_destroy(
+public unsafe func posix_spawn_file_actions_destroy(
     __file_actions : *mut posix_spawn_file_actions_t
 ) : int
 
 /* Create a new process using file path directly (no PATH search).  */
 @extern
-public func posix_spawn(
+public unsafe func posix_spawn(
     __pid : *mut pid_t, __file : *char,
     __file_actions : *posix_spawn_file_actions_t,
     __attrp : *posix_spawnattr_t,
@@ -77,7 +77,7 @@ public func posix_spawn(
    This function is a possible cancellation point and therefore not
    marked with __THROW.  */
 @extern
-public func posix_spawnp(
+public unsafe func posix_spawnp(
     __pid : *mut pid_t, __file : *char,
     __file_actions : *posix_spawn_file_actions_t,
     __attrp : *posix_spawnattr_t,

@@ -1,5 +1,5 @@
 @no_mangle
-public func md_foldingRangesPut(analyzer : &mut FoldingRangeAnalyzer, start : *mut Token, end : *Token) : *Token {
+public unsafe func md_foldingRangesPut(analyzer : &mut FoldingRangeAnalyzer, start : *mut Token, end : *Token) : *Token {
 
     var current = start
 

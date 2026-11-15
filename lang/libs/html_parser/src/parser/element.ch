@@ -1,10 +1,10 @@
 
 func isTagNameSelfClosing(view : &std::string_view) : bool {
     switch(fnv1_hash_view(view)) {
-        comptime_fnv1_hash("area"), comptime_fnv1_hash("base"), comptime_fnv1_hash("br"), comptime_fnv1_hash("col"),
-        comptime_fnv1_hash("embed"), comptime_fnv1_hash("hr"), comptime_fnv1_hash("img"), comptime_fnv1_hash("input"),
-        comptime_fnv1_hash("link"), comptime_fnv1_hash("meta"), comptime_fnv1_hash("source"), comptime_fnv1_hash("track"),
-        comptime_fnv1_hash("wbr") => {
+        unsafe(comptime_fnv1_hash("area")), unsafe(comptime_fnv1_hash("base")), unsafe(comptime_fnv1_hash("br")), unsafe(comptime_fnv1_hash("col")),
+        unsafe(comptime_fnv1_hash("embed")), unsafe(comptime_fnv1_hash("hr")), unsafe(comptime_fnv1_hash("img")), unsafe(comptime_fnv1_hash("input")),
+        unsafe(comptime_fnv1_hash("link")), unsafe(comptime_fnv1_hash("meta")), unsafe(comptime_fnv1_hash("source")), unsafe(comptime_fnv1_hash("track")),
+        unsafe(comptime_fnv1_hash("wbr")) => {
             return true;
         }
         default => {

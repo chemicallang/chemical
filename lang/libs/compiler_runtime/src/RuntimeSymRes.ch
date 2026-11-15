@@ -131,26 +131,26 @@ impl SymbolResolver for JsRuntimeSymbolResolver {
 // ---------------------------------------------------------------------------
 
 @no_mangle
-public func compiler_ASTDiagnosererror(diagnoser : *mut ASTDiagnoser, msg : &std::string_view, loc : ubigint) {
+public unsafe func compiler_ASTDiagnosererror(diagnoser : *mut ASTDiagnoser, msg : &std::string_view, loc : ubigint) {
 }
 
 @no_mangle
-public func compiler_ASTNodegetParent(node : *mut ASTNode) : *mut ASTNode {
+public unsafe func compiler_ASTNodegetParent(node : *mut ASTNode) : *mut ASTNode {
     return null
 }
 
 @no_mangle
-public func compiler_ASTNodegetKind(node : *mut ASTNode) : ASTNodeKind {
+public unsafe func compiler_ASTNodegetKind(node : *mut ASTNode) : ASTNodeKind {
     return ASTNodeKind.StructDecl
 }
 
 @no_mangle
-public func compiler_IndexOperatorget_idx_ptr(idx : *mut IndexOperator) : *mut *mut Value {
+public unsafe func compiler_IndexOperatorget_idx_ptr(idx : *mut IndexOperator) : *mut *mut Value {
     return null
 }
 
 @no_mangle
-public func compiler_ASTBuilderallocate_with_cleanup(builder : *mut ASTBuilder, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
+public unsafe func compiler_ASTBuilderallocate_with_cleanup(builder : *mut ASTBuilder, obj_size : size_t, alignment : size_t, cleanup_fn : (obj : *void) => void) : *mut void {
         unsafe {
         const allocator = builder.allocator as *mut ASTAllocator
         return allocator.allocate_with_cleanup(obj_size, alignment, cleanup_fn)
@@ -166,15 +166,15 @@ public func compiler_ASTBuilderallocate_with_cleanup(builder : *mut ASTBuilder, 
 // ---------------------------------------------------------------------------
 
 @no_mangle
-public func compiler_LexerunsetUserLexer(lexer : *mut Lexer) {
+public unsafe func compiler_LexerunsetUserLexer(lexer : *mut Lexer) {
 }
 
 @no_mangle
-public func compiler_ModuleScopegetScopeName(scope : *mut ModuleScope) : std::string_view {
+public unsafe func compiler_ModuleScopegetScopeName(scope : *mut ModuleScope) : std::string_view {
     return std::string_view("")
 }
 
 @no_mangle
-public func compiler_ModuleScopegetModuleName(scope : *mut ModuleScope) : std::string_view {
+public unsafe func compiler_ModuleScopegetModuleName(scope : *mut ModuleScope) : std::string_view {
     return std::string_view("")
 }

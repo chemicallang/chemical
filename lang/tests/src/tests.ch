@@ -108,7 +108,7 @@ public func main(argc : int, argv : **char) : int {
         unsafe { printf("\n") };
     }
     // this will trigger tests with @test annotation
-    test_runner(argc, argv)
+    unsafe(test_runner(argc, argv))
     if(argc <= 1 && !skip_seq) {
         // this will print the test stats
         print_test_stats();

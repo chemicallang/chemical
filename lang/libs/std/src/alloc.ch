@@ -39,11 +39,11 @@ public struct Layout {
 
     public func validate(&self) {
         if(_align == 0 || (_align & (_align - 1)) != 0) {
-            panic("invalid Layout alignment")
+            unsafe(panic("invalid Layout alignment"))
         }
         const max_size = ((1 as size_t) << (sizeof(size_t) * 8 - 1)) - 1
         if(_size > max_size) {
-            panic("invalid Layout size")
+            unsafe(panic("invalid Layout size"))
         }
     }
 

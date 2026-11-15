@@ -35,7 +35,7 @@ func dbl_is_neg(x : double) : bool {
 
 impl Hashable for string {
     func hash(&self) : uint {
-        return fnv1a_hash_32(data());
+        return unsafe(fnv1a_hash_32(data()));
     }
 }
 
@@ -249,7 +249,7 @@ public struct string {
         const length = storage.constant.length;
         // The inline buffer has room for the bytes plus the terminator.
         if(length >= STR_BUFF_SIZE) {
-            panic("string constant does not fit the inline buffer")
+            unsafe(panic("string constant does not fit the inline buffer"))
         }
         unsafe {
             if(d != null) {
@@ -308,7 +308,7 @@ public struct string {
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&mut self, length : size_t) {
         if(length > ((0 as size_t) - 1) / 2) {
-            panic("string capacity overflow")
+            unsafe(panic("string capacity overflow"))
         }
         if((state == '0' || state == '1') && length < STR_BUFF_SIZE) {
             if(state == '0') {
@@ -465,7 +465,7 @@ public struct string {
     }
 
     func append_char_ptr(&mut self, value : *char) {
-        if(value == null) { panic("string append from a null pointer") }
+        if(value == null) { unsafe(panic("string append from a null pointer")) }
         append_with_len(value, unsafe(strlen(value)));
     }
 
@@ -1083,7 +1083,7 @@ public struct string {
 
     func substring(&self, start : size_t, end : size_t) : string {
         if(start > end || end > size()) {
-            panic("string substring out of bounds")
+            unsafe(panic("string substring out of bounds"))
         }
         var s : string
         unsafe {

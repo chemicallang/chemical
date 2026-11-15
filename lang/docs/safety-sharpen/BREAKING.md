@@ -2,6 +2,40 @@
 
 This release is allowed to break. The migration mapping is in
 [`REMOVED.md`](REMOVED.md) and will be expanded per Phase 2 library job.
+The frozen API decisions and the additive-gap analysis for later releases are in
+[`../release-readiness.md`](../release-readiness.md).
+
+## A reference inside `Option`/`Result` now keeps its borrow (2026-11-15)
+
+**Code that reads through a reference obtained from a container accessor after
+mutating the container is now rejected.** It was a use-after-free:
+
+```chemical
+var v = vector<int>()
+v.push(1)
+var r = v.get(0)          // Option<&int>
+v.push(2)                 // reallocates; `r` now points at freed memory
+var Some(x) = r else unsafe { unreachable }
+var out = *x              // previously compiled and read garbage
+```
+
+The borrow checker already rejected the direct-reference form
+(`v.at_ref(0)` → `SAFE-BORROW-001`); the aggregate-wrapped form lost the loan.
+Both forms now report `SAFE-BORROW-001` at the mutation.
+
+Migration: read the payload before mutating, or copy it out first.
+
+```chemical
+var v = vector<int>()
+v.push(1)
+var seeded : int = 0
+var r = v.get(0)
+if(r is Option.Some) { var Some(x) = r else unsafe { unreachable }; seeded = *x }
+v.push(2)                 // fine: the loan ended at the last use of `r`
+```
+
+The loan is an ordinary non-lexical loan: it ends at the payload's last use, so
+`get` → use → mutate stays legal (`option_reference_loan_ends_at_last_use`).
 
 ## Raw surface requires `unsafe` (2026-11-15)
 

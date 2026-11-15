@@ -104,6 +104,11 @@ public struct str 'a {
         return _view.size()
     }
 
+    /// A byte view of the validated UTF-8 storage (`&[u8]`).
+    func as_bytes(&self) : span<'self, u8> {
+        return _view.as_bytes()
+    }
+
     func empty(&self) : bool {
         return _view.empty()
     }

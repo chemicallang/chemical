@@ -1882,6 +1882,13 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 bool callsite_hrtb = false;
                 bool returns_reference = false;
                 bool returns_view = false;
+                // An aggregate that *contains* a reference (`Option<&T>`,
+                // `Result<&T, E>`, a struct with a reference field) returned
+                // from a method carries the same receiver loan as a direct
+                // `&T` result. Without this, `var r = v.get(0); v.push(..)`
+                // left the shared loan unregistered and reading `*r` after the
+                // reallocation was a use-after-free in safe code.
+                bool returns_reference_aggregate = false;
                 bool extern_like = false;
                 if (inst.opcode() == MIROpcode::Call &&
                     ops[0].kind() == MIROperandKind::Symbol &&
@@ -1909,6 +1916,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                                 }
                             }
                             returns_view = is_borrow_view_type(module, result_type);
+                            returns_reference_aggregate =
+                                !returns_view && !returns_reference &&
+                                contains_reference(module, result_type);
                         }
                     }
                 }
@@ -1941,6 +1951,9 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         module.types.types[result_type].kind ==
                             MIRTypeKind::Reference;
                     returns_view = is_borrow_view_type(module, result_type);
+                    returns_reference_aggregate =
+                        !returns_view && !returns_reference &&
+                        contains_reference(module, result_type);
                 }
                 struct RefArg {
                     uint16_t op_index = 0;
@@ -2567,7 +2580,8 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                 uint32_t mapped_source = MIR_INVALID_ID;
                 std::vector<uint32_t> ambiguous_loans;
                 if ((known || has_callsite_sig) &&
-                    (returns_reference || returns_view || future_result) &&
+                    (returns_reference || returns_view ||
+                     returns_reference_aggregate || future_result) &&
                     inst.result_or_place != MIR_INVALID_ID) {
                     if (callee_sig != nullptr &&
                         callee_sig->return_region != MIR_INVALID_ID) {
@@ -2705,6 +2719,40 @@ MIRBorrowCheckResult check_function_borrows(const MIRModule& module,
                         }
                         if (!ambiguous_loans.empty()) {
                             place_aliases[inst.result_or_place] = ambiguous_loans;
+                        }
+                    }
+                }
+
+                // An aggregate that contains a reference (`Option<&T>`,
+                // `Result<&T, E>`, a reference-holding struct) returned from a
+                // call keeps the source loan alive exactly like a direct `&T`
+                // result. The loan must follow the aggregate into the caller's
+                // local: otherwise `v.get(0)` ends its shared borrow at the
+                // call, `v.push(..)` is accepted, and reading the payload after
+                // the reallocation is a use-after-free in safe code.
+                if ((known || has_callsite_sig) && returns_reference_aggregate &&
+                    !static_return && mapped_loan != MIR_INVALID_ID &&
+                    inst.result_or_place != MIR_INVALID_ID) {
+                    const bool result_is_place =
+                        inst.result_or_place < function.places.size();
+                    if (result_is_place) {
+                        place_loans[inst.result_or_place] = mapped_loan;
+                    } else {
+                        value_loans[inst.result_or_place] = mapped_loan;
+                    }
+                    loans[mapped_loan].end = lin;
+                    if (mapped_source != MIR_INVALID_ID) {
+                        if (result_is_place) {
+                            place_params[inst.result_or_place] = mapped_source;
+                        } else {
+                            value_params[inst.result_or_place] = mapped_source;
+                        }
+                    }
+                    if (!ambiguous_loans.empty()) {
+                        if (result_is_place) {
+                            place_aliases[inst.result_or_place] = ambiguous_loans;
+                        } else {
+                            value_aliases[inst.result_or_place] = ambiguous_loans;
                         }
                     }
                 }

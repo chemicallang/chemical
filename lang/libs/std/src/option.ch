@@ -12,6 +12,13 @@ public variant Option<T> {
         return self is Option.None
     }
 
+    /// The payload, or `default` when empty. Moves the payload out, leaving
+    /// the option empty (no `Clone` bound).
+    func unwrap_or(&mut self, default : T) : T {
+        if(self is Option.None) { return default }
+        return self.take_unchecked()
+    }
+
     func take_or_none(&mut self) : Option<T> {
         return take()
     }

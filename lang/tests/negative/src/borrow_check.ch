@@ -844,3 +844,31 @@ func neg_hrtb_binder_does_not_leak(env : &mut TestEnv) {
     var ch = "func apply(f : for<'a> (v : &'a int) => int) : int {\n    var r : &'a int = null\n    return 0\n}\npublic func main() : int {\n    return apply(null)\n}\n"
     expect_compile_error(env, "hrtb_binder_leak", ch, "unknown lifetime parameter 'a'")
 }
+
+
+// A reference returned inside an aggregate (`Option<&T>`, `Result<&T, E>`, a
+// reference-holding struct) carries the receiver loan just like a direct `&T`
+// result. Dropping that loan at the call let safe code read through a
+// reference after the container reallocated it (a proven use-after-free).
+@test
+func neg_option_reference_borrow_survives_push(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::vector;\nusing std::Option;\npublic func main() : int {\n    var v = vector<int>()\n    v.push(1)\n    var r = v.get(0)\n    v.push(2)\n    var out : int = 0\n    if(r is Option.Some) {\n        var Some(x) = r else unsafe { unreachable }\n        out = *x\n    }\n    return out\n}\n"
+    expect_compile_error_with_mod(env, "option_ref_borrow_survives_push", ch, "SAFE-BORROW-001", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_option_reference_borrow_survives_clear(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::vector;\nusing std::Option;\npublic func main() : int {\n    var v = vector<int>()\n    v.push(1)\n    var r = v.get(0)\n    v.clear()\n    var out : int = 0\n    if(r is Option.Some) {\n        var Some(x) = r else unsafe { unreachable }\n        out = *x\n    }\n    return out\n}\n"
+    expect_compile_error_with_mod(env, "option_ref_borrow_survives_clear", ch, "SAFE-BORROW-001", NEG_MOD_STD_CORE)
+}
+
+// The loan is a normal NLL loan: it ends at the payload's last use, so a
+// later mutation is fine. This keeps the rule from banning ordinary code.
+@test
+func option_reference_loan_ends_at_last_use(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::vector;\nusing std::Option;\npublic func main() : int {\n    var v = vector<int>()\n    v.push(1)\n    var seen : int = 0\n    var r = v.get(0)\n    if(r is Option.Some) {\n        var Some(x) = r else unsafe { unreachable }\n        seen = *x\n    }\n    v.push(2)\n    return seen\n}\n"
+    expect_compile_output_not_contains(env, "option_ref_loan_ends_at_last_use", ch, "SAFE-BORROW-001", NEG_MOD_STD_CORE)
+}

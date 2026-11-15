@@ -62,6 +62,13 @@ public namespace std {
             return _size;
         }
 
+        /// A byte view of the same storage (`&[u8]`). `string_view` is not
+        /// UTF-8 validated, so this is the canonical bridge to a byte API
+        /// without an `unsafe` block.
+        func as_bytes(&self) : span<'self, u8> {
+            return unsafe(span<u8>(_data as *u8, _size))
+        }
+
         func empty(&self) : bool {
             return _size == 0;
         }

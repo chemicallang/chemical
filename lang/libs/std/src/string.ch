@@ -1341,6 +1341,13 @@ public struct string {
         return unsafe(std::string_view(data(), size()))
     }
 
+    /// A byte view of this string's storage (`&[u8]`). This is the canonical
+    /// way to hand text to a byte-oriented API (`crypto::sha256`,
+    /// `fs::write`, `encoding::hex_encode`, ...) without writing `unsafe`.
+    func as_bytes(&self) : span<'self, u8> {
+        return unsafe(span<u8>(data() as *u8, size()))
+    }
+
     func to_i8(&self) : std::Result<i8, std::string_view> { return to_view().to_i8() }
     func to_i16(&self) : std::Result<i16, std::string_view> { return to_view().to_i16() }
     func to_i32(&self) : std::Result<i32, std::string_view> { return to_view().to_i32() }

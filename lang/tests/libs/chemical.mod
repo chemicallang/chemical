@@ -17,6 +17,7 @@ import fs
 import path
 import encoding
 import crypto
+import regex
 import compression
 import osrand
 import mime

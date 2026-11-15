@@ -399,6 +399,59 @@ with compile-time-validated format specs.
 - Gates: main 2485/2485, libs 904/904, plugins 1305/1305, safety 193/193,
   negative 884/884, server 10/10, async 84/84, interpretation 1938/1938.
 
+## Release-readiness wave (2026-11-15)
+
+API freeze and the follow-up audit are recorded in
+[`../release-readiness.md`](../release-readiness.md) (frozen decisions, known
+additive gaps, and the gate list).
+
+**Soundness fix — `Option<&T>` lost the receiver loan.** A reference returned
+inside a variant/aggregate (`Option<&T>`, `Result<&T,E>`, a reference-holding
+struct) did not carry the receiver loan, so this compiled and read freed
+memory:
+
+```chemical
+var v = vector<int>()
+v.push(1)
+var r = v.get(0)          // Option<&int>: loan was dropped at the call
+var i = 0
+while(i < 200) { v.push(7); i = i + 1 }   // reallocates, frees the old buffer
+var Some(x) = r else unsafe { unreachable }
+var out = *x              // printed garbage (14772896) instead of 1
+```
+
+`at_ref` (direct `&T`) was already rejected (`SAFE-BORROW-001`); only the
+aggregate-wrapped case was unsound. `MIRBorrowCheck.cpp` now computes
+`returns_reference_aggregate` via `contains_reference()` and attaches the
+mapped loan to the result place/value. Negative tests:
+`neg_option_reference_borrow_survives_push`,
+`neg_option_reference_borrow_survives_clear`; NLL positive:
+`option_reference_loan_ends_at_last_use`. This **rejects code that previously
+compiled** — see `BREAKING.md`.
+
+**Additive API work.**
+
+- `string::as_bytes()`, `string_view::as_bytes()`, `str::as_bytes()` return a
+  lifetime-carrying `&[u8]`. This removes the `unsafe(std::span<u8>(p, n))`
+  helper that every `*safe*` test file had duplicated (archive, audio, font,
+  image, crypto, fs).
+- `Option::unwrap_or(&mut self, default : T) : T` moves the payload out, so it
+  needs no `Clone` bound.
+
+**API gates.** `lang/tests/libs/safe_entrypoints_test.ch` references the safe
+entry point of every library the `--libs` module imports and compiles them
+(uncalled bodies are still type-checked and lowered). It was added because a
+documented safe surface can be unreachable — the audio/`image`/`font` helpers
+were namespace-level bare `func`, i.e. internal.
+
+**Findings recorded (not fixed).** A by-value `self` method on a *variant*
+segfaults the compiler (struct methods are fine); `[no_panic]` on `main` is
+ignored and breaks the entry symbol; a misspelled qualified name can fall
+through to an imported C function. Details and the additive-gap analysis
+(`&[N]T → &[T]` coercion, `[no_panic]` callee coverage, `Result`/`Option`
+combinators, `?`, `regex` text-type mix, fallible `string` allocation) are in
+[`../release-readiness.md`](../release-readiness.md).
+
 ## Raw-surface soundness wave (2026-11-15)
 
 The safe surface was sound but the `::raw` escape hatch was not enforced: a

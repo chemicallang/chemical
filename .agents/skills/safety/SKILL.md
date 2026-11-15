@@ -172,6 +172,12 @@ MIR is the sole producer of init/move/drop state:
 `compiler/mir/MIRBorrowCheck.cpp` owns the enforced rules:
 
 - `SAFE-BORROW-001` — overlapping live loans with at least one mutable loan.
+  A loan is created by an explicit `&`/`&mut`, by a `&self`/`&mut self` method
+  receiver, and by a call result that *contains* a reference (`Option<&T>`,
+  `Result<&T, E>`, a reference-holding struct) — so
+  `var r = v.get(0); v.push(..)` is rejected, exactly like
+  `var r = v.at_ref(0); v.push(..)`. The loan is an ordinary NLL loan: it ends
+  at the payload's last use.
 - `SAFE-BORROW-002` — move/drop of a place while a borrow of it is live.
 - `SAFE-BORROW-099` — a borrow/lifetime pattern the checker cannot prove safe
   (e.g. mutable or interior-mutable retaining storage in a caller-owned

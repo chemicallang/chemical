@@ -21,6 +21,11 @@ public unsafe func universal_symResNode(visitor : *mut SymResLinkBody, node : *m
             resolver.error(std::string_view("could not find HtmlPage"), loc);
         }
 
+        // Hydration safety (§3.15b): a component that reads the clock, a random
+        // number or browser-only state during render produces markup the client
+        // cannot reproduce. Handlers and effects are exempt (lambdas).
+        hydration_check_body(root.signature.js_body, &root.signature.name, diagnoser, loc);
+
         // Typed props: resolve `#universal X(props : PropsStruct)` to the struct so
         // call sites can validate attribute names. A missing or non-struct type is
         // reported here, at the component, not at every call site.

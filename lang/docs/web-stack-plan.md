@@ -653,12 +653,26 @@ Still to land for typed props (Phase 2 remainder):
   removes the documented escaping footguns (single quotes/backslashes, struct/vector props)
   by construction.
 
-**(b) Hydration-safety analysis (Phase 2).** SSR and the client must agree, so render bodies may
-not read nondeterministic or browser-only state: time/random intrinsics, `document`/`window`,
-`localStorage`, `fetch`. A check over the render position of a `#universal` body reports the source
-location; these are legal in handlers and effects. This turns the whole "hydration mismatch found
-by a user" class into a build error, and it is why the mismatch overlay is a fallback rather than
-the defence.
+**(b) Hydration-safety analysis (landed).** SSR and the client must agree, so render bodies may not
+read nondeterministic or browser-only state. The pass (`universal_cbi/sym_res/hydration_safety.ch`)
+walks the component's parsed body and reports, once per distinct construct:
+
+```
+component 'Stamp' reads 'now' during render; SSR and hydration would disagree —
+move it into an event handler or an effect
+```
+
+Flagged: `Date.now`, `Math.random`, `performance.now`, and reads of `document`, `window`,
+`localStorage`, `sessionStorage`, `navigator`, `fetch`, `location`, `history`. **Exempt: anything
+inside a lambda** — the framework only passes lambdas to event handlers and effects, so a lambda is
+handler position by construction. Exempting all lambdas is deliberate: a false negative (someone
+reads the clock in a `use_state` initializer expressed as a lambda) is far cheaper than failing
+correct components, and the shipped library is the proof — the pass flagged exactly two of our own
+fixtures (`ReturnGuardFetch` calling `fetch()` in render, `DollarIdentifierTest` reading `window`
+globals), both genuine violations, both migrated rather than exempted.
+
+It runs at symres over the JS body, so it costs nothing at runtime and the message carries the
+component's source location.
 
 **(c) `dom` types (minimal in Phase 3, complete in Phase 7).** Proposal 0008's module: `Document`,
 `Element`, typed handles for common tags, `Event`/`PointerEvent`/`KeyboardEvent`, `fetch`,
@@ -934,8 +948,12 @@ of the breaking changes in §3.17.
    validation are **landed** on both the `#html` and JSX paths, with negative tests
    (`unknown prop … declared props: …`, props type not found / not a struct) and a positive test.
    Remaining: value-type checking, required-vs-defaulted, serializer generated from the type.
-4. [ ] **Hydration-safety analysis** (§3.15b): nondeterministic or browser-only reads in render
-   position are build errors.
+4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
+   random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
+   exempt because the framework only passes them to handlers and effects. Negative tests cover a
+   clock read, a browser-state read, and the handler case (must compile). It flagged two of our own
+   fixtures, both genuine — they were migrated, not exempted. Remaining refinement: state
+   initializers expressed as lambdas are currently exempt (a documented false negative).
 
 **Exit:** page 2 of a two-page app ships no runtime and no shared component bytes; the closure check
 fails the build on an unreachable dispatch; a typo'd or missing prop fails compilation; a `Date.now`

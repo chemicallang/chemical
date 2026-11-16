@@ -242,7 +242,7 @@ public func universal_conditional_render_js(env : &mut TestEnv) {
 }
 
 #universal DollarIdentifierTest(props) {
-    return <div>{window.$flag ? window.$title : window.$fallback}</div>
+    return <div>{props.$flag ? props.$title : props.$fallback}</div>
 }
 
 @test
@@ -251,7 +251,7 @@ public func universal_dollar_identifier_test(env : &mut TestEnv) {
     #html { <DollarIdentifierTest /> }
 
     var js = std::string()
-    js.append_expr(`function universal_lib_test_DollarIdentifierTest(props) { return $_ur.createElement("div", {}, (window.$flag ? window.$title : window.$fallback)); }\nwindow.$__uni_c(${page.getComponentId(0)},'universal_lib_test_DollarIdentifierTest',{});\n`)
+    js.append_expr(`function universal_lib_test_DollarIdentifierTest(props) { return $_ur.createElement("div", {}, $_ucs(() => (window.$__uni_value(props.$flag) ? window.$__uni_value(props.$title) : window.$__uni_value(props.$fallback)))); }\nwindow.$__uni_c(${page.getComponentId(0)},'universal_lib_test_DollarIdentifierTest',{});\n`)
     view_equals(env, page.getJs(), js.to_view())
 }
 

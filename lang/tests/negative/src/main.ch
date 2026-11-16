@@ -688,6 +688,30 @@ public func neg_universal_props_default_rejected(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "universal_props_default", ch, "has a default value; v1 requires every declared prop", NEG_MOD_UNIVERSAL)
 }
 
+// Hydration safety: reading the clock during render makes the server and the
+// browser disagree, which is the bug class that used to be found in a browser
+// console.
+@test
+public func neg_universal_render_reads_clock(env : &mut TestEnv) {
+    var ch = "#universal Stamp(props) {\n    state t = Date.now()\n    return <span>{t}</span>\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_render_clock", ch, "reads 'now' during render", NEG_MOD_UNIVERSAL)
+}
+
+// Browser-only state is the other half of the same rule.
+@test
+public func neg_universal_render_reads_browser_state(env : &mut TestEnv) {
+    var ch = "#universal Focused(props) {\n    return <span>{document.activeElement}</span>\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_render_browser_state", ch, "reads 'document' during render", NEG_MOD_UNIVERSAL)
+}
+
+// The same read inside an event handler is correct — handlers only ever run in the
+// browser — so the pass must not fire and the component must compile.
+@test
+public func neg_universal_handler_reads_clock_allowed(env : &mut TestEnv) {
+    var ch = "#universal Clicker(props) {\n    state n = 0\n    return <button onClick={() => { n = Date.now() }}>{n}</button>\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_success_with_mod(env, "universal_handler_clock", ch, NEG_MOD_UNIVERSAL)
+}
+
 @test
 public func neg_html_unsupported_value_type_is_diagnosed(env : &mut TestEnv) {
     // A struct with no `writeToPageHtml` cannot be embedded in `#html`; it used

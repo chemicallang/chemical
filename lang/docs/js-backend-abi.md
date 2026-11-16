@@ -174,9 +174,58 @@ Measured cost of the model, for the record: 8.2 KB of JS for the data model plus
 `BRK`-style bump allocation is enough for the spike; the emitting backend will need a real
 `malloc`/`free` over the same heap because the stdlib calls them.
 
-## 10. What this means for the emitter's shape
+## 11. The emitter's surface, measured
 
-- `MIREmitterJs.{h,cpp}` is a dispatcher over MIR exactly like `MIREmitter.cpp`, sharing the
+`CHX_DUMP_MIR=<path>` on an interpretation job writes the fully lowered program
+(82,609 lines for the test suite: 1,939 types, 2,605 constants, 3,311 symbols,
+3,165 functions). A census of instruction shapes over that program is the
+emitter's work list — **76 distinct shapes**, and the head of the distribution is
+small:
+
+| count | shape |
+|---|---|
+| 8,012 | `%v = const.int c` |
+| 5,681 | `store %v, p` |
+| 5,108 | `%v = load p, ty` |
+| 4,599 | `p = alloca ty` |
+| 3,583 | `%v = compare a, b, c, ty` |
+| 2,861 | `return %v` |
+| 2,620 | `cond_br %v, bb, bb` |
+| 2,590 | `store p, c, %v` (field store) |
+| 2,584 | `storage_live p` |
+| 2,432 | `alloca ty` |
+| 2,386 | `br bb` |
+| 2,289 | `%v = const.string c` |
+| 2,182 | `p = call s, …, …` |
+| 2,009 | `%v = function_addr s, ty` |
+| 1,492 | `%v = load %v, c, ty` (field load) |
+| 1,415 | `const.int c` |
+| 1,167 | `%v = binary a, b, c, ty` |
+| 1,140 | `%v = const.bool c` |
+| 1,133 | `move_init p, p, ty` |
+| 1,026 | `%v = address_of p, ty` |
+| 988 | `p = call s, p` |
+| 923 | `param ty` |
+
+The long tail (317 `field_addr`, 295 `drop`, 275 `param`, 218 `call`, 207
+`const.string`, 176 `index_addr`, 159 `global_addr`, 113 `borrow_mut`, 92
+`memset`, 78 `move_out`, 39 `sizeof`, 36 `destroy`, 28 `dynamic_call`, 28
+`alignof`, 20 `call_indirect`, 20 `memcpy`, 15 `offsetof`) says the first working
+emitter must cover roughly **20 opcodes**, not 60, and that `dynamic_call` /
+`call_indirect` / async are the natural "diagnose, do not emit" set.
+
+Practical consequences for the emitter:
+
+- **Places dominate.** `alloca`/`load`/`store`/`field_addr`/`index_addr` are 30%+
+  of all instructions, which is exactly why Route A was chosen: they are byte
+  arithmetic, not a value model.
+- **`storage_live`/`storage_dead`/`set_drop` are ~27% of instructions and are
+  no-ops** on this ABI, so the emitter's hot path stays small.
+- **`function_addr` (2,009) appears in ordinary code**, not only in callbacks, so
+  closures and indirect calls cannot be deferred past step 2.
+- **`memcpy`/`memset` (112)** map onto `HEAP.copyWithin` / `HEAP.fill`.
+
+## 10. What this means for the emitter's shape- `MIREmitterJs.{h,cpp}` is a dispatcher over MIR exactly like `MIREmitter.cpp`, sharing the
   **AST-free** `MIRDeclPrinter` (529 lines) behind a printer interface; it must not use
   `MIRDeclEmitter` (630 lines, AST-based).
 - Expected size, from the C emitter's breakdown: ~2,300 lines of body emission (60 opcodes minus the

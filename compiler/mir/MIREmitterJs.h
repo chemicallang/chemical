@@ -47,16 +47,21 @@ struct MIREmitJsOptions {
  * (cross-module imports land with the module split).
  */
 bool emit_module_js(const MIRModule& module, std::string& out, std::string& error,
-                    const MIREmitJsOptions& options = MIREmitJsOptions{});
+                    const MIREmitJsOptions& options = MIREmitJsOptions{},
+                    std::string* source_map = nullptr);
 
 /**
  * Emit `functions` (a subset of `module.functions`) as one ES module. The module
  * tables are shared, so cross-references between the emitted functions resolve
  * as direct calls.
+ *
+ * When `source_map` is non-null it receives a version-3 source map for the
+ * module, and the module gets a trailing `sourceMappingURL` comment.
  */
 bool emit_program_js(const MIRModule& module, const std::vector<const MIRFunction*>& functions,
                      std::string& out, std::string& error,
-                     const MIREmitJsOptions& options = MIREmitJsOptions{});
+                     const MIREmitJsOptions& options = MIREmitJsOptions{},
+                     std::string* source_map = nullptr);
 
 /**
  * The functions reachable from `entry` (a mangled symbol name) by walking call

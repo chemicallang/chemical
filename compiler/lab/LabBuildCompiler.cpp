@@ -5250,8 +5250,9 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     mir::MIREmitJsOptions js_options;
     js_options.module_name = job->name.to_std_string();
     std::string js;
+    std::string js_map;
     std::string js_error;
-    if (!mir::emit_program_js(mir_program.module, reachable, js, js_error, js_options)) {
+    if (!mir::emit_program_js(mir_program.module, reachable, js, js_error, js_options, &js_map)) {
         // One diagnostic per line, each prefixed, so every unsupported site is
         // visible without scrolling past the first.
         size_t start = 0;
@@ -5277,6 +5278,9 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     }
     const std::string program_path = resolve_rel_child_path_str(out_dir, program_stem + ".mjs");
     writeToFile(program_path, js);
+    if (!js_map.empty()) {
+        writeToFile(program_path + ".map", js_map);
+    }
     if (verbose) {
         std::cout << "[lab] " << "emitted " << program_path << " (" << js.size() << " bytes)"
                   << std::endl;

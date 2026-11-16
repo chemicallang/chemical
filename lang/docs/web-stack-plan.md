@@ -1045,7 +1045,13 @@ in a render body fails compilation.
    reported at its source location (replaces `MIRPortability`-as-gate).
 3. Minimal `dom` slice (proposal 0008): `Document`, `Element`, `Event`, `fetch`,
    `localStorage`, `URL` — enough for client modules to be useful; full 0008 later.
-4. **Source maps** from the start of generated client code.
+4. **Source maps** from the start of generated client code. — **landed in the emitter**
+   (`--emit-js` writes `<program>.mjs.map` + a `sourceMappingURL` comment; one segment per
+   instruction line, mapping to the Chemical `file:line:column` the instruction came from). The gate
+   *decodes* the map (`scripts/js_backend/sourcemap_check.mjs`): every source index and line must be
+   in range and one mapping must land on the line that produced a known statement. The first
+   implementation was wrong in a way only a decoder catches — the line cursor advanced after writing
+   a segment, so every mapping after the first was appended to the first group.
 5. `chemical serve` (reload, no HMR): SSR + chunks from memory + the dev error overlay (§3.15d)
    and its ingestion endpoint.
 6. Unhandled `Result` in client code is an error that must be reported (no-panic direction).
@@ -1169,6 +1175,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | JS ABI | `scripts/js-abi-spike.sh`: native vs hand-written JS output must be byte-identical (the Phase 1 step-0 gate) |
 | JS semantics | **differential C-vs-JS conformance**: `scripts/js-backend-test.sh <fixture>` compiles the fixture with both backends and requires identical stdout (`js_backend`, `js_backend_std`, `js_backend_closure`, `js_backend_json`; `scripts/js-backend-suites.sh` runs them all) |
 | JS diagnostics | `scripts/js-backend-diagnostics.sh`: an unsupported construct fails the build with `file:line:column` for **every** site; a native-only `@extern` is explained as such; `--check` validates without writing |
+| JS source maps | `scripts/js_backend/sourcemap_check.mjs` (run per fixture): decodes `mappings`, requires every source line in range and a mapping on a known statement's line |
 | Modules | module-split violations fail (shared→client import, client→native symbol) |
 | Hydration | ids unique per instance; closure check (unreachable id = build error) |
 | Bundles | duplicate-unit = 0; frozen chunk cannot grow; every chunk hashed |

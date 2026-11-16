@@ -55,6 +55,9 @@ if diff -u "$out_root/native.txt" "$out_root/js.txt"; then
     bytes=$(cat "$out_root/bundle"/*.mjs | wc -c)
     echo
     echo "PASS: native and JS output agree byte-for-byte ($modules modules, $bytes bytes)"
+    # The source map is decoded, not just checked for existence: every mapping
+    # must be in range and one must land on the line that produced the output.
+    node scripts/js_backend/sourcemap_check.mjs "$out_root/bundle" main.ch printf | tail -2
     exit 0
 fi
 

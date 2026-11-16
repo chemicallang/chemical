@@ -15,6 +15,7 @@
 #include "MIREmitterJs.h"
 #include "MIREmitter.h" // append_uint
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -62,6 +63,99 @@ bool constant_text(const MIRModule& module, uint32_t id, std::string_view& out) 
     return true;
 }
 
+// ── source maps ─────────────────────────────────────────────────────────────
+
+/** One generated line that came from a Chemical instruction. */
+struct JsMapping {
+    uint32_t line = 0;     // 0-based line in the emitted module
+    uint32_t file = 0;     // index into MIRModule::source_files
+    uint32_t src_line = 0; // 0-based in the source file
+    uint32_t src_col = 0;
+};
+
+/** Base64 VLQ, the encoding source-map "mappings" uses. */
+void vlq_encode(std::string& out, int32_t value) {
+    static const char* kB64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    uint32_t v = value < 0 ? ((static_cast<uint32_t>(-static_cast<int64_t>(value)) << 1) | 1u)
+                           : (static_cast<uint32_t>(value) << 1);
+    do {
+        uint32_t digit = v & 0x1F;
+        v >>= 5;
+        if (v != 0) digit |= 0x20u;
+        out += kB64[digit];
+    } while (v != 0);
+}
+
+void json_escape(std::string& out, std::string_view text) {
+    for (char c : text) {
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"': out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default: out += c; break;
+        }
+    }
+}
+
+/**
+ * Build a version-3 source map for one emitted module.
+ *
+ * One segment per mapped line, at column 0, so the mapping is exact for
+ * statement-level debugging (a browser breakpoint or stack frame lands on the
+ * Chemical line that produced the JS line). `line_offset` is the number of
+ * lines the module's preamble occupies.
+ */
+std::string build_source_map(const MIRModule& module, std::vector<JsMapping> maps,
+                             uint32_t line_offset, const std::string& file_name) {
+    std::stable_sort(maps.begin(), maps.end(),
+                     [](const JsMapping& a, const JsMapping& b) { return a.line < b.line; });
+
+    std::string mappings;
+    // `current_line` is the group (generated line) currently open. It advances
+    // only when the loop below emits a ';' — a segment written for line L must
+    // not move the cursor, or the next mapping is appended to the same group.
+    uint32_t current_line = 0;
+    bool group_has_segment = false;
+    int32_t prev_file = 0;
+    int32_t prev_line = 0;
+    int32_t prev_col = 0;
+    for (const JsMapping& m : maps) {
+        const uint32_t line = m.line + line_offset;
+        if (line < current_line) continue; // defensive: keep the stream sorted
+        while (current_line < line) {
+            mappings += ';';
+            ++current_line;
+            group_has_segment = false;
+        }
+        if (group_has_segment) mappings += ',';
+        vlq_encode(mappings, 0); // generated column
+        vlq_encode(mappings, static_cast<int32_t>(m.file) - prev_file);
+        vlq_encode(mappings, static_cast<int32_t>(m.src_line) - prev_line);
+        vlq_encode(mappings, static_cast<int32_t>(m.src_col) - prev_col);
+        prev_file = static_cast<int32_t>(m.file);
+        prev_line = static_cast<int32_t>(m.src_line);
+        prev_col = static_cast<int32_t>(m.src_col);
+        group_has_segment = true;
+    }
+
+    std::string out;
+    out += "{\"version\":3,\"file\":\"";
+    json_escape(out, file_name);
+    out += "\",\"sources\":[";
+    for (size_t i = 0; i < module.source_files.size(); ++i) {
+        if (i) out += ',';
+        out += '"';
+        json_escape(out, module.source_files[i]);
+        out += '"';
+    }
+    out += "],\"names\":[],\"mappings\":\"";
+    out += mappings;
+    out += "\"}\n";
+    return out;
+}
+
 // ── the emitter ─────────────────────────────────────────────────────────────
 
 class ModuleEmitter {
@@ -73,7 +167,7 @@ public:
         ptr_size_ = module_.layout.is64Bit ? 8u : 4u;
     }
 
-    bool run(std::string& out);
+    bool run(std::string& out, std::string* source_map);
 
 private:
     // ── structure ───────────────────────────────────────────────────────────
@@ -139,6 +233,18 @@ private:
         }
         return fail(where);
     }
+    /** The instruction's source position, as indices (for the source map). */
+    bool source_ref_of(const MIRFunction& fn, const MIRInstruction& ins, uint32_t& file,
+                       uint32_t& line, uint32_t& col) const {
+        if (ins.source_index == MIR_NO_SOURCE || ins.source_index >= fn.sources.size()) return false;
+        const MIRSourceLoc& loc = fn.sources[ins.source_index];
+        if (loc.file >= module_.source_files.size()) return false;
+        file = loc.file;
+        line = loc.line;
+        col = loc.column;
+        return true;
+    }
+
     /** The instruction's `file:line:column`, or empty when it has no source. */
     std::string location_of(const MIRFunction& fn, const MIRInstruction& ins) const {
         if (ins.source_index == MIR_NO_SOURCE || ins.source_index >= fn.sources.size()) return {};
@@ -177,6 +283,9 @@ private:
     std::string body_;    // emitted functions
     std::string globals_; // module-load global storage + initializers
     std::string constants_;
+    /** Lines already written into `body_`, so a mapping can be made absolute. */
+    uint32_t body_lines_ = 0;
+    std::vector<JsMapping> mappings_;
 
     uint32_t ptr_size_ = 8;
 
@@ -264,7 +373,7 @@ void ModuleEmitter::emit_preamble(std::string& out) {
     out += "\n";
 }
 
-bool ModuleEmitter::run(std::string& out) {
+bool ModuleEmitter::run(std::string& out, std::string* source_map) {
     collect();
 
     // String constants: a `const.string` operates on bytes in the heap, so every
@@ -314,7 +423,15 @@ bool ModuleEmitter::run(std::string& out) {
         return false;
     }
 
-    emit_preamble(out);
+    // The preamble precedes the function bodies, so a mapping recorded relative
+    // to `body_` needs its line count added.
+    std::string preamble;
+    emit_preamble(preamble);
+    uint32_t preamble_lines = 0;
+    for (char c : preamble) {
+        if (c == '\n') ++preamble_lines;
+    }
+    out += preamble;
     out += body_;
 
     // The exported symbol table: mangled name -> function. This is how a driver
@@ -337,6 +454,14 @@ bool ModuleEmitter::run(std::string& out) {
         out += ",\n";
     }
     out += "};\n";
+
+    if (source_map != nullptr) {
+        const std::string file_name = js_module_file_stem(options_.module_name) + ".mjs";
+        *source_map = build_source_map(module_, mappings_, preamble_lines, file_name);
+        out += "//# sourceMappingURL=";
+        out += file_name;
+        out += ".map\n";
+    }
     return true;
 }
 
@@ -819,10 +944,25 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
                    ? module_.symbols.mangled_name(module_.symbols.get(fn.symbol))
                    : std::string("<anon>");
 
+    // A line-counting buffer, because every mapped statement must know the line
+    // it lands on in the emitted module (a source map is line-based).
     std::string body;
+    uint32_t body_line = 0;
     body.reserve(4096);
+    auto add = [&](const std::string& text) {
+        body += text;
+        for (char c : text) {
+            if (c == '\n') ++body_line;
+        }
+    };
+    // Record the mapping for the line `add` is about to produce.
+    auto map_here = [&](const MIRInstruction& ins) {
+        uint32_t file = 0, line = 0, col = 0;
+        if (!source_ref_of(fn, ins, file, line, col)) return;
+        mappings_.push_back(JsMapping{body_lines_ + body_line, file, line, col});
+    };
 
-    // `Param` instructions bind in instruction order — the same pre-pass the
+    // `Param` instructions bind in instruction order - the same pre-pass the
     // interpreter performs, so an sret pointer (the first Param) lands in the
     // value `sret_pointer` names.
     std::vector<const MIRInstruction*> params;
@@ -830,81 +970,86 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
         if (fn.instructions[i].opcode() == MIROpcode::Param) params.push_back(&fn.instructions[i]);
     }
 
-    line(body, "/** " + fn_name_ + " */");
-    body += "export function " + js_function_name(fn.symbol) + "(";
+    add("/** " + fn_name_ + " */\n");
+    std::string header = "export function " + js_function_name(fn.symbol) + "(";
     for (size_t i = 0; i < params.size(); ++i) {
-        if (i) body += ", ";
-        body += "a" + std::to_string(i) + " = 0";
+        if (i) header += ", ";
+        header += "a" + std::to_string(i) + " = 0";
     }
-    body += ") {\n";
-    body += "  const $m = rt.frame_mark();\n";
+    header += ") {\n";
+    add(header);
+    add("  const $m = rt.frame_mark();\n");
 
     if (!fn.values.empty()) {
         // No initializers: a definition dominates every use in well-formed MIR,
         // and an initializer would be a dead store on every path.
-        body += "  let ";
+        std::string lets = "  let ";
         for (uint32_t i = 0; i < fn.values.size(); ++i) {
-            if (i) body += (i % 16 == 0) ? ",\n      " : ", ";
-            body += vname(i);
+            if (i) lets += (i % 16 == 0) ? ",\n      " : ", ";
+            lets += vname(i);
         }
-        body += ";\n";
+        lets += ";\n";
+        add(lets);
     }
     for (uint32_t i = 0; i < fn.places.size(); ++i) {
         const JsType t = type_of(place_type(i));
         const uint32_t size = t.size ? t.size : 1;
         const uint32_t align = t.align ? t.align : 1;
-        body += "  const " + pname(i) + " = rt.frame_alloc(" + std::to_string(size) + ", " +
-                std::to_string(align) + ");\n";
+        add("  const " + pname(i) + " = rt.frame_alloc(" + std::to_string(size) + ", " +
+            std::to_string(align) + ");\n");
     }
     for (size_t i = 0; i < params.size(); ++i) {
-        body += "  " + vname(params[i]->result_or_place) + " = a" + std::to_string(i) + ";\n";
+        add("  " + vname(params[i]->result_or_place) + " = a" + std::to_string(i) + ";\n");
     }
 
     const BlockId entry = (fn.entry_block < fn.blocks.size()) ? fn.entry_block : 0;
-    body += "  let $pc = ";
-    append_uint(body, fn.blocks.empty() ? 0 : fn.blocks[entry].id);
-    body += ";\n";
-    body += "  for (;;) {\n";
-    body += "    switch ($pc) {\n";
+    std::string pc = "  let $pc = ";
+    if (fn.blocks.empty()) {
+        pc += "0";
+    } else {
+        append_uint(pc, fn.blocks[entry].id);
+    }
+    pc += ";\n";
+    add(pc);
+    add("  for (;;) {\n");
+    add("    switch ($pc) {\n");
 
     for (uint32_t bi = 0; bi < fn.blocks.size(); ++bi) {
         const MIRBlock& block = fn.blocks[bi];
-        body += "      case " + std::to_string(block.id) + ": {\n";
+        add("      case " + std::to_string(block.id) + ": {\n");
         for (uint32_t k = 0; k < block.inst_count; ++k) {
             const uint32_t index = block.inst_start + k;
             if (index >= fn.instructions.size()) break;
             const MIRInstruction& ins = fn.instructions[index];
             if (ins.opcode() == MIROpcode::Param) continue; // bound in the prologue
             if (options_.instruction_comments) {
-                body += "        // ";
-                body += opcode_name(ins.opcode());
-                body += "\n";
+                add("        // " + std::string(opcode_name(ins.opcode())) + "\n");
             }
             std::string stmt;
             current_loc_ = location_of(fn, ins);
             if (!emit_instruction(ins, stmt)) return false;
             if (!stmt.empty()) {
-                body += "        ";
-                body += stmt;
-                body += "\n";
+                map_here(ins);
+                add("        " + stmt + "\n");
             }
         }
         const uint32_t term_index = block.inst_start + block.inst_count;
         if (term_index < fn.instructions.size()) {
+            const MIRInstruction& term = fn.instructions[term_index];
             std::string stmt;
-            current_loc_ = location_of(fn, fn.instructions[term_index]);
-            if (!emit_terminator(fn.instructions[term_index], stmt)) return false;
-            body += "        ";
-            body += stmt;
-            body += "\n";
+            current_loc_ = location_of(fn, term);
+            if (!emit_terminator(term, stmt)) return false;
+            map_here(term);
+            add("        " + stmt + "\n");
         }
-        body += "      }\n";
+        add("      }\n");
     }
-    body += "      default: throw new Error(\"js backend: bad block \" + $pc);\n";
-    body += "    }\n";
-    body += "  }\n";
-    body += "}\n\n";
+    add("      default: throw new Error(\"js backend: bad block \" + $pc);\n");
+    add("    }\n");
+    add("  }\n");
+    add("}\n\n");
 
+    body_lines_ += body_line;
     out += body;
     fn_ = nullptr;
     return true;
@@ -1623,17 +1768,18 @@ std::string js_module_file_stem(const std::string& module_name) {
 }
 
 bool emit_module_js(const MIRModule& module, std::string& out, std::string& error,
-                    const MIREmitJsOptions& options) {
+                    const MIREmitJsOptions& options, std::string* source_map) {
     std::vector<const MIRFunction*> functions;
     functions.reserve(module.functions.size());
     for (const MIRFunction& fn : module.functions) functions.push_back(&fn);
-    return emit_program_js(module, functions, out, error, options);
+    return emit_program_js(module, functions, out, error, options, source_map);
 }
 
 bool emit_program_js(const MIRModule& module, const std::vector<const MIRFunction*>& functions,
-                     std::string& out, std::string& error, const MIREmitJsOptions& options) {
+                     std::string& out, std::string& error, const MIREmitJsOptions& options,
+                     std::string* source_map) {
     ModuleEmitter emitter(module, functions, error, options);
-    return emitter.run(out);
+    return emitter.run(out, source_map);
 }
 
 // ── reachability ────────────────────────────────────────────────────────────

@@ -304,6 +304,11 @@ check) and swaps the back end in `do_js_job`; each bundle is `<program>.mjs` + `
 | `js_backend_closure` | capturing lambdas in `std::function`, a closure passed as a parameter, an owned string capture, `for-in` | 3 files, 105 KB |
 | `js_backend_json` | `json::parse` → `JsonValue` variant walk → `json::stringify`, `ordered_map<string, …>` keys | 3 files, 350 KB (109 functions) |
 
+Each bundle also carries `<program>.mjs.map`: one segment per emitted instruction line, mapping to the
+Chemical file/line/column it came from (`scripts/js_backend/sourcemap_check.mjs` decodes and verifies
+it). That is what keeps a stack trace in a browser pointing at Chemical source instead of at
+generated JavaScript.
+
 **Shapes emitted**, per MIR construct:
 
 | MIR | JS |

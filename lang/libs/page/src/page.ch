@@ -1150,6 +1150,54 @@ public struct HtmlPage {
         return str;
     }
 
+    // Like `toString`, but with externally served JS:
+    //   - `headAssets` (complete tags: a shared bundle's `<link>` / `<script src>`)
+    //     is written into <head> before the page's own `<style>`/`<script>`;
+    //   - when `bodyScriptSrc` is non-empty the page's own JS is *not* inlined: a
+    //     `<script src>` for it is written at the end of <body> instead.
+    //
+    // Why the shared bundle is a classic script in <head>: the page's own script
+    // (inline or `src`) runs at the end of <body> and calls the hydration runtime
+    // the bundle defines. A `type="module"` script would be deferred past it.
+    public func toStringWithAssets(&self, headAssets : std::string_view, bodyScriptSrc : std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") : std::string {
+        var str = std::string()
+        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + pageJs.size() + headAssets.size() + bodyScriptSrc.size() + 100)
+        str.append_view(std::string_view("<!DOCTYPE html>"))
+        appendHtmlTagStart(&mut str, lang, htmlClass)
+        str.append_view("<head>")
+        str.append_string(&pageHead)
+        if(!headAssets.empty()) {
+            str.append_view(&headAssets)
+        }
+        if(!pageCss.empty()) {
+            str.append_view(std::string_view("<style>"))
+            str.append_string(&pageCss)
+            str.append_view(std::string_view("</style>"))
+        }
+        if(!pageHeadJs.empty()) {
+            str.append_view(std::string_view("<script>"))
+            str.append_string(&pageHeadJs)
+            str.append_view(std::string_view("</script>"))
+        }
+        str.append_view(std::string_view("</head>"))
+        appendBodyTagStart(&mut str, bodyClass)
+        str.append_string(&pageHtml)
+        if(!bodyScriptSrc.empty()) {
+            str.append_view(std::string_view("<script src=\""))
+            str.append_view(&bodyScriptSrc)
+            str.append_view(std::string_view("\"></script>"))
+        } else {
+            var finalizedJs = getFinalizedPageJs()
+            if(!finalizedJs.empty()) {
+                str.append_view(std::string_view("<script>"))
+                str.append_string(&finalizedJs)
+                str.append_view(std::string_view("</script>"))
+            }
+        }
+        str.append_view(std::string_view("</body></html>"))
+        return str;
+    }
+
     func toStringHeadOnly(&self) : std::string {
         return pageHead.copy();
     }

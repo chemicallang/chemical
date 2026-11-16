@@ -184,7 +184,10 @@ def split_bundle(src):
 
 
 def analyze_js(path):
-    raw = io.open(path, encoding="utf-8", errors="replace").read()
+    # Bytes for measurement, text for scanning: a text-mode read drops one byte per
+    # line on a CRLF file, which under-reported every size on Windows.
+    data = open(path, "rb").read()
+    raw = data.decode("utf-8", "replace")
     regions = split_bundle(raw)
     # Two dispatch encodings exist: the pre-manifest
     # `window.$__uni_dispatch('Name', document.getElementById('u<n>'), props)` and
@@ -203,8 +206,8 @@ def analyze_js(path):
     )
     return {
         "path": path,
-        "bytes": len(raw),
-        "gzip": len(gzip.compress(raw.encode("utf-8"), 6)),
+        "bytes": len(data),
+        "gzip": len(gzip.compress(data, 6)),
         "def_count": regions["def_count"],
         "def_bytes": regions["def_bytes"],
         "runtime_bytes": regions["runtime_bytes"],
@@ -239,7 +242,9 @@ def attrs_of(tag_body):
 
 
 def analyze_html(path):
-    raw = io.open(path, encoding="utf-8", errors="replace").read()
+    # See analyze_js: measure bytes, decode to parse.
+    data = open(path, "rb").read()
+    raw = data.decode("utf-8", "replace")
     inline = 0
     module_scripts = 0
     external = []
@@ -258,8 +263,8 @@ def analyze_html(path):
             stylesheets.append(a["href"])
     return {
         "path": path,
-        "bytes": len(raw),
-        "gzip": len(gzip.compress(raw.encode("utf-8"), 6)),
+        "bytes": len(data),
+        "gzip": len(gzip.compress(data, 6)),
         "inline_scripts": inline,
         "module_scripts": module_scripts,
         "external_scripts": external,
@@ -359,14 +364,48 @@ def main(argv):
         print(f"not a directory: {directory}")
         return 2
 
-    js_files = sorted(
-        os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(".js")
-    )
-    html_files = sorted(
-        os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(".html")
-    )
+    js_files = []
+    html_files = []
+    # Recursive: a static site has nested routes (`about/index.html`), and page
+    # assets live in a subdirectory, so a flat listing under-reports the build.
+    for root_dir, _dirs, files in os.walk(directory):
+        for name in files:
+            path = os.path.join(root_dir, name)
+            if name.endswith(".js"):
+                js_files.append(path)
+            elif name.endswith(".html"):
+                html_files.append(path)
+    js_files.sort()
+    html_files.sort()
     js = [analyze_js(p) for p in js_files]
     html = [analyze_html(p) for p in html_files]
+
+    # ── sharing: an asset referenced by more than one page is paid for once ──
+    asset_pages = {}
+    for h in html:
+        page_dir = os.path.dirname(h["path"])
+        for ref in h["external_scripts"] + h["stylesheets"]:
+            if ref.startswith(("http://", "https://", "//", "data:")):
+                continue
+            resolved = os.path.normpath(os.path.join(page_dir, ref.lstrip("/")))
+            asset_pages.setdefault(resolved, set()).add(h["path"])
+    shared_assets = {}
+    for asset, pages_ref in asset_pages.items():
+        if len(pages_ref) < 2:
+            continue
+        try:
+            size = os.path.getsize(asset)
+        except OSError:
+            size = 0
+        shared_assets[asset] = {"pages": len(pages_ref), "bytes": size}
+    shared_bytes = sum(a["bytes"] for a in shared_assets.values())
+    saved_bytes = sum(a["bytes"] * (a["pages"] - 1) for a in shared_assets.values())
+    page_js_bytes = sum(j["bytes"] for j in js) - shared_bytes - sum(
+        a["bytes"] for asset, a in (
+            (p, {"bytes": os.path.getsize(p) if os.path.exists(p) else 0})
+            for p in asset_pages if p not in shared_assets
+        )
+    )
 
     violations = []
     for h in html:
@@ -416,7 +455,9 @@ def main(argv):
     if html:
         print(f"{'page':<28} {'bytes':>9} {'inline js':>9} {'module':>7} {'css':>4}")
         for h in html:
-            print(f"{os.path.basename(h['path']):<28} {h['bytes']:>9} "
+            # Path relative to the analyzed root: every route is `index.html` when
+            # only the basename is shown, which hides which page is which.
+            print(f"{os.path.relpath(h['path'], directory):<28} {h['bytes']:>9} "
                   f"{h['inline_scripts']:>9} {h['module_scripts']:>7} "
                   f"{len(h['stylesheets']):>4}")
         print()
@@ -435,6 +476,18 @@ def main(argv):
     maps = sum(1 for j in js if j["source_map_comment"])
     print(f"ecosystem: ESM statements={esm}, source maps={maps}, "
           f"pages with inline JS={sum(1 for h in html if h['inline_scripts'])}")
+
+    # Sharing summary: what a multi-page build is supposed to buy.
+    print()
+    print(f"sharing: {len(html)} page(s), {len(shared_assets)} asset(s) referenced by "
+          f"more than one page")
+    for asset, info in sorted(shared_assets.items()):
+        rel = os.path.relpath(asset, directory)
+        print(f"  {rel:<40} {info['bytes']:>8} B  used by {info['pages']} pages")
+    if shared_assets:
+        print(f"  shared bytes served once: {shared_bytes} B "
+              f"(would be {shared_bytes + saved_bytes} B duplicated per request set, "
+              f"saving {saved_bytes} B)")
 
     if violations:
         print()

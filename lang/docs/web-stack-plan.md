@@ -1073,7 +1073,17 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    shell+slots, or full SSR — one `web::App` can mix them.
 5. Runtime extracted from `page.ch` into `lang/libs/page/runtime/*.js`, embedded at build time
    (a LabBuildCompiler asset-embed step — owned here, with a byte budget). Also removes a constant
-   compile-time cost from every `page` consumer (§3.16).
+   compile-time cost from every `page` consumer (§3.16). — **partially landed, by a different route**:
+   `page.StaticSite` (new, `lang/libs/page/src/static_site.ch`) writes the shared runtime, component
+   definitions and global CSS as **one content-hashed asset** and gives every page a
+   `<script src>`/`<link>` to it, so no page inlines the runtime any more. That removes the *serving*
+   cost (the reason item 5 exists) without the extraction step; the runtime is still a Rust-free
+   Chemical string that the compiler must build into every `page` consumer, so §3.16's compile-time
+   saving is still open.
+   Measured on a matched pair (the same two pages, `fixtures/static_site` vs
+   `fixtures/static_site_baseline`, `scripts/static-site-test.sh`):
+   per-page HTML **109,317 B → 424 B / 409 B**, one bundle of 108,816 B served once and cached by the
+   browser, **2 inline `<script>` per page → 0**, CSP clean. Nested routes get `../assets/…`.
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.
@@ -1182,6 +1192,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
 | Size | `scripts/web-probe.sh` regression gate + Phase 5 budgets |
 | Cache | second page of a 2-page app: 0 duplicated runtime/component bytes |
+| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean |
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |

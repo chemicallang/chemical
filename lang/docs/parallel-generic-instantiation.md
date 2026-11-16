@@ -652,41 +652,81 @@ Translated.c:246750:7: error: conflicting types for 'std_stdOption__cgs__36is_so
 
 `generic_instantiation` on a `MembersContainer` / `FunctionDeclaration` is the
 **index of the instantiation inside its own generic declaration's `instantiations`
-vector** (`GenericStructDecl::instantiate` does `impl->generic_instantiation = itr.first`).
-That vector is per declaration, and every module is parsed into its own AST, so
-each module has its own copy of `std::Option`, `std::vector`, ... and its own
-numbering.
+vector** (`GenericStructDecl::register_generic_args` does
+`impl->generic_instantiation = itr.first`). That vector is per declaration, and
+every module is parsed into its own AST, so each module has its own copy of
+`std::Option`, `std::vector`, ... and its own numbering.
 
 `NameMangler` (`compiler/mangler/NameMangler.cpp`) prints that index as
 `__cgs__<index>`, so the mangled name is only unique *within* a module. Once the
-whole program is emitted into one translation unit (MIR C/LLVM backends), two
-different types can share a name:
+whole program is emitted into one translation unit, two different types can share
+a name:
 
 ```
 std_stdOption__cgs__1   ->   Option<&u8>      (std module, index 1)
 std_stdOption__cgs__1   ->   Option<string>   (page module, index 1)
 ```
 
-The first definition wins and the second is silently dropped, so one module's
-code is emitted against the other type's field layout. tcc reports it only when
-some function touches the mismatched field (`Some.value = <std::string>` against
-`uint8_t* const`); otherwise the program miscompiles quietly.
+The first definition wins and the second is silently dropped, so one module's code
+is emitted against the other type's field layout. tcc reports it only when some
+function touches the mismatched field (`Some.value = <std::string>` against
+`uint8_t *const`); otherwise the program miscompiles quietly.
 
 ## Why it is intermittent
 
-Which module registers an instantiation at index *n* depends on the order in
-which files finish symbol resolution, so adding or moving unrelated code in a
-module can flip a build from working to broken without touching either type.
+Which module registers an instantiation at index *n* depends on the order in which
+files finish symbol resolution, so adding or moving unrelated code in a module can
+flip a build from working to broken without touching either type.
 
-## Suggested fix
+## Attempted fix (2026-11-16) - the naming half works, the emission half is the blocker
 
-Make the suffix content-derived instead of positional: hash the mangled generic
-arguments of the instantiation (FNV-1a over the generic declaration identity plus
-its argument list) and print `__cgs__<hex>`. Identical instantiations then share
-a name across modules (so the existing by-name dedupe still merges them) and
-different ones cannot collide. `generic_instantiation` must stay the positional
-index - the instantiator uses it to index `instantiations` and
-`instantiation_statuses` (`GenericInstantiator.cpp`, `waitSignatureFinalized`).
+`NameMangler` was changed to print a **content-derived** suffix instead of the
+position: `__cgs__<fnv1a64 of the generic declaration's qualified name + its
+mangled type arguments>` (`mangle_type` in `NameMangler.cpp` walks every
+`BaseTypeKind`; `generic_args_hash` / `instantiation_mangle_hash` live in
+`ast/utils/ASTUtils.cpp`). `generic_instantiation` stays the positional index - the
+instantiator indexes `instantiations`/`instantiation_statuses` with it. The change
+was reverted, but the measurements are worth keeping:
 
-Anything that pattern-matches `__cgs__` (`MIRBorrowCheck.cpp`,
-`TypeVerify.cpp`) matches the prefix, so the suffix can change shape.
+- It works as intended for naming: the universal plugin suite went from
+  **272 instantiated struct definitions / 268 unique names (4 collisions)** to
+  **272 / 272 (0 collisions)**, and two consecutive builds produced the **same set
+  of 2690 mangled names** - the names became deterministic.
+- Arguments alone are *not* an identity: `common_tests::span<T>` and
+  `std::span<T>` collide on their arguments, because an impl method's mangled name
+  embeds only the **bare** container name (`Linear__cgs__H_span__cgs__H_data`) while
+  the parameter type is module-prefixed (`common_tests_span…` vs `std_stdspan…`).
+  Including the owner's qualified name in the hash fixes that.
+- With the owner included, the C translation unit fails differently:
+  `struct/union/enum already defined` for `__chx_core_coreiterableLinear__cgs__H_vt_t`
+  (and then presumably for function bodies) - i.e. **the same logical instantiation
+  reached from two modules is now emitted twice under the same name**.
+
+### The prerequisite
+
+Whole-program emission has no *single owner* per symbol: `MIRDeclEmitter` guards
+declarations with `has_declared` **on the AST node**, not on the emitted name, so a
+second module's copy of the same instantiation records a second, identical
+declaration. With positional ids the two copies happened to get different names
+(duplicate code, valid C); with content-derived names they get the same name
+(duplicate definition, invalid C).
+
+So the fix is two-part, and the second part is the real work:
+
+1. Name: hash the owner's qualified name plus the type arguments (the reverted
+   change above, minus its `CapturingFunctionType` bug - `CapturingFunction` is a
+   *separate* class from `FunctionType`, so it must not be cast to it).
+2. Emission: record every declaration by its emitted **name** in a job-wide
+   registry shared by the declare and implement passes (the declare pass may run
+   in parallel, so it needs the same locking discipline as generic registration),
+   and skip a second declaration of the same name - `VtableType`, `AggregateBody`,
+   `Prototype`, `Typedef`, vtables and function bodies alike. Then identical
+   instantiations collapse to one definition *and* every module's code agrees on
+   its layout.
+
+Until both halves land, the failure mode is what this section documents: names are
+positional, collisions are possible, and a build can be nondeterministically wrong.
+A cheap partial mitigation (not implemented) is to fail the build when two
+*different* structural types print the same aggregate name, instead of silently
+keeping the first definition - that turns a miscompile into a diagnostic, at the
+cost of rejecting builds that "work" today by luck.

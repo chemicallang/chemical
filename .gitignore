@@ -40,3 +40,12 @@ lang/tests/web/fixtures/*/*.def
 lang/tests/web/fixtures/js_abi_spike/native.txt
 lang/tests/web/fixtures/js_abi_spike/js.txt
 
+# A library is built in place when the compiler is run on its `chemical.mod`
+# (e.g. `TCCCompiler lang/libs/webserve/chemical.mod -o ...`, or a library test
+# that links it). That writes a `build/` tree of generated C, object files and
+# cache timestamps next to the sources, plus an artifact descriptor next to the
+# output executable. None of it belongs in a commit: 43 such files (14 MB,
+# including a 5.7 MB `object_tcc.o`) once reached `lang/libs/webserve/build/`.
+lang/libs/*/build/
+lang/libs/*/*.def
+

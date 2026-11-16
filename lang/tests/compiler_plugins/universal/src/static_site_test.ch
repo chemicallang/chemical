@@ -176,6 +176,21 @@ public func static_site_build_is_memory_only(env : &mut TestEnv) {
         return
     }
 
+    // A failed *write* must not take the memory build down with it: the pages are
+    // built, only the files are missing, so a server can still answer.
+    if(!site.respond("/").ok()) {
+        env.error("a write failure must not stop in-memory serving")
+        return
+    }
+
+    // Queries are bounds-safe: an artifact index past the end is an empty view,
+    // not a panic a server has to guard.
+    var out_of_range = site.artifact_path(4096)
+    if(out_of_range.size() != 0) {
+        env.error("an out-of-range artifact index must be empty")
+        return
+    }
+
     env.success("static site: build() is memory-only, finish() reports unwritable output")
 }
 

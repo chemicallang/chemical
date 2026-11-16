@@ -59,6 +59,9 @@ public struct StaticSite {
     private var artifacts : std::vector<SiteArtifact>
 
     private var built : bool
+    /// True when `build()` failed. A failed *build* must not be served; a failed
+    /// *write* must (the memory build is fine, only the files are missing).
+    private var build_failed : bool
     private var written : bool
     private var failed : bool
     private var failure : std::string
@@ -82,6 +85,7 @@ public struct StaticSite {
             bundle_css_path : std::string(),
             artifacts : std::vector<SiteArtifact>(),
             built : false,
+            build_failed : false,
             written : false,
             failed : false,
             failure : std::string()
@@ -131,17 +135,22 @@ public struct StaticSite {
     }
 
     /// Site-relative path of artifact `i` (`index.html`, `assets/app.<hash>.js`).
+    /// Out of range is an empty view, not a panic: this is a read-only query a
+    /// caller may loop over.
     public func artifact_path(&self, i : ubigint) : std::string_view {
+        if(i >= artifacts.size()) { return std::string_view("") }
         var a = unsafe(&*artifacts.get_ptr(i))
         return a.path.to_view()
     }
 
     public func artifact_bytes(&self, i : ubigint) : std::string_view {
+        if(i >= artifacts.size()) { return std::string_view("") }
         var a = unsafe(&*artifacts.get_ptr(i))
         return a.bytes.to_view()
     }
 
     public func artifact_content_type(&self, i : ubigint) : std::string_view {
+        if(i >= artifacts.size()) { return std::string_view("") }
         var a = unsafe(&*artifacts.get_ptr(i))
         return a.content_type
     }
@@ -154,6 +163,12 @@ public struct StaticSite {
     /// Render every page before calling this: a page rendered afterwards would
     /// change the bundle bytes after its name was fixed.
     public func build(&mut self) : bool {
+        var ok = build_in_memory()
+        if(!ok) { build_failed = true }
+        return ok
+    }
+
+    func build_in_memory(&mut self) : bool {
         if(built) { return !failed }
         built = true
 
@@ -329,11 +344,12 @@ public struct StaticSite {
     /// to their `index.html`; `/about` does too (a directory without its trailing
     /// slash is the common hand-typed URL). Content-hashed assets are marked
     /// immutable, HTML is not. Unknown paths get a 404 page; a request before
-    /// `build()` gets a 503 rather than a half-built site.
+    /// `build()` (or after a failed build) gets a 503 rather than a half-built
+    /// site. A failed *write* does not affect serving: the memory build is intact.
     ///
     /// The body borrows the site's buffers: serve it before mutating the site.
     public func respond(&self, request_path : std::string_view) : SiteResponse {
-        if(!built) {
+        if(!built || build_failed) {
             return site_response(503, std::string_view("text/plain; charset=utf-8"),
                 std::string_view("no-store"), std::string_view("site not built"))
         }

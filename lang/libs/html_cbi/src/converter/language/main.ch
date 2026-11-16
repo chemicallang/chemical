@@ -439,7 +439,6 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idValue : *mut Value, markerBoundary : bool = false) {
         unsafe {
         var js = std::string();
-        js.append_view("window.$__uni_dispatch('");
         // For a styled wrap over a universal component, hydration must target the
         // inner universal component (which owns the client JS); the styled
         // component's own `functionNode` is only used for SSR (to emit its CSS).
@@ -452,22 +451,20 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
             hydrateNode = signature.functionNode as *mut ASTNode;
             hydrateName = signature.name;
         }
-        get_module_scoped_name(hydrateNode, hydrateName, &mut js);
-        if(markerBoundary) {
-            // Table-context components have no wrapper element; the id names a
-            // comment boundary resolved at hydration time.
-            js.append_view("', window.$__uni_boundary('u' + ");
-        } else {
-            js.append_view("', document.getElementById('u' + ");
-        }
+        // Compact form: `window.$__uni_c(<id>, '<name>', {<props>}[, 1])`. The
+        // runtime owns the element lookup and the mode string (see $__uni_c), so
+        // the per-instance text is an id, a name and the props — the old form
+        // repeated `document.getElementById('u' + ` for every instance.
+        js.append_view("window.$__uni_c(");
         // Dispatch statements are page-specific: keep them on the page, never in
         // an attached shared JS sink (see HtmlPage.begin_local_js).
         converter.emit_page_stmt(std::string_view("begin_local_js"));
         converter.emit_append_js_from_str(&mut js);
-        // The id is a render-time counter value, not a compile-time constant, so
-        // it is written into the JS buffer as a number.
+        // The id is a render-time counter value, not a compile-time constant.
         converter.vec.push(converter.make_js_uinteger_value_call(idValue) as *mut ASTNode);
-        js.append_view("), {");
+        js.append_view(",'");
+        get_module_scoped_name(hydrateNode, hydrateName, &mut js);
+        js.append_view("',{");
         // Flush immediately: the attribute/children emitters below reuse `js`, and
         // a component with no attributes never reaches their flush point.
         converter.emit_append_js_from_str(&mut js);
@@ -563,7 +560,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         if(markerBoundary) {
             // Root-mode hydration: the comment resolves to the component's own root
             // element, which is hydrated in place (no wrapper container).
-            tail.append_view("}, \"root\");\n");
+            tail.append_view("},1);\n");
         } else {
             tail.append_view("});\n");
         }

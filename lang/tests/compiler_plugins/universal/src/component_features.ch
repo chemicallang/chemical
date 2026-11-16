@@ -81,7 +81,7 @@ public func feature_multiple_component_dispatches_present(env : &mut TestEnv) {
     var js = std::string()
     js.append_view(page.getJs())
     // Two dispatch calls should exist for two component instances
-    if(js.contains("__uni_dispatch") && js.contains("Greeting")) {
+    if(js.contains("__uni_c") && js.contains("Greeting")) {
         env.success("dispatch calls present for multiple component instances")
     } else {
         env.error("dispatch calls missing")
@@ -413,7 +413,7 @@ public func feature_js_output_has_function_and_dispatch(env : &mut TestEnv) {
     var js = std::string()
     js.append_view(page.getJs())
     var has_func = js.contains("function ")
-    var has_dispatch = js.contains("window.$__uni_dispatch(")
+    var has_dispatch = js.contains("window.$__uni_c(")
     if(has_func && has_dispatch) {
         env.success("JS output contains both function definition and dispatch")
     } else {

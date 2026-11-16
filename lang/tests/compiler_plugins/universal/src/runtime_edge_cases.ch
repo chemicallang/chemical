@@ -58,7 +58,7 @@ public func universal_js_output_valid_structure(env : &mut TestEnv) {
     js.append_view(page.getJs())
     // Verify the JS output contains both function definition and dispatch.
     var has_func = js.contains("function ")
-    var has_dispatch = js.contains("window.$__uni_dispatch(")
+    var has_dispatch = js.contains("window.$__uni_c(")
     if(has_func && has_dispatch) {
         env.success("JS output has both function definition and dispatch")
     } else {

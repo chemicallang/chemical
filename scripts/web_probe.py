@@ -186,7 +186,14 @@ def split_bundle(src):
 def analyze_js(path):
     raw = io.open(path, encoding="utf-8", errors="replace").read()
     regions = split_bundle(raw)
-    dispatch_count, dispatch_bytes = call_spans(raw, "window.$__uni_dispatch")
+    # Two dispatch encodings exist: the pre-manifest
+    # `window.$__uni_dispatch('Name', document.getElementById('u<n>'), props)` and
+    # the compact `window.$__uni_c(<n>,'Name',props[,1])`. Count both so an old
+    # artifact and a current one are comparable.
+    d_old, b_old = call_spans(raw, "window.$__uni_dispatch")
+    d_new, b_new = call_spans(raw, "window.$__uni_c")
+    dispatch_count = d_old + d_new
+    dispatch_bytes = b_old + b_new
     scanner = scan_js(raw)
     minifiable = (
         scanner["comment_bytes"]

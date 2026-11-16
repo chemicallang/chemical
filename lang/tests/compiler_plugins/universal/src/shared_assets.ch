@@ -43,7 +43,7 @@ public func shared_assets_bundle_has_no_dispatch_statements(env : &mut TestEnv) 
 
         var bundle = std::string()
         bundle.append_view(shared.js())
-        const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+        const dispatch_stmt = std::string_view("window.$__uni_c(")
         if(bundle.contains(&dispatch_stmt)) {
             env.error("shared bundle must not contain page-specific dispatch statements")
             return
@@ -62,7 +62,7 @@ public func shared_assets_local_js_has_dispatch(env : &mut TestEnv) {
     #html { <Greeting /> }
 
     var local = page.local_js()
-    const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+    const dispatch_stmt = std::string_view("window.$__uni_c(")
     if(!local.contains(&dispatch_stmt)) {
         env.error("page local js must contain its dispatch statement")
         return
@@ -144,7 +144,7 @@ public func unattached_page_still_owns_its_js(env : &mut TestEnv) {
         env.error("unattached page must contain its component definition")
         return
     }
-    if(!js.contains("window.$__uni_dispatch('")) {
+    if(!js.contains("window.$__uni_c(")) {
         env.error("unattached page must contain its dispatch")
         return
     }
@@ -176,7 +176,7 @@ public func shared_assets_runtime_emitted_once(env : &mut TestEnv) {
     }
 
 // Regression: the original bug was a "shared" bundle that still contained the
-// page-specific `window.$__uni_dispatch('Comp', getElementById('u<loc>'), ...)`
+// page-specific `window.$__uni_c(<id>,'Comp',{...})`
 // statements. With a shared sink, those statements stay on the page and the
 // bundle is page-independent.
 @test
@@ -190,7 +190,7 @@ public func feature_external_bundle_has_no_page_specific_dispatch(env : &mut Tes
 
         var bundle = std::string()
         bundle.append_view(shared.js())
-        const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+        const dispatch_stmt = std::string_view("window.$__uni_c(")
         if(bundle.contains(&dispatch_stmt)) {
             env.error("the shared bundle still contains a page-specific hydration dispatch")
             return
@@ -250,7 +250,7 @@ public func shared_assets_umbrella_pulls_transitive_definitions(env : &mut TestE
             env.error("rendering the umbrella must pull in the components it uses")
             return
         }
-        const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+        const dispatch_stmt = std::string_view("window.$__uni_c(")
         if(bundle_view.contains(&dispatch_stmt)) {
             env.error("the bundle must stay dispatch-free")
             return
@@ -287,7 +287,7 @@ public func shared_assets_request_render_does_not_grow_the_sink(env : &mut TestE
             env.error("a request render must not add css to the already-warmed sink")
             return
         }
-        const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+        const dispatch_stmt = std::string_view("window.$__uni_c(")
         var local = req.local_js()
         if(!local.contains(&dispatch_stmt)) {
             env.error("the page must still carry its own dispatch statement")

@@ -75,8 +75,10 @@ public func router_emits_client_registry_and_stubs(env : &mut TestEnv) {
         env.error("route component function must be defined before its stub")
         return
     }
-    // Route bodies must NOT enter the hydration queue (INV-7).
-    const dispatch = std::string_view("$__uni_dispatch('universal_lib_test_RouterPane'")
+    // Route bodies must NOT be dispatched through the compact dispatch call
+    // `$__uni_c(<id>,'<name>',{...})`, so the name must never follow the call's
+    // id argument.
+    const dispatch = std::string_view(",'universal_lib_test_RouterPane'")
     if(js.find_or_npos(&dispatch) != std::NPOS) {
         env.error("route body must not be dispatched through the hydration queue")
     }

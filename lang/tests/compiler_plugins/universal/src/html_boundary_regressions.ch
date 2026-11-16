@@ -95,13 +95,11 @@ public func html_table_context_uses_comment_boundary(env : &mut TestEnv) {
         unsafe(test_env::ffi::log_cstr(env, LogType.Information, html.data(), 0, 0))
         return
     }
-    if(!js.contains("window.$__uni_boundary(")) {
-        env.error("table-context dispatch must resolve a comment boundary")
-        unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
-        return
-    }
-    if(!js.contains("\"root\"")) {
-        env.error("table-context component must hydrate its own root element")
+    // The boundary lookup now lives in the runtime ($__uni_c), so what the page
+    // must express is *root mode*: the fourth argument flags a comment boundary
+    // instead of an element id.
+    if(!js.contains(",1);")) {
+        env.error("table-context dispatch must use root-mode hydration (a comment boundary)")
         unsafe(test_env::ffi::log_cstr(env, LogType.Information, js.data(), 0, 0))
         return
     }

@@ -78,6 +78,15 @@ without any JS backend; and the honest whitespace/comment minify headroom is 8�
 the 15–26% estimated from a cruder regex. The second page duplicates **78.7%** of its bytes —
 that number is the case for the shared chunk graph, expressed in one line.
 
+**Progress against that baseline** (re-measured after Phase 0 + Phase 2 step 1):
+
+| | baseline | now | delta |
+|---|---|---|---|
+| `components.js` | 320,163 B | **285,066 B** | −35,097 B (−11.0%) |
+| dispatch text | 131,403 B (41.0%) | **88,326 B (31.0%)** | −43,077 B |
+| `components.html` | 247,774 B | **234,630 B** | −13,144 B |
+| duplicate bytes on page 2 | 142,227 B (78.7%) | 150,203 B (83.8%) | *worse* — the shared chunk graph has not landed yet; the runtime grew slightly |
+
 The real gaps are structural:
 
 1. **No code units.** Client JS is text appended to `pageJs` in emission order, with
@@ -306,23 +315,37 @@ Invariants (CI-gated, Phase 4):
 - a request-time render cannot add a unit to a frozen chunk;
 - no inline `<script>` in production output (CSP-friendly), no `window`-global registration.
 
-### 3.6 Hydration manifest (moved early; no JS backend needed)
+### 3.6 Hydration manifest (moved early; no JS backend needed) — **part 1 landed**
 
-Replace per-instance dispatch text with one payload:
+Two steps, both about the fact that dispatch text was **41% of a page bundle**.
 
-```html
-<script id="__chc" type="application/json">
-{"c":[{"i":"u7","n":"Button","p":{...}},{"i":"u8","n":"Card","p":{}}]}
-</script>
+**Step 1 (landed): compact dispatch + per-instance ids.** The converters now emit one call per
+instance instead of a full `$__uni_dispatch` invocation, and the element lookup plus the mode string
+live in the runtime:
+
+```js
+window.$__uni_c(7,'components_Button',{"variant":"info"});      // was:
+window.$__uni_dispatch('components_Button', document.getElementById('u3476889310890819674'), {"variant":"info"});
 ```
 
-- Removes ~42% of `components.js` (133 KB on the real page) and 805 `getElementById` lookups.
-- Ids become **instance ids from a counter** (`useId`), not source locations, so repeated
-  instances cannot collide.
-- Props are serialized once, and the client runtime hydrates from the manifest; the queue /
-  `window[fnName]` mechanism is replaced by chunk imports (Phase 4) or a registry (Phase 2).
+Measured on the real components app (805 instances):
 
-This is the single largest cheap win and depends on nothing else.
+| | before | after | delta |
+|---|---|---|---|
+| dispatch text in `components.js` | 131,403 B (41.0%) | **88,326 B (31.0%)** | −43,077 B |
+| ids in the page HTML | 19-digit source locations | 1–3 digit counters | −13,129 B of HTML |
+| `components.js` total | 320,163 B | **285,066 B** | −35,097 B (−11.0%) |
+
+**Step 2 (Phase 4, with chunks): one payload.** The remaining per-instance cost is the component
+name (≈19 B × 805) and the props. A single `<script type="application/json">` payload plus a name
+table removes the name repetition, and it is the correct shape once components can live in a
+separate chunk (the payload then carries a chunk id). Doing it now would bake in a single-bundle
+assumption, so it waits for the chunk graph.
+
+What is already true and gated:
+- ids are per **instance** (a counter), not per source location, so repeated instances cannot collide;
+- the runtime owns `$__uni_c`, so emitted pages never repeat the lookup boilerplate;
+- `#html` and JSX paths both go through it; route bodies still do not dispatch (INV-7).
 
 ### 3.7 Typed client code (why the JS backend is job #1)
 
@@ -881,8 +904,10 @@ time/peak RSS for other backends unchanged.
 The whole phase can run in a second workstream while Phase 1 is in progress, and it carries three
 of the breaking changes in §3.17.
 
-1. [ ] **Hydration manifest** (§3.6): replaces dispatch text; ~41% smaller pages; removes
-   `window[fnName]` and the global queue; props serialized once.
+1. [~] **Hydration manifest** (§3.6): **step 1 landed** — compact `$__uni_c` dispatch + per-instance
+   counter ids took dispatch text from 41.0% to 31.0% of `components.js` and page HTML down 13 KB
+   (measured, §3.6). Step 2 (single payload + name table) belongs with the chunk graph in Phase 4,
+   where a payload can name a chunk instead of a global function.
 2. [ ] **`SharedAssets` freeze + content-hashed names + ETag + `toStringJsOnly`**: the shared-bundle
    design's Phase 4. This alone makes two pages share the runtime and the 63 components today.
 3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, and attribute-name

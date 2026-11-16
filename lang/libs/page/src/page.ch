@@ -1244,8 +1244,7 @@ public struct HtmlPage {
         if(cause) err.cause = cause;
         throw err;
     })
-    window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
-        if(!target) {
+    window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {        if(!target) {
             // A dispatch can miss its target when the server did not render the
             // component's boundary (e.g. an SSR bug, or a client-only subtree).
             // Never throw here: dispatches are emitted as sequential statements, so
@@ -1270,8 +1269,15 @@ public struct HtmlPage {
             window.$__uni_hydration_queue.push([ fnName, target, props, mode ]);
         }
     })
-    window.$__uni_flush_batch = (() => {
-        const pending = window.$__uni_pending_instances;
+    // Compact dispatch emitted by the converters: the element lookup and the
+    // mode string live here, so a server-rendered page spends one number and one
+    // name per instance instead of the getElementById boilerplate it used to
+    // repeat 800+ times (41% of a page bundle).
+    window.$__uni_c = ((id, fnName, props, root) => {
+        const target = root ? window.$__uni_boundary('u' + id) : document.getElementById('u' + id)
+        window.$__uni_dispatch(fnName, target, props, root ? "root" : "children")
+    })
+    window.$__uni_flush_batch = (() => {        const pending = window.$__uni_pending_instances;
         for(let i = 0; i < pending.length; i++) {
             const inst = pending[i];
             inst._pendingEffects = false;

@@ -456,10 +456,29 @@ if(again.not_modified()) { /* 304: no body, same ETag + cache policy */ }
 `/`, `/index.html`, `/about/` and `/about` all resolve to their page; anything else is a 404 page, and
 `..` traversal is refused. The bundle's ETag is the same hash that is in its file name, so an immutable
 asset revalidates without re-hashing. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)`
-expose the build's manifest (pages, bundle, chunks) if you want to serve it through your own server —
-there is no `web::App` yet (see the capability matrix below), so wiring `respond()` into
-`http::Server` is currently manual: `status`, `Content-Type`, `Cache-Control`, `ETag` from the
-`SiteResponse`, and the body as `body.data()`/`body.size()`.
+expose the build's manifest (pages, bundle, chunks).
+
+### Serving it over HTTP
+
+`webserve` (`lang/libs/webserve`) is the bridge from a built site to `http::Server`. It imports both
+`http` and `page`, so neither library depends on the other and only an app that serves pays for the
+pair:
+
+```chemical
+var site = StaticSite.make("out", "app", "assets")
+// ... add pages, render ...
+if(!site.build()) { /* site.error_message() */ }
+
+unsafe { webserve.install(&raw mut site) }        // the site must outlive the server
+var srv = http::Server.bind(cfg)                  // Result<Server, net::NetError>
+srv.router.add("GET", "/*path", webserve.respond_to_request)
+srv.serve()
+```
+
+`respond_to_request` maps the `SiteResponse` onto an `http::Response`: status, `Content-Type`,
+`Cache-Control`, `ETag`, `If-None-Match` → 304, and the body. A request before a site is installed is
+a 503, not a crash. The body is copied into the response (one copy per request) because
+`http::Response` owns its body; keep that in mind for very large bundles.
 
 ### `SharedAssets` — the low-level primitive
 
@@ -518,7 +537,7 @@ of the right-hand column has landed yet** — code written against it will not c
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
 | assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
-| serving | `StaticSite.build()` + `respond(path)`, or `http::Server` / `http::FileServer` yourself | `web::App.handle(req)`, ETag + immutable caching, three delivery modes (static / shell+slots / full SSR) |
+| serving | `StaticSite.build()` + `respond(path)` / `respond_if_none_match`, served over `http::Server` through `webserve` | `web::App.handle(req)`, route table + per-route chunks, three delivery modes (static / shell+slots / full SSR) |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
 | JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, minification, `--static` |
 | props | untyped `(props)`, or typed `(props : Props)` | optional props / defaults (`@props`) |

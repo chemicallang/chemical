@@ -1094,7 +1094,12 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    a stale one returns the full body — measured on the fixture: bundle `304 | 0 B | immutable`, page
    `304 | 0 B | no-cache`, stale `200 | 409 B`. `finish()` is `build()` plus writing the same list.
    `artifact_count()`/`artifact_path()`/`artifact_bytes()` expose the manifest, which is what a
-   `web::App` will serve from.
+   `web::App` will serve from. Until then the bridge is `webserve` (new,
+   `lang/libs/webserve/src/serve.ch`, imports `http` + `page` so neither library depends on the
+   other): `webserve.install(site)` once at startup and `router.add("GET", "/*path",
+   webserve.respond_to_request)` serves the site with `Content-Type`, `Cache-Control`, `ETag` and
+   304 support, copying the body into the response. It is a pure request→response mapping, so it is
+   testable without a socket (the fixture does exactly that).
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.
@@ -1209,7 +1214,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
 | Size | `scripts/web-probe.sh` regression gate + Phase 5 budgets |
 | Cache | second page of a 2-page app: 0 duplicated runtime/component bytes |
-| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/304/404 with the right cache policy; `@test`s in the universal plugin suite cover the same contract |
+| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/304/404 with the right cache policy; the `webserve` bridge maps that onto `http::Response` (status, headers, 304, 503 for no site, body). 29 checks; `@test`s in the universal plugin suite cover the same contract |
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |

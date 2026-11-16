@@ -458,6 +458,7 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 | `lang/libs/json/` | JSON runtime: `JsonValue`, parser, `JsonEncoder`/`JsonDecoder`, `TypeDecoder<T>` decode dispatch, `__non_gen_se_repl` |
 | `lang/libs/json_cbi/` | `#json(Struct)` macro plugin: auto-generates `std::Serializer`/`std::Deserializer` impls |
 | `lang/libs/test_report/` | Shared test reporting: `TestOutcome`, `TestReporter` interface, `ConsoleReporter`, `TestRunnerHandle` + `MultiTestRunner` for combining runners (see `lang/docs/test-reporting.md`) |
+| `lang/libs/webserve/` | HTTP bridge for a built site: `webserve.install(site)` + `webserve.respond_to_request` map `page.StaticSite.respond_if_none_match` onto `http::Response` (status, `Content-Type`, `Cache-Control`, `ETag`, 304). Imports both `http` and `page` so neither depends on the other |
 | `lang/libs/compiler/` | Compiler API bindings for macros |
 | `lang/tests/` | Test suite |
 

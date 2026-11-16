@@ -87,6 +87,23 @@ Its body (built in `react/ast_replace.ch` → `universal_replacementNode`) does,
 3. Styled wrap over a universal component (`signature.hydrateFunctionNode`) dispatches the
    **inner** universal component (it owns the client JS); the styled wrapper is SSR-only.
 
+## Typed props
+
+`#universal Name(props : Props)` declares the component's prop surface; the struct's fields are the
+props (all required, no defaults yet) and implicit props (`children`, `class`/`className`, `on*`) are
+always allowed. Both directions are compile errors:
+
+```
+missing required prop 'count' for component 'Card' at src/main.ch:12:10
+unknown prop 'counts' for component 'Card'; declared props: title, count
+```
+
+Prop values are type-checked against the declared fields, so `props.count` is a real `int` inside the
+component body rather than an untyped `undefined`. Untyped `#universal Name(props)` keeps working: a
+typo there survives to the browser, which is why every shipped component should be typed (a
+grep-based count of untyped components is a release gate; fixtures:
+`lang/tests/web/fixtures/typed_props*`). Full author-facing rules: the `design_web_app` skill.
+
 ## Buffers and output files (`HtmlPage`)
 
 | Field | Becomes | In `writeToDirectory` |
@@ -229,6 +246,12 @@ its own copy of the runtime, the component definitions it uses, and its componen
 CSS. `SharedAssets` extracts the **page-independent** bytes into one sink that all
 pages reference, so a single JS + CSS bundle can be served once and cached while
 each page stays lean.
+
+> **Apps should use `page.StaticSite`** (see the `design_web_app` skill), which
+> owns a sink, adds content-hashed names, writes one HTML file per route, gives
+> each page its own hashed script chunk (so no page ships an inline `<script>`),
+> and can serve the whole build from memory with `respond(path)`. This section
+> documents the sink itself — the primitive `StaticSite` is built on.
 
 - The sink receives: the hydration runtime, component definitions, the router
   registry, and component classes — de-duplicated across every attached page.

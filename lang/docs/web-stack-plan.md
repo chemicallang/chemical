@@ -1112,7 +1112,13 @@ byte-identically to full SSR; no inline `<script>`.
 4. **Skills + migration kit** (§3.21): `web_app` (rewrite), `web_migration`, `web_client` (new),
    updates to `universal`/`components_e2e`/`testing`/`AGENTS.md`, the reference app inside
    `web_app`, and the one-sentence bootstrap prompt. Wire `skill conformance` into CI so every
-   snippet in the skills compiles.
+   snippet in the skills compiles — **partially landed**: `design_web_app` now documents the typed
+   props contract, `page.StaticSite` (shared hashed bundle, per-page chunks, `build()`/`respond()`),
+   the measured numbers, and an explicit **today vs planned** capability matrix plus the bootstrap
+   prompt, so app agents stop inventing `web::App` APIs that do not exist yet; `universal` gained
+   the typed-props diagnostics and a pointer from `SharedAssets` to `StaticSite`. `web_migration`
+   and `web_client` are still blocked on the APIs they would document (module split, typed `dom`),
+   and skill conformance is not wired into CI.
 
 **Exit (v1 gate):** budgets green; `chemical build --web` emits a deployable directory *or* an
 embedded `assets.ch`; `--static` output shares runtime + component units across pages

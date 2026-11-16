@@ -347,15 +347,120 @@ in `universal` macro, some things are different
 
 - No guarantee of static content being generated, something can break SSR + hydration (like .map)
 - Not explicitly clear about what gets generated for the runtime code
-## Sharing JS/CSS across pages
 
-If several pages use the same components, render them through one `SharedAssets`
-sink so the hydration runtime, component definitions, and component classes are
-written **once** into a shared, cacheable bundle instead of once per page. Each
-page keeps only its own dispatch statements and SSR HTML.
+### Typed props
+
+An untyped `#universal Name(props)` accepts any attribute, so a typo (`counts=` instead of
+`count=`) reaches the browser as `undefined` and the bug shows up at runtime. Declare the prop
+surface with a `props :` type instead:
 
 ```chemical
-var shared = shared_assets()
+public struct CardProps {
+    var title : std::string_view
+    var count : int
+}
+
+#universal Card(props : CardProps) {
+    return <div class="card">{props.title}</div>
+}
+
+// ok
+#html { <Card title="first" count={1} /> }
+
+// compile error: unknown prop 'counts' for component 'Card'; declared props: title, count
+#html { <Card title="first" counts={1} /> }
+```
+
+Rules:
+
+- The type must be a struct whose fields are the props, and every declared field is **required**
+  (there are no optional props or defaults yet — give the field a sentinel value or split the
+  component).
+- Implicit props are always allowed even when not declared: `children`, `class`/`className`, and
+  `on*` event handlers.
+- `props.title` type-checks as `std::string_view` (etc.), so the body fails to compile if you treat
+  a declared `int` as a string — typed props make the component body typed too.
+- Adding or renaming a prop is a compile error at every call site, which is why the goal is *all*
+  components typed (a grep-based count is a release gate).
+
+## Sharing JS/CSS across pages
+
+If several pages use the same components, render them through **one shared sink** so the hydration
+runtime, component definitions, and component classes are written **once** into a shared, cacheable
+bundle instead of once per page. Each page keeps only its own dispatch statements and SSR HTML.
+
+Measured on two pages that instantiate the same components (`scripts/static-site-test.sh`):
+
+| | per-page HTML | inline `<script>` | shared assets |
+|---|---|---|---|
+| every page standalone (`page.toString()`) | 109,317 B **each** | 2 per page | none |
+| one shared bundle | **424 B / 409 B** | **0** | 1 bundle (108,816 B) + 30 B CSS, fetched once |
+
+### `StaticSite` — the recommended way
+
+`StaticSite` does the whole job: one bundle with a content-hashed name, one HTML file per page, and a
+content-hashed script chunk per page so the HTML ships **no inline `<script>`** (CSP-clean).
+
+```chemical
+public func main() : int {
+    // out dir, bundle base name, URL prefix the bundle is served under
+    var site = StaticSite.make("out", "app", "assets")
+
+    var index = HtmlPage()
+    site.add(&mut index, "index.html")   // attaches the sink: render AFTER this
+    index.defaultUniversalSetup()
+    render_index(&mut index)
+
+    var about = HtmlPage()
+    site.add(&mut about, "about/index.html")   // nested routes get ../assets/…
+    about.defaultUniversalSetup()
+    render_about(&mut about)
+
+    if(!site.finish()) {                  // build + write; false => site.error_message()
+        unsafe { printf("%s\n", site.error_message().data()) }
+        return 1
+    }
+    return 0
+}
+```
+
+Output: `out/index.html`, `out/about/index.html`, `out/assets/app.<hash>.js`,
+`out/assets/app.<hash>.css`, and one `out/assets/<page>.<hash>.js` per distinct page script. A page
+that emits the same dispatch as another shares its chunk file.
+
+Two rules:
+
+- **Attach before rendering.** `site.add(&mut page, path)` attaches the sink; anything page-independent
+  the page emits afterwards lands in the bundle. A page rendered *after* the build would change the
+  bundle's bytes after its name was fixed — `finish()` reports that instead of publishing it.
+- **Pages and paths must outlive the build.** The site holds a pointer to each page and a view of
+  each path (it never copies a page); pass `&mut page` on a local you keep alive until `finish()`.
+
+### Serving from memory
+
+The same build can answer requests without touching the filesystem:
+
+```chemical
+if(!site.build()) { /* error_message() */ }      // freeze + render, no disk access
+var res = site.respond("/about/")                // SiteResponse
+// res.status (200 / 404 / 503 before build), res.content_type,
+// res.cache_control ("no-cache" for HTML, immutable for hashed assets),
+// res.body (std::string_view into the site — no copy per request)
+```
+
+`/`, `/index.html`, `/about/` and `/about` all resolve to their page; anything else is a 404 page, and
+`..` traversal is refused. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)` expose the
+build's manifest (pages, bundle, chunks) if you want to serve it through your own server — there is no
+`web::App` yet (see the capability matrix below), so wiring `respond()` into `http::Server` is
+currently manual.
+
+### `SharedAssets` — the low-level primitive
+
+`StaticSite` is a thin owner around `SharedAssets`, which you can still drive yourself when you need
+custom naming or serving:
+
+```chemical
+var shared = shared_assets()          // or SharedAssetsHandle.make("app")
 
 var home = HtmlPage()
 home.attach_shared(shared)
@@ -365,17 +470,16 @@ var about = HtmlPage()
 about.attach_shared(shared)
 BuildAbout(&mut about)
 
-// Render every page first, then take the output out:
-shared.write_to("output", "app")   // output/app.js + output/app.css — serve + cache these
+// render every page first, then take the output out:
+shared.write_to("output", "app")      // output/app.js + output/app.css — serve + cache these
 // per page: home.getHtml() (SSR) + home.local_js() (dispatch statements)
 ```
 
-This is opt-in and low level: it does not manage routes or serving. A page that
-never calls `attach_shared()` behaves exactly as before. App-wide CSS/JS written
-with `#globalcss { ... }` / `#globaljs { ... }` goes into the shared bundle when a
-sink is attached (falling back to the page otherwise), while `#css`/`#js` always
-stay on the page. See the `universal` skill section "Shared JS/CSS bundles across
-pages (`SharedAssets`)" for the routing rules and gotchas.
+`attach_shared` is opt-in and low level: it does not manage routes, hashed names or serving. A page
+that never calls it behaves exactly as before. App-wide CSS/JS written with `#globalcss { ... }` /
+`#globaljs { ... }` goes into the shared bundle when a sink is attached (falling back to the page
+otherwise), while `#css`/`#js` always stay on the page. See the `universal` skill section "Shared
+JS/CSS bundles across pages (`SharedAssets`)" for the routing rules and gotchas.
 
 ## Testing your components
 
@@ -397,3 +501,46 @@ a real page) and a raw JS `<script>` of steps run in a real WebView:
 Run with `./scripts/test.sh --tcc --universal`. See the `universal_testing`
 skill for the full API and gotchas; for headless/cross-browser coverage use the
 `components_e2e` Playwright suite instead.
+
+## What exists today vs what the web-stack plan adds
+
+Everything documented above works today. `lang/docs/web-stack-plan.md` adds a lot more, and **none
+of the right-hand column has landed yet** — code written against it will not compile:
+
+| capability | today | planned (not available yet) |
+|---|---|---|
+| app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
+| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
+| serving | `StaticSite.build()` + `respond(path)`, or `http::Server` / `http::FileServer` yourself | `web::App.handle(req)`, ETag + immutable caching, three delivery modes (static / shell+slots / full SSR) |
+| client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
+| JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, minification, `--static` |
+| props | untyped `(props)`, or typed `(props : Props)` | optional props / defaults (`@props`) |
+
+Escape hatches while a typed surface is missing: `#js` blocks (raw JS, still inside the page's or
+bundle's JS) and `@{}` escapes for server-side logic inside `#html`. Neither breaks the probes.
+
+### Performance rules that hold today
+
+The probe (`./scripts/web-probe.sh analyze <out-dir> --strict`) measures each of these:
+
+- Component definitions are per component, **not** per instance — but a page that instantiates many
+  components has a big bundle, and pages only share those bytes through one sink (`StaticSite`).
+- Dispatch text is per **instance**: the two-page fixture's page chunk is 137 B, 105 B of which is
+  the two `$__uni_c` calls. Keeping dispatch out of the bundle is what makes a page chunk
+  route-cacheable.
+- The hydration runtime dominates the shared bundle (~108 KiB for two trivial components), which is
+  why it is hashed, served once, and cached immutably instead of inlined per page.
+- Minification is worth 8–14% of raw generated JS (measured); it is the emitter's job, so do not
+  hand-minify pages.
+
+### Bootstrap prompt for an app agent
+
+Hand an agent this sentence before it writes code:
+
+> Read the `design_web_app` (web stack), `universal`, and `universal_testing` skills before writing
+> any code: this app renders pages with `#html` / `#css` / `#universal`, types every component's
+> props, serves them through one `page.StaticSite` shared bundle, and keeps
+> `scripts/web-probe.sh --strict` green.
+
+When the plan's Phases 3–4 land (module split, `web::App`/`Bundle`/`Shell`, minification), use the
+longer sentence in `lang/docs/web-stack-plan.md` §3.21 instead.

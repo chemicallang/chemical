@@ -11,6 +11,34 @@ cache and the application re-translated.
 
 ---
 
+## Cache contract: a cached module owns its definitions (`inst.names`)
+
+Emitted definitions are owned once per job: `mir::MIREmissionRegistry`
+(`compiler/mir/MIREmissionRegistry.h`) maps each emitted *name* to the module that
+wrote it, and a later module skips a definition it does not own. A module's cached
+translation therefore has to re-claim what it emitted, or the next fresh module
+writes a second definition of every instantiation both reach (that was Bug 1's
+shape, and it is why the registry cannot work from cache hits alone).
+
+So every module writes the names it emitted to `<module>/inst.names`
+(`inst.names` next to `partial.2c.c` / the per-module object) and a cache hit loads
+it back into the registry:
+
+* `.names` lines are `T <name>` (type definitions) and `S <name>` (symbol
+  definitions), under a `chem-instantiation-names 1` header;
+* the file is only written when caching is enabled, and is written *after* the
+  artifact it describes;
+* a cache entry without the record is **not reused** — the module is translated
+  again. That is deliberate: it retires a cache written by an older compiler, whose
+  cached C carries the old positional instantiation names (`__cgs__4`) while a
+  fresh module now spells content hashes.
+
+`scripts/instantiation-names-test.sh` builds with the cache, touches one source
+file and builds again, then checks the mixed translation unit defines each name
+once and the program still runs.
+
+---
+
 ## Bug 1 — `struct/union/enum already defined` (FIXED)
 
 ### Symptom
@@ -139,6 +167,17 @@ Make the name globally unique and stable, e.g. tag it with the module
 numeric part from `LambdaFunction::encoded_location()`. Both make a cached partial
 and a fresh translation of the *same* module byte-identical, which the current
 random scheme does not.
+
+The MIR path names them `__chemda_<n>` / `__chemda_cap_<n>` /
+`__chemda_async_cap_<n>` from process-global `std::atomic` counters
+(`compiler/mir/MIRLowerLambda.cpp`), so the numbering is neither per module nor
+stable across builds — the same failure, with the same fix shape as the
+instantiation names: derive the name from the *owner* (the enclosing function's
+mangled name, itself now content-derived — see
+`parallel-generic-instantiation.md`), not from a global counter, and claim it in
+`mir::MIREmissionRegistry` like any other emitted symbol. A `__lam<N>` suffix that
+restarts per enclosing function is deterministic because two functions with the
+same name are already one definition.
 
 ### Reproducer
 

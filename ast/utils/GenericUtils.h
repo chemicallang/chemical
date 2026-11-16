@@ -94,3 +94,32 @@ bool check_inferred_generic_args(
  * materialized immediately.
  */
 bool type_mentions_generic_param(const BaseType* type);
+
+/**
+ * The runtime name of an instantiation is derived from its *content* — the
+ * generic declaration's module-qualified name plus its concrete type arguments —
+ * instead of from the position of the instantiation in the declaring module's
+ * `instantiations` vector.
+ *
+ * The position is only unique *within* a module, and every module instantiates
+ * its own copies, so two different types could print one name (the C compiler
+ * then keeps whichever body it saw first and the program is wrong, and a
+ * whole-program C build is nondeterministic because the numbering depends on how
+ * the parallel symbol-resolution pass interleaves files). A content-derived name
+ * is the same in every module that reaches the instantiation — which is what
+ * makes a cross-module call to it resolve — and identical between two builds,
+ * which is what makes the per-module translation cache safe.
+ *
+ * `owner` is the generic declaration's implementation (the master
+ * `StructDefinition`/`FunctionDeclaration`/...); `args` are the concrete type
+ * arguments. Both are hashed with FNV-1a 64; callers store the result on the
+ * instantiation (`generic_mangle_hash`) and `NameMangler` prints it.
+ *
+ * Determinism requirements, which the walk in GenericUtils.cpp implements:
+ *  - every named type is spelled by its module-qualified name, never by a
+ *    pointer or a source location;
+ *  - a nested instantiation contributes its own content hash, so `Box<Option<int>>`
+ *    and `Box<Option<string>>` differ (the nested hash is set before the outer
+ *    instantiation's signature is finalized, see `register_generic_args`).
+ */
+uint64_t instantiation_mangle_hash(ASTNode* owner, const std::vector<TypeLoc>& args);

@@ -485,6 +485,69 @@ std::string get_translated_c_path(const std::string_view& build_dir, LabModule* 
     return resolve_rel_child_path_str(build_dir, f);
 }
 
+// ---------------------------------------------------------------------------
+// instantiation-name records
+// ---------------------------------------------------------------------------
+// A module's cached translation (its partial C, or its per-module object) *owns*
+// the definitions it wrote: which module emits `vector<u8>::push` is decided by
+// the job-wide `mir::MIREmissionRegistry`. A module served from cache therefore
+// has to re-claim the names it emitted last time, or a module translated in the
+// same build writes a second definition of every instantiation both reach.
+//
+// The record lives next to the cached artifact. A cache entry without one is not
+// usable (it predates content-derived instantiation names, or was written by a
+// compiler that did not record them), so the module is translated once more —
+// which is also how a cache from an older compiler is retired.
+
+std::string get_module_names_path(const std::string_view& build_dir, LabModule* mod) {
+    auto f = mod->format('.');
+    f.append("/inst.names");
+    return resolve_rel_child_path_str(build_dir, f);
+}
+
+bool write_module_names(const std::string& path, const std::vector<std::string>& types,
+                        const std::vector<std::string>& symbols) {
+    std::string text("chem-instantiation-names 1\n");
+    for (const auto& name : types) {
+        text += "T ";
+        text += name;
+        text += '\n';
+    }
+    for (const auto& name : symbols) {
+        text += "S ";
+        text += name;
+        text += '\n';
+    }
+    writeToFile(path, text);
+    return true;
+}
+
+/** Claim the names a cached module emitted. False when there is no usable record. */
+bool load_module_names(const std::string& path, mir::MIREmissionRegistry& registry) {
+    std::ifstream in(path);
+    if (!in.is_open()) return false;
+    std::string line;
+    if (!std::getline(in, line) || line != "chem-instantiation-names 1") return false;
+    while (std::getline(in, line)) {
+        if (line.size() < 3 || line[1] != ' ') continue;
+        const std::string_view name(line.data() + 2, line.size() - 2);
+        if (line[0] == 'T') {
+            registry.load_type(name);
+        } else if (line[0] == 'S') {
+            registry.load_symbol(name);
+        }
+    }
+    return true;
+}
+
+/** Record the names this module just emitted (call once, after implementing it). */
+void save_module_names(ASTProcessor& processor, const std::string_view& build_dir, LabModule* mod) {
+    std::vector<std::string> types;
+    std::vector<std::string> symbols;
+    processor.mir_emission_registry.take_module_names(types, symbols);
+    write_module_names(get_module_names_path(build_dir, mod), types, symbols);
+}
+
 bool has_module_changed_recursive(LabBuildCompiler* compiler, LabModule* module, const std::string& build_dir, bool use_tcc, bool is_single_file) {
     const auto verbose = compiler->options->verbose;
     if(use_tcc && module->type == LabModuleType::CPPFile) {
@@ -880,12 +943,17 @@ int LabBuildCompiler::process_module_tcc(
 
         bool cache_succeeded = false;
 
+        // A cached translation is only reusable when the definitions it owns are
+        // known: the record is written next to the artifact (see
+        // `get_module_names_path`). Without it the module is translated again.
+        const std::string names_path = get_module_names_path(build_dir, mod);
+
         // single file means 'are we translating into a single C file ?'
         if (single_file) {
 
             // append the partial c output to buffered writer
             auto partial_c_out = get_partial_c_path(build_dir, mod);
-            if(fs::exists(partial_c_out)) {
+            if(fs::exists(partial_c_out) && load_module_names(names_path, processor.mir_emission_registry)) {
 
                 if(verbose) {
                     std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << partial_c_out << "', skipping compilation" << std::endl;
@@ -899,7 +967,7 @@ int LabBuildCompiler::process_module_tcc(
 
             } else {
                 if(verbose) {
-                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't find partial c '" << partial_c_out << "'" << std::endl;
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't reuse partial c '" << partial_c_out << "' (missing artifact or its instantiation-name record)" << std::endl;
                 }
             }
 
@@ -907,7 +975,7 @@ int LabBuildCompiler::process_module_tcc(
 
             // multi file output
             // each module has its own object file, lets locate that object file and use it for caching
-            if(fs::exists(mod->object_path.to_view())) {
+            if(fs::exists(mod->object_path.to_view()) && load_module_names(names_path, processor.mir_emission_registry)) {
 
                 if(verbose) {
                     std::cout << "[lab] " << "module " << *mod << " hasn't changed, found '" << mod->object_path << "', skipping compilation" << std::endl;
@@ -918,7 +986,7 @@ int LabBuildCompiler::process_module_tcc(
 
             } else {
                 if(verbose) {
-                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't find object '" << mod->object_path << "'" << std::endl;
+                    std::cout << "[lab] " << "module " << *mod << " hasn't changed, couldn't reuse object '" << mod->object_path << "' (missing artifact or its instantiation-name record)" << std::endl;
                 }
             }
 
@@ -977,6 +1045,16 @@ int LabBuildCompiler::process_module_tcc(
     // the starting point where this module started translating
     const auto start = c_visitor.writer.getPosition();
 
+    // A single C file means every module lands in one translation unit, where a
+    // type definition may appear only once (`struct X { ... }` twice is a
+    // redefinition). A per-module build gets its own copy in each translation
+    // unit. Symbols are deduplicated either way.
+    processor.mir_dedupe_type_definitions = single_file;
+
+    // Start this module's ownership journal (also bounds its memory when nothing
+    // is cached).
+    processor.mir_emission_registry.begin_module();
+
     // declare the module
     const auto dec_status = processor.declare_module(c_visitor, mod);
     if (dec_status != 0) {
@@ -1014,6 +1092,9 @@ int LabBuildCompiler::process_module_tcc(
         }
         // save a mod timestamp
         save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, true), options->out_mode);
+        // and the names this module now owns, so a later build that reuses the
+        // cached artifact can claim them instead of re-emitting the definitions
+        save_module_names(processor, build_dir, mod);
     }
 
     // check if compiling object for each module
@@ -1178,7 +1259,12 @@ int LabBuildCompiler::process_module_gen(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (currently
-    if(mod->has_changed.has_value() && !mod->has_changed.value() && !job->attrs.check_only) {
+    // A cached object is only reusable when the definitions it owns are known,
+    // so a module translated in this build does not emit a second definition of
+    // an instantiation the cached module already owns (see
+    // `get_module_names_path`).
+    if(mod->has_changed.has_value() && !mod->has_changed.value() && !job->attrs.check_only
+       && load_module_names(get_module_names_path(build_dir, mod), processor.mir_emission_registry)) {
 
         if(verbose) {
             std::cout << "[lab] " << "module hasn't changed, processing cached module" << std::endl;
@@ -1216,11 +1302,13 @@ int LabBuildCompiler::process_module_gen(
         std::cout << "[lab] " << "compiling module files" << std::endl;
     }
 
+    // Start this module's ownership journal (see `save_module_names`).
+    processor.mir_emission_registry.begin_module();
+
     // compile the whole module
     const auto compile_status = processor.compile_module(
             gen, mod
     );
-
     if(verbose) {
         std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
     }
@@ -1295,6 +1383,9 @@ int LabBuildCompiler::process_module_gen(
     if(save_result) {
         if(caching && !gen_path.empty()) {
             save_mod_timestamp(direct_files, get_mod_timestamp_path(build_dir, mod, false), options->out_mode);
+            // the names this module's object defines, so a later build that reuses
+            // the object claims them instead of re-emitting the definitions
+            save_module_names(processor, build_dir, mod);
         }
     } else {
         std::cerr << "[lab] failed to emit file '" << gen_path << '\'' << std::endl;

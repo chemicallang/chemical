@@ -1891,6 +1891,11 @@ int ASTProcessor::declare_module(
     decl_emitter.set_static_interface_recorder([&c_visitor](InterfaceDefinition* iface) {
         c_visitor.store_static_interface_for_stub_impl(iface);
     });
+    // One definition per emitted name for the whole job: a module that reaches a
+    // type or symbol another module already wrote emits a reference to it instead
+    // of a second definition (see MIREmissionRegistry.h).
+    decl_emitter.set_emission_registry(&mir_emission_registry);
+    decl_emitter.set_dedupe_types(mir_dedupe_type_definitions);
 
     auto& w = c_visitor.writer;
     auto fwd_all = [&](const std::vector<ASTNode*>& nodes) {
@@ -2032,7 +2037,8 @@ static void mir_dump_for_debug(const mir::MIRFunction& fn, mir::MIRModule& modul
 
 static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& module,
                                     FunctionDeclaration* decl, bool llvm_collect,
-                                    std::string& error) {
+                                    std::string& error,
+                                    mir::MIREmissionRegistry* emission_registry = nullptr) {
     if (!mir_eligible_function(decl)) return false;
     mir::MIRLowerer& lowerer = task.lowerer;
     // Publish this worker's lowerer as the thread's current one for the shared
@@ -2155,6 +2161,24 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         // C/LLVM emission or linker output in --check mode.
         lowerer.clear_lambda_defs();
         return true;
+    }
+    // One definition per emitted symbol for the whole job: the name is claimed
+    // here — after lowering, before anything is written — so a module that
+    // reaches a function another module already emitted (the same instantiated
+    // node, or an identical content-derived name) defines nothing. The skipped
+    // copy is byte-identical by construction and the owner's copy was verified
+    // above, so it is enough that the *name* resolves. Without this the C
+    // single-file build carries the definition twice (a redefinition) and the
+    // per-module objects define the same external symbol twice.
+    if (emission_registry != nullptr && fn.symbol != mir::MIR_INVALID_ID &&
+        fn.symbol < module.symbols.size()) {
+        // `mangled_name` returns a copy: a `string_view` into it would dangle
+        const std::string name =
+            module.symbols.mangled_name(module.symbols.get(fn.symbol));
+        if (!name.empty() && !emission_registry->claim_symbol(name)) {
+            lowerer.clear_lambda_defs();
+            return true;
+        }
     }
     auto flush_lambdas = [&lowerer, &task]() {
         for (std::string& def : lowerer.lambda_defs()) task.out.append(def.data(), def.size());
@@ -2383,6 +2407,15 @@ bool mir_translate_after_declaration(
     bool had_errors = false;
     const size_t file_start = visitor.writer.getPosition();
 
+    // One definition per emitted symbol for the whole job. A module that reaches
+    // a function another module already lowered — the *same* instantiated node
+    // (each module has its own copy, but a generic declared in a dependency module
+    // is shared) or an identical content-derived name — writes no second
+    // definition: the C single-file build would not compile, and the per-module
+    // objects would define the same external symbol twice. The skipped copy is
+    // byte-identical by construction, and the owner's copy was already verified.
+    mir::MIREmissionRegistry* const emission_registry = decl_emitter.emission_registry();
+
     // (C path) Lower the plain functions in parallel and append their buffers at
     // their source-order slots below. The LLVM path must keep
     // `module.functions` in source order, so it stays serial; impl methods and
@@ -2430,7 +2463,8 @@ bool mir_translate_after_declaration(
                         if (i >= parallel_fns.size()) break;
                         FunctionDeclaration* fd = parallel_fns[i];
                         std::string err;
-                        if (mir_lower_and_emit_into(ctx, module, fd, false, err)) {
+                        if (mir_lower_and_emit_into(ctx, module, fd, false, err,
+                                                    emission_registry)) {
                             r.emplace_back(fd, std::move(ctx.out));
                         }
                     }
@@ -2456,7 +2490,8 @@ bool mir_translate_after_declaration(
             return true;
         }
         std::string error;
-        if (!mir_lower_and_emit_into(task, module, decl, llvm_collect, error)) {
+        if (!mir_lower_and_emit_into(task, module, decl, llvm_collect, error,
+                                     emission_registry)) {
             if (mir_eligible_function(decl)) {
                 std::cerr << "[MIR] lowering/emission failed (" << decl->name_str()
                           << "): " << error << "\n";
@@ -3053,6 +3088,12 @@ int ASTProcessor::implement_module(
     mir_decl.set_value_eval([&c_visitor](Value* v) -> Value* {
         return v ? v->evaluated_value(c_visitor.comptime_scope) : nullptr;
     });
+    // The implement pass writes the *definitions* — function bodies, global
+    // definitions, vtables — so it needs the same job-wide ownership the declare
+    // pass used: a module that reaches a definition another module already
+    // emitted skips it (see MIREmissionRegistry.h).
+    mir_decl.set_emission_registry(&mir_emission_registry);
+    mir_decl.set_dedupe_types(mir_dedupe_type_definitions);
 
     // The module's own files are re-parsed fresh for this module (a new
     // `ASTFileResult` per file), so a body reached through one of their

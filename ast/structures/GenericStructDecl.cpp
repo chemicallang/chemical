@@ -85,6 +85,11 @@ StructDefinition* GenericStructDecl::register_generic_args(
 
     impl->generic_parent = this;
     impl->generic_instantiation = itr.first;
+    // content-derived runtime name (see instantiation_mangle_hash): the same in
+    // every module that reaches this instantiation, and stable across builds.
+    // Set before the signature is finalized so a nested `A<B<T>>` argument can
+    // read it.
+    impl->generic_mangle_hash = instantiation_mangle_hash(master_impl, generic_args);
     instantiations.emplace_back(impl);
     container.put_current_module_instantiation(impl);
 

@@ -23,6 +23,7 @@
 #include "compiler/processor/ModuleFileData.h"
 #include "stream/InputSource.h"
 #include "stream/FileInputSource.h"
+#include "compiler/mir/MIREmissionRegistry.h"
 #include <span>
 #include <mutex>
 #include <functional>
@@ -31,6 +32,7 @@ namespace mir {
 struct MIRModule;
 class MIRTypeBuilder;
 struct MIRInterpProgram;
+class MIREmissionRegistry;
 }
 
 #include "symres/LinkSignatureAPI.h"
@@ -617,6 +619,29 @@ public:
      * The C/LLVM paths leave it null.
      */
     mir::MIRInterpProgram* mir_interp_program = nullptr;
+
+    /**
+     * Job-wide ownership of the definitions this job has emitted (see
+     * `compiler/mir/MIREmissionRegistry.h`).
+     *
+     * Every module instantiates its own copy of a generic it reaches, and those
+     * copies are mangled from their *content*, so two modules spell one
+     * instantiation identically — they must, because module B calls the copy
+     * module A emitted. A definition can still only be written once (one C
+     * translation unit, or one link of per-module objects), so the first module
+     * to reach a name keeps the definition and the rest are skipped.
+     */
+    mir::MIREmissionRegistry mir_emission_registry;
+
+    /**
+     * Whether *type* definitions (aggregate bodies, typedefs, vtable types) are
+     * deduplicated through `mir_emission_registry`. True for the C single-file
+     * build, which writes every module into one translation unit; false for the
+     * per-module C build (each module needs its own type definitions) and for
+     * LLVM (types live inside each per-module LLVM module). Symbol definitions
+     * (function bodies, globals, vtables) are always deduplicated.
+     */
+    bool mir_dedupe_type_definitions = false;
 
     /**
      * Declare + implement a module for the interpretation job: lowers every

@@ -305,7 +305,23 @@ void MIRTypeBuilder::ensure_inline_struct_name(TypeId id, BaseType* struct_type)
     if (!sv.empty()) {
         name.assign(sv.data(), sv.size());
     } else {
-        name = "__chx_inline_" + std::to_string(inline_counter_++);
+        // An anonymous struct (a tuple, or an inline `struct { ... }` member) has
+        // no source name. The counter alone is per MIR module, so two modules
+        // would both start at `__chx_inline_0` and two *different* shapes would
+        // share one tag in the single translation unit (a C redefinition). The
+        // owning node's mangled name is module-qualified, so prefixing it makes
+        // the tag unique across modules while keeping the counter for the several
+        // anonymous shapes one node can own.
+        name = "__chx_inline_";
+        ASTNode* owner = struct_type->as_struct_type_unsafe()->parent();
+        if (name_resolver_ && owner != nullptr) {
+            std::string owner_name = name_resolver_(owner);
+            if (!owner_name.empty()) {
+                name += owner_name;
+                name += '_';
+            }
+        }
+        name += std::to_string(inline_counter_++);
     }
     module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
 }

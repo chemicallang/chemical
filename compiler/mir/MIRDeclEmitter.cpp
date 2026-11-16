@@ -110,6 +110,9 @@ void MIRDeclEmitter::declare_typedef(TypealiasStatement* stmt) {
     MIRDeclItem it;
     it.kind = MIRDeclKind::Typedef;
     it.name = mangle_name(stmt);
+    // A generic alias reached from two modules (`std::function<T>`) is one
+    // typedef in a translation unit: the first owner writes it.
+    if (registry_ && dedupe_types_ && !registry_->claim_type(it.name)) return;
     BaseType* t = stmt->actual_type;
     if (t) {
         if (t->kind() == BaseTypeKind::Array && !t->as_array_type()->has_array_size()) {
@@ -283,6 +286,15 @@ void MIRDeclEmitter::declare_aggregate_body(BaseType* type, const char* what) {
     it.kind = MIRDeclKind::AggregateBody;
     it.type = types_.map(type);
     it.what = what;
+    // A single translation unit can define an aggregate once. Two modules that
+    // both reach `Option<string>` instantiate their own copy under the same
+    // content-derived name; the first module to reach it writes the body and the
+    // other's code uses that definition (its layout is identical by
+    // construction).
+    if (registry_ && dedupe_types_) {
+        const std::string_view name = types_.module().types.name_view(it.type);
+        if (!name.empty() && !registry_->claim_type(name)) return;
+    }
     module_.declarations.items.push_back(std::move(it));
 }
 
@@ -368,6 +380,9 @@ void MIRDeclEmitter::create_vtable_type(InterfaceDefinition* interface) {
     MIRDeclItem it;
     it.kind = MIRDeclKind::VtableType;
     it.name = vtable_type_name(interface);
+    // one `__chx_<iface>_vt_t` typedef per translation unit (a generic interface
+    // instantiated in two modules is the same vtable type)
+    if (registry_ && dedupe_types_ && !registry_->claim_type(it.name)) return;
     interface->active_user = nullptr;
     mir_vtable_slots(types_, module_, interface, it.slots);
     module_.declarations.items.push_back(std::move(it));
@@ -389,7 +404,12 @@ void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* inter
     // through `build_module_vtables` — and rendered by the AST-free
     // `MIRDeclPrinter::vtable_def_c`. No callee is resolved here by hand, so the
     // C and LLVM backends cannot drift (action A3).
+    //
+    // A vtable is an external definition: which module emits it is decided once
+    // per job, or two per-module objects would define the same symbol (and a
+    // single translation unit would define it twice).
     const MIRVtableRecord rec = build_vtable_def_record(mangler_, types_, module_, interface, def);
+    if (registry_ && !rec.name.empty() && !registry_->claim_symbol(rec.name)) return;
     const std::string text = vtable_def_c(module_, rec);
     w.append(text.data(), text.size());
 }
@@ -559,6 +579,9 @@ void MIRDeclEmitter::implement_global(BufferedWriter& w, const MIRGlobal& g) {
     // value or type walk happens here.
     if (g.init == MIR_INVALID_ID) return;
     const MIRGlobalDecl& decl = g.decl;
+    // A global definition is a symbol: emitted by the module that owns it, and
+    // never twice in one program.
+    if (registry_ && !decl.name.empty() && !registry_->claim_symbol(decl.name)) return;
     w.append_char('\n');
     if (decl.flags & MGD_THREAD_LOCAL) w.append("__chx_thread_local ", 19);
     if (decl.flags & MGD_STATIC) w.append("static ", 7);

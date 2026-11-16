@@ -627,7 +627,7 @@ A thin wrapper around `GenericInstantiator` that provides the public API called 
 
 ---
 
-# Known issue - instantiation ids collide across modules (OPEN)
+# Instantiation ids collided across modules (FIXED - see "The fix" below)
 
 ## Symptom
 
@@ -680,6 +680,10 @@ flip a build from working to broken without touching either type.
 
 ## Attempted fix (2026-11-16) - the naming half works, the emission half is the blocker
 
+> Kept for the measurements and for the trap it found (`CapturingFunction` is a
+> separate class from `FunctionType`). Both halves landed later the same day; see
+> "The fix" at the end of this section.
+
 `NameMangler` was changed to print a **content-derived** suffix instead of the
 position: `__cgs__<fnv1a64 of the generic declaration's qualified name + its
 mangled type arguments>` (`mangle_type` in `NameMangler.cpp` walks every
@@ -730,3 +734,62 @@ A cheap partial mitigation (not implemented) is to fail the build when two
 *different* structural types print the same aggregate name, instead of silently
 keeping the first definition - that turns a miscompile into a diagnostic, at the
 cost of rejecting builds that "work" today by luck.
+
+## The fix (2026-11-16) - both halves landed
+
+**1. Name (`instantiation_mangle_hash`, `ast/utils/ASTUtils.cpp`).** A mangled
+instantiation now spells `__cgs__`/`__cfg_` followed by twelve hex digits of an
+FNV-1a 64 hash over the generic declaration's *module-qualified* name and its
+concrete type arguments. `write_type_identity` walks every `BaseTypeKind` and
+spells each named type through `NameMangler`, so `std::span` and
+`common_tests::span` differ, and a nested instantiation contributes its own hash
+(`Box<Option<int>>` vs `Box<Option<string>>`). The hash is computed in
+`register_generic_args` **before** signature finalization, so a nested
+instantiation's argument already carries its hash; `generic_mangle_hash` lives on
+`MembersContainer`/`FunctionDeclaration` and `NameMangler` prints it, falling back
+to the positional index only when it is 0.
+
+**2. Emission (`compiler/mir/MIREmissionRegistry.h`).** One job-wide registry,
+owned by `ASTProcessor`, keyed by the *emitted name*, shared by three consumers:
+
+- the declare pass (`MIRDeclEmitter`) deduplicates **type** definitions
+  (aggregate bodies, typedefs, vtable types) — for the C single-file build only,
+  because a per-module translation unit and each LLVM module need their own type;
+- the implement pass deduplicates **symbol** definitions (global definitions,
+  vtable definitions);
+- `mir_lower_and_emit_into` claims a function's symbol after lowering it and
+  before writing it, which covers both backends (a skipped copy lowers but does
+  not emit; it is byte-identical and the owner's copy was already verified).
+
+**Cached modules re-claim what they own.** Deduplication is by name, so a module
+served from the lab cache must claim the definitions its cached translation
+contains — otherwise a module translated in the same build emits a second
+definition of every instantiation both reach. Each module therefore records the
+names it emitted in `<module>/inst.names` next to its cached artifact (partial C,
+or per-module object/bitcode), and a cache hit loads it. A cache entry without the
+record is not reused, which also retires a cache written by an older compiler.
+
+**Verified.** `scripts/instantiation-names-test.sh` (11 checks) builds a fixture
+that instantiates `vector<T>`, `Option<T>` and `unordered_map<K, V>` with
+different arguments than `std` does, twice, and checks: every instantiated struct
+tag ends in a 12-hex content hash, both builds emit the **identical** name set, no
+function/struct is defined twice, no name carries two signatures, and a build that
+mixes cached and freshly translated modules still links, runs and defines each
+name once. Suites: main **2485/2485**, universal plugin **429/429**,
+`scripts/static-site-test.sh` **37/37**.
+
+**Cost and limits.** Names are longer, so the C translation unit grows ~1.4% on a
+small multi-module app (896,358 → 909,175 bytes). Twelve hex digits is a 48-bit
+collision space: with a few thousand instantiations in one program the chance that
+two *distinct* identities share a suffix is ~1e-8, against a *guaranteed* collision
+for repeated position numbers. A collision would silently keep the first
+definition, so the diagnostic described below is still the natural next safety net.
+
+One refinement left on the table: the identity walk spells a linked node as it is
+written (`get_direct_linked_node`), not its canonical form
+(`get_direct_linked_canonical_node`). If two modules spell the same argument
+through different transparent aliases (`vector<MyStr>` vs `vector<string>`), their
+two copies get two hashes — the instantiation is emitted twice and a cross-module
+call passes a layout-identical but differently-named struct (a C warning, not a
+miscompile). Canonicalizing would merge them.
+

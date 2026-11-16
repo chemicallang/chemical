@@ -238,6 +238,10 @@ int ASTProcessor::mir_compile_module(Codegen& gen, LabModule* module) {
     CTranslationContext c_visitor(gen.binder, gen.comptime_scope, gen.mangler, gen.allocator,
                                   loc_man, gen.coreNodes, gen.implsIndex,
                                   options->debug_info, /*minify=*/false);
+    // LLVM types live inside each per-module LLVM module, so every module must
+    // spell the full type (no type dedupe); *symbol* definitions are still owned
+    // once per job, or two objects would define the same external symbol.
+    mir_dedupe_type_definitions = false;
     // CBI macro replacements are stored on their `EmbeddedNode` and re-read at
     // the end of the module (in `mir_emit_llvm_module`), after `file_level_reset()`
     // has cleared the file allocator. Allocate them in the module allocator, which

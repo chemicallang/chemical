@@ -58,6 +58,18 @@ public:
     int generic_instantiation = -1;
 
     /**
+     * Content-derived name of this instantiation (see `instantiation_mangle_hash`):
+     * the generic declaration's qualified name plus its concrete type arguments.
+     * `NameMangler` prints it as `__cgs__<12 hex>`; 0 means no hash was recorded
+     * (a node built outside `register_generic_args`), and the mangler falls back
+     * to the positional `generic_instantiation`.
+     *
+     * It must not be derived from `generic_instantiation`: that index is only
+     * unique within one module, and every module instantiates its own copies.
+     */
+    uint64_t generic_mangle_hash = 0;
+
+    /**
      * a code gen helper flag, to check if container has been declared
      */
     bool has_declared = false;

@@ -17,13 +17,34 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
+#include <cstdint>
 #include <sstream>
+
+inline void append_mangle_hash(BufferedWriter& stream, uint64_t hash) {
+    // 12 lowercase hex digits (the low 48 bits of the content hash). Never
+    // positional, so the name is the same in every module and stable across
+    // builds (see `instantiation_mangle_hash`). 48 bits keeps the suffix short:
+    // with a few thousand instantiations in one program the chance that two
+    // distinct identities collide is ~1e-8, against a *guaranteed* collision for
+    // repeated position numbers.
+    static const char* digits = "0123456789abcdef";
+    char buf[12];
+    for (int i = 11; i >= 0; --i) {
+        buf[i] = digits[hash & 0xF];
+        hash >>= 4;
+    }
+    stream.append(buf, sizeof(buf));
+}
 
 inline void container_name(BufferedWriter& stream, ExtendableMembersContainerNode* container) {
     if(container->generic_instantiation != -1) {
         stream << container->name_view();
         stream << "__cgs__";
-        stream << container->generic_instantiation;
+        if (container->generic_mangle_hash != 0) {
+            append_mangle_hash(stream, container->generic_mangle_hash);
+        } else {
+            stream << container->generic_instantiation;
+        }
     } else {
         stream << container->name_view();
     }
@@ -68,7 +89,11 @@ void NameMangler::mangle_no_parent(BufferedWriter& stream, ASTNode* node) {
             stream << decl->name_view();
             if (decl->generic_instantiation != -1) {
                 stream << "__cfg_";
-                stream << decl->generic_instantiation;
+                if (decl->generic_mangle_hash != 0) {
+                    append_mangle_hash(stream, decl->generic_mangle_hash);
+                } else {
+                    stream << decl->generic_instantiation;
+                }
             }
             break;
         }

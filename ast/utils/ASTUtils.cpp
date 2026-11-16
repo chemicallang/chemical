@@ -19,8 +19,19 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/MaybeRuntimeType.h"
 #include "ast/types/RuntimeType.h"
+#include "ast/types/StructType.h"
+#include "ast/types/UnionType.h"
+#include "ast/types/DynamicType.h"
+#include "ast/types/FunctionType.h"
+#include "ast/types/IntNType.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "compiler/mangler/NameMangler.h"
+#include "preprocess/2c/BufferedWriter.h"
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
+#include <cstdint>
 
 bool has_function_call_before(Value* value) {
     switch(value->val_kind()) {
@@ -580,4 +591,198 @@ bool type_mentions_generic_param(const BaseType* type) {
         default:
             return false;
     }
+}
+
+// ---------------------------------------------------------------------------
+// content-derived instantiation names (see GenericUtils.h)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+void write_type_identity(NameMangler& mangler, BufferedWriter& w, const BaseType* type);
+
+void write_linked_identity(NameMangler& mangler, BufferedWriter& w, ASTNode* node) {
+    if (node == nullptr) {
+        w << '?';
+        return;
+    }
+    mangler.mangle(w, node);
+}
+
+/**
+ * Spell one type into `w` as a *module-independent* identity: every named type is
+ * written by its mangled (module-qualified) name, and an instantiation writes its
+ * own content hash, which is already set when it appears as an argument (a nested
+ * instantiation is registered and hashed before the outer one finalizes its
+ * signature). Never writes a pointer, an address or a source location, so two
+ * builds of the same program produce the same bytes.
+ */
+void write_type_identity(NameMangler& mangler, BufferedWriter& w, const BaseType* type_in) {
+    auto* type = const_cast<BaseType*>(type_in);
+    if (type == nullptr) {
+        w << 'x';
+        return;
+    }
+    switch (type->kind()) {
+        case BaseTypeKind::Any: w << 'a'; return;
+        case BaseTypeKind::Bool: w << 'b'; return;
+        case BaseTypeKind::Double: w << 'd'; return;
+        case BaseTypeKind::Float: w << 'f'; return;
+        case BaseTypeKind::LongDouble: w << 'D'; return;
+        case BaseTypeKind::Float128: w << 'F'; return;
+        case BaseTypeKind::Complex: w << 'z'; return;
+        case BaseTypeKind::String: w << 's'; return;
+        case BaseTypeKind::ExpressiveString: w << 'E'; return;
+        case BaseTypeKind::Void: w << 'v'; return;
+        case BaseTypeKind::NullPtr: w << 'n'; return;
+        case BaseTypeKind::Literal: w << 'l'; return;
+        case BaseTypeKind::ExpressionType: w << 'e'; return;
+        case BaseTypeKind::IfType: w << 'i'; return;
+        case BaseTypeKind::Unknown: w << 'u'; return;
+        case BaseTypeKind::IntN:
+            // the exact integer kind (`u8` and `char` are different types)
+            w << 'I';
+            w << static_cast<unsigned>(type->as_intn_type_unsafe()->IntNKind());
+            return;
+        case BaseTypeKind::Pointer: {
+            auto* ptr = type->as_pointer_type_unsafe();
+            if (ptr->is_mutable) {
+                w << "pm";
+            } else {
+                w << "p";
+            }
+            write_type_identity(mangler, w, ptr->type);
+            return;
+        }
+        case BaseTypeKind::Reference: {
+            auto* ref = type->as_reference_type_unsafe();
+            if (ref->is_mutable) {
+                w << "rm";
+            } else {
+                w << "r";
+            }
+            write_type_identity(mangler, w, ref->type);
+            return;
+        }
+        case BaseTypeKind::Array: {
+            auto* arr = type->as_array_type_unsafe();
+            w << 'A';
+            if (arr->has_array_size()) {
+                w << static_cast<unsigned long long>(arr->get_array_size());
+            } else {
+                w << '?';
+            }
+            w << ':';
+            write_type_identity(mangler, w, arr->elem_type);
+            return;
+        }
+        case BaseTypeKind::Linked:
+            w << 'L';
+            write_linked_identity(mangler, w, type->as_linked_type_unsafe()->linked);
+            return;
+        case BaseTypeKind::Generic: {
+            auto* gen = type->as_generic_type_unsafe();
+            w << 'G';
+            write_linked_identity(mangler, w, gen->referenced ? gen->referenced->linked : nullptr);
+            w << '<';
+            for (const auto& arg : gen->types) {
+                write_type_identity(mangler, w, arg.getType());
+                w << ',';
+            }
+            w << '>';
+            return;
+        }
+        case BaseTypeKind::Dynamic: {
+            auto* dyn = type->as_dynamic_type_unsafe();
+            w << 'Y';
+            write_type_identity(mangler, w, dyn->referenced);
+            w << ':';
+            w << static_cast<unsigned>(dyn->auto_traits);
+            return;
+        }
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union: {
+            const bool is_struct = type->kind() == BaseTypeKind::Struct;
+            w << (is_struct ? 'S' : 'U');
+            ASTNode* linked = type->get_direct_linked_node();
+            if (linked != nullptr) {
+                write_linked_identity(mangler, w, linked);
+            } else if (is_struct) {
+                w << type->as_struct_type_unsafe()->name;
+            } else {
+                w << type->as_union_type_unsafe()->name;
+            }
+            return;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = type->as_function_type_unsafe();
+            w << 'P';
+            write_type_identity(mangler, w, fn->returnType);
+            w << '(';
+            for (auto* param : fn->params) {
+                write_type_identity(mangler, w, param->type.getType());
+                w << ',';
+            }
+            w << ')';
+            if (fn->data.isVariadic) w << "...";
+            if (fn->data.is_async) w << "async";
+            return;
+        }
+        case BaseTypeKind::CapturingFunction: {
+            // `CapturingFunction` is a *separate* class from `FunctionType`
+            // (`as_func_type()` would be the wrong cast): its identity is the
+            // callable type plus the erased `instance_type` struct it rides on.
+            auto* cap = type->as_capturing_func_type_unsafe();
+            w << 'C';
+            write_type_identity(mangler, w, cap->func_type);
+            w << '|';
+            write_type_identity(mangler, w, cap->instance_type);
+            return;
+        }
+        case BaseTypeKind::MaybeRuntime:
+            w << 'M';
+            write_type_identity(mangler, w, type->as_maybe_runtime_type_unsafe()->underlying);
+            return;
+        case BaseTypeKind::Runtime:
+            w << 'R';
+            write_type_identity(mangler, w, type->as_runtime_type_unsafe()->underlying);
+            return;
+        default:
+            // No kind is expected to land here; the numeric tag keeps two
+            // distinct unhandled kinds apart rather than collapsing them.
+            w << '#';
+            w << static_cast<unsigned>(type->kind());
+            return;
+    }
+}
+
+uint64_t fnv1a64(const char* data, size_t len) {
+    uint64_t hash = 1469598103934665603ull;
+    for (size_t i = 0; i < len; ++i) {
+        hash ^= static_cast<unsigned char>(data[i]);
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+} // namespace
+
+uint64_t instantiation_mangle_hash(ASTNode* owner, const std::vector<TypeLoc>& args) {
+    BufferedWriter w(256);
+    NameMangler mangler;
+    // the owner's qualified name: the generic declaration, not the instantiation
+    // (a bare container name is ambiguous — `std::span` and `common_tests::span`
+    // share their arguments)
+    if (owner != nullptr) {
+        mangler.mangle(w, owner);
+    }
+    w << '|';
+    for (const auto& arg : args) {
+        write_type_identity(mangler, w, arg.getType());
+        w << ',';
+    }
+    const uint64_t hash = fnv1a64(w.data(), w.getPosition());
+    // 0 means "no content hash" to the mangler (it falls back to the position),
+    // so a degenerate hash must not be spelled as one
+    return hash == 0 ? 1 : hash;
 }

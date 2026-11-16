@@ -2993,6 +2993,7 @@ closures interoperate with legacy-emitted declarations.
 | `MIRFunction.h` | `MIRBlock`, `MIRValueDef`, `MIRPlaceDef`, `MIRFunction` |
 | `MIRTypeTable.h` | canonical `MIRTypeRecord` interning, name/data pools |
 | `MIRTypeBuilder.h/.cpp` | **AST→MIR type mapping** (only core file that includes AST types) |
+| `MIREmissionRegistry.h` | job-wide ownership of emitted definition *names* (see below) |
 | `MIRBuilder.h/.cpp` | typed construction API (places, fields, indices, globals, lifetime, calls) |
 | `MIRLowerer.h/.cpp` | **AST→MIR lowering** (includes AST headers) |
 | `MIREmitter.h/.cpp` | **MIR→C emission** (AST-free) |
@@ -3005,6 +3006,35 @@ closures interoperate with legacy-emitted declarations.
 `MIRLowerer` gets the mangler and interpreter through callbacks
 (`set_mangler`, `set_comptime_if_resolver`, `set_comptime_eval`,
 `set_comptime_ctor_eval`, `set_symbol_lookup`) so core MIR stays AST-free.
+
+### One definition per emitted name (`MIREmissionRegistry`)
+
+Generic instantiation is per module: every module that mentions `Option<T>`
+instantiates its own copy, and copies reached from two modules are two AST nodes
+with two sets of functions. Their runtime names are **content-derived** — the
+generic declaration's module-qualified name plus its concrete type arguments,
+hashed (`instantiation_mangle_hash`, `ast/utils/ASTUtils.cpp`) and printed as
+`__cgs__<12 hex>` / `__cfg_<12 hex>` — so every module spells one instantiation
+identically. That is required, because module B calls the copy module A emitted,
+and it is what makes the numbering independent of how the parallel symres pass
+interleaved files.
+
+A program may still only *define* a name once. `mir::MIREmissionRegistry`
+(`MIREmissionRegistry.h`, owned by `ASTProcessor`, one per job) maps an emitted
+name to its owner and answers `claim_type` / `claim_symbol`:
+
+* the declare pass claims **types** (aggregate bodies, typedefs, vtable types) —
+  only for the C single-file build, since a per-module translation unit and each
+  per-module LLVM module need their own type definitions;
+* the implement pass claims **symbols** (global definitions, vtable definitions);
+* `mir_lower_and_emit_into` claims a function's symbol after lowering it and
+  before writing/collecting it, which covers the C and LLVM backends alike.
+
+A module served from the lab cache re-claims what its cached translation contains
+(`<module>/inst.names`, written next to the artifact; a cache entry without the
+record is not reused). Full write-up: `lang/docs/parallel-generic-instantiation.md`
+and `lang/docs/lab-cache-bugs.md`. Gate: `scripts/instantiation-names-test.sh`.
+
 
 ## What MIR lowers today
 

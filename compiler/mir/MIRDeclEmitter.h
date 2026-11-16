@@ -13,6 +13,7 @@
 
 #include "MIRModule.h"
 #include "MIRDeclPrinter.h"
+#include "MIREmissionRegistry.h"
 
 #include <functional>
 #include <string>
@@ -65,6 +66,19 @@ public:
 
     /** Callback used to fold a global initializer to a compile-time constant. */
     void set_value_eval(std::function<Value*(Value*)> fn) { value_eval_ = std::move(fn); }
+
+    /**
+     * Job-wide ownership of emitted definitions (see MIREmissionRegistry.h). Null
+     * means "emit everything this module reaches", which is what a per-module
+     * translation unit needs; the C single-file build passes the job registry so
+     * a type or symbol another module already defined is written once.
+     */
+    void set_emission_registry(MIREmissionRegistry* registry) { registry_ = registry; }
+    /** The job-wide definition registry, or null when nothing is deduplicated. */
+    MIREmissionRegistry* emission_registry() const { return registry_; }
+    /** When false, type definitions are not deduplicated (LLVM keeps a type per
+     *  module); symbols are still deduplicated. */
+    void set_dedupe_types(bool v) { dedupe_types_ = v; }
 
     // The declare pass *records* declarations into `module_.declarations` (it
     // still walks the AST — it is the collection pass); `print_decl_list` renders
@@ -155,6 +169,11 @@ private:
     std::function<ASTNode*(EmbeddedNode*)> embedded_decl_repl_;
     std::function<void(InterfaceDefinition*)> static_recorder_;
     std::function<Value*(Value*)> value_eval_;
+
+    /** Job-wide definition ownership; null = emit everything (per-TU builds). */
+    MIREmissionRegistry* registry_ = nullptr;
+    /** Whether type definitions are deduplicated through `registry_`. */
+    bool dedupe_types_ = true;
 
     /** Containers whose early-declare walk is on the stack (cycle guard). */
     std::unordered_set<ASTNode*> early_declare_in_progress_;

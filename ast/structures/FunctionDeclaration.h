@@ -260,6 +260,13 @@ public:
     int generic_instantiation = -1;
 
     /**
+     * Content-derived name of this instantiation (see `instantiation_mangle_hash`),
+     * printed by `NameMangler` as `__cfg_<12 hex>`; 0 falls back to the positional
+     * `generic_instantiation` (unique only within one module).
+     */
+    uint64_t generic_mangle_hash = 0;
+
+    /**
      * optional where clause for constraining generic type parameters.
      * Allocated on ASTAllocator, null if no where clause.
      */

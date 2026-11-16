@@ -1099,6 +1099,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | layer | gate |
 |---|---|
 | JS emitter | golden `.mjs` snapshots; `MIRTests` target-support assertions |
+| JS ABI | `scripts/js-abi-spike.sh`: native vs hand-written JS output must be byte-identical (the Phase 1 step-0 gate) |
 | JS semantics | **differential C-vs-JS conformance** (same program, identical stdout) |
 | Modules | module-split violations fail (shared→client import, client→native symbol) |
 | Hydration | ids unique per instance; closure check (unreachable id = build error) |

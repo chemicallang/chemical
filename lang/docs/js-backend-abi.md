@@ -98,11 +98,30 @@ so the v1 plan text is corrected here:
 - `u64`/`i64` are **supported**, lowered to `number`, and stored as 8 bytes.
 - Arithmetic is exact for values up to `2^53` (f64 mantissa). Beyond that, a `u64` silently loses
   precision. This is the one documented soundness bound in the JS backend.
+- **Unsigned 64-bit values saturate rather than wrap** (§5.1): this is not cosmetic — the stdlib's
+  own guards are written as `x >= (size_t)-1`.
 - It is not a hidden trap: `--web --check` warns on `i64`/`u64` **values read from the outside
   world** (JSON numbers, `Date.now`, user input), where the bound can actually be hit; sizes,
   lengths, counters and durations never reach it.
 - Exact 64-bit arithmetic (`BigInt`) remains a later, additive change (§3.20 deferred), and it will
   be a representation change only — no source migration.
+
+### 5.1 Saturation is load-bearing (found by the emitter's first std program)
+
+`std::string` guards its capacity with
+
+```chemical
+if(new_capacity >= ((0 as size_t) - 1)) { panic("string capacity overflow") }
+```
+
+`(size_t)-1` is `SIZE_MAX`, which is *not* representable in a JS number. The first JS build compared
+`capacity >= -1` — because `0 - 1` wraps to `-1` — which is true for every capacity, and the emitted
+program panicked inside `std::string` on the first append.
+
+The fix is to saturate: an unsigned 64-bit result that would exceed `2^53` becomes `2^53`
+(`Number.MAX_SAFE_INTEGER`), so `capacity >= SIZE_MAX` is *false*, as it must be, while signed `i64`
+stays exact to `-2^53..2^53`. Saturation is confined to values the ABI already declares inexact, and
+it makes the standard library's overflow guards behave correctly instead of firing.
 
 ## 6. Destructors are not a no-op
 
@@ -174,7 +193,7 @@ Measured cost of the model, for the record: 8.2 KB of JS for the data model plus
 `BRK`-style bump allocation is enough for the spike; the emitting backend will need a real
 `malloc`/`free` over the same heap because the stdlib calls them.
 
-## 11. The emitter's surface, measured
+## 10. The emitter's surface, measured
 
 `CHX_DUMP_MIR=<path>` on an interpretation job writes the fully lowered program
 (82,609 lines for the test suite: 1,939 types, 2,605 constants, 3,311 symbols,
@@ -225,7 +244,61 @@ Practical consequences for the emitter:
   closures and indirect calls cannot be deferred past step 2.
 - **`memcpy`/`memset` (112)** map onto `HEAP.copyWithin` / `HEAP.fill`.
 
-## 10. What this means for the emitter's shape- `MIREmitterJs.{h,cpp}` is a dispatcher over MIR exactly like `MIREmitter.cpp`, sharing the
+## 11. Reachability, not "every function"
+
+The first emitter printed every function of every linked module. It could not even compile a program
+that uses `printf`: `cstd` contains thousands of platform functions (`GetStdHandle`, …) that would
+have to be emitted, and that nothing calls.
+
+`reachable_functions(module, entry)` walks `call` / `init` / `drop` / `destroy` / `function_addr`
+references from `main` over the whole lowered program (the JS job uses one shared MIR program,
+exactly like the interpretation job), and only those functions are emitted. On the std fixture that is
+**26 of 908** lowered functions. This is not an optimization bolted on later: it is what makes a
+bundle small enough to serve, and it is the same pass that would otherwise be a "dead code" problem
+for `#web` output.
+
+## 12. The emitter as built (Phase 1, step 1)
+
+`compiler/mir/MIREmitterJs.{h,cpp}` is the real thing: ~1,500 lines that print a program's MIR as
+ES modules, with no AST access. `--emit-js <dir>` runs the normal front end (parse, symres, type
+check) and swaps the back end in `do_js_job`; each bundle is `<program>.mjs` + `index.mjs` +
+`runtime.mjs`.
+
+**Gates, both green** (`scripts/js-backend-test.sh`; native and JS output must be byte-identical):
+
+| fixture | what it covers | bundle |
+|---|---|---|
+| `js_backend` | ints, loops, recursion, `i8`/`u32` wrap, `div`/`rem` sign rules, pointer store/load | 3 files, 25 KB |
+| `js_backend_std` | `std::string` SSO→heap, `vector<Point>` growth, struct fields, variant tag + payload | 3 files, 105 KB (26 of 908 functions reachable) |
+
+**Shapes emitted**, per MIR construct:
+
+| MIR | JS |
+|---|---|
+| `alloca ty` | one `rt.frame_alloc(size, align)` at function entry, released by `rt.frame_mark`/`frame_release` |
+| `load`/`store` | `rt.ld(p, size, signed)` / `rt.st(p, size, signed, v)`; field/index forms project from the type table's offsets, a plain form is the place's own storage |
+| aggregate `load` | `frame_alloc` + `memcpy` (a MIR value is one word, so the value *is* the address) |
+| `binary`/`compare`/`unary`/`cast` | one call into the runtime (`rt.binop`, `rt.cmp`, `rt.unop`, `rt.cast`) with bits/signedness as constants, so C's promotions live in one tested place |
+| pointer `+`/`-` | `rt.padd`/`rt.psub`/`rt.pdiff` scaled by the pointee size |
+| `br`/`cond_br`/`switch` | `$pc` + `for(;;) switch($pc)`, one `case` per block |
+| `call`/sret | direct call; the sret place is the first argument |
+| `init`/`drop`/`destroy` | ctor/dtor calls with the place address; array dtors iterate in reverse |
+| `const.string` | `rt.cstr(new Uint8Array([...]))` at module load |
+| globals | `rt.alloc` + the `MIRConstExpr` tree (int/float/bool/null/string/aggregate/variant/negate/function-ref) |
+| `function_addr` | an index into a per-module `$fa` table |
+| `__chc_*` helpers | `rt.trap("<helper>", …)`, so a trap names the check that fired |
+
+**Two real bugs the gate caught, both now fixed** (they are the reason the gate exists):
+
+1. `Init`/`Drop`/`Destroy` carry the callee symbol at operand *1* (destination place first), so
+   reachability missed every constructor and destructor.
+2. A plain `load p, ty` reads the place's own storage; only field/index loads dereference a
+   pointer-typed place. Getting that wrong read one pointer level too deep, which looked like a
+   corrupt pointer rather than a codegen slip.
+
+## 13. What this means for the emitter's shape
+
+- `MIREmitterJs.{h,cpp}` is a dispatcher over MIR exactly like `MIREmitter.cpp`, sharing the
   **AST-free** `MIRDeclPrinter` (529 lines) behind a printer interface; it must not use
   `MIRDeclEmitter` (630 lines, AST-based).
 - Expected size, from the C emitter's breakdown: ~2,300 lines of body emission (60 opcodes minus the

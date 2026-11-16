@@ -120,6 +120,16 @@ public:
      */
     bool def_assertions_on = false;
 
+    /**
+     * Emit JavaScript (the JS backend) instead of a native executable. The
+     * modules are still parsed, resolved and type-checked, then lowered to MIR
+     * and printed as ES modules into `emit_js_dir`; nothing is linked.
+     */
+    bool emit_js = false;
+
+    /** Output directory for `emit_js` (created if missing). */
+    std::string emit_js_dir;
+
 #ifdef COMPILER_BUILD
 
     /**

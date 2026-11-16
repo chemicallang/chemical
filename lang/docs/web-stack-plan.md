@@ -907,25 +907,67 @@ The remaining risk moves to the emitter: the spike encodes the operations by han
 claim ("std's own MIR runs on this ABI") is proven by the differential C-vs-JS suite, which is the
 next gate.
 
+**Step 1 — the emitter and the first runnable programs: LANDED.** `compiler/mir/MIREmitterJs.{h,cpp}`
+prints a program's MIR as ES modules; `--emit-js <dir>` runs the normal front end and swaps the back
+end (`do_js_job`). The gate is now the differential suite, not a hand-written file:
+
+```
+./scripts/js-backend-test.sh js_backend       # ints, loops, recursion, i8/u32 wrap, div/rem, pointers
+./scripts/js-backend-test.sh js_backend_std   # std::string SSO+heap, vector<Point>, struct, variant
+```
+
+Both compile with the native backend and with `--emit-js`, run both, and require **byte-identical
+output**. The std fixture emits **26 of 908** lowered functions (reachability from `main`) into
+~90 KB of JS, and the whole program — `malloc`/`realloc` growth, SSO→heap transition, generic
+`vector<T>` of a struct, variant tag dispatch — behaves exactly like native.
+
+What that first version proves and what it does not:
+
+- **Proven:** the value model (places as frame slots released at function exit, aggregates as byte
+  addresses, scalars as `number` with C integer semantics in the runtime), control flow, direct and
+  sret calls, constructors/destructors, `switch`, field/index addressing, `sizeof`/`alignof`/
+  `offsetof` folded from the type table, and C-vs-JS agreement on real std code.
+- **Not yet:** cross-module ESM splitting (a bundle is one program module today; the split is Phase 3
+  with the module split, and per-module files need a symbol→module mapping MIR does not publish),
+  closures/`function_addr` beyond the table, interface dispatch, async, atomics, inline asm, source
+  maps, and minification.
+
+Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
+
+1. **Reachability before emission.** Emitting every function of every linked module cannot work:
+   `cstd` alone has thousands of unused platform externs. `reachable_functions()` walks calls and
+   function-address references from `main` over the whole (shared) MIR program — which is also
+   whole-program dead-code elimination, exactly what a bundle wants. It caught a real bug in the
+   first version: `Init`/`Drop` carry the ctor/dtor symbol at operand 1, not 0.
+2. **Unsigned 64-bit saturates.** `(size_t)-1` is not representable in a JS number, so
+   `x >= (size_t)-1` compared against `-1` and fired std's own "string capacity overflow" guard.
+   `u64` now saturates at 2^53 (signed stays exact to ±2^53), which keeps such guards false.
+
 Then, in order:
 
 1. Emitter skeleton `compiler/mir/MIREmitterJs.{h,cpp}`: opcode → JS over the shared MIR
    traversal; no AST access; declaration printing extracted from `MIRDeclPrinter` behind a
-   printer interface (so backend #3 does not copy 529 lines).
+   printer interface (so backend #3 does not copy 529 lines). — **landed** (declaration printing is
+   not needed yet: the emitter prints functions, globals and function tables; no C spellings).
 2. Value model per §4 of the ABI doc: scalars (`number`, masked on store), pointers as offsets,
-   aggregates as heap bytes, `u64`/`i64` as `number` with the 2^53 bound, strings/vectors/maps
-   unchanged from `std`, closures over the existing `function` struct's `fn_data_ptr`.
+   aggregates as heap bytes, `u64`/`i64` as `number` with the 2^53 bound — **landed** (u64 saturates).
 3. Surface: scalars, control flow, `switch` on variants/ints, functions, recursion, structs,
    fixed arrays, unions, variants, `string`/`string_view`/`&str`, tuples, vectors/maps,
-   `for-in`, closures (`std::function`, capturing lambdas).
+   `for-in`, closures (`std::function`, capturing lambdas). — **partially landed**: everything listed
+   works *except* closures/`std::function`/`for-in` over custom iterables (needs `function_addr` +
+   indirect calls through the fat pointer, next).
 4. Destructors/drop glue emitted as on C (`std::string` frees); borrow checking unchanged; the
-   *ownership* decision for GC targets is still owned by proposals 0006/0004.
+   *ownership* decision for GC targets is still owned by proposals 0006/0004. — **landed**.
 5. Interfaces/vtables/`dyn`; async, atomics, inline asm, `DynamicCall`, `Throw` are **diagnostics**
-   through `MIRTargetSupport`, reporting the callee/type and the Chemical source location.
-6. ESM emission: one module per Chemical module; shared mangling.
+   through `MIRTargetSupport`, reporting the callee/type and the Chemical source location. — **partially
+   landed**: the emitter diagnoses all of these with the function name and opcode; the shared
+   `MIRTargetSupport` table (so `LSP`/`--check` can report them before emission) is not written yet.
+6. ESM emission: one module per Chemical module; shared mangling. — **deferred to Phase 3**: a bundle
+   is one program module plus `index.mjs` and `runtime.mjs` today.
 7. Test harness: differential **C-vs-JS conformance** (same program, identical stdout) + a
    Node runner path (the current runner spawns child processes over Win32 pipes and prints
-   via `printf`).
+   via `printf`). — **differential harness landed** (`scripts/js-backend-test.sh`,
+   `scripts/js_backend/run.mjs`); the test-runner path comes with the suites.
 
 **Exit:** a real module (JSON/regex/pure logic) runs identically under `--tcc` and `--js`;
 core suite subset passes in Node; `--plugins` and all other suites unchanged; compile
@@ -1100,7 +1142,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 |---|---|
 | JS emitter | golden `.mjs` snapshots; `MIRTests` target-support assertions |
 | JS ABI | `scripts/js-abi-spike.sh`: native vs hand-written JS output must be byte-identical (the Phase 1 step-0 gate) |
-| JS semantics | **differential C-vs-JS conformance** (same program, identical stdout) |
+| JS semantics | **differential C-vs-JS conformance**: `scripts/js-backend-test.sh <fixture>` compiles the fixture with both backends and requires identical stdout (`js_backend`, `js_backend_std` today) |
 | Modules | module-split violations fail (shared→client import, client→native symbol) |
 | Hydration | ids unique per instance; closure check (unreachable id = build error) |
 | Bundles | duplicate-unit = 0; frozen chunk cannot grow; every chunk hashed |

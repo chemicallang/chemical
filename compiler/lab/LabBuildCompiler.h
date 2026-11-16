@@ -375,6 +375,12 @@ public:
     int do_interpretation_job(LabJob* job);
 
     /**
+     * does a JS backend job: parse, symres, typecheck, lower to MIR, then emit
+     * one ES module per Chemical module into `options->emit_js_dir`
+     */
+    int do_js_job(LabJob* job);
+
+    /**
      * will perform the job returning result
      */
     int do_job(LabJob* job);

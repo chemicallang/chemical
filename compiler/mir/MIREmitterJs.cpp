@@ -1,0 +1,1646 @@
+// Copyright (c) Chemical Language Foundation 2026.
+//
+// MIR-to-JavaScript emitter. See MIREmitterJs.h and
+// lang/docs/js-backend-abi.md for the ABI this prints against.
+//
+// Shapes of the emitted code:
+//
+//   values  `v<id>`   an SSA value: an integer, a float, or an address
+//   places  `p<id>`   a frame slot, allocated once at function entry
+//
+// Every instruction result is assigned to `v<id>` (`result_or_place` indexes the
+// value table for anything except `alloc`), which is exactly what the MIR
+// interpreter does — see MIRInterpreter's per-opcode `f.values[rp] = ...`.
+
+#include "MIREmitterJs.h"
+#include "MIREmitter.h" // append_uint
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+namespace mir {
+namespace {
+
+// ── type facts, computed once per TypeId ────────────────────────────────────
+
+struct JsType {
+    uint32_t size = 0;
+    uint32_t align = 1;
+    bool is_float = false;  // f32
+    bool is_double = false; // f64
+    bool is_ptr = false;
+    bool is_agg = false;
+    bool is_signed = false;
+    bool valid = false;
+
+    bool is_scalar() const { return valid && !is_agg; }
+};
+
+std::string float_literal(double v, bool single) {
+    if (std::isnan(v)) return "NaN";
+    if (std::isinf(v)) return v < 0 ? "-Infinity" : "Infinity";
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), single ? "%.9g" : "%.17g", v);
+    std::string s(buf);
+    if (s.find_first_of(".eE") == std::string::npos) s += ".0";
+    return s;
+}
+
+bool constant_text(const MIRModule& module, uint32_t id, std::string_view& out) {
+    if (id >= module.constants.size()) return false;
+    const MIRConstant& c = module.constants.get(id);
+    if (c.kind != MIRConstantKind::String && c.kind != MIRConstantKind::Bytes) return false;
+    out = std::string_view(module.constants.data.data_at(c.data_offset), c.data_count);
+    return true;
+}
+
+// ── the emitter ─────────────────────────────────────────────────────────────
+
+class ModuleEmitter {
+public:
+    ModuleEmitter(const MIRModule& module, const std::vector<const MIRFunction*>& functions,
+                  std::string& error, const MIREmitJsOptions& options)
+        : module_(module), functions_(functions), error_(error), options_(options) {
+        body_.reserve(1 << 16);
+        ptr_size_ = module_.layout.is64Bit ? 8u : 4u;
+    }
+
+    bool run(std::string& out);
+
+private:
+    // ── structure ───────────────────────────────────────────────────────────
+    void collect();
+    bool emit_all_functions();
+    void emit_preamble(std::string& out);
+
+    // ── per-function emission ───────────────────────────────────────────────
+    bool emit_function(const MIRFunction& fn, std::string& out);
+
+    // ── types ───────────────────────────────────────────────────────────────
+    JsType type_of(TypeId id) const;
+    TypeId operand_type(const MIROperand& o) const;
+    TypeId value_type(ValueId id) const;
+    TypeId place_type(PlaceId id) const;
+    TypeId pointee_of(TypeId id) const;
+    TypeId element_of(TypeId id) const;
+
+    // ── operand spelling ────────────────────────────────────────────────────
+    bool operand_expr(const MIROperand& o, std::string& out);
+    bool base_addr_expr(const MIROperand& o, std::string& out);
+    /**
+     * The storage of a place (or the address a pointer value holds) without
+     * dereferencing a pointer-typed place: this is what `store`/`memcpy`
+     * destinations mean. `base_addr_expr` is the projection form, where a
+     * pointer-typed place must be loaded first.
+     */
+    bool storage_addr_expr(const MIROperand& o, std::string& out);
+    bool scalar_read(const MIROperand& o, const JsType& t, std::string& out);
+    bool constant_expr(ConstantId id, std::string& out) const;
+    bool literal_of(const MIRConstant& c, std::string& out) const;
+
+    bool resolve_field(TypeId agg, std::string_view dotted, TypeId& field_type,
+                       uint32_t& offset) const;
+
+    // ── symbols ─────────────────────────────────────────────────────────────
+    bool callee_expr(SymbolId sym, std::string& out);
+    bool extern_expr(std::string_view name, std::string& out);
+    bool function_address_expr(SymbolId sym, std::string& out);
+
+    bool emit_instruction(const MIRInstruction& ins, std::string& out);
+    bool emit_terminator(const MIRInstruction& ins, std::string& out);
+    bool emit_const_into(ConstExprId id, uint32_t base_offset, const std::string& dest,
+                         std::string& out);
+
+    bool fail(const std::string& message) {
+        if (error_.empty()) error_ = message;
+        return false;
+    }
+    bool fail_at(const std::string& message) {
+        std::string where = "js backend: " + message;
+        if (fn_ != nullptr) {
+            where += " (in '";
+            where += fn_name_;
+            where += "')";
+        }
+        return fail(where);
+    }
+
+    static void line(std::string& out, const std::string& text) {
+        out += text;
+        out += '\n';
+    }
+    static std::string vname(ValueId id) { return "v" + std::to_string(id); }
+    static std::string pname(PlaceId id) { return "p" + std::to_string(id); }
+
+    const MIRModule& module_;
+    const std::vector<const MIRFunction*>& functions_;
+    std::string& error_;
+    const MIREmitJsOptions& options_;
+
+    std::string body_;    // emitted functions
+    std::string globals_; // module-load global storage + initializers
+    std::string constants_;
+
+    uint32_t ptr_size_ = 8;
+
+    std::unordered_map<SymbolId, std::string> defined_js_name_;
+    std::unordered_map<std::string, SymbolId> defined_by_name_;
+    std::unordered_set<SymbolId> emitted_;
+    std::vector<SymbolId> fa_order_;
+    std::unordered_map<SymbolId, std::string> fa_expr_;
+
+    const MIRFunction* fn_ = nullptr;
+    std::string fn_name_;
+    /** Set by `callee_expr` when the callee is a `__chc_*` trap helper. */
+    std::string trap_name_;
+};
+
+// ── module assembly ─────────────────────────────────────────────────────────
+
+void ModuleEmitter::collect() {
+    for (const MIRFunction* fnp : functions_) {
+        if (fnp == nullptr) continue;
+        const MIRFunction& fn = *fnp;
+        if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+        const MIRSymbolRecord& rec = module_.symbols.get(fn.symbol);
+        defined_js_name_[fn.symbol] = js_function_name(fn.symbol);
+        const std::string name = module_.symbols.mangled_name(rec);
+        if (!name.empty()) defined_by_name_.emplace(name, fn.symbol);
+    }
+}
+
+bool ModuleEmitter::emit_all_functions() {
+    for (const MIRFunction* fnp : functions_) {
+        if (fnp == nullptr) continue;
+        const MIRFunction& fn = *fnp;
+        if (fn.symbol == MIR_INVALID_ID) continue;
+        if (!emitted_.insert(fn.symbol).second) continue; // duplicate symbol id
+        if (fn.instructions.size() == 0) continue;
+        if (!emit_function(fn, body_)) return false;
+    }
+    return true;
+}
+
+void ModuleEmitter::emit_preamble(std::string& out) {
+    out += "// Generated by the Chemical compiler (JS backend). Do not edit.\n";
+    if (!options_.module_name.empty()) {
+        out += "// chemical module: ";
+        out += options_.module_name;
+        out += "\n";
+    }
+    out += "import { rt } from \"";
+    out += options_.runtime_specifier;
+    out += "\";\n\n";
+
+    if (!constants_.empty()) {
+        out += "// --- string constants ---───────────────────────────────────────────────\n";
+        out += constants_;
+        out += "\n";
+    }
+    if (!globals_.empty()) {
+        out += "// --- globals ---────────────────────────────────────────────────────────\n";
+        out += globals_;
+        out += "\n";
+    }
+    out += "// --- function addresses (function_addr / indirect calls) ---─────────────\n";
+    out += "const $fa = [];\n";
+    for (SymbolId sym : fa_order_) {
+        out += "$fa[";
+        append_uint(out, sym);
+        out += "] = ";
+        out += fa_expr_[sym];
+        out += ";\n";
+    }
+    out += "\n";
+}
+
+bool ModuleEmitter::run(std::string& out) {
+    collect();
+
+    // String constants: a `const.string` operates on bytes in the heap, so every
+    // interned string constant gets a module-level address.
+    for (ConstantId id = 0; id < module_.constants.size(); ++id) {
+        const MIRConstant& c = module_.constants.get(id);
+        if (c.kind != MIRConstantKind::String) continue;
+        std::string bytes = "rt.cstr(new Uint8Array([";
+        for (uint32_t i = 0; i < c.data_count; ++i) {
+            if (i) bytes += ",";
+            bytes += std::to_string(static_cast<unsigned>(
+                static_cast<unsigned char>(module_.constants.data.data_at(c.data_offset)[i])));
+        }
+        bytes += "]));\n";
+        constants_ += "const $k" + std::to_string(id) + " = " + bytes;
+    }
+
+    // Globals: storage plus the MIR initializer tree.
+    for (const MIRGlobal& global : module_.globals) {
+        if (global.symbol == MIR_INVALID_ID || global.symbol >= module_.symbols.size()) continue;
+        const MIRSymbolRecord& rec = module_.symbols.get(global.symbol);
+        if (rec.type == MIR_INVALID_ID || rec.type >= module_.types.size()) continue;
+        const JsType t = type_of(rec.type);
+        const uint32_t size = t.size ? t.size : 1;
+        const uint32_t align = t.align ? t.align : 1;
+        const std::string decl = "$g" + std::to_string(global.symbol);
+        globals_ += "const " + decl + " = rt.alloc(" + std::to_string(size) + ", " +
+                    std::to_string(align) + ");\n";
+        globals_ += "rt.fill(" + decl + ", 0, " + std::to_string(size) + ");\n";
+        if (global.init != MIR_INVALID_ID) {
+            if (!emit_const_into(global.init, 0, decl, globals_)) return false;
+        }
+    }
+
+    if (!emit_all_functions()) return false;
+
+    emit_preamble(out);
+    out += body_;
+
+    // The exported symbol table: mangled name -> function. This is how a driver
+    // finds `main` without knowing the generated JS identifiers.
+    out += "\n// --- symbol table ---─────────────────────────────────────────────────────\n";
+    out += "export const $exports = {\n";
+    std::unordered_set<SymbolId> listed;
+    for (const MIRFunction* fnp : functions_) {
+        if (fnp == nullptr) continue;
+        const MIRFunction& fn = *fnp;
+        if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+        if (!listed.insert(fn.symbol).second) continue;
+        if (emitted_.count(fn.symbol) == 0) continue; // no body
+        const std::string name = module_.symbols.mangled_name(module_.symbols.get(fn.symbol));
+        if (name.empty()) continue;
+        out += "  \"";
+        out += name;
+        out += "\": ";
+        out += js_function_name(fn.symbol);
+        out += ",\n";
+    }
+    out += "};\n";
+    return true;
+}
+
+// ── types ───────────────────────────────────────────────────────────────────
+
+JsType ModuleEmitter::type_of(TypeId id) const {
+    JsType t;
+    if (id == MIR_INVALID_ID || id >= module_.types.size()) return t;
+    const MIRTypeRecord& r = module_.types.get(id);
+    t.valid = true;
+    t.size = r.size;
+    t.align = r.alignment ? r.alignment : 1;
+    switch (r.kind) {
+        case MIRTypeKind::Void:
+            t.size = 0;
+            break;
+        case MIRTypeKind::Bool:
+            t.size = r.size ? r.size : 1;
+            break;
+        case MIRTypeKind::Int:
+            t.is_signed = (r.flags & TF_SIGNED) != 0;
+            break;
+        case MIRTypeKind::Float:
+            if (r.size == 4) t.is_float = true;
+            else t.is_double = true;
+            break;
+        case MIRTypeKind::Pointer:
+        case MIRTypeKind::Reference:
+        case MIRTypeKind::Function:
+        case MIRTypeKind::Opaque:
+            t.is_ptr = true;
+            t.size = r.size ? r.size : ptr_size_;
+            t.align = r.alignment ? r.alignment : ptr_size_;
+            break;
+        case MIRTypeKind::Array:
+        case MIRTypeKind::Struct:
+        case MIRTypeKind::Union:
+        case MIRTypeKind::Variant:
+            t.is_agg = true;
+            break;
+    }
+    if (!t.is_agg && t.size == 0 && r.kind != MIRTypeKind::Void) t.size = 1;
+    return t;
+}
+
+TypeId ModuleEmitter::value_type(ValueId id) const {
+    if (fn_ == nullptr || id >= fn_->values.size()) return MIR_INVALID_ID;
+    return fn_->values[id].type;
+}
+
+TypeId ModuleEmitter::place_type(PlaceId id) const {
+    if (fn_ == nullptr || id >= fn_->places.size()) return MIR_INVALID_ID;
+    return fn_->places[id].type;
+}
+
+TypeId ModuleEmitter::operand_type(const MIROperand& o) const {
+    switch (o.kind()) {
+        case MIROperandKind::Value:
+            return value_type(o.id);
+        case MIROperandKind::Place:
+            return place_type(o.id);
+        case MIROperandKind::Constant:
+            if (o.id < module_.constants.size()) return module_.constants.get(o.id).type;
+            return MIR_INVALID_ID;
+        case MIROperandKind::Symbol:
+            if (o.id < module_.symbols.size()) return module_.symbols.get(o.id).type;
+            return MIR_INVALID_ID;
+        case MIROperandKind::Type:
+            return o.type();
+        default:
+            return MIR_INVALID_ID;
+    }
+}
+
+TypeId ModuleEmitter::pointee_of(TypeId id) const {
+    if (id == MIR_INVALID_ID || id >= module_.types.size()) return MIR_INVALID_ID;
+    const MIRTypeRecord& r = module_.types.get(id);
+    if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) return r.element;
+    return MIR_INVALID_ID;
+}
+
+TypeId ModuleEmitter::element_of(TypeId id) const {
+    if (id == MIR_INVALID_ID || id >= module_.types.size()) return MIR_INVALID_ID;
+    const MIRTypeRecord& r = module_.types.get(id);
+    if (r.kind == MIRTypeKind::Array) return r.element;
+    const TypeId p = pointee_of(id);
+    if (p != MIR_INVALID_ID && p < module_.types.size() &&
+        module_.types.get(p).kind == MIRTypeKind::Array) {
+        return module_.types.get(p).element;
+    }
+    return p;
+}
+
+// ── constants ───────────────────────────────────────────────────────────────
+
+bool ModuleEmitter::constant_expr(ConstantId id, std::string& out) const {
+    if (id >= module_.constants.size()) return false;
+    const MIRConstant& c = module_.constants.get(id);
+    if (c.kind == MIRConstantKind::String) {
+        out += "$k" + std::to_string(id);
+        return true;
+    }
+    return literal_of(c, out);
+}
+
+bool ModuleEmitter::literal_of(const MIRConstant& c, std::string& out) const {
+    switch (c.kind) {
+        case MIRConstantKind::Int: {
+            const JsType t = type_of(c.type);
+            const uint64_t bits = c.bits;
+            if (t.size == 1) {
+                out += std::to_string(t.is_signed ? static_cast<int64_t>(static_cast<int8_t>(bits))
+                                                  : static_cast<int64_t>(static_cast<uint8_t>(bits)));
+            } else if (t.size == 2) {
+                out += std::to_string(t.is_signed ? static_cast<int64_t>(static_cast<int16_t>(bits))
+                                                  : static_cast<int64_t>(static_cast<uint16_t>(bits)));
+            } else if (t.size == 4) {
+                out += std::to_string(t.is_signed ? static_cast<int64_t>(static_cast<int32_t>(bits))
+                                                  : static_cast<int64_t>(static_cast<uint32_t>(bits)));
+            } else if (t.is_signed) {
+                out += std::to_string(static_cast<int64_t>(bits));
+            } else {
+                out += std::to_string(bits);
+            }
+            return true;
+        }
+        case MIRConstantKind::Float: {
+            float f = 0;
+            const uint32_t b = static_cast<uint32_t>(c.bits);
+            std::memcpy(&f, &b, sizeof(f));
+            out += float_literal(static_cast<double>(f), true);
+            return true;
+        }
+        case MIRConstantKind::Double: {
+            double d = 0;
+            std::memcpy(&d, &c.bits, sizeof(d));
+            out += float_literal(d, false);
+            return true;
+        }
+        case MIRConstantKind::Bool:
+            out += c.bits ? "1" : "0";
+            return true;
+        case MIRConstantKind::Null:
+            out += "0";
+            return true;
+        default:
+            return false;
+    }
+}
+
+// ── operand spelling ────────────────────────────────────────────────────────
+
+bool ModuleEmitter::scalar_read(const MIROperand& o, const JsType& t, std::string& out) {
+    if (!t.valid || t.size == 0) {
+        out += "0";
+        return true;
+    }
+    const std::string size = std::to_string(t.size);
+    switch (o.kind()) {
+        case MIROperandKind::Place: {
+            if (t.is_float || t.is_double) {
+                out += "rt.ldF(" + pname(o.id) + ", " + size + ")";
+            } else {
+                out += "rt.ld(" + pname(o.id) + ", " + size + ", ";
+                out += t.is_signed ? "1)" : "0)";
+            }
+            return true;
+        }
+        case MIROperandKind::Value:
+            out += vname(o.id);
+            return true;
+        case MIROperandKind::Constant:
+            return constant_expr(o.id, out);
+        case MIROperandKind::Symbol:
+            return function_address_expr(o.id, out);
+        default:
+            return false;
+    }
+}
+
+bool ModuleEmitter::operand_expr(const MIROperand& o, std::string& out) {
+    if (o.kind() == MIROperandKind::Place) {
+        const JsType t = type_of(place_type(o.id));
+        if (t.is_agg) {
+            // aggregate values are addresses in this ABI
+            out += pname(o.id);
+            return true;
+        }
+        return scalar_read(o, t, out);
+    }
+    return scalar_read(o, type_of(operand_type(o)), out);
+}
+
+bool ModuleEmitter::base_addr_expr(const MIROperand& o, std::string& out) {
+    switch (o.kind()) {
+        case MIROperandKind::Place: {
+            const JsType t = type_of(place_type(o.id));
+            if (t.is_ptr) {
+                // a pointer variable: the base is the pointer it holds
+                out += "rt.ld(" + pname(o.id) + ", " + std::to_string(t.size) + ", 0)";
+            } else {
+                out += pname(o.id);
+            }
+            return true;
+        }
+        case MIROperandKind::Value:
+            out += vname(o.id);
+            return true;
+        case MIROperandKind::Constant:
+            return constant_expr(o.id, out);
+        default:
+            return false;
+    }
+}
+
+bool ModuleEmitter::storage_addr_expr(const MIROperand& o, std::string& out) {
+    switch (o.kind()) {
+        case MIROperandKind::Place:
+            out += pname(o.id);
+            return true;
+        case MIROperandKind::Value:
+            out += vname(o.id);
+            return true;
+        case MIROperandKind::Constant:
+            return constant_expr(o.id, out);
+        default:
+            return false;
+    }
+}
+
+// ── field designators ───────────────────────────────────────────────────────
+bool ModuleEmitter::resolve_field(TypeId agg, std::string_view dotted, TypeId& field_type,
+                                  uint32_t& offset) const {
+    TypeId cur = agg;
+    uint32_t off = 0;
+    size_t start = 0;
+    for (;;) {
+        const size_t dot = dotted.find('.', start);
+        const std::string_view seg =
+            dot == std::string_view::npos ? dotted.substr(start) : dotted.substr(start, dot - start);
+        if (cur == MIR_INVALID_ID || cur >= module_.types.size()) return false;
+        const MIRTypeRecord& rec = module_.types.get(cur);
+        bool found = false;
+        for (uint32_t i = 0; i < rec.data_count; ++i) {
+            const MIRFieldInfo* f = module_.types.field_of(cur, i);
+            if (f == nullptr) break;
+            if (module_.types.field_name_view(*f) == seg) {
+                off += f->offset;
+                cur = f->type;
+                found = true;
+                break;
+            }
+        }
+        if (!found) return false;
+        if (dot == std::string_view::npos) break;
+        start = dot + 1;
+    }
+    field_type = cur;
+    offset = off;
+    return true;
+}
+
+// ── symbol resolution ───────────────────────────────────────────────────────
+
+bool ModuleEmitter::extern_expr(std::string_view name, std::string& out) {
+    struct Entry {
+        const char* name;
+        const char* expr;
+    };
+    static const Entry kExterns[] = {
+        {"printf", "rt.printf"},    {"malloc", "rt.malloc"},   {"free", "rt.free_"},
+        {"realloc", "rt.realloc_"}, {"memcpy", "rt.memcpy"},   {"memmove", "rt.memmove"},
+        {"memset", "rt.memset"},    {"strlen", "rt.strlen"},   {"strcmp", "rt.strcmp"},
+        {"abort", "rt.abort"},      {"exit", "rt.exit"},       {"putchar", "rt.putchar"},
+    };
+    for (const Entry& e : kExterns) {
+        if (name == e.name) {
+            out += e.expr;
+            return true;
+        }
+    }
+    // The C backend's checked-operation helpers (`__chc_div_zero_fail`, …) are
+    // traps here: see `trap` in scripts/js_backend/runtime.mjs. The helper's name
+    // travels with the call so a trap reports which check fired.
+    if (name.size() >= 6 && name.compare(0, 6, "__chc_") == 0) {
+        out += "rt.trap";
+        trap_name_ = std::string(name);
+        return true;
+    }
+    return false;
+}
+
+bool ModuleEmitter::callee_expr(SymbolId sym, std::string& out) {
+    trap_name_.clear();
+    if (sym == MIR_INVALID_ID || sym >= module_.symbols.size()) {
+        return fail_at("call with an unresolved callee symbol");
+    }
+    auto it = defined_js_name_.find(sym);
+    if (it != defined_js_name_.end()) {
+        out += it->second;
+        return true;
+    }
+    const std::string name = module_.symbols.mangled_name(module_.symbols.get(sym));
+    auto by_name = defined_by_name_.find(name);
+    if (by_name != defined_by_name_.end()) {
+        out += js_function_name(by_name->second);
+        return true;
+    }
+    if (extern_expr(name, out)) return true;
+    if (std::getenv("CHX_JS_DEBUG") != nullptr) {
+        const MIRSymbolRecord& rec = module_.symbols.get(sym);
+        std::cerr << "[js debug] unresolved callee sym=" << sym << " name='"
+                  << std::string(module_.symbols.name_data(rec), rec.name_length)
+                  << "' mangled='"
+                  << std::string(module_.symbols.mangled_data(rec), rec.mangled_length) << "'\n";
+        for (uint32_t i = 0; i < module_.functions.size(); ++i) {
+            const MIRFunction& fn = module_.functions[i];
+            if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+            const std::string other = module_.symbols.mangled_name(module_.symbols.get(fn.symbol));
+            if (other == name) {
+                std::cerr << "[js debug]   definition at functions[" << i << "] symbol="
+                          << fn.symbol << " instructions=" << fn.instructions.size() << "\n";
+            }
+        }
+    }
+    return fail_at("call to '" + name +
+                   "' cannot be emitted yet: it is defined in another Chemical module "
+                   "(cross-module JS imports are not implemented)");
+}
+
+bool ModuleEmitter::function_address_expr(SymbolId sym, std::string& out) {
+    if (fa_expr_.find(sym) == fa_expr_.end()) {
+        std::string callee;
+        if (!callee_expr(sym, callee)) return false;
+        fa_expr_[sym] = callee;
+        fa_order_.push_back(sym);
+    }
+    out += "$fa[";
+    append_uint(out, sym);
+    out += "]";
+    return true;
+}
+
+// ── constant initializers (globals) ─────────────────────────────────────────
+
+bool ModuleEmitter::emit_const_into(ConstExprId id, uint32_t base_offset, const std::string& dest,
+                                    std::string& out) {
+    if (id == MIR_INVALID_ID || id >= module_.const_exprs.size()) return true;
+    const MIRConstExpr& e = module_.const_exprs.get(id);
+    const JsType t = type_of(e.type);
+    const std::string addr = dest + " + " + std::to_string(base_offset);
+    const std::string size = std::to_string(t.size ? t.size : 1);
+
+    switch (e.kind) {
+        case MIRConstKind::Zero:
+            out += "rt.fill(" + addr + ", 0, " + size + ");\n";
+            return true;
+        case MIRConstKind::Int:
+        case MIRConstKind::Bool:
+        case MIRConstKind::Null: {
+            if (e.kind == MIRConstKind::Null) {
+                out += "rt.st(" + addr + ", " + std::to_string(t.size ? t.size : ptr_size_) +
+                       ", 0, 0);\n";
+                return true;
+            }
+            MIRConstant c;
+            c.kind = MIRConstantKind::Int;
+            c.type = e.type;
+            c.bits = e.bits;
+            std::string lit;
+            if (!literal_of(c, lit)) return false;
+            out += "rt.st(" + addr + ", " + size + ", " + (t.is_signed ? "1" : "0") + ", " + lit +
+                   ");\n";
+            return true;
+        }
+        case MIRConstKind::Float:
+        case MIRConstKind::Double: {
+            MIRConstant c;
+            c.kind = e.kind == MIRConstKind::Float ? MIRConstantKind::Float : MIRConstantKind::Double;
+            c.type = e.type;
+            c.bits = e.bits;
+            std::string lit;
+            if (!literal_of(c, lit)) return false;
+            out += "rt.stF(" + addr + ", " + size + ", " + lit + ");\n";
+            return true;
+        }
+        case MIRConstKind::String: {
+            const std::string_view bytes(module_.const_exprs.data.data_at(e.data_offset),
+                                         e.data_count);
+            std::string bytes_expr = "new Uint8Array([";
+            for (uint32_t i = 0; i < e.data_count; ++i) {
+                if (i) bytes_expr += ",";
+                bytes_expr +=
+                    std::to_string(static_cast<unsigned>(static_cast<unsigned char>(bytes[i])));
+            }
+            bytes_expr += "])";
+            if (e.type < module_.types.size() &&
+                module_.types.get(e.type).kind == MIRTypeKind::Array) {
+                // the bytes live in the global itself
+                out += "rt.HEAP.set(" + bytes_expr + ", " + addr + ");\n";
+            } else {
+                out += "rt.st(" + addr + ", " + std::to_string(t.size ? t.size : ptr_size_) +
+                       ", 0, rt.cstr(" + bytes_expr + "));\n";
+            }
+            return true;
+        }
+        case MIRConstKind::Negate: {
+            const MIRConstChild* child = module_.const_exprs.child(id, 0);
+            if (child == nullptr) return true;
+            const MIRConstExpr& inner = module_.const_exprs.get(child->expr);
+            MIRConstant c;
+            c.kind = MIRConstantKind::Int;
+            c.type = inner.type;
+            c.bits = inner.bits;
+            std::string lit;
+            if (!literal_of(c, lit)) return false;
+            out += "rt.st(" + addr + ", " + size + ", " + (t.is_signed ? "1" : "0") + ", -(" + lit +
+                   "));\n";
+            return true;
+        }
+        case MIRConstKind::Aggregate:
+        case MIRConstKind::Variant: {
+            if (e.kind == MIRConstKind::Variant && e.type < module_.types.size()) {
+                for (uint32_t i = 0; i < module_.types.get(e.type).data_count; ++i) {
+                    const MIRFieldInfo* f = module_.types.field_of(e.type, i);
+                    if (f == nullptr) break;
+                    if (f->kind != static_cast<uint8_t>(MIRFieldKind::VariantTag)) continue;
+                    const JsType ft = type_of(f->type);
+                    out += "rt.st(" + addr + ", " + std::to_string(ft.size) + ", 0, " +
+                           std::to_string(e.case_index) + ");\n";
+                    break;
+                }
+            }
+            for (uint32_t i = 0; i < e.child_count; ++i) {
+                const MIRConstChild* child = module_.const_exprs.child(id, i);
+                if (child == nullptr) continue;
+                uint32_t off = 0;
+                if (child->name_length == 0) {
+                    if (e.type >= module_.types.size()) continue;
+                    const MIRTypeRecord& rec = module_.types.get(e.type);
+                    off = i * type_of(rec.element).size;
+                } else {
+                    TypeId ftype = MIR_INVALID_ID;
+                    if (!resolve_field(e.type, module_.const_exprs.child_name_view(*child), ftype,
+                                       off)) {
+                        return fail("js backend: global initializer names an unknown field '" +
+                                    std::string(module_.const_exprs.child_name_view(*child)) + "'");
+                    }
+                }
+                if (!emit_const_into(child->expr, base_offset + off, dest, out)) return false;
+            }
+            return true;
+        }
+        case MIRConstKind::FunctionRef: {
+            std::string fn_expr;
+            if (!function_address_expr(e.symbol, fn_expr)) return false;
+            out += "rt.st(" + addr + ", " + std::to_string(t.size ? t.size : ptr_size_) +
+                   ", 0, " + fn_expr + ");\n";
+            return true;
+        }
+    }
+    return fail("js backend: unsupported global initializer");
+}
+
+// ── functions ───────────────────────────────────────────────────────────────
+
+bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
+    fn_ = &fn;
+    fn_name_ = fn.symbol < module_.symbols.size()
+                   ? module_.symbols.mangled_name(module_.symbols.get(fn.symbol))
+                   : std::string("<anon>");
+
+    std::string body;
+    body.reserve(4096);
+
+    // `Param` instructions bind in instruction order — the same pre-pass the
+    // interpreter performs, so an sret pointer (the first Param) lands in the
+    // value `sret_pointer` names.
+    std::vector<const MIRInstruction*> params;
+    for (uint32_t i = 0; i < fn.instructions.size(); ++i) {
+        if (fn.instructions[i].opcode() == MIROpcode::Param) params.push_back(&fn.instructions[i]);
+    }
+
+    line(body, "/** " + fn_name_ + " */");
+    body += "export function " + js_function_name(fn.symbol) + "(";
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i) body += ", ";
+        body += "a" + std::to_string(i) + " = 0";
+    }
+    body += ") {\n";
+    body += "  const $m = rt.frame_mark();\n";
+
+    if (!fn.values.empty()) {
+        // No initializers: a definition dominates every use in well-formed MIR,
+        // and an initializer would be a dead store on every path.
+        body += "  let ";
+        for (uint32_t i = 0; i < fn.values.size(); ++i) {
+            if (i) body += (i % 16 == 0) ? ",\n      " : ", ";
+            body += vname(i);
+        }
+        body += ";\n";
+    }
+    for (uint32_t i = 0; i < fn.places.size(); ++i) {
+        const JsType t = type_of(place_type(i));
+        const uint32_t size = t.size ? t.size : 1;
+        const uint32_t align = t.align ? t.align : 1;
+        body += "  const " + pname(i) + " = rt.frame_alloc(" + std::to_string(size) + ", " +
+                std::to_string(align) + ");\n";
+    }
+    for (size_t i = 0; i < params.size(); ++i) {
+        body += "  " + vname(params[i]->result_or_place) + " = a" + std::to_string(i) + ";\n";
+    }
+
+    const BlockId entry = (fn.entry_block < fn.blocks.size()) ? fn.entry_block : 0;
+    body += "  let $pc = ";
+    append_uint(body, fn.blocks.empty() ? 0 : fn.blocks[entry].id);
+    body += ";\n";
+    body += "  for (;;) {\n";
+    body += "    switch ($pc) {\n";
+
+    for (uint32_t bi = 0; bi < fn.blocks.size(); ++bi) {
+        const MIRBlock& block = fn.blocks[bi];
+        body += "      case " + std::to_string(block.id) + ": {\n";
+        for (uint32_t k = 0; k < block.inst_count; ++k) {
+            const uint32_t index = block.inst_start + k;
+            if (index >= fn.instructions.size()) break;
+            const MIRInstruction& ins = fn.instructions[index];
+            if (ins.opcode() == MIROpcode::Param) continue; // bound in the prologue
+            if (options_.instruction_comments) {
+                body += "        // ";
+                body += opcode_name(ins.opcode());
+                body += "\n";
+            }
+            std::string stmt;
+            if (!emit_instruction(ins, stmt)) return false;
+            if (!stmt.empty()) {
+                body += "        ";
+                body += stmt;
+                body += "\n";
+            }
+        }
+        const uint32_t term_index = block.inst_start + block.inst_count;
+        if (term_index < fn.instructions.size()) {
+            std::string stmt;
+            if (!emit_terminator(fn.instructions[term_index], stmt)) return false;
+            body += "        ";
+            body += stmt;
+            body += "\n";
+        }
+        body += "      }\n";
+    }
+    body += "      default: throw new Error(\"js backend: bad block \" + $pc);\n";
+    body += "    }\n";
+    body += "  }\n";
+    body += "}\n\n";
+
+    out += body;
+    fn_ = nullptr;
+    return true;
+}
+
+// ── instructions ────────────────────────────────────────────────────────────
+
+bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out) {
+    auto op = [&](uint32_t i) -> const MIROperand* {
+        if (i >= ins.operand_count) return nullptr;
+        return &fn_->operands[ins.operand_offset + i];
+    };
+    const uint32_t rp = ins.result_or_place;
+    auto result = [&]() -> std::string { return vname(rp); };
+    // `agg_type_of_base`: the aggregate a field designator is resolved against.
+    auto agg_of = [&](const MIROperand& base) -> TypeId {
+        const TypeId bt = operand_type(base);
+        const TypeId p = pointee_of(bt);
+        return p != MIR_INVALID_ID ? p : bt;
+    };
+
+    switch (ins.opcode()) {
+        case MIROpcode::Nop:
+        case MIROpcode::Alloca: // storage was allocated in the prologue
+        case MIROpcode::StorageLive:
+        case MIROpcode::StorageDead:
+        case MIROpcode::MoveOut:
+        case MIROpcode::Param:
+            return true;
+
+        case MIROpcode::ConstInt:
+        case MIROpcode::ConstFloat:
+        case MIROpcode::ConstDouble:
+        case MIROpcode::ConstBool:
+        case MIROpcode::ConstNull: {
+            const MIROperand* c = op(0);
+            if (c == nullptr) return fail_at("constant without an operand");
+            std::string lit;
+            if (!constant_expr(c->id, lit)) return fail_at("unsupported constant kind");
+            out = result() + " = " + lit + ";";
+            return true;
+        }
+        case MIROpcode::ConstString: {
+            const MIROperand* c = op(0);
+            if (c == nullptr) return fail_at("const.string without a constant");
+            out = result() + " = $k" + std::to_string(c->id) + ";";
+            return true;
+        }
+        case MIROpcode::GlobalAddr: {
+            const MIROperand* s = op(0);
+            if (s == nullptr) return fail_at("global_addr without a symbol");
+            out = result() + " = $g" + std::to_string(s->id) + ";";
+            return true;
+        }
+        case MIROpcode::FunctionAddr: {
+            const MIROperand* s = op(0);
+            if (s == nullptr) return fail_at("function_addr without a symbol");
+            std::string addr;
+            if (!function_address_expr(s->id, addr)) return false;
+            out = result() + " = " + addr + ";";
+            return true;
+        }
+
+        case MIROpcode::Load: {
+            const MIROperand* base = op(0);
+            const MIROperand* km = op(1);
+            if (base == nullptr || km == nullptr) return fail_at("load without operands");
+            TypeId accessed = value_type(rp);
+            std::string addr;
+            if (km->kind() == MIROperandKind::Constant) {
+                std::string_view designator;
+                if (!constant_text(module_, km->id, designator)) {
+                    return fail_at("field load without a field name");
+                }
+                TypeId ftype = MIR_INVALID_ID;
+                uint32_t off = 0;
+                if (!resolve_field(agg_of(*base), designator, ftype, off)) {
+                    return fail_at("unknown field '" + std::string(designator) + "'");
+                }
+                accessed = ftype;
+                if (!base_addr_expr(*base, addr)) return fail_at("bad load base");
+                addr = addr + " + " + std::to_string(off);
+            } else if (km->kind() == MIROperandKind::Value) {
+                const TypeId et = element_of(operand_type(*base));
+                if (et == MIR_INVALID_ID) return fail_at("indexed load without an element type");
+                accessed = et;
+                if (!base_addr_expr(*base, addr)) return fail_at("bad load base");
+                addr = addr + " + " + vname(km->id) + " * " + std::to_string(type_of(et).size);
+            } else {
+                // Plain `load p, ty`: the place's own storage, no dereference
+                // (only the field/index forms above project through a pointer).
+                if (!storage_addr_expr(*base, addr)) return fail_at("bad load base");
+            }
+            const JsType t = type_of(accessed);
+            if (t.is_agg) {
+                // An aggregate load produces a *copy*: MIR values are single
+                // words, so the address of fresh storage is the value.
+                out = result() + " = rt.frame_alloc(" + std::to_string(t.size) + ", " +
+                      std::to_string(t.align) + "); rt.memcpy(" + result() + ", " + addr + ", " +
+                      std::to_string(t.size) + ");";
+                return true;
+            }
+            if (t.is_float || t.is_double) {
+                out = result() + " = rt.ldF(" + addr + ", " + std::to_string(t.size) + ");";
+                return true;
+            }
+            out = result() + " = rt.ld(" + addr + ", " + std::to_string(t.size) + ", " +
+                  (t.is_signed ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::Store: {
+            const MIROperand* dst = op(0);
+            const MIROperand* km = op(1);
+            if (dst == nullptr || km == nullptr) return fail_at("store without operands");
+            std::string addr;
+            JsType t;
+            const MIROperand* src = nullptr;
+            if (km->kind() == MIROperandKind::Constant) {
+                src = op(2);
+                if (src == nullptr) return fail_at("field store without a value");
+                std::string_view designator;
+                if (!constant_text(module_, km->id, designator)) {
+                    return fail_at("field store without a field name");
+                }
+                TypeId ftype = MIR_INVALID_ID;
+                uint32_t off = 0;
+                if (!resolve_field(agg_of(*dst), designator, ftype, off)) {
+                    return fail_at("unknown field '" + std::string(designator) + "'");
+                }
+                t = type_of(ftype);
+                if (!base_addr_expr(*dst, addr)) return fail_at("bad store base");
+                addr = addr + " + " + std::to_string(off);
+            } else if (km->kind() == MIROperandKind::Value && ins.operand_count >= 3) {
+                src = op(2);
+                if (src == nullptr) return fail_at("element store without a value");
+                const TypeId et = element_of(operand_type(*dst));
+                if (et == MIR_INVALID_ID) return fail_at("indexed store without an element type");
+                t = type_of(et);
+                if (!base_addr_expr(*dst, addr)) return fail_at("bad store base");
+                addr = addr + " + " + vname(km->id) + " * " + std::to_string(t.size);
+            } else {
+                src = km;
+                TypeId dt = MIR_INVALID_ID;
+                if (dst->kind() == MIROperandKind::Place) {
+                    dt = place_type(dst->id);
+                } else {
+                    dt = pointee_of(operand_type(*dst));
+                    if (dt == MIR_INVALID_ID) dt = operand_type(*src);
+                }
+                t = type_of(dt);
+                if (!storage_addr_expr(*dst, addr)) return fail_at("bad store destination");
+            }
+            if (t.is_agg) {
+                std::string src_addr;
+                if (src->kind() == MIROperandKind::Place) {
+                    src_addr = pname(src->id);
+                } else if (!operand_expr(*src, src_addr)) {
+                    return fail_at("bad aggregate store source");
+                }
+                uint32_t n = t.size;
+                const JsType st = type_of(operand_type(*src));
+                if (st.size != 0 && st.size < n) n = st.size;
+                out = "rt.memcpy(" + addr + ", " + src_addr + ", " + std::to_string(n) + ");";
+                return true;
+            }
+            std::string value;
+            if (!operand_expr(*src, value)) return fail_at("bad store source");
+            if (t.is_float || t.is_double) {
+                out = "rt.stF(" + addr + ", " + std::to_string(t.size) + ", " + value + ");";
+            } else {
+                out = "rt.st(" + addr + ", " + std::to_string(t.size) + ", " +
+                      (t.is_signed ? "1" : "0") + ", " + value + ");";
+            }
+            return true;
+        }
+        case MIROpcode::AddressOf: {
+            const MIROperand* p = op(0);
+            if (p == nullptr || p->kind() != MIROperandKind::Place) {
+                return fail_at("address_of without a place");
+            }
+            out = result() + " = " + pname(p->id) + ";";
+            return true;
+        }
+        case MIROpcode::Gep: {
+            const MIROperand* base = op(0);
+            if (base == nullptr) return fail_at("gep without a base");
+            std::string addr;
+            // `gep` adds byte offsets to the operand's own address (a place's
+            // storage or a pointer value); it does not project through a pointer.
+            if (!storage_addr_expr(*base, addr)) return fail_at("bad gep base");
+            for (uint32_t i = 1; i + 1 < ins.operand_count; ++i) {
+                const MIROperand* k = op(i);
+                if (k == nullptr) break;
+                std::string off;
+                if (!operand_expr(*k, off)) return fail_at("bad gep index");
+                addr = addr + " + " + off;
+            }
+            out = result() + " = " + addr + ";";
+            return true;
+        }
+        case MIROpcode::FieldAddr: {
+            const MIROperand* base = op(0);
+            const MIROperand* fld = op(1);
+            if (base == nullptr || fld == nullptr) return fail_at("field_addr without operands");
+            std::string_view designator;
+            if (!constant_text(module_, fld->id, designator)) {
+                return fail_at("field_addr without a field name");
+            }
+            TypeId ftype = MIR_INVALID_ID;
+            uint32_t off = 0;
+            if (!resolve_field(agg_of(*base), designator, ftype, off)) {
+                return fail_at("unknown field '" + std::string(designator) + "'");
+            }
+            std::string addr;
+            if (!base_addr_expr(*base, addr)) return fail_at("bad field_addr base");
+            out = result() + " = " + addr + " + " + std::to_string(off) + ";";
+            return true;
+        }
+        case MIROpcode::IndexAddr: {
+            const MIROperand* base = op(0);
+            const MIROperand* idx = op(1);
+            if (base == nullptr || idx == nullptr) return fail_at("index_addr without operands");
+            const JsType et = type_of(value_type(rp));
+            std::string addr, index;
+            if (!base_addr_expr(*base, addr)) return fail_at("bad index_addr base");
+            if (!operand_expr(*idx, index)) return fail_at("bad index_addr index");
+            out = result() + " = " + addr + " + " + index + " * " + std::to_string(et.size) + ";";
+            return true;
+        }
+        case MIROpcode::Init: {
+            const MIROperand* dest = op(0);
+            const MIROperand* ctor = op(1);
+            if (dest == nullptr || ctor == nullptr) return fail_at("init without operands");
+            if (dest->kind() != MIROperandKind::Place) return fail_at("init without a destination");
+            std::string callee;
+            if (!callee_expr(ctor->id, callee)) return false;
+            std::string call = callee + "(" + pname(dest->id);
+            for (uint32_t i = 2; i < ins.operand_count; ++i) {
+                std::string arg;
+                if (!operand_expr(*op(i), arg)) return fail_at("bad init argument");
+                call += ", " + arg;
+            }
+            out = call + ");";
+            return true;
+        }
+        case MIROpcode::CopyInit:
+        case MIROpcode::MoveInit:
+        case MIROpcode::Assign: {
+            const MIROperand* dest = op(0);
+            const MIROperand* src = op(1);
+            if (dest == nullptr || src == nullptr) return fail_at("copy without operands");
+            if (dest->kind() != MIROperandKind::Place) return fail_at("copy without a destination");
+            const JsType t = type_of(place_type(dest->id));
+            if (t.is_agg) {
+                std::string src_addr;
+                if (src->kind() == MIROperandKind::Place) {
+                    src_addr = pname(src->id);
+                } else if (!operand_expr(*src, src_addr)) {
+                    return fail_at("bad aggregate copy source");
+                }
+                out = "rt.memcpy(" + pname(dest->id) + ", " + src_addr + ", " +
+                      std::to_string(t.size) + ");";
+                return true;
+            }
+            std::string value;
+            if (!operand_expr(*src, value)) return fail_at("bad copy source");
+            if (t.is_float || t.is_double) {
+                out = "rt.stF(" + pname(dest->id) + ", " + std::to_string(t.size) + ", " + value +
+                      ");";
+            } else {
+                out = "rt.st(" + pname(dest->id) + ", " + std::to_string(t.size) + ", " +
+                      (t.is_signed ? "1" : "0") + ", " + value + ");";
+            }
+            return true;
+        }
+        case MIROpcode::Copy:
+        case MIROpcode::Move: {
+            const MIROperand* src = op(0);
+            if (src == nullptr) return fail_at("copy without a source");
+            if (src->kind() == MIROperandKind::Place) {
+                const JsType st = type_of(place_type(src->id));
+                if (st.is_agg) {
+                    out = result() + " = rt.frame_alloc(" + std::to_string(st.size) + ", " +
+                          std::to_string(st.align) + "); rt.memcpy(" + result() + ", " +
+                          pname(src->id) + ", " + std::to_string(st.size) + ");";
+                    return true;
+                }
+                std::string value;
+                if (!scalar_read(*src, st, value)) return fail_at("bad copy source");
+                out = result() + " = " + value + ";";
+                return true;
+            }
+            std::string value;
+            if (!operand_expr(*src, value)) return fail_at("bad copy source");
+            out = result() + " = " + value + ";";
+            return true;
+        }
+        case MIROpcode::Drop:
+        case MIROpcode::Destroy: {
+            const MIROperand* place = op(0);
+            const MIROperand* dtor = op(1);
+            if (place == nullptr || dtor == nullptr) return fail_at("drop without operands");
+            if (place->kind() != MIROperandKind::Place) return fail_at("drop without a place");
+            std::string callee;
+            if (!callee_expr(dtor->id, callee)) return false;
+            if (ins.opcode() == MIROpcode::Drop && ins.operand_count >= 3) {
+                std::string flag;
+                if (!operand_expr(*op(2), flag)) return fail_at("bad drop flag");
+                out = "if (" + flag + ") { " + callee + "(" + pname(place->id) + "); }";
+                return true;
+            }
+            const TypeId pt = place_type(place->id);
+            if (pt != MIR_INVALID_ID && pt < module_.types.size() &&
+                module_.types.get(pt).kind == MIRTypeKind::Array) {
+                const MIRTypeRecord& pr = module_.types.get(pt);
+                const JsType et = type_of(pr.element);
+                out = "for (let $i = " + std::to_string(pr.data_count) + "; $i-- > 0;) { " + callee +
+                      "(" + pname(place->id) + " + $i * " + std::to_string(et.size) + "); }";
+                return true;
+            }
+            const JsType t = type_of(pt);
+            if (t.is_ptr) {
+                out = callee + "(rt.ld(" + pname(place->id) + ", " + std::to_string(t.size) +
+                      ", 0));";
+            } else {
+                out = callee + "(" + pname(place->id) + ");";
+            }
+            return true;
+        }
+        case MIROpcode::SetDrop: {
+            const MIROperand* place = op(0);
+            const MIROperand* value = op(1);
+            if (place == nullptr || value == nullptr) return fail_at("set_drop without operands");
+            if (place->kind() != MIROperandKind::Place) return fail_at("set_drop without a place");
+            const JsType t = type_of(place_type(place->id));
+            std::string v;
+            if (!operand_expr(*value, v)) return fail_at("bad drop flag");
+            out = "rt.st(" + pname(place->id) + ", " + std::to_string(t.size) + ", 0, " + v + ");";
+            return true;
+        }
+        case MIROpcode::MemCpy: {
+            const MIROperand* dst = op(0);
+            const MIROperand* src = op(1);
+            if (dst == nullptr || src == nullptr) return fail_at("memcpy without operands");
+            std::string d, s, n;
+            if (!storage_addr_expr(*dst, d)) return fail_at("bad memcpy destination");
+            if (!storage_addr_expr(*src, s)) return fail_at("bad memcpy source");
+            if (ins.operand_count >= 3) {
+                if (!operand_expr(*op(2), n)) return fail_at("bad memcpy size");
+            } else if (dst->kind() == MIROperandKind::Place) {
+                n = std::to_string(type_of(place_type(dst->id)).size);
+            } else {
+                return fail_at("memcpy without a size");
+            }
+            out = "rt.memcpy(" + d + ", " + s + ", " + n + ");";
+            return true;
+        }
+        case MIROpcode::MemSet: {
+            const MIROperand* dst = op(0);
+            if (dst == nullptr) return fail_at("memset without a destination");
+            std::string d, b, n;
+            if (!storage_addr_expr(*dst, d)) return fail_at("bad memset destination");
+            if (ins.operand_count >= 2) {
+                if (!operand_expr(*op(1), b)) return fail_at("bad memset byte");
+            } else {
+                b = "0";
+            }
+            if (ins.operand_count >= 3) {
+                if (!operand_expr(*op(2), n)) return fail_at("bad memset size");
+            } else if (dst->kind() == MIROperandKind::Place) {
+                n = std::to_string(type_of(place_type(dst->id)).size);
+            } else {
+                return fail_at("memset without a size");
+            }
+            out = "rt.fill(" + d + ", " + b + ", " + n + ");";
+            return true;
+        }
+        case MIROpcode::Unary: {
+            const MIROperand* a = op(0);
+            const MIROperand* opc = op(1);
+            if (a == nullptr || opc == nullptr) return fail_at("unary without operands");
+            const JsType at = type_of(operand_type(*a));
+            std::string av;
+            if (!operand_expr(*a, av)) return fail_at("bad unary operand");
+            out = result() + " = rt.unop(" + std::to_string(module_.constants.get(opc->id).bits) +
+                  ", " + av + ", " + std::to_string(at.size * 8) + ", " +
+                  (at.is_signed ? "1" : "0") + ", " + (at.is_float ? "1" : "0") + ", " +
+                  (at.is_double ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::Binary: {
+            const MIROperand* a = op(0);
+            const MIROperand* b = op(1);
+            const MIROperand* opc = op(2);
+            if (a == nullptr || b == nullptr || opc == nullptr) {
+                return fail_at("binary without operands");
+            }
+            const uint64_t op_value = module_.constants.get(opc->id).bits;
+            const JsType at = type_of(operand_type(*a));
+            const JsType bt = type_of(operand_type(*b));
+            const JsType rt = type_of(value_type(rp));
+            std::string av, bv;
+            if (!operand_expr(*a, av)) return fail_at("bad binary operand");
+            if (!operand_expr(*b, bv)) return fail_at("bad binary operand");
+
+            if ((op_value == 0 || op_value == 1) && (at.is_ptr || bt.is_ptr)) {
+                // C pointer arithmetic scales by the pointee size.
+                const TypeId pt_type = at.is_ptr ? operand_type(*a) : operand_type(*b);
+                uint32_t scale = type_of(pointee_of(pt_type)).size;
+                if (scale == 0) scale = 1;
+                if (at.is_ptr && bt.is_ptr) {
+                    out = result() + " = rt.pdiff(" + av + ", " + bv + ", " +
+                          std::to_string(scale) + ");";
+                    return true;
+                }
+                if (at.is_ptr) {
+                    out = result() + " = " + (op_value == 0 ? "rt.padd(" : "rt.psub(") + av + ", " +
+                          bv + ", " + std::to_string(scale) + ");";
+                    return true;
+                }
+                out = result() + " = rt.padd(" + bv + ", " + av + ", " + std::to_string(scale) +
+                      ");";
+                return true;
+            }
+            if (at.is_float || at.is_double || bt.is_float || bt.is_double) {
+                const bool dbl = at.is_double || bt.is_double;
+                out = result() + " = rt.fbinop(" + std::to_string(op_value) + ", " + av + ", " +
+                      bv + ", " + (dbl ? "1" : "0") + ");";
+                return true;
+            }
+            out = result() + " = rt.binop(" + std::to_string(op_value) + ", " + av + ", " +
+                  std::to_string(at.size * 8) + ", " + (at.is_signed ? "1" : "0") + ", " + bv +
+                  ", " + std::to_string(bt.size * 8) + ", " + (bt.is_signed ? "1" : "0") + ", " +
+                  std::to_string(rt.size * 8) + ", " + (rt.is_signed ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::Compare: {
+            const MIROperand* a = op(0);
+            const MIROperand* b = op(1);
+            const MIROperand* opc = op(2);
+            if (a == nullptr || b == nullptr || opc == nullptr) {
+                return fail_at("compare without operands");
+            }
+            const uint64_t op_value = module_.constants.get(opc->id).bits;
+            const JsType at = type_of(operand_type(*a));
+            const JsType bt = type_of(operand_type(*b));
+            std::string av, bv;
+            if (!operand_expr(*a, av)) return fail_at("bad compare operand");
+            if (!operand_expr(*b, bv)) return fail_at("bad compare operand");
+            if (at.is_float || at.is_double || bt.is_float || bt.is_double) {
+                const bool dbl = at.is_double || bt.is_double;
+                out = result() + " = rt.fcmp(" + std::to_string(op_value) + ", " + av + ", " + bv +
+                      ", " + (dbl ? "1" : "0") + ");";
+                return true;
+            }
+            out = result() + " = rt.cmp(" + std::to_string(op_value) + ", " + av + ", " +
+                  std::to_string(at.size * 8) + ", " + (at.is_signed ? "1" : "0") + ", " + bv +
+                  ", " + std::to_string(bt.size * 8) + ", " + (bt.is_signed ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::Cast: {
+            const MIROperand* a = op(0);
+            if (a == nullptr) return fail_at("cast without an operand");
+            const JsType at = type_of(operand_type(*a));
+            const JsType rt = type_of(value_type(rp));
+            std::string av;
+            if (!operand_expr(*a, av)) return fail_at("bad cast operand");
+            if (at.is_agg || rt.is_agg) {
+                out = result() + " = " + av + ";";
+                return true;
+            }
+            out = result() + " = rt.cast(" + av + ", " + std::to_string(at.size * 8) + ", " +
+                  (at.is_signed ? "1" : "0") + ", " + ((at.is_float || at.is_double) ? "1" : "0") +
+                  ", " + std::to_string(rt.size * 8) + ", " + (rt.is_signed ? "1" : "0") + ", " +
+                  ((rt.is_float || rt.is_double) ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::Select: {
+            const MIROperand* cond = op(0);
+            const MIROperand* t = op(1);
+            const MIROperand* f = op(2);
+            if (cond == nullptr || t == nullptr || f == nullptr) {
+                return fail_at("select without operands");
+            }
+            std::string c, tv, fv;
+            if (!operand_expr(*cond, c)) return fail_at("bad select condition");
+            if (!operand_expr(*t, tv)) return fail_at("bad select operand");
+            if (!operand_expr(*f, fv)) return fail_at("bad select operand");
+            out = result() + " = (" + c + ") ? " + tv + " : " + fv + ";";
+            return true;
+        }
+        case MIROpcode::SizeOf:
+        case MIROpcode::AlignOf: {
+            const MIROperand* t = op(0);
+            if (t == nullptr) return fail_at("sizeof without a type");
+            const JsType info = type_of(t->type());
+            out = result() + " = " +
+                  std::to_string(ins.opcode() == MIROpcode::SizeOf ? info.size : info.align) + ";";
+            return true;
+        }
+        case MIROpcode::OffsetOf: {
+            const MIROperand* t = op(0);
+            const MIROperand* fld = op(1);
+            if (t == nullptr || fld == nullptr) return fail_at("offsetof without operands");
+            std::string_view designator;
+            if (!constant_text(module_, fld->id, designator)) {
+                return fail_at("offsetof without a field name");
+            }
+            TypeId ftype = MIR_INVALID_ID;
+            uint32_t off = 0;
+            if (!resolve_field(t->type(), designator, ftype, off)) {
+                return fail_at("unknown field '" + std::string(designator) + "'");
+            }
+            out = result() + " = " + std::to_string(off) + ";";
+            return true;
+        }
+        case MIROpcode::Call: {
+            const MIROperand* callee = op(0);
+            if (callee == nullptr) return fail_at("call without a callee");
+            const MIROperand* maybe_sret = op(1);
+            const bool sret = maybe_sret != nullptr && maybe_sret->kind() == MIROperandKind::Place;
+            std::string name;
+            if (!callee_expr(callee->id, name)) return false;
+            const std::string trap = trap_name_;
+            std::string call = name + "(";
+            bool first = true;
+            if (!trap.empty()) {
+                call += "\"" + trap + "\"";
+                first = false;
+            }
+            if (sret) {
+                if (!first) call += ", ";
+                call += pname(maybe_sret->id);
+                first = false;
+            }
+            for (uint32_t i = sret ? 2 : 1; i < ins.operand_count; ++i) {
+                if (!first) call += ", ";
+                std::string arg;
+                if (!operand_expr(*op(i), arg)) return fail_at("bad call argument");
+                call += arg;
+                first = false;
+            }
+            call += ");";
+            out = sret ? call : result() + " = " + call;
+            return true;
+        }
+        case MIROpcode::CallIndirect: {
+            const MIROperand* callee = op(0);
+            if (callee == nullptr) return fail_at("call_indirect without a callee");
+            const MIROperand* maybe_sret = op(1);
+            const bool sret = maybe_sret != nullptr && maybe_sret->kind() == MIROperandKind::Place;
+            std::string name;
+            if (!operand_expr(*callee, name)) return fail_at("bad indirect callee");
+            std::string call = "(" + name + ")(";
+            bool first = true;
+            if (sret) {
+                call += pname(maybe_sret->id);
+                first = false;
+            }
+            for (uint32_t i = sret ? 2 : 1; i < ins.operand_count; ++i) {
+                if (!first) call += ", ";
+                std::string arg;
+                if (!operand_expr(*op(i), arg)) return fail_at("bad call argument");
+                call += arg;
+                first = false;
+            }
+            call += ");";
+            out = sret ? call : result() + " = " + call;
+            return true;
+        }
+        case MIROpcode::Borrow:
+        case MIROpcode::BorrowMut: {
+            const MIROperand* a = op(0);
+            if (a == nullptr) return fail_at("borrow without an operand");
+            std::string av;
+            if (!operand_expr(*a, av)) return fail_at("bad borrow operand");
+            out = result() + " = " + av + ";";
+            return true;
+        }
+
+        // ── diagnosed, not emitted ──────────────────────────────────────────
+        case MIROpcode::DynamicCall:
+            return fail_at("interface dispatch (dynamic_call) is not supported by the JS backend yet");
+        case MIROpcode::Throw:
+            return fail_at("exceptions are not supported by the JS backend");
+        case MIROpcode::InlineAsm:
+            return fail_at("inline assembly is not supported by the JS backend");
+        case MIROpcode::AtomicLoad:
+        case MIROpcode::AtomicStore:
+        case MIROpcode::AtomicCmpXchg:
+        case MIROpcode::AtomicRMW:
+        case MIROpcode::AtomicFence:
+            return fail_at("atomics are not supported by the JS backend");
+        case MIROpcode::AsyncAwait:
+        case MIROpcode::AsyncFinish:
+        case MIROpcode::AsyncRampFinish:
+        case MIROpcode::AsyncFrameAlloc:
+            return fail_at("coroutines (async) are not supported by the JS backend");
+        default:
+            return fail_at(std::string("opcode '") + opcode_name(ins.opcode()) +
+                           "' is not supported by the JS backend");
+    }
+}
+
+bool ModuleEmitter::emit_terminator(const MIRInstruction& ins, std::string& out) {
+    auto op = [&](uint32_t i) -> const MIROperand* {
+        if (i >= ins.operand_count) return nullptr;
+        return &fn_->operands[ins.operand_offset + i];
+    };
+    switch (ins.opcode()) {
+        case MIROpcode::Br: {
+            const MIROperand* target = op(0);
+            if (target == nullptr || target->kind() != MIROperandKind::Block) {
+                return fail_at("br without a target");
+            }
+            out = "$pc = " + std::to_string(target->id) + "; continue;";
+            return true;
+        }
+        case MIROpcode::CondBr: {
+            const MIROperand* cond = op(0);
+            const MIROperand* t = op(1);
+            const MIROperand* e = op(2);
+            if (cond == nullptr || t == nullptr || e == nullptr) {
+                return fail_at("cond_br without operands");
+            }
+            std::string cv;
+            if (!operand_expr(*cond, cv)) return fail_at("bad cond_br condition");
+            out = "$pc = (" + cv + ") ? " + std::to_string(t->id) + " : " +
+                  std::to_string(e->id) + "; continue;";
+            return true;
+        }
+        case MIROpcode::Switch: {
+            const MIROperand* scrut = op(0);
+            const MIROperand* def = op(1);
+            if (scrut == nullptr || def == nullptr) return fail_at("switch without operands");
+            std::string sv;
+            if (!operand_expr(*scrut, sv)) return fail_at("bad switch scrutinee");
+            std::string stmt = "switch (" + sv + ") { ";
+            for (uint32_t i = 2; i + 1 < ins.operand_count; i += 2) {
+                const MIROperand* cv = op(i);
+                const MIROperand* bv = op(i + 1);
+                if (cv == nullptr || bv == nullptr) break;
+                std::string case_value;
+                if (!operand_expr(*cv, case_value)) return fail_at("bad switch case");
+                stmt += "case " + case_value + ": $pc = " + std::to_string(bv->id) + "; break; ";
+            }
+            stmt += "default: $pc = " + std::to_string(def->id) + "; } continue;";
+            out = stmt;
+            return true;
+        }
+        case MIROpcode::Return: {
+            const MIROperand* value = op(0);
+            const TypeId ret_type =
+                (fn_->function_type != MIR_INVALID_ID && fn_->function_type < module_.types.size())
+                    ? module_.types.get(fn_->function_type).element
+                    : MIR_INVALID_ID;
+            const JsType ret = type_of(ret_type);
+            if (value == nullptr) {
+                out = "rt.frame_release($m); return 0;";
+                return true;
+            }
+            if (ret.is_agg) {
+                if (fn_->sret_pointer == MIR_INVALID_ID) {
+                    return fail_at("aggregate return without an sret pointer");
+                }
+                std::string src;
+                if (value->kind() == MIROperandKind::Place) {
+                    src = pname(value->id);
+                } else if (!operand_expr(*value, src)) {
+                    return fail_at("bad return value");
+                }
+                out = "rt.memcpy(" + vname(fn_->sret_pointer) + ", " + src + ", " +
+                      std::to_string(ret.size) + "); rt.frame_release($m); return 0;";
+                return true;
+            }
+            std::string v;
+            if (!operand_expr(*value, v)) return fail_at("bad return value");
+            out = "rt.frame_release($m); return " + v + ";";
+            return true;
+        }
+        case MIROpcode::Unreachable:
+            out = "throw new Error(\"js backend: unreachable\");";
+            return true;
+        default:
+            return fail_at(std::string("unsupported terminator '") + opcode_name(ins.opcode()) +
+                           "'");
+    }
+}
+
+} // namespace
+
+// ── public API ──────────────────────────────────────────────────────────────
+
+std::string js_function_name(SymbolId symbol) {
+    return "$f" + std::to_string(symbol);
+}
+
+std::string js_module_file_stem(const std::string& module_name) {
+    std::string out;
+    out.reserve(module_name.size());
+    for (char c : module_name) {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '_' || c == '-';
+        if (ok) {
+            out += c;
+        } else if (out.empty() || out.back() != '_') {
+            out += '_';
+        }
+    }
+    while (!out.empty() && out.back() == '_') out.pop_back();
+    if (out.empty()) out = "module";
+    return out;
+}
+
+bool emit_module_js(const MIRModule& module, std::string& out, std::string& error,
+                    const MIREmitJsOptions& options) {
+    std::vector<const MIRFunction*> functions;
+    functions.reserve(module.functions.size());
+    for (const MIRFunction& fn : module.functions) functions.push_back(&fn);
+    return emit_program_js(module, functions, out, error, options);
+}
+
+bool emit_program_js(const MIRModule& module, const std::vector<const MIRFunction*>& functions,
+                     std::string& out, std::string& error, const MIREmitJsOptions& options) {
+    ModuleEmitter emitter(module, functions, error, options);
+    return emitter.run(out);
+}
+
+// ── reachability ────────────────────────────────────────────────────────────
+
+namespace {
+
+void collect_global_function_refs(const MIRModule& module, ConstExprId id,
+                                  std::vector<std::string>& work) {
+    if (id == MIR_INVALID_ID || id >= module.const_exprs.size()) return;
+    const MIRConstExpr& e = module.const_exprs.get(id);
+    if (e.kind == MIRConstKind::FunctionRef) {
+        if (e.symbol != MIR_INVALID_ID && e.symbol < module.symbols.size()) {
+            work.push_back(module.symbols.mangled_name(module.symbols.get(e.symbol)));
+        }
+        return;
+    }
+    for (uint32_t i = 0; i < e.child_count; ++i) {
+        const MIRConstChild* child = module.const_exprs.child(id, i);
+        if (child != nullptr) collect_global_function_refs(module, child->expr, work);
+    }
+}
+
+} // namespace
+
+std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
+                                                    std::string_view entry) {
+    std::unordered_map<std::string, const MIRFunction*> by_name;
+    for (const MIRFunction& fn : module.functions) {
+        if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module.symbols.size()) continue;
+        if (fn.instructions.size() == 0) continue;
+        by_name.emplace(module.symbols.mangled_name(module.symbols.get(fn.symbol)), &fn);
+    }
+
+    std::vector<const MIRFunction*> out;
+    std::unordered_set<std::string> visited;
+    std::vector<std::string> work;
+    work.emplace_back(entry);
+
+    // A global's initializer can hold a function address, which makes that
+    // function reachable even though no instruction names it.
+    for (const MIRGlobal& global : module.globals) {
+        collect_global_function_refs(module, global.init, work);
+    }
+
+    while (!work.empty()) {
+        std::string name = std::move(work.back());
+        work.pop_back();
+        if (name.empty() || !visited.insert(name).second) continue;
+        auto it = by_name.find(name);
+        if (it == by_name.end()) continue;
+        const MIRFunction* fn = it->second;
+        out.push_back(fn);
+        for (const MIRInstruction& ins : fn->instructions) {
+            switch (ins.opcode()) {
+                case MIROpcode::Call:
+                case MIROpcode::CallIndirect:
+                case MIROpcode::Init:
+                case MIROpcode::Drop:
+                case MIROpcode::Destroy:
+                case MIROpcode::FunctionAddr: {
+                    // Any symbol operand is a reference: `Call` puts the callee
+                    // first, but `Init`/`Drop`/`Destroy` put the destination place
+                    // first and the ctor/dtor symbol second.
+                    for (uint32_t i = 0; i < ins.operand_count; ++i) {
+                        const MIROperand& op = fn->operands[ins.operand_offset + i];
+                        if (op.kind() != MIROperandKind::Symbol) continue;
+                        if (op.id >= module.symbols.size()) continue;
+                        work.push_back(module.symbols.mangled_name(module.symbols.get(op.id)));
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+    return out;
+}
+
+} // namespace mir

@@ -43,6 +43,7 @@
 #include "compiler/mir/MIRInterpreter.h"
 #include "compiler/mir/MIRModule.h"
 #include "compiler/mir/MIRDump.h"
+#include "compiler/mir/MIREmitterJs.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
@@ -2288,6 +2289,10 @@ void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
+    // `--emit-js`: same analysis, a different backend, no linking.
+    if (options->emit_js) {
+        return do_js_job(job);
+    }
     auto result = process_modules(job);
     if(result != 0) {
         return result;
@@ -5049,3 +5054,276 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
 
     return 0;
 }
+
+int LabBuildCompiler::do_js_job(LabJob* job) {
+
+    // A JS job runs the same front end as the interpretation job (parse, symbol
+    // resolution, type verification, lowering to MIR) and swaps the back end:
+    // each module's MIR is printed as one ES module instead of being executed or
+    // linked. See lang/docs/web-stack-plan.md §3.9 and compiler/mir/MIREmitterJs.h.
+    const auto verbose = options->verbose;
+    begin_job_print(job);
+
+    if (verbose) {
+        std::cout << "[lab] " << "JS backend: flattening the module structure" << std::endl;
+    }
+
+    LabBuildContext context(*this, path_handler, mod_storage, binder);
+    auto ri_res = process_remote_imports(context, job);
+    if (ri_res != 0) return ri_res;
+
+    if (job->attrs.download_only) {
+        return 0;
+    }
+
+    auto dependencies = flatten_dedupe_sorted(job->dependencies);
+    zero_out_cached_children(dependencies);
+
+    auto build_dir = job->build_dir.to_std_string();
+    create_job_build_dir(verbose, build_dir);
+    auto mods_dir = resolve_rel_child_path_str(build_dir, "modules");
+    create_dir(mods_dir);
+
+    for (const auto mod : dependencies) {
+        ASTProcessor::determine_module_files(path_handler, loc_man, mod);
+        mod->has_changed = std::nullopt;
+        create_mod_dir(this, job->type, mods_dir, mod);
+    }
+
+    // The bundle directory. Everything a runner needs lands here: one `.mjs`
+    // per Chemical module, the runtime, and the `index.mjs` entry.
+    const std::string out_dir = options->emit_js_dir;
+    if (out_dir.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                  << "JS backend: no output directory given" << std::endl;
+        return 1;
+    }
+    create_dir(out_dir);
+
+    if (verbose) {
+        std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
+    }
+
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator,
+                                type_builder, loc_man, false);
+    InstantiationsContainer instContainer;
+    SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes,
+                            implsIndex, options->is64Bit, *file_allocator, mod_allocator,
+                            job_allocator);
+    ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver,
+                           binder, type_builder, instContainer, *job_allocator, *mod_allocator,
+                           *file_allocator);
+    create_or_rebind_container(this, global, resolver, job->target_data);
+
+    CTranslationContext mir_c_visitor(binder, global, mangler, *file_allocator, loc_man,
+                                      coreNodes, implsIndex, options->debug_info,
+                                      options->minify_c);
+    ToCBackendContext mir_c_context(&mir_c_visitor);
+    global.backend_context = &mir_c_context;
+    mir_c_visitor.prepare_translate();
+
+    // One shared MIR program for the whole job (exactly like the interpretation
+    // job): a bundle is one program, so cross-module calls must resolve inside
+    // it, and reachability must be computed over all modules at once.
+    mir::MIRInterpProgram mir_program;
+    processor.mir_interp_program = &mir_program;
+
+    const auto total_modules = dependencies.size();
+    size_t mod_index = 0;
+    for (auto mod : dependencies) {
+        ++mod_index;
+        std::cout << "[lab] Processing module " << mod_index << " of " << total_modules << " ("
+                  << *mod << ")" << std::endl;
+
+        switch (mod->type) {
+            case LabModuleType::CFile:
+            case LabModuleType::CPPFile:
+            case LabModuleType::ObjFile:
+                if (verbose) {
+                    std::cout << "[lab] " << "skipping c/c++/obj module '" << *mod
+                              << "' in JS backend job" << std::endl;
+                }
+                continue;
+            default:
+                break;
+        }
+
+        const auto parse_success = processor.import_module_files_direct(pool, mod->direct_files, mod);
+        if (!parse_success) {
+            if (verbose) {
+                std::cout << "[lab] " << "parsing failure in the module " << *mod << std::endl;
+            }
+            return 1;
+        }
+
+        const auto sym_res_status = processor.sym_res_module(mod, pool);
+        if (sym_res_status != 0) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                      << "failure during symbol resolution in the module " << *mod << std::endl;
+            return sym_res_status;
+        }
+
+        if (!processor.type_verify_module_parallel(pool, mod)) {
+            if (verbose) {
+                std::cout << "[lab] " << "failure during type verification in the module " << *mod
+                          << std::endl;
+            }
+            return 1;
+        }
+
+        const int mir_status = processor.interpret_module(mir_c_visitor, mod);
+        if (mir_status != 0) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                      << "failure lowering module " << *mod << " to MIR" << std::endl;
+            return mir_status;
+        }
+    }
+
+    // ── emit ────────────────────────────────────────────────────────────────
+    // Every module is lowered, so recursive aggregate layouts can be completed
+    // (see `MIRTypeBuilder::finalize_layouts`).
+    mir_program.types->finalize_layouts();
+
+    // Debugging hook shared with the interpretation job: the whole program's MIR.
+    if (const char* mir_dump_path = std::getenv("CHX_DUMP_MIR")) {
+        std::ofstream mir_out(mir_dump_path, std::ios::binary);
+        if (mir_out) {
+            mir::dump_module(mir_program.module, mir_out);
+            std::cout << "[lab] wrote MIR dump to " << mir_dump_path << std::endl;
+        }
+    }
+
+    // The entry point: the source `main`, resolved to the name the lowerer
+    // interned (same lookup the interpretation job does).
+    FunctionDeclaration* main_fn = nullptr;
+    for (auto mod : dependencies) {
+        for (auto& file_meta : mod->direct_files) {
+            if (!file_meta.result) continue;
+            for (const auto node : file_meta.result->unit.scope.body.nodes) {
+                if (node->kind() != ASTNodeKind::FunctionDecl) continue;
+                auto fn = node->as_function_unsafe();
+                if (fn->name_view() == "main") {
+                    main_fn = fn;
+                    break;
+                }
+            }
+            if (main_fn) break;
+        }
+        if (main_fn) break;
+    }
+    if (main_fn == nullptr) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                  << "JS backend: could not find main()" << std::endl;
+        return 1;
+    }
+
+    std::string main_mangled;
+    {
+        BufferedWriter mw(256);
+        mangler.mangle(mw, main_fn);
+        main_mangled.assign(mw.data(), mw.getPosition());
+    }
+
+    // Only what `main` can reach is emitted. Without this the bundle would carry
+    // every function of every linked module — including platform code the
+    // program never calls — and the backend could not even emit `cstd`.
+    const auto reachable = mir::reachable_functions(mir_program.module, main_mangled);
+    if (reachable.empty()) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                  << "JS backend: main() has no MIR body (was it excluded from lowering?)"
+                  << std::endl;
+        return 1;
+    }
+    if (verbose) {
+        std::cout << "[lab] JS backend: " << reachable.size() << " of "
+                  << mir_program.module.functions.size()
+                  << " lowered function(s) are reachable from main" << std::endl;
+    }
+
+    mir::MIREmitJsOptions js_options;
+    js_options.module_name = job->name.to_std_string();
+    std::string js;
+    std::string js_error;
+    if (!mir::emit_program_js(mir_program.module, reachable, js, js_error, js_options)) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << js_error
+                  << std::endl;
+        return 1;
+    }
+    const std::string program_stem = mir::js_module_file_stem(js_options.module_name);
+    const std::string program_path = resolve_rel_child_path_str(out_dir, program_stem + ".mjs");
+    writeToFile(program_path, js);
+    if (verbose) {
+        std::cout << "[lab] " << "emitted " << program_path << " (" << js.size() << " bytes)"
+                  << std::endl;
+    }
+
+    // ── the bundle's entry point ────────────────────────────────────────────
+    // A single importable module that knows every emitted module, so a driver
+    // (or a page bundle) can find `main` without knowing generated identifiers.
+    std::string index;
+    index += "// Generated by the Chemical compiler (JS backend). Do not edit.\n";
+    index += "// Entry point of the emitted program.\n";
+    index += "export * from \"./" + program_stem + ".mjs\";\n";
+    index += "import { $exports } from \"./" + program_stem + ".mjs\";\n";
+    index += R"JS(
+/** Look up a function by its mangled Chemical name. */
+export function $find(name) {
+  return $exports[name];
+}
+
+/** The program's entry point. */
+export function $entry() {
+  const direct = $exports["main"];
+  if (direct) return direct;
+  for (const name of Object.keys($exports)) {
+    if (name === "main" || name.endsWith("__main")) return $exports[name];
+  }
+  return undefined;
+}
+
+/** Run the program; returns its exit code. */
+export function $run() {
+  const main = $entry();
+  if (!main) throw new Error("js backend: the program has no entry point");
+  const rc = main();
+  return typeof rc === "number" ? rc : 0;
+}
+)JS";
+    writeToFile(resolve_rel_child_path_str(out_dir, "index.mjs"), index);
+
+    // ── the runtime ─────────────────────────────────────────────────────────
+    // The emitted modules import `./runtime.mjs`. A packaged compiler ships it
+    // in its resources; from a source tree it lives in scripts/js_backend.
+    {
+        std::string runtime_source;
+        std::vector<std::string> candidates;
+        if (const char* env_runtime = std::getenv("CHX_JS_RUNTIME")) {
+            candidates.emplace_back(env_runtime);
+        }
+        const std::string resources = options->get_resources_path();
+        if (!resources.empty()) {
+            candidates.push_back(resolve_rel_child_path_str(resources, "js/runtime.mjs"));
+        }
+        candidates.emplace_back("scripts/js_backend/runtime.mjs");
+        for (const std::string& candidate : candidates) {
+            std::ifstream input(candidate, std::ios::binary);
+            if (!input.is_open()) continue;
+            runtime_source.assign(std::istreambuf_iterator<char>(input),
+                                  std::istreambuf_iterator<char>());
+            break;
+        }
+        if (!runtime_source.empty()) {
+            writeToFile(resolve_rel_child_path_str(out_dir, "runtime.mjs"), runtime_source);
+        } else {
+            std::cerr << "[lab] " << rang::fg::yellow << "warning: " << rang::fg::reset
+                      << "JS backend: could not locate runtime.mjs (set CHX_JS_RUNTIME, or keep "
+                         "it next to the emitted modules)" << std::endl;
+        }
+    }
+
+    std::cout << "[lab] " << rang::fg::green << "emitted " << reachable.size()
+              << " function(s) to '" << out_dir << "'" << rang::fg::reset << std::endl;
+
+    return 0;
+}
+

@@ -68,6 +68,8 @@ void print_help() {
                  "--out-bc  <path>    -[empty]      specify a path to output a .bc file containing llvm bitecode\n"
                  "--out-obj <path>    -[empty]      specify a path to output a .obj file\n"
                  "--out-bin <path>    -[empty]      specify a path to output a binary file\n"
+                 "--emit-c            -[empty]      keep the translated C\n"
+                 "--emit-js <dir>     -[empty]      emit JavaScript (ES modules) instead of a native executable\n"
                  "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
@@ -379,6 +381,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("help", CmdOptionType::NoValue),
             CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
             CmdOption("emit-c", "emit-c", CmdOptionType::NoValue),
+            CmdOption("emit-js", "emit-js", CmdOptionType::SingleValue),
             CmdOption("incremental", "incremental", CmdOptionType::NoValue),
             CmdOption("keepc", "keepc", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
@@ -518,6 +521,14 @@ int compiler_main(int argc, char *argv[]) {
         opts->verbose_link = options.has_value("verbose-link", "vl");
         opts->minify_c = options.has_value("minify-c");
         opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
+        // `--emit-js <dir>`: print the program as ES modules instead of linking a
+        // native executable (the JavaScript backend).
+        if (options.has_value("emit-js", "emit-js")) {
+            opts->emit_js = true;
+            auto& emit_js_dir = options.option_new("emit-js", "emit-js");
+            opts->emit_js_dir = emit_js_dir.has_value() ? std::string(emit_js_dir.value())
+                                                        : std::string("js-out");
+        }
         if (options.has_value("incremental", "incremental")) {
             opts->translate_to_single_file = false;
         }

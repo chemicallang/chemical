@@ -346,11 +346,72 @@ internal func read_file_contains(path : *char, needle : *char) : bool {
     return string_contains(unsafe(&raw buf[0]) as *char, needle)
 }
 
+// Returns true when the file at `path` contains a *content-derived instantiation*
+// symbol: `prefix` (everything up to and including the `__cgs__` marker), then the
+// twelve-character content hash, then `suffix` (usually the method name, e.g.
+// `_show`). The hash is a function of the generic declaration's qualified name and
+// its type arguments, so a test cannot spell it — only the stable parts around it.
+internal func read_file_contains_instantiated(path : *char, prefix : *char, suffix : *char) : bool { unsafe {
+    var buf : [131072]u8
+    var r = fs::raw::read_to_buffer(path, unsafe(&raw mut buf[0]), 131071)
+    if(r is std::Result.Err) {
+        return false
+    }
+    var Ok(n) = r else unsafe { unreachable }
+    buf[n] = 0
+
+    var text = unsafe(&raw buf[0]) as *char
+    var plen = strlen(prefix)
+    var slen = strlen(suffix)
+    var hash_len = 12u
+
+    var i = 0u
+    while(i + plen + hash_len + slen <= n) {
+        var k = 0u
+        var prefix_ok = true
+        while(k < plen) {
+            if(*(text + i + k) != *(prefix + k)) {
+                prefix_ok = false
+                break
+            }
+            k++
+        }
+        if(prefix_ok) {
+            var j = 0u
+            var hash_ok = true
+            while(j < hash_len) {
+                var c = *(text + i + plen + j)
+                var is_hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+                if(!is_hex) {
+                    hash_ok = false
+                    break
+                }
+                j++
+            }
+            if(hash_ok) {
+                var s = 0u
+                var suffix_ok = true
+                while(s < slen) {
+                    if(*(text + i + plen + hash_len + s) != *(suffix + s)) {
+                        suffix_ok = false
+                        break
+                    }
+                    s++
+                }
+                if(suffix_ok) {
+                    return true
+                }
+            }
+        }
+        i++
+    }
+    return false
+}}
+
 // Compiles the source with `-o out.c` (C translation, no link) and asserts the
 // emitted translation unit does / does not contain `symbol`. Used to pin the
 // "unused generic impls emit no code" invariant.
-internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content : *char, symbol : *char, should_exist : bool) {
-        unsafe {
+internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content : *char, symbol : *char, should_exist : bool) {        unsafe {
         setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
         // Compile the single source file directly: `-o <file>.c` selects the C
@@ -375,6 +436,43 @@ internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content
                 env.error("expected the generic impl symbol in the emitted C, but it is missing")
             } else {
                 env.error("unused generic impl emitted code: symbol found in the emitted C")
+            }
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+        }
+
+        cleanup_test_dir(NEG_WORK_DIR, name)
+
+        }
+    }
+
+// Compiles the source with `-o out.c` and asserts that a content-derived
+// instantiation symbol is present / absent. `prefix` ends at the `__cgs__` marker
+// and `suffix` starts right after the twelve-character content hash, so the test
+// does not have to know the hash.
+internal func expect_emitted_instantiation(env : &mut TestEnv, name : *char, ch_content : *char, prefix : *char, suffix : *char, should_exist : bool) {
+        unsafe {
+        setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+
+        var ch_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name) }
+        var c_path : char[512]
+        unsafe { sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name) }
+
+        var output_buf : char[65536]
+        var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 65536)
+        if(rc != 0) {
+            env.error("expected compiler to succeed while emitting C")
+            neg_debug_print(name, unsafe(&raw output_buf[0]))
+            cleanup_test_dir(NEG_WORK_DIR, name)
+            return
+        }
+
+        var found = read_file_contains_instantiated(unsafe(&raw c_path[0]), prefix, suffix)
+        if(found != should_exist) {
+            if(should_exist) {
+                env.error("expected the instantiated generic impl symbol in the emitted C, but it is missing")
+            } else {
+                env.error("unused generic impl emitted code: instantiated symbol found in the emitted C")
             }
             neg_debug_print(name, unsafe(&raw output_buf[0]))
         }

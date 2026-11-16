@@ -57,14 +57,14 @@ func generic_impl_unused_emits_no_code(env : &mut TestEnv) {
     // Box<int> is instantiated (the struct is emitted), but Show is never
     // demanded, so the generic impl must not be instantiated or emitted.
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct Box<T> {\n    var value : T\n}\nimpl<T> Show for Box<T> {\n    func show(&self) : int { return 1 }\n}\npublic func main() : int {\n    var b = Box<int> { value : 2 }\n    return b.value - 2\n}\n"
-    expect_emitted_symbol(env, "generic_impl_unused_no_code", ch, "_Show_Box__cgs__0_show", false)
+    expect_emitted_instantiation(env, "generic_impl_unused_no_code", ch, "Show_Box__cgs__", "_show", false)
 }
 
 @test
 func generic_impl_used_emits_code(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "interface Show {\n    func show(&self) : int\n}\nstruct Box<T> {\n    var value : T\n}\nimpl<T> Show for Box<T> {\n    func show(&self) : int { return 1 }\n}\npublic func main() : int {\n    var b = Box<int> { value : 2 }\n    return b.show() - 1\n}\n"
-    expect_emitted_symbol(env, "generic_impl_used_emits_code", ch, "_Show_Box__cgs__0_show", true)
+    expect_emitted_instantiation(env, "generic_impl_used_emits_code", ch, "Show_Box__cgs__", "_show", true)
 }
 
 @test

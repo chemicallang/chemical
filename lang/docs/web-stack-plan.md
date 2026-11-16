@@ -1088,8 +1088,13 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    per-page chunks) with no filesystem access and `respond(path)` answers from it — `/` and `/about/`
    resolve to their `index.html` (bare `/about` too), missing paths and traversal attempts get a 404
    page, have no `Cache-Control` for HTML and `public, max-age=31536000, immutable` for the hashed
-   bundle. `finish()` is `build()` plus writing the same list. `artifact_count()`/`artifact_path()`/
-   `artifact_bytes()` expose the manifest, which is what a `web::App` will serve from.
+   bundle. `respond_if_none_match(path, if_none_match)` is the conditional form: every artifact
+   carries a strong `ETag` derived from its bytes (the bundle's validator is the same hash as its
+   file name), a matching validator returns **304 with no body** and the response's cache policy, and
+   a stale one returns the full body — measured on the fixture: bundle `304 | 0 B | immutable`, page
+   `304 | 0 B | no-cache`, stale `200 | 409 B`. `finish()` is `build()` plus writing the same list.
+   `artifact_count()`/`artifact_path()`/`artifact_bytes()` expose the manifest, which is what a
+   `web::App` will serve from.
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.
@@ -1204,7 +1209,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
 | Size | `scripts/web-probe.sh` regression gate + Phase 5 budgets |
 | Cache | second page of a 2-page app: 0 duplicated runtime/component bytes |
-| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/404/immutable-cache correctly; `@test`s in the universal plugin suite cover the same contract |
+| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/304/404 with the right cache policy; `@test`s in the universal plugin suite cover the same contract |
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |

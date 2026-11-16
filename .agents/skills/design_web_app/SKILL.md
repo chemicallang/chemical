@@ -445,14 +445,21 @@ if(!site.build()) { /* error_message() */ }      // freeze + render, no disk acc
 var res = site.respond("/about/")                // SiteResponse
 // res.status (200 / 404 / 503 before build), res.content_type,
 // res.cache_control ("no-cache" for HTML, immutable for hashed assets),
-// res.body (std::string_view into the site — no copy per request)
+// res.etag (strong validator), res.body (std::string_view into the site — no copy per request)
+
+// Conditional request: pass the request's If-None-Match. A match is a 304 with
+// an empty body, so the browser keeps its copy and downloads nothing.
+var again = site.respond_if_none_match("/about/", res.etag)
+if(again.not_modified()) { /* 304: no body, same ETag + cache policy */ }
 ```
 
 `/`, `/index.html`, `/about/` and `/about` all resolve to their page; anything else is a 404 page, and
-`..` traversal is refused. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)` expose the
-build's manifest (pages, bundle, chunks) if you want to serve it through your own server — there is no
-`web::App` yet (see the capability matrix below), so wiring `respond()` into `http::Server` is
-currently manual.
+`..` traversal is refused. The bundle's ETag is the same hash that is in its file name, so an immutable
+asset revalidates without re-hashing. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)`
+expose the build's manifest (pages, bundle, chunks) if you want to serve it through your own server —
+there is no `web::App` yet (see the capability matrix below), so wiring `respond()` into
+`http::Server` is currently manual: `status`, `Content-Type`, `Cache-Control`, `ETag` from the
+`SiteResponse`, and the body as `body.data()`/`body.size()`.
 
 ### `SharedAssets` — the low-level primitive
 

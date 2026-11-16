@@ -86,6 +86,24 @@ public func main() : int {
     var bundle_req_view = bundle_req.to_view()
     report(&site, bundle_req_view)
 
+    // Conditional request: the same path with the ETag the first response carried
+    // is a 304 with no body, so a browser revalidates without re-downloading.
+    var full = site.respond(bundle_req_view)
+    unsafe { printf("etag=%s bytes=%llu\n", full.etag.data(), full.body.size()) }
+    var cached = site.respond_if_none_match(bundle_req_view, full.etag)
+    unsafe {
+        printf("conditional bundle -> %d | %llu B | %s\n",
+            cached.status, cached.body.size(), cached.cache_control.data())
+    }
+    var root = site.respond("/")
+    var cached_root = site.respond_if_none_match("/", root.etag)
+    unsafe {
+        printf("conditional page -> %d | %llu B | %s\n",
+            cached_root.status, cached_root.body.size(), cached_root.cache_control.data())
+    }
+    var stale = site.respond_if_none_match("/", std::string_view("\"stale\""))
+    unsafe { printf("stale etag -> %d | %llu B\n", stale.status, stale.body.size()) }
+
     // `finish()` is build + write: the build is already done, so this is the write.
     if(!site.finish()) {
         unsafe { printf("site error: %s\n", site.error_message().data()) }

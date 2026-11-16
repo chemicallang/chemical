@@ -303,7 +303,46 @@ public func static_site_serves_pages_and_never_leaks(env : &mut TestEnv) {
         return
     }
 
-    env.success("static site: pages, hashed bundle immutably cached, 404 for the rest")
+    // Conditional requests: every artifact carries a validator, the same validator
+    // comes back as a 304 with no body, and a stale one gets the body again.
+    if(root.etag.size() == 0) {
+        env.error("a served artifact must carry an ETag")
+        return
+    }
+    if(!missing.etag.empty()) {
+        env.error("a 404 must not carry an ETag")
+        return
+    }
+    var conditional = site.respond_if_none_match("/", root.etag)
+    if(!conditional.not_modified()) {
+        env.error("a matching If-None-Match must be a 304")
+        return
+    }
+    if(conditional.body.size() != 0) {
+        env.error("a 304 must have no body")
+        return
+    }
+    if(!conditional.etag.equals(&root.etag)) {
+        env.error("a 304 must repeat the validator so the client keeps its copy")
+        return
+    }
+    if(!conditional.cache_control.equals(&no_cache)) {
+        env.error("a 304 must keep the response's cache policy")
+        return
+    }
+    var bundle_conditional = site.respond_if_none_match(bundle_req_view, bundle.etag)
+    if(!bundle_conditional.not_modified() || !bundle_conditional.cache_control.equals(&immutable)) {
+        env.error("a revalidated hashed asset is a 304 that stays immutable")
+        return
+    }
+    const stale_etag = std::string_view("\"stale\"")
+    var stale = site.respond_if_none_match("/", stale_etag)
+    if(!stale.ok() || stale.body.size() != root.body.size()) {
+        env.error("a stale validator must get the full response")
+        return
+    }
+
+    env.success("static site: pages, hashed bundle immutably cached, 304 on revalidation, 404 for the rest")
 }
 
 @test

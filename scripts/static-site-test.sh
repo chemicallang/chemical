@@ -61,6 +61,12 @@ check "in memory, a traversal attempt is a 404" \
       "$([ "$(status_of /../secret)" = "404" ] && echo 1 || echo 0)"
 check "in memory, the hashed bundle is served immutably as text/javascript" \
       "$(grep -qF '| text/javascript; charset=utf-8 | public, max-age=31536000, immutable |' "$resp" && echo 1 || echo 0)"
+check "in memory, revalidating the bundle is a 304 with no body" \
+      "$(grep -qF 'conditional bundle -> 304 | 0 B | public, max-age=31536000, immutable' "$resp" && echo 1 || echo 0)"
+check "in memory, revalidating a page is a 304 that stays no-cache" \
+      "$(grep -qF 'conditional page -> 304 | 0 B | no-cache' "$resp" && echo 1 || echo 0)"
+check "in memory, a stale ETag gets the full page again" \
+      "$(grep -qF 'stale etag -> 200 | 409 B' "$resp" && echo 1 || echo 0)"
 
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"

@@ -349,9 +349,20 @@ public struct StaticSite {
     ///
     /// The body borrows the site's buffers: serve it before mutating the site.
     public func respond(&self, request_path : std::string_view) : SiteResponse {
+        return respond_if_none_match(request_path, std::string_view(""))
+    }
+
+    /// `respond`, but honouring a conditional request: when `if_none_match` is the
+    /// artifact's ETag the response is a **304** with no body (the client keeps
+    /// its cached copy). Pass the request's `If-None-Match` header here.
+    ///
+    /// Every artifact carries a strong ETag derived from its bytes, so a server
+    /// answers revalidation without re-reading or re-hashing anything. 404/503
+    /// responses carry no ETag.
+    public func respond_if_none_match(&self, request_path : std::string_view, if_none_match : std::string_view) : SiteResponse {
         if(!built || build_failed) {
             return site_response(503, std::string_view("text/plain; charset=utf-8"),
-                std::string_view("no-store"), std::string_view("site not built"))
+                std::string_view("no-store"), std::string_view("site not built"), std::string_view(""))
         }
         var target_s = normalize_request_path(request_path)
         if(target_s.empty()) {
@@ -373,11 +384,15 @@ public struct StaticSite {
         }
 
         var a = unsafe(&*artifacts.get_ptr(index as ubigint))
+        var etag = a.etag.to_view()
+        var cache = std::string_view("no-cache")
         if(a.immutable) {
-            return site_response(200, a.content_type,
-                std::string_view("public, max-age=31536000, immutable"), a.bytes.to_view())
+            cache = std::string_view("public, max-age=31536000, immutable")
         }
-        return site_response(200, a.content_type, std::string_view("no-cache"), a.bytes.to_view())
+        if(!if_none_match.empty() && if_none_match.equals(&etag)) {
+            return site_response(304, a.content_type, cache, std::string_view(""), etag)
+        }
+        return site_response(200, a.content_type, cache, a.bytes.to_view(), etag)
     }
 
     // ── Internals ────────────────────────────────────────────────────────
@@ -414,7 +429,8 @@ public struct StaticSite {
             path : path,
             bytes : bytes,
             content_type : content_type,
-            immutable : immutable
+            immutable : immutable,
+            etag : quoted_etag_of(&bytes)
         })
     }
 
@@ -436,6 +452,9 @@ public struct SiteArtifact {
     public var content_type : std::string_view
     /// Content-hashed, so the URL changes whenever the bytes do: cache forever.
     public var immutable : bool
+    /// Strong validator for `If-None-Match`, quoted for the header
+    /// (`"3f2a91c0d4e5"`). Derived from the bytes once, at build time.
+    public var etag : std::string
 }
 
 /// A static response. `body` borrows the site's buffer (no copy per request), so
@@ -446,6 +465,8 @@ public struct SiteResponse {
     public var content_type : std::string_view
     public var cache_control : std::string_view
     public var body : std::string_view
+    /// The `ETag` header value; empty for 404/503.
+    public var etag : std::string_view
 
     public func ok(&self) : bool {
         return status == 200
@@ -454,20 +475,40 @@ public struct SiteResponse {
     public func not_found(&self) : bool {
         return status == 404
     }
+
+    /// True when the client's copy is still valid (no body, `etag` set).
+    public func not_modified(&self) : bool {
+        return status == 304
+    }
 }
 
-func site_response(status : int, content_type : std::string_view, cache_control : std::string_view, body : std::string_view) : SiteResponse {
+func site_response(status : int, content_type : std::string_view, cache_control : std::string_view, body : std::string_view, etag : std::string_view) : SiteResponse {
     return SiteResponse {
         status : status,
         content_type : content_type,
         cache_control : cache_control,
-        body : body
+        body : body,
+        etag : etag
     }
 }
 
 func site_not_found() : SiteResponse {
     return site_response(404, std::string_view("text/html; charset=utf-8"), std::string_view("no-store"),
-        std::string_view("<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>"))
+        std::string_view("<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>"),
+        std::string_view(""))
+}
+
+// A strong ETag for `bytes`: the same 12-hex content hash the bundle's file name
+// uses, in quotes as RFC 7232 requires (`"3f2a91c0d4e5"`).
+func quoted_etag_of(bytes : &std::string) : std::string {
+    var view = bytes.to_view()
+    var hash = hex12(fnv1_hash_view(&view))
+    var out = std::string()
+    out.append('"')
+    var hash_view = hash.to_view()
+    out.append_view(&hash_view)
+    out.append('"')
+    return out
 }
 
 // `<link>`/`<script src>` tags for a page whose asset URLs start with

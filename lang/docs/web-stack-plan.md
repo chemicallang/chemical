@@ -979,8 +979,11 @@ Then, in order:
    *ownership* decision for GC targets is still owned by proposals 0006/0004. — **landed**.
 5. Interfaces/vtables/`dyn`; async, atomics, inline asm, `DynamicCall`, `Throw` are **diagnostics**
    through `MIRTargetSupport`, reporting the callee/type and the Chemical source location. — **partially
-   landed**: the emitter diagnoses all of these with the function name and opcode; the shared
-   `MIRTargetSupport` table (so `LSP`/`--check` can report them before emission) is not written yet.
+   landed**: the emitter rejects all of these with the function name, the opcode and the *source
+   position*, and reports **every** offending site in one build
+   (`scripts/js-backend-diagnostics.sh` is the gate). The shared `MIRTargetSupport` table is not
+   written yet, so `--check` and the LSP cannot report these before emission; today they surface when
+   `--emit-js` runs.
 6. ESM emission: one module per Chemical module; shared mangling. — **deferred to Phase 3**: a bundle
    is one program module plus `index.mjs` and `runtime.mjs` today.
 7. Test harness: differential **C-vs-JS conformance** (same program, identical stdout) + a
@@ -1161,7 +1164,8 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 |---|---|
 | JS emitter | golden `.mjs` snapshots; `MIRTests` target-support assertions |
 | JS ABI | `scripts/js-abi-spike.sh`: native vs hand-written JS output must be byte-identical (the Phase 1 step-0 gate) |
-| JS semantics | **differential C-vs-JS conformance**: `scripts/js-backend-test.sh <fixture>` compiles the fixture with both backends and requires identical stdout (`js_backend`, `js_backend_std` today) |
+| JS semantics | **differential C-vs-JS conformance**: `scripts/js-backend-test.sh <fixture>` compiles the fixture with both backends and requires identical stdout (`js_backend`, `js_backend_std`, `js_backend_closure`, `js_backend_json`; `scripts/js-backend-suites.sh` runs them all) |
+| JS diagnostics | `scripts/js-backend-diagnostics.sh`: an unsupported construct fails the build with `file:line:column` for **every** site |
 | Modules | module-split violations fail (shared→client import, client→native symbol) |
 | Hydration | ids unique per instance; closure check (unreachable id = build error) |
 | Bundles | duplicate-unit = 0; frozen chunk cannot grow; every chunk hashed |

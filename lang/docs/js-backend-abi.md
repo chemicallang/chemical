@@ -144,17 +144,33 @@ GC only removes the *need* to free, it does not remove the code that does.
 
 ## 8. Diagnostics
 
-`MIRTargetSupport` (new, `compiler/mir/MIRTargetSupport.{h,cpp}`) holds per-target facts:
+`MIRTargetSupport` (new, `compiler/mir/MIRTargetSupport.{h,cpp}`) will hold per-target facts:
 symbol availability, type availability, opcode availability. `MIRPortability` is not usable (zero
 call sites; it classifies `Call`/`Load`/`Store` as `NativeOnly`).
 
 Rules:
 - Check **before** emitting a function, so the output is all-or-nothing (the C emitter's
   `emit_function_c` already returns `false` + message transactionally; mirror that).
-- Report the *first* unsupported construct with the MIR instruction, the callee/type name, and the
+- Report the unsupported construct with the MIR instruction, the callee/type name, and the
   MIR source index → Chemical source location. "async is not supported" alone is useless to an
   agent; "`await fetch_user` at client/api.ch:42: the `Async*` form is not supported by the JS
   backend in v1" is actionable.
+
+**What the emitter does today** (before the shared table exists): each unsupported instruction
+produces
+
+```
+js backend: inline assembly is not supported by the JS backend
+  (in 'js_backend_diagnostics_uses_asm_a' at …/main.ch:10:14)
+```
+
+and emission **continues** past a failed function, so one build reports every offending site
+(`scripts/js-backend-diagnostics.sh` asserts exactly that: two sites, two positions). The first
+version reported only the first error, which costs an agent one build per fix.
+
+Not yet: reporting from `--check`/LSP without running the emitter (needs the shared table), and
+`@extern`-availability diagnostics (a `shared` module calling a native-only symbol).
+
 
 ## 9. The spike — **done**
 

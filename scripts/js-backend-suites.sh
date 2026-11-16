@@ -21,6 +21,11 @@ echo
 echo "############ runtime"
 node scripts/js_backend/runtime_test.mjs | tail -2 || fail=1
 
+# Unsupported constructs must fail the build with positions, every site at once.
+echo
+echo "############ diagnostics"
+./scripts/js-backend-diagnostics.sh | tail -2 || fail=1
+
 if [ "$fail" -ne 0 ]; then
     echo
     echo "js-backend-suites: FAILED"

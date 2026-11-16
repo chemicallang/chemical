@@ -120,17 +120,39 @@ private:
                          std::string& out);
 
     bool fail(const std::string& message) {
-        if (error_.empty()) error_ = message;
+        if (errors_.size() < kMaxErrors) errors_.push_back(message);
+        error_ = errors_.front();
         return false;
     }
+    /** Fail with the current function and the current instruction's position. */
     bool fail_at(const std::string& message) {
         std::string where = "js backend: " + message;
         if (fn_ != nullptr) {
             where += " (in '";
             where += fn_name_;
-            where += "')";
+            where += "'";
+            if (!current_loc_.empty()) {
+                where += " at ";
+                where += current_loc_;
+            }
+            where += ")";
         }
         return fail(where);
+    }
+    /** The instruction's `file:line:column`, or empty when it has no source. */
+    std::string location_of(const MIRFunction& fn, const MIRInstruction& ins) const {
+        if (ins.source_index == MIR_NO_SOURCE || ins.source_index >= fn.sources.size()) return {};
+        const MIRSourceLoc& loc = fn.sources[ins.source_index];
+        std::string text;
+        if (loc.file < module_.source_files.size()) {
+            text = module_.source_files[loc.file];
+            text += ':';
+        }
+        // the lowerer records 0-based positions; a diagnostic is 1-based
+        text += std::to_string(loc.line + 1);
+        text += ':';
+        text += std::to_string(loc.column + 1);
+        return text;
     }
 
     static void line(std::string& out, const std::string& text) {
@@ -143,6 +165,13 @@ private:
     const MIRModule& module_;
     const std::vector<const MIRFunction*>& functions_;
     std::string& error_;
+    /**
+     * Every diagnostic collected during the run. Emission keeps going after a
+     * function fails so one build reports every unsupported construct, not the
+     * first one — an agent fixing this needs the whole list.
+     */
+    std::vector<std::string> errors_;
+    static constexpr size_t kMaxErrors = 24;
     const MIREmitJsOptions& options_;
 
     std::string body_;    // emitted functions
@@ -159,6 +188,8 @@ private:
 
     const MIRFunction* fn_ = nullptr;
     std::string fn_name_;
+    /** `file:line:column` of the instruction being emitted, for diagnostics. */
+    std::string current_loc_;
     /** Set by `callee_expr` when the callee is a `__chc_*` trap helper. */
     std::string trap_name_;
 };
@@ -184,7 +215,9 @@ bool ModuleEmitter::emit_all_functions() {
         if (fn.symbol == MIR_INVALID_ID) continue;
         if (!emitted_.insert(fn.symbol).second) continue; // duplicate symbol id
         if (fn.instructions.size() == 0) continue;
-        if (!emit_function(fn, body_)) return false;
+        // A failed function contributes no body, but the rest still emit so one
+        // build reports every unsupported construct.
+        emit_function(fn, body_);
     }
     return true;
 }
@@ -259,6 +292,19 @@ bool ModuleEmitter::run(std::string& out) {
     }
 
     if (!emit_all_functions()) return false;
+
+    if (!errors_.empty()) {
+        std::string all;
+        for (size_t i = 0; i < errors_.size(); ++i) {
+            if (i) all += '\n';
+            all += errors_[i];
+        }
+        if (errors_.size() >= kMaxErrors) {
+            all += "\n... (further diagnostics suppressed)";
+        }
+        error_ = std::move(all);
+        return false;
+    }
 
     emit_preamble(out);
     out += body_;
@@ -832,6 +878,7 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
                 body += "\n";
             }
             std::string stmt;
+            current_loc_ = location_of(fn, ins);
             if (!emit_instruction(ins, stmt)) return false;
             if (!stmt.empty()) {
                 body += "        ";
@@ -842,6 +889,7 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
         const uint32_t term_index = block.inst_start + block.inst_count;
         if (term_index < fn.instructions.size()) {
             std::string stmt;
+            current_loc_ = location_of(fn, fn.instructions[term_index]);
             if (!emit_terminator(fn.instructions[term_index], stmt)) return false;
             body += "        ";
             body += stmt;

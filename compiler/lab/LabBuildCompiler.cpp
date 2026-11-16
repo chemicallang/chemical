@@ -5245,8 +5245,18 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     std::string js;
     std::string js_error;
     if (!mir::emit_program_js(mir_program.module, reachable, js, js_error, js_options)) {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << js_error
-                  << std::endl;
+        // One diagnostic per line, each prefixed, so every unsupported site is
+        // visible without scrolling past the first.
+        size_t start = 0;
+        while (start <= js_error.size()) {
+            size_t nl = js_error.find('\n', start);
+            const std::string line = js_error.substr(
+                start, nl == std::string::npos ? std::string::npos : nl - start);
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << line
+                      << std::endl;
+            if (nl == std::string::npos) break;
+            start = nl + 1;
+        }
         return 1;
     }
     const std::string program_stem = mir::js_module_file_stem(js_options.module_name);

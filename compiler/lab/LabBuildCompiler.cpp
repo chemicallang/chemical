@@ -42,6 +42,7 @@
 #include "compiler/mir/MIRInterpProgram.h"
 #include "compiler/mir/MIRInterpreter.h"
 #include "compiler/mir/MIRModule.h"
+#include "compiler/mir/MIRDump.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
@@ -5010,6 +5011,19 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
     // to was still being filled; see `MIRTypeBuilder::finalize_layouts`).
     mir_program.types->finalize_layouts();
 
+    // Debug hook for out-of-tree MIR consumers (the JS backend ABI spike in
+    // scripts/js_abi_spike): dump the fully lowered, layout-finalized program.
+    // An environment variable rather than a CLI flag because it is a tooling
+    // hook, not a build mode; it changes no other behaviour.
+    if (const char* mir_dump_path = std::getenv("CHX_DUMP_MIR")) {
+        std::ofstream mir_out(mir_dump_path, std::ios::binary);
+        if (mir_out) {
+            mir::dump_module(mir_program.module, mir_out);
+            std::cout << "[lab] wrote MIR dump to " << mir_dump_path << std::endl;
+        } else {
+            std::cerr << "[lab] could not open MIR dump path '" << mir_dump_path << "'" << std::endl;
+        }
+    }
     // Resolve main's mangled name exactly as the lowerer interned it.
     std::string main_mangled;
     {

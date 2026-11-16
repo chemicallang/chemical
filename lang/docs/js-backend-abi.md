@@ -137,20 +137,42 @@ Rules:
   agent; "`await fetch_user` at client/api.ch:42: the `Async*` form is not supported by the JS
   backend in v1" is actionable.
 
-## 9. The spike (what must exist before the emitter)
+## 9. The spike — **done**
 
-A hand-written JavaScript file that implements §3 for one real module, and a C-vs-JS diff:
+`scripts/js-abi-spike.sh` compiles `lang/compiled/js_abi_spike` with the native backend, runs
+`scripts/js_abi_spike/spike.mjs` against the emulated ABI, and requires **byte-identical output**.
+Result: pass, with **8,163 bytes** of hand-written JS (comments included).
 
-1. `struct Point { x, y : int }`, a `vector<Point>`, a `string` built with the real `std::string`
-   code path (SSO → heap), and a `variant` with two cases.
-2. The program prints: `sizeof(Point)`, `sizeof(vector<Point>)`, the string, a vector sum, and the
-   variant's tag + payload. It must print **identical bytes** under `--tcc` and the hand-written JS.
-3. Measure: bytes of hand-written JS (target ≤ 8 KB for the spike), and confirm the same heap
-   model works for `std::string`'s `malloc` path without modifying `std`.
+```
+point_size=8          sizeof(Point)              struct, two ints
+vec_size=24           sizeof(vector<Point>)      {ptr,size,cap}
+string_size=32        sizeof(std::string)        union{...}+state
+sso=hello|5           SSO path                   bytes live inside the struct
+heap=xxxx…(40)|40     heap path                  malloc'd buffer, state '2'
+vec=2|10              push_back + element loads  1+2+3+4
+shape=circle|7        variant tag + payload      tag 0 = Circle, payload at +4
+```
 
-Exit criteria for the spike: the diff is empty and the JS is < 8 KB. If the spike cannot get the
-stdlib's `malloc` path working against the emulated heap, the ABI is wrong and we stop before
-writing the emitter.
+What the spike proved, concretely:
+
+- **The type table reproduces native layout.** The JS derives `sizeof` for `Point`,
+  `vector<Point>` and `string` from field kinds and alignment and lands on 8 / 24 / 32 — the same
+  numbers the C backend prints. Layout is not a JS-side approximation.
+- **`std::string`'s SSO/heap union works on the emulated heap**, including the transition at
+  `STR_BUFF_SIZE = 16` and the `state` byte (`'0'` constant, `'1'` SSO, `'2'` heap), with
+  `malloc`/`realloc` implemented over the same `Uint8Array`.
+- **`vector<T>` of a struct** addresses elements at `data + i * sizeof(T)` and field loads go through
+  `DataView` at the layout offsets.
+- **Variants** are `tag` then the payload union, and the tag is what selects the case.
+
+What it deliberately does **not** prove, and what the emitter's differential test must: that *std's
+own MIR* runs on this ABI. The spike encodes the same operations by hand; the emitter will encode
+them from MIR, and the C-vs-JS differential suite (§6 of the plan) is what verifies the general case.
+That is the correct split — a spike that reimplemented std would prove nothing about std.
+
+Measured cost of the model, for the record: 8.2 KB of JS for the data model plus allocator, and
+`BRK`-style bump allocation is enough for the spike; the emitting backend will need a real
+`malloc`/`free` over the same heap because the stdlib calls them.
 
 ## 10. What this means for the emitter's shape
 

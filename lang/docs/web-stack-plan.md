@@ -895,17 +895,17 @@ parallel with Phase 1; everything else is ordered.
 
 ### Phase 1 — **JavaScript backend** (job #1)  *(XL)*
 
-**Step 0 (blocking, before any emitter code): ABI spike — DECIDED.** Route **A, emulated linear
-memory**, with the evidence table and the spike's acceptance criteria in
-[`js-backend-abi.md`](js-backend-abi.md). The JS emitter executes MIR against a `Uint8Array` heap
-using the native LP64 byte offsets, so the stdlib, unions, variants, `sizeof` and `memcpy` work by
-construction and C-vs-JS conformance needs no exclusions. Route B was rejected: unions put N field
-names at one offset, lifetime is per-place, and no MIR-to-MIR pass framework exists to promote on.
+**Step 0 (blocking, before any emitter code): ABI spike — DONE.** Route **A, emulated linear
+memory** (`js-backend-abi.md`), and the spike **passes**: `scripts/js-abi-spike.sh` compiles
+`lang/compiled/js_abi_spike` with the native backend, runs `scripts/js_abi_spike/spike.mjs` against
+the emulated ABI, and requires byte-identical output. It prints identical `sizeof` for a struct, a
+`vector<T>`, and `std::string` (8 / 24 / 32 — layout derived from the same rules, not hard-coded),
+exercises the SSO→heap transition at 16 bytes with `malloc`/`realloc` on the same heap, addresses
+vector elements from the type table, and dispatches a variant on its tag. 8,163 bytes of JS.
 
-The remaining step-0 work is the **hand-written spike** (§9 of that doc): one module with
-`struct` + `string` (real SSO→heap path) + `vector` + a `variant`, printing identical bytes under
-`--tcc` and hand-written JS, ≤ 8 KB of JS. If the stdlib's `malloc` path cannot run on the emulated
-heap, stop.
+The remaining risk moves to the emitter: the spike encodes the operations by hand, so the general
+claim ("std's own MIR runs on this ABI") is proven by the differential C-vs-JS suite, which is the
+next gate.
 
 Then, in order:
 

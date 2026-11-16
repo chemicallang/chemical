@@ -1,0 +1,7 @@
+point_size=8
+vec_size=24
+string_size=32
+sso=hello|5
+heap=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|40
+vec=2|10
+shape=circle|7

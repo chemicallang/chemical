@@ -21,7 +21,9 @@ rm -rf "$shared_dir" "$baseline_dir" \
        lang/compiled/webserve_out \
        lang/tests/web/fixtures/static_site/build \
        lang/tests/web/fixtures/static_site_baseline/build \
-       lang/tests/web/fixtures/webserve/build
+       lang/tests/web/fixtures/webserve/build \
+       lang/compiled/webserve_socket_out \
+       lang/tests/web/fixtures/webserve_socket/build
 
 fail=0
 check() {
@@ -155,6 +157,28 @@ check "a missing path through the bridge is a 404 without a validator" \
       "$(grep -qE '/nope -> 404 \| .* \| no-etag \|' "$web" && echo 1 || echo 0)"
 check "an uninstalled site is a 503, not a crash" \
       "$(grep -qF 'serve null -> 503 |' "$web" && echo 1 || echo 0)"
+
+# ── the same build over a real socket (catch-all route, framework headers) ───
+echo "== building the socket fixture =="
+"$compiler" lang/tests/web/fixtures/webserve_socket/chemical.mod -o lang/compiled/webserve_socket.exe >/dev/null 2>&1
+timeout 120 ./lang/compiled/webserve_socket.exe > /tmp/webserve_socket.txt 2>&1
+sock=/tmp/webserve_socket.txt
+check "a real GET / is 200 over the wire" \
+      "$(grep -qF 'GET / -> HTTP/1.1 200 OK' "$sock" && echo 1 || echo 0)"
+check "the page keeps its content type and cache policy on the wire" \
+      "$(grep -qF 'Content-Type: text/html; charset=utf-8' "$sock" && \
+         grep -qF 'Cache-Control: no-cache' "$sock" && echo 1 || echo 0)"
+check "the page carries an ETag header" \
+      "$(grep -qE '^ETag: "[0-9a-f]{12}"' "$sock" && echo 1 || echo 0)"
+check "the shared bundle is served immutably over the wire" \
+      "$(grep -qF 'GET bundle -> HTTP/1.1 200 OK' "$sock" && \
+         grep -qF 'Content-Type: text/javascript; charset=utf-8' "$sock" && \
+         grep -qF 'Cache-Control: public, max-age=31536000, immutable' "$sock" && echo 1 || echo 0)"
+check "an unknown route is a 404 over the wire" \
+      "$(grep -qF 'GET /nope -> HTTP/1.1 404 Not Found' "$sock" && echo 1 || echo 0)"
+check "If-None-Match is a 304 with no body over the wire" \
+      "$(grep -qF 'GET / if-none-match -> HTTP/1.1 304 Not Modified' "$sock" && \
+         grep -qF '| 0 B body' "$sock" && echo 1 || echo 0)"
 
 if [ "$fail" -ne 0 ]; then
     echo

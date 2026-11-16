@@ -1101,7 +1101,10 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `/:name*` and the handler must be a lambda) serves the site with `Content-Type`,
    `Cache-Control`, `ETag` and 304 support, copying the body into the response. It is a pure
    request→response mapping, so it is testable without a socket: the fixture checks the mapping *and*
-   that `web::Router` dispatches a catch-all into it.
+   that `web::Router` dispatches a catch-all into it. One fixture then repeats the whole path over
+   TCP (fixed port, like the http framing tests): a real `GET /` is `200` with the framework's own
+   headers, the bundle is immutable, an unknown route is `404`, and `If-None-Match` is a bare `304`
+   with no body.
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.
@@ -1216,7 +1219,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
 | Size | `scripts/web-probe.sh` regression gate + Phase 5 budgets |
 | Cache | second page of a 2-page app: 0 duplicated runtime/component bytes |
-| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/304/404 with the right cache policy; the `webserve` bridge maps that onto `http::Response` (status, headers, 304, 503 for no site, body). 29 checks; `@test`s in the universal plugin suite cover the same contract |
+| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/304/404 with the right cache policy; the `webserve` bridge maps that onto `http::Response` (status, headers, 304, 503 for no site, body) and a fixed-port fixture repeats it over a real socket. 37 checks; `@test`s in the universal plugin suite cover the same contract |
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |

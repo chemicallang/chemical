@@ -436,6 +436,13 @@ Two rules:
 - **Pages and paths must outlive the build.** The site holds a pointer to each page and a view of
   each path (it never copies a page); pass `&mut page` on a local you keep alive until `finish()`.
 
+And one guard worth knowing about: a page that renders components must have called
+`defaultUniversalSetup()` first, because that is what writes the hydration runtime into the bundle.
+Without it the page ships `$__uni_c(...)` calls and nothing defines `$__uni_c` — a browser TypeError
+nobody sees until production — so `build()` refuses it:
+`a page hydrates components but the shared bundle has no hydration runtime; call
+defaultUniversalSetup() on every page before rendering it`.
+
 ### Serving from memory
 
 The same build can answer requests without touching the filesystem:

@@ -1093,6 +1093,9 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    file name), a matching validator returns **304 with no body** and the response's cache policy, and
    a stale one returns the full body — measured on the fixture: bundle `304 | 0 B | immutable`, page
    `304 | 0 B | no-cache`, stale `200 | 409 B`. `finish()` is `build()` plus writing the same list.
+   `build()` also refuses a page that dispatches hydration but has no runtime in the bundle (the
+   `defaultUniversalSetup()` step skipped) — that failure is otherwise a browser TypeError nobody
+   sees until production.
    `artifact_count()`/`artifact_path()`/`artifact_bytes()` expose the manifest, which is what a
    `web::App` will serve from. Until then the bridge is `webserve` (new,
    `lang/libs/webserve/src/serve.ch`, imports `http` + `page` so neither library depends on the

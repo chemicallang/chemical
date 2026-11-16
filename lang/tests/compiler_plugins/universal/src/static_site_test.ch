@@ -346,6 +346,34 @@ public func static_site_serves_pages_and_never_leaks(env : &mut TestEnv) {
 }
 
 @test
+public func static_site_refuses_a_page_without_the_runtime(env : &mut TestEnv) {
+    // Forgetting `defaultUniversalSetup()` leaves the page writing `$__uni_c(...)`
+    // calls with nothing defining `$__uni_c`: a browser TypeError nobody sees
+    // until production. The build must refuse it, and the message must name the fix.
+    var site = StaticSite.make("lang/compiled/web_static_site_no_runtime", "app", "assets")
+    var page = HtmlPage()
+    site.add(&mut page, "index.html")
+    // deliberately no page.defaultUniversalSetup()
+    site_test_index(&mut page)
+
+    if(site.build()) {
+        env.error("a page that dispatches hydration without the runtime must fail the build")
+        return
+    }
+    var message = site.error_message()
+    if(!message.contains("defaultUniversalSetup")) {
+        env.error("the failure must name defaultUniversalSetup() as the fix")
+        return
+    }
+    // A failed build is not servable.
+    if(site.respond("/").status != 503) {
+        env.error("a failed build must not serve pages")
+        return
+    }
+    env.success("static site: a page without the hydration runtime fails the build")
+}
+
+@test
 public func static_site_reports_write_failures(env : &mut TestEnv) {
     // An unwritable output directory must fail the build rather than produce a
     // site with missing pages. Building twice is the portable way to check that

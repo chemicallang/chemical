@@ -235,6 +235,12 @@ public struct StaticSite {
         head_tags.append_view(&root_tags_view)
 
         var i : ubigint = 0
+        // A page that dispatches hydration calls (`$__uni_c(...)`) only works if
+        // the bundle defines the runtime, and the runtime is written by
+        // `page.defaultUniversalSetup()`. Forgetting that call is invisible until a
+        // browser throws `$__uni_c is not a function`, so the build refuses it.
+        var runtime_checked : bool = false
+        var runtime_present : bool = false
         while(i < pages.size()) {
             var target = paths.at(i)
             var page_ptr = pages.at(i)
@@ -254,6 +260,16 @@ public struct StaticSite {
             // <script> at all (the CSP rule).
             var body_src = std::string()
             var page_js = page_ref.getFinalizedPageJs()
+            if(!runtime_checked && !page_js.empty()) {
+                var page_js_probe = page_js.to_view()
+                const dispatch_call = std::string_view("$__uni_c(")
+                if(page_js_probe.contains(&dispatch_call)) {
+                    const runtime_definition = std::string_view("window.$__uni_c = ")
+                    var shared_js = shared.js()
+                    runtime_present = shared_js.contains(&runtime_definition)
+                    runtime_checked = true
+                }
+            }
             if(!page_js.empty()) {
                 var stem = page_chunk_stem(target)
                 var stem_view = stem.to_view()
@@ -290,6 +306,11 @@ public struct StaticSite {
             page_path.append_view(&target)
             push_artifact(page_path, html, std::string_view("text/html; charset=utf-8"), false)
             i = i + 1
+        }
+
+        if(runtime_checked && !runtime_present) {
+            fail_with("a page hydrates components but the shared bundle has no hydration runtime; call defaultUniversalSetup() on every page before rendering it")
+            return false
         }
         return !failed
     }

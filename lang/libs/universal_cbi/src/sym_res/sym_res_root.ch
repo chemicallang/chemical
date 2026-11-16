@@ -49,26 +49,68 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
             if(attrNode.kind != JsNodeKind.JSXAttribute) continue
             const attr = attrNode as *mut JsJSXAttribute
             if(is_implicit_jsx_prop_name(&attr.name)) continue
-            var found : bool = false
-            for(var j : uint = 0; j < count; j += 1) {
-                const member = members.get(j)
-                if(member.getName().equals(&attr.name)) { found = true; break }
-            }
-            if(found) continue
 
-            var msg = std::string("unknown prop '")
-            msg.append_view(&attr.name)
-            msg.append_view("' for component '")
-            msg.append_view(compName)
-            msg.append_view("'")
-            if(count > 0) {
-                msg.append_view("; declared props: ")
-                for(var j : uint = 0; j < count; j += 1) {
-                    if(j > 0) { msg.append_view(", ") }
-                    const member = members.get(j)
-                    msg.append_view(&member.getName())
-                }
+            var member : *mut BaseDefMember = null
+            for(var j : uint = 0; j < count; j += 1) {
+                const candidate = members.get(j)
+                if(candidate.getName().equals(&attr.name)) { member = candidate; break }
             }
+
+            if(member == null) {
+                var msg = std::string("unknown prop '")
+                msg.append_view(&attr.name)
+                msg.append_view("' for component '")
+                msg.append_view(compName)
+                msg.append_view("'")
+                if(count > 0) {
+                    msg.append_view("; declared props: ")
+                    for(var j : uint = 0; j < count; j += 1) {
+                        if(j > 0) { msg.append_view(", ") }
+                        const candidate = members.get(j)
+                        msg.append_view(&candidate.getName())
+                    }
+                }
+                diagnoser.error(msg.to_view(), element.loc)
+                *ok = false
+                continue
+            }
+
+            // Declared prop: check a Chemical value against the field's declared
+            // type with the type checker's own rule (same as the #html path).
+            var vnode = attr.value
+            if(vnode != null && vnode.kind == JsNodeKind.JSXExpressionContainer) {
+                vnode = (vnode as *mut JsJSXExpressionContainer).expression
+            }
+            var chemValue : *mut Value = null
+            if(vnode != null && vnode.kind == JsNodeKind.ChemicalValue) {
+                chemValue = (vnode as *mut JsChemicalValue).value
+            }
+            if(chemValue == null) continue
+            const fieldType = member.getType()
+            if(fieldType == null) continue
+            if(fieldType.satisfies_value(chemValue, true)) continue
+
+            var expected : char[96]
+            var got : char[96]
+            const expLen = unsafe(fieldType.representation(unsafe(&raw mut expected[0]), 96))
+            var gotLen : ubigint = 0
+            const valType = chemValue.getType()
+            if(valType != null) {
+                gotLen = unsafe(valType.representation(unsafe(&raw mut got[0]), 96))
+            }
+            var msg = std::string("prop '")
+            msg.append_view(&attr.name)
+            msg.append_view("' of component '")
+            msg.append_view(compName)
+            msg.append_view("' expects '")
+            msg.append_with_len(unsafe(&raw mut expected[0]), expLen)
+            msg.append_view("' but got '")
+            if(gotLen == 0) {
+                msg.append_view("an unknown type")
+            } else {
+                msg.append_with_len(unsafe(&raw mut got[0]), gotLen)
+            }
+            msg.append('\'')
             diagnoser.error(msg.to_view(), element.loc)
             *ok = false
         }

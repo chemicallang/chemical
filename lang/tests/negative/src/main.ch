@@ -688,6 +688,17 @@ public func neg_universal_props_default_rejected(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "universal_props_default", ch, "has a default value; v1 requires every declared prop", NEG_MOD_UNIVERSAL)
 }
 
+// A prop's value is checked against the field's declared type with the type
+// checker's own rule, so an obviously wrong value fails at the call site. (The
+// check needs the value's Chemical type; a raw JS literal inside a JSX body has
+// none, so this exercises the `#html` path — see the plan for the limit.)
+@test
+public func neg_universal_prop_type_mismatch(env : &mut TestEnv) {
+    var ch = "public struct CardProps {\n    var title : std::string_view\n    var count : int\n}\n#universal Card(props : CardProps) {\n    return <div>{props.title}</div>\n}\nfunc HostPage(page : &mut HtmlPage) {\n    #html { <Card title=\"ok\" count={\"nope\"} /> }\n}\npublic func main() : int {\n    return 0\n}\n"
+    var mod = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\nimport html_cbi\nimport css_cbi\n"
+    expect_compile_error_with_mod(env, "universal_prop_type", ch, "prop 'count' of component 'Card' expects 'int' but got 'string'", mod)
+}
+
 // Hydration safety: reading the clock during render makes the server and the
 // browser disagree, which is the bug class that used to be found in a browser
 // console.

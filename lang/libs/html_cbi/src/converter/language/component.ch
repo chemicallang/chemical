@@ -270,28 +270,62 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
         for(var i : uint = 0; i < element.attributes.size(); i++) {
             const attr = element.attributes.at(i)
             if(is_implicit_prop_name(attr.name)) continue
-            var found : bool = false
+            var member : *mut BaseDefMember = null
             for(var j : uint = 0; j < memberCount; j++) {
-                const member : *mut BaseDefMember = members.get(j)
-                if(member.getName().equals(&attr.name)) { found = true; break }
+                const candidate : *mut BaseDefMember = members.get(j)
+                if(candidate.getName().equals(&attr.name)) { member = candidate; break }
             }
-            if(found) continue
-
-            var msg = std::string("unknown prop '")
-            msg.append_view(&attr.name)
-            msg.append_view("' for component '")
-            msg.append_view(&signature.name)
-            msg.append_view("'")
-            if(memberCount > 0) {
-                msg.append_view("; declared props: ")
-                for(var j : uint = 0; j < memberCount; j++) {
-                    if(j > 0) { msg.append_view(", ") }
-                    const member : *mut BaseDefMember = members.get(j)
-                    msg.append_view(&member.getName())
+            if(member == null) {
+                var msg = std::string("unknown prop '")
+                msg.append_view(&attr.name)
+                msg.append_view("' for component '")
+                msg.append_view(&signature.name)
+                msg.append_view("'")
+                if(memberCount > 0) {
+                    msg.append_view("; declared props: ")
+                    for(var j : uint = 0; j < memberCount; j++) {
+                        if(j > 0) { msg.append_view(", ") }
+                        const candidate : *mut BaseDefMember = members.get(j)
+                        msg.append_view(&candidate.getName())
+                    }
+                } else {
+                    msg.append_view("; the props struct declares no fields")
                 }
-            } else {
-                msg.append_view("; the props struct declares no fields")
+                converter.diagnoser.error(msg.to_view(), element.loc)
+                continue
             }
+            // Declared prop: check the value against the field's type using the
+            // type checker's own rule, so implicit conversions behave exactly as
+            // they do for a field assignment.
+            if(attr.value == null) continue
+            if(attr.value.kind != AttributeValueKind.Chemical) continue
+            const chemVal = attr.value as *mut ChemicalAttributeValue
+            if(chemVal.value == null) continue
+            const fieldType = member.getType()
+            if(fieldType == null) continue
+            if(fieldType.satisfies_value(chemVal.value, true)) continue
+
+            var expected : char[96]
+            var got : char[96]
+            const expLen = unsafe(fieldType.representation(unsafe(&raw mut expected[0]), 96))
+            var gotLen : ubigint = 0
+            const valType = chemVal.value.getType()
+            if(valType != null) {
+                gotLen = unsafe(valType.representation(unsafe(&raw mut got[0]), 96))
+            }
+            var msg = std::string("prop '")
+            msg.append_view(&attr.name)
+            msg.append_view("' of component '")
+            msg.append_view(&signature.name)
+            msg.append_view("' expects '")
+            msg.append_with_len(unsafe(&raw mut expected[0]), expLen)
+            msg.append_view("' but got '")
+            if(gotLen == 0) {
+                msg.append_view("an unknown type")
+            } else {
+                msg.append_with_len(unsafe(&raw mut got[0]), gotLen)
+            }
+            msg.append('\'')
             converter.diagnoser.error(msg.to_view(), element.loc)
         }
 

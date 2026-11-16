@@ -642,8 +642,13 @@ props (`props : title`, `props : a, b?`). This keeps the existing required-prop 
 
 Still to land for typed props (Phase 2 remainder):
 
-- **Value types** — check each attribute value against the field type (`title={123}` must fail).
-  Needs a `BaseType` inspection surface (only `getKind()` exists in the CBI today).
+- **Value types** — landed for Chemical values on both paths. The check calls the type checker's own
+  `BaseType::satisfies(value, /*assignment*/ true)`, so implicit conversions behave exactly as they
+  do for a field assignment (no new conversion rules invented in a plugin). The diagnostic spells
+  both types using `BaseType::representation()`:
+  `prop 'count' of component 'Card' expects 'int' but got 'string'`.
+  Limitation: a **raw JS literal** inside a JSX body (`count={"nope"}` in a `#universal` body) has
+  no Chemical type, so it is not value-checked there; the `#html` path is fully checked.
 - **Defaults** — `var count : int = 0` in a props struct is **rejected** in v1 rather than
   half-applied: the value would have to be injected into both the SSR attrs and the client props
   payload, and applying it in only one makes SSR and hydration disagree. The CBI now exposes
@@ -944,10 +949,14 @@ of the breaking changes in §3.17.
    stale. **Remaining**: the app-level two-pass writer that injects `<script src="app.<hash>.js">`
    into each page's HTML (the hash is only known after every page has rendered) and the ETag/
    immutable header in `web::App` — both belong with `web::Static` in Phase 4/5.
-3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, and attribute-name
-   validation are **landed** on both the `#html` and JSX paths, with negative tests
-   (`unknown prop … declared props: …`, props type not found / not a struct) and a positive test.
-   Remaining: value-type checking, required-vs-defaulted, serializer generated from the type.
+3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, attribute-name
+   validation on both the `#html` and JSX paths, **required-prop enforcement**, **value-type
+   checking** against the field type (via the type checker's own `satisfies`), and an explicit
+   rejection of default values. Negative tests cover unknown prop, missing prop, props type not
+   found/must be a struct, value-type mismatch, and defaults; a positive test proves declared props
+   and implicit props render. Remaining: the generated props serializer (which also brings defaults
+   back), and value-type checking for raw JS literals inside a JSX body (they carry no Chemical type
+   — the `#html` path is fully checked).
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

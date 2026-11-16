@@ -993,6 +993,26 @@ Value* BaseDefMembergetDefaultValue(BaseDefMember* member) {
     return static_cast<StructMember*>(member)->defValue;
 }
 
+// The type checker's own value-vs-type rule, exposed so a plugin can validate a
+// value against a declared field type without re-implementing conversion rules.
+// Fails open on null inputs (callers treat a null type as "unknown").
+bool BaseTypesatisfies_value(BaseType* type, Value* value, bool assignment) {
+    if (type == nullptr || value == nullptr) return true;
+    return type->satisfies(value, assignment);
+}
+
+// Type spelling ("int", "std::string_view") for diagnostics. Writes at most
+// cap-1 bytes plus a terminator and returns the number of bytes written.
+uint64_t BaseTyperepresentation(BaseType* type, char* out, uint64_t cap) {
+    if (type == nullptr || out == nullptr || cap == 0) return 0;
+    const std::string rep = type->representation();
+    uint64_t n = rep.size();
+    if (n > cap - 1) n = cap - 1;
+    std::memcpy(out, rep.data(), static_cast<size_t>(n));
+    out[n] = '\0';
+    return n;
+}
+
 std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def) {
     return &def->mut_variables();
 }

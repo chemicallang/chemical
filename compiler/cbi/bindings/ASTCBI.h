@@ -197,6 +197,10 @@ extern "C" {
 
     Value* BaseDefMembergetDefaultValue(BaseDefMember* member);
 
+    bool BaseTypesatisfies_value(BaseType* type, Value* value, bool assignment);
+
+    uint64_t BaseTyperepresentation(BaseType* type, char* out, uint64_t cap);
+
     std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def);
 
     std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def);

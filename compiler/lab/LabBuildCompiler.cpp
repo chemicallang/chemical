@@ -5064,6 +5064,13 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     const auto verbose = options->verbose;
     begin_job_print(job);
 
+    // `--check` for the JS target must still *lower*, because the rules that
+    // decide "can this compile to JavaScript?" run over MIR. Nothing is written;
+    // only the diagnostics differ from a real build.
+    const bool check_only = job->attrs.check_only;
+    const bool previous_check_only = options->check_only;
+    options->check_only = false;
+
     if (verbose) {
         std::cout << "[lab] " << "JS backend: flattening the module structure" << std::endl;
     }
@@ -5093,12 +5100,12 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     // The bundle directory. Everything a runner needs lands here: one `.mjs`
     // per Chemical module, the runtime, and the `index.mjs` entry.
     const std::string out_dir = options->emit_js_dir;
-    if (out_dir.empty()) {
+    if (out_dir.empty() && !check_only) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
                   << "JS backend: no output directory given" << std::endl;
         return 1;
     }
-    create_dir(out_dir);
+    if (!check_only) create_dir(out_dir);
 
     if (verbose) {
         std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
@@ -5260,6 +5267,14 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
         return 1;
     }
     const std::string program_stem = mir::js_module_file_stem(js_options.module_name);
+    if (check_only) {
+        options->check_only = previous_check_only;
+        std::cout << "[lab] " << rang::fg::green
+                  << "JS backend check passed: " << reachable.size()
+                  << " function(s) reachable from main, no unsupported construct" << rang::fg::reset
+                  << std::endl;
+        return 0;
+    }
     const std::string program_path = resolve_rel_child_path_str(out_dir, program_stem + ".mjs");
     writeToFile(program_path, js);
     if (verbose) {

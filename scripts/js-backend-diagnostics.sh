@@ -53,5 +53,43 @@ if [ "$fail" -ne 0 ]; then
     exit 1
 fi
 
+# ── a native-only symbol is explained as such, not as a module problem ───────
+native_fixture="lang/tests/web/fixtures/js_backend_native_symbol"
+native_log="$out_dir/native.log"
+status=0
+CHX_JS_RUNTIME="$root/scripts/js_backend/runtime.mjs" \
+    "$compiler" "$native_fixture/chemical.mod" --emit-js "$out_dir/native" > "$native_log" 2>&1 || status=$?
+if [ "$status" -eq 0 ]; then
+    echo "FAIL: a native-only symbol compiled for JS" >&2
+    exit 1
+fi
+log="$native_log"
+require "native symbol 'getenv' has no JavaScript equivalent" "explains a native-only symbol"
+require "main.ch:10:" "positions the native-symbol call"
+require "@extern" "names the declaration form so the fix is obvious"
+
+# ── `--check` runs the same rules and writes nothing ────────────────────────
+check_dir="$out_dir/check-only"
+check_log="$out_dir/check.log"
+if ! CHX_JS_RUNTIME="$root/scripts/js_backend/runtime.mjs" \
+        "$compiler" "lang/tests/web/fixtures/js_backend/chemical.mod" \
+        --check --emit-js "$check_dir" > "$check_log" 2>&1; then
+    echo "FAIL: --check rejected a program that builds" >&2
+    cat "$check_log" >&2
+    exit 1
+fi
+if [ -e "$check_dir" ]; then
+    echo "FAIL: --check wrote output to '$check_dir'" >&2
+    exit 1
+fi
+echo "ok   --check validates without writing"
+
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "--- build log ---" >&2
+    cat "$log" >&2
+    exit 1
+fi
+
 echo
 echo "PASS: unsupported constructs fail the build, with positions"

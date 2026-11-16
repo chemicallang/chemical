@@ -171,6 +171,21 @@ version reported only the first error, which costs an agent one build per fix.
 Not yet: reporting from `--check`/LSP without running the emitter (needs the shared table), and
 `@extern`-availability diagnostics (a `shared` module calling a native-only symbol).
 
+`--check` is supported though: `chemical <mod> --check --emit-js <dir>` lowers to MIR, runs the
+rules, reports every offending site with a position, and writes **nothing** — that is the CI answer
+to "does this module compile to JavaScript?" before a bundle exists.
+
+A callee the backend cannot resolve is now explained by *why*, which matters because the three
+causes need different fixes:
+
+| situation | message |
+|---|---|
+| in the backend's libc map (`printf`, `malloc`, `strtol`, …) | emitted as `rt.printf`, … |
+| a `__chc_*` checked-operation helper | `rt.trap("<helper>", …)` |
+| `@extern` C function with no JS equivalent (`getenv`) | *native symbol 'getenv' has no JavaScript equivalent (declared @extern); a client or shared module must not depend on it* |
+| lowered in the program but missing from the reachable set | *reported as an internal error* — it means the reachability walk missed an edge |
+
+
 
 ## 9. The spike — **done**
 

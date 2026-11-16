@@ -182,6 +182,9 @@ private:
 
     std::unordered_map<SymbolId, std::string> defined_js_name_;
     std::unordered_map<std::string, SymbolId> defined_by_name_;
+    /** Every lowered function in the program, by mangled name (not just the
+     *  reachable set) — used only to keep diagnostics truthful. */
+    std::unordered_map<std::string, const MIRFunction*> all_by_name_;
     std::unordered_set<SymbolId> emitted_;
     std::vector<SymbolId> fa_order_;
     std::unordered_map<SymbolId, std::string> fa_expr_;
@@ -197,6 +200,11 @@ private:
 // ── module assembly ─────────────────────────────────────────────────────────
 
 void ModuleEmitter::collect() {
+    for (const MIRFunction& fn : module_.functions) {
+        if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+        if (fn.instructions.size() == 0) continue;
+        all_by_name_.emplace(module_.symbols.mangled_name(module_.symbols.get(fn.symbol)), &fn);
+    }
     for (const MIRFunction* fnp : functions_) {
         if (fnp == nullptr) continue;
         const MIRFunction& fn = *fnp;
@@ -652,25 +660,20 @@ bool ModuleEmitter::callee_expr(SymbolId sym, std::string& out) {
         return true;
     }
     if (extern_expr(name, out)) return true;
-    if (std::getenv("CHX_JS_DEBUG") != nullptr) {
-        const MIRSymbolRecord& rec = module_.symbols.get(sym);
-        std::cerr << "[js debug] unresolved callee sym=" << sym << " name='"
-                  << std::string(module_.symbols.name_data(rec), rec.name_length)
-                  << "' mangled='"
-                  << std::string(module_.symbols.mangled_data(rec), rec.mangled_length) << "'\n";
-        for (uint32_t i = 0; i < module_.functions.size(); ++i) {
-            const MIRFunction& fn = module_.functions[i];
-            if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
-            const std::string other = module_.symbols.mangled_name(module_.symbols.get(fn.symbol));
-            if (other == name) {
-                std::cerr << "[js debug]   definition at functions[" << i << "] symbol="
-                          << fn.symbol << " instructions=" << fn.instructions.size() << "\n";
-            }
-        }
+    // Distinguish the three ways a callee can be unsatisfiable. The earlier
+    // message ("defined in another Chemical module") was a placeholder for a
+    // limitation the single-program bundle does not have, and it sent readers
+    // looking in the wrong place.
+    if (all_by_name_.find(name) != all_by_name_.end()) {
+        return fail_at("'" + name + "' is lowered in this program but was not emitted "
+                       "(internal: the reachable set missed it — please report)");
     }
-    return fail_at("call to '" + name +
-                   "' cannot be emitted yet: it is defined in another Chemical module "
-                   "(cross-module JS imports are not implemented)");
+    const MIRSymbolRecord& rec = module_.symbols.get(sym);
+    if (rec.kind == MIRSymbolKind::External || !rec.has_body) {
+        return fail_at("native symbol '" + name + "' has no JavaScript equivalent (declared " +
+                       "@extern); a client or shared module must not depend on it");
+    }
+    return fail_at("'" + name + "' has no definition in this program (declared but never lowered)");
 }
 
 bool ModuleEmitter::function_address_expr(SymbolId sym, std::string& out) {

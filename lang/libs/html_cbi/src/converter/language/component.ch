@@ -295,6 +295,36 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
             converter.diagnoser.error(msg.to_view(), element.loc)
         }
 
+        // Required props: a field without an initializer must be supplied. (The
+        // `#html` attribute model has no spread, so every field is checkable here;
+        // the JSX path handles spreads separately.)
+        for(var j : uint = 0; j < memberCount; j++) {
+            const member : *mut BaseDefMember = members.get(j)
+            // v1: defaults are rejected rather than half-applied. SSR attrs and the
+            // client props payload would each need to inject the value, and a
+            // mismatch between them makes hydration disagree with SSR.
+            if(member.getDefaultValue() != null) {
+                var msg = std::string("props field '")
+                msg.append_view(&member.getName())
+                msg.append_view("' of component '")
+                msg.append_view(&signature.name)
+                msg.append_view("' has a default value; v1 requires every declared prop to be supplied at the call site")
+                converter.diagnoser.error(msg.to_view(), element.loc)
+                continue
+            }
+            var present : bool = false
+            for(var i : uint = 0; i < element.attributes.size(); i++) {
+                if(element.attributes.at(i).name.equals(&member.getName())) { present = true; break }
+            }
+            if(present) continue
+            var msg = std::string("missing required prop '")
+            msg.append_view(&member.getName())
+            msg.append_view("' for component '")
+            msg.append_view(&signature.name)
+            msg.append_view("'")
+            converter.diagnoser.error(msg.to_view(), element.loc)
+        }
+
         }
 }
 

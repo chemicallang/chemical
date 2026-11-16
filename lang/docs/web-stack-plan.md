@@ -608,9 +608,11 @@ Still to land for typed props (Phase 2 remainder):
 
 - **Value types** — check each attribute value against the field type (`title={123}` must fail).
   Needs a `BaseType` inspection surface (only `getKind()` exists in the CBI today).
-- **Required vs defaulted** — a field is required unless it has an initializer in the props struct;
-  needs a `has_default`/default-value accessor on the member binding so the call site can both
-  enforce and inject the default.
+- **Defaults** — `var count : int = 0` in a props struct is **rejected** in v1 rather than
+  half-applied: the value would have to be injected into both the SSR attrs and the client props
+  payload, and applying it in only one makes SSR and hydration disagree. The CBI now exposes
+  `BaseDefMember.getDefaultValue()` so the generated serializer can own defaults as one change.
+  Until then every declared prop is required.
 - **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON, which
   removes the documented escaping footguns (single quotes/backslashes, struct/vector props)
   by construction.

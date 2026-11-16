@@ -671,6 +671,23 @@ public func neg_universal_props_type_not_found(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "universal_props_type_missing", ch, "props type 'CardProbs' of component 'Card' was not found", NEG_MOD_UNIVERSAL)
 }
 
+// Every declared prop is required in v1: a field with no value at the call site
+// is an error naming the component.
+@test
+public func neg_universal_missing_typed_prop(env : &mut TestEnv) {
+    var ch = "public struct CardProps {\n    var title : std::string_view\n    var count : int\n}\n#universal Card(props : CardProps) {\n    return <div>{props.title}</div>\n}\n#universal Host(props) {\n    return <Card title=\"ok\" />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_missing_typed_prop", ch, "missing required prop 'count' for component 'Card'", NEG_MOD_UNIVERSAL)
+}
+
+// Defaults are rejected rather than half-applied: SSR and hydration must agree,
+// and only the generated props serializer (a later step) can apply a default in
+// both places.
+@test
+public func neg_universal_props_default_rejected(env : &mut TestEnv) {
+    var ch = "public struct CardProps {\n    var title : std::string_view\n    var count : int = 0\n}\n#universal Card(props : CardProps) {\n    return <div>{props.title}</div>\n}\n#universal Host(props) {\n    return <Card title=\"ok\" />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_props_default", ch, "has a default value; v1 requires every declared prop", NEG_MOD_UNIVERSAL)
+}
+
 @test
 public func neg_html_unsupported_value_type_is_diagnosed(env : &mut TestEnv) {
     // A struct with no `writeToPageHtml` cannot be embedded in `#html`; it used

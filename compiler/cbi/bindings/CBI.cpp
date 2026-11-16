@@ -348,6 +348,7 @@ const std::pair<chem::string_view, void*> ASTBuilderSymMap[] = {
         { "compiler_FunctionParamgetType", (void*) FunctionParamgetType },
         { "compiler_BaseDefMembergetName", (void*) BaseDefMembergetName },
         { "compiler_BaseDefMembergetType", (void*) BaseDefMembergetType },
+        { "compiler_BaseDefMembergetDefaultValue", (void*) BaseDefMembergetDefaultValue },
         { "compiler_StructDefinitiongetMembers", (void*) StructDefinitiongetMembers },
         { "compiler_StructDefinitiongetFunctions", (void*) StructDefinitiongetFunctions },
         { "compiler_InterfaceDefinitiongetFunctions", (void*) InterfaceDefinitiongetFunctions },

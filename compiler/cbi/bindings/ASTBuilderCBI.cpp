@@ -985,6 +985,14 @@ BaseType* BaseDefMembergetType(BaseDefMember* member) {
     return member->known_type();
 }
 
+// The initializer of a struct member (`var count : int = 0`), or null when the
+// member has none. CBI consumers use this to know whether a field is required:
+// props with a default are optional at the call site.
+Value* BaseDefMembergetDefaultValue(BaseDefMember* member) {
+    if (member->kind() != ASTNodeKind::StructMember) return nullptr;
+    return static_cast<StructMember*>(member)->defValue;
+}
+
 std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def) {
     return &def->mut_variables();
 }

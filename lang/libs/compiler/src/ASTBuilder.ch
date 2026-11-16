@@ -358,6 +358,10 @@ public struct BaseDefMember : ASTNode {
 
     func getType(&self) : *mut BaseType
 
+    // The member's initializer (`var count : int = 0`), or null when it has none.
+    // Used by props validation: a field with a default is optional at the call site.
+    func getDefaultValue(&self) : *mut Value
+
 }
 
 public struct StructMemberInitializer : ASTNode {}

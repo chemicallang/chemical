@@ -73,6 +73,46 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
             *ok = false
         }
 
+        // Required props for typed components: a field with no initializer must be
+        // supplied. A spread may supply any prop at runtime, so its presence
+        // satisfies them all (same rule as the legacy required-prop check above).
+        var spread : bool = false
+        for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
+            if(element.opening.attributes.at(i).kind == JsNodeKind.JSXSpreadAttribute) { spread = true; break }
+        }
+        if(spread) return
+
+        for(var j : uint = 0; j < count; j += 1) {
+            const member = members.get(j)
+            // v1: defaults are rejected rather than half-applied (SSR attrs and the
+            // client props payload would have to agree).
+            if(member.getDefaultValue() != null) {
+                var dmsg = std::string("props field '")
+                dmsg.append_view(&member.getName())
+                dmsg.append_view("' of component '")
+                dmsg.append_view(compName)
+                dmsg.append_view("' has a default value; v1 requires every declared prop to be supplied at the call site")
+                diagnoser.error(dmsg.to_view(), element.loc)
+                *ok = false
+                continue
+            }
+            var present : bool = false
+            for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
+                const attrNode = element.opening.attributes.at(i)
+                if(attrNode.kind != JsNodeKind.JSXAttribute) continue
+                const attr = attrNode as *mut JsJSXAttribute
+                if(attr.name.equals(&member.getName())) { present = true; break }
+            }
+            if(present) continue
+            var msg = std::string("missing required prop '")
+            msg.append_view(&member.getName())
+            msg.append_view("' for component '")
+            msg.append_view(compName)
+            msg.append_view("'")
+            diagnoser.error(msg.to_view(), element.loc)
+            *ok = false
+        }
+
         }
 }
 
@@ -177,8 +217,7 @@ func sym_res_components(
 
             // Typed props: an attribute the component's props struct does not
             // declare is an error here (JSX path), matching the #html path.
-            append_unknown_prop_errors(resolver, diagnoser, signature, element, &name, &mut ok);
-        }
+            append_unknown_prop_errors(resolver, diagnoser, signature, element, &name, &mut ok);        }
         return ok;
 
         }

@@ -195,6 +195,8 @@ extern "C" {
 
     BaseType* BaseDefMembergetType(BaseDefMember* member);
 
+    Value* BaseDefMembergetDefaultValue(BaseDefMember* member);
+
     std::vector<BaseDefMember*>* StructDefinitiongetMembers(StructDefinition* def);
 
     std::vector<ASTNode*>* StructDefinitiongetFunctions(StructDefinition* def);

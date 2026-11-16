@@ -596,9 +596,22 @@ Static, shell + slots and SSR share the graph builder, minifier and manifest, so
 export some routes (docs) and serve others (dashboard) from one `chemical.mod`.
 
 **Interim, before Phase 5 lands:** `toStringExternalJs` plus a frozen `SharedAssets` sink already
-lets two static pages reference the *same* `shared.<hash>.js` instead of inlining it, so the
-"static pages share JS" story is partially available in Phase 2 — the gap that remains until
-Phase 5 is automatic per-page chunks, minification and cross-page vendor computation.
+lets two static pages reference the *same* `app.<hash>.js` instead of inlining it, so the
+"static pages share JS" story is partially available now — the gap that remains until
+Phase 5 is automatic per-page chunks, minification and cross-page vendor computation, plus the
+two-pass writer that knows the hash before writing the HTML.
+
+The two-pass shape the writer will implement (and that an app can do by hand today):
+
+```
+render every page        -> pages in memory, sink collects the shared bytes
+sink.freeze()            -> js_name() / css_name() are final and content-derived
+write pages + hashed files -> each HTML references app.<hash>.js and page.<hash>.js
+```
+
+`is_stale()` exists because the hazard is real: rendering one more page after freezing appends new
+component definitions to the sink, and publishing the old name would serve a bundle that does not
+contain the component the page asks for.
 
 ### 3.15 Typed client code, and the end of "check the browser console"
 
@@ -908,8 +921,15 @@ of the breaking changes in §3.17.
    counter ids took dispatch text from 41.0% to 31.0% of `components.js` and page HTML down 13 KB
    (measured, §3.6). Step 2 (single payload + name table) belongs with the chunk graph in Phase 4,
    where a payload can name a chunk instead of a global function.
-2. [ ] **`SharedAssets` freeze + content-hashed names + ETag + `toStringJsOnly`**: the shared-bundle
-   design's Phase 4. This alone makes two pages share the runtime and the 63 components today.
+2. [~] **`SharedAssets` freeze + content-hashed names**: **API landed** — `freeze()`,
+   `is_frozen()`, `is_stale()`, `js_name()`/`css_name()` (`<base>.<hash>.js`, FNV-1a over the final
+   bytes, 12 hex chars) and `write_frozen(dir)`. A stale sink (bytes appended after freeze, i.e. a
+   page rendered late) refuses to hand out a name, so a build cannot publish a filename that
+   disagrees with its content. Tested: two pages share the runtime + one component definition, a
+   page's own JS keeps only its dispatch, the hash is deterministic, and a late page marks the sink
+   stale. **Remaining**: the app-level two-pass writer that injects `<script src="app.<hash>.js">`
+   into each page's HTML (the hash is only known after every page has rendered) and the ETag/
+   immutable header in `web::App` — both belong with `web::Static` in Phase 4/5.
 3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, and attribute-name
    validation are **landed** on both the `#html` and JSX paths, with negative tests
    (`unknown prop … declared props: …`, props type not found / not a struct) and a positive test.

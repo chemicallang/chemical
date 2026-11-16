@@ -49,6 +49,105 @@ public struct SharedAssets {
         return css_data.size()
     }
 
+    // ── Freeze + content-hashed names ────────────────────────────────────
+    // A shared bundle is written once and served from a long-lived cache, so its
+    // URL must change whenever its bytes do. `freeze()` records the current
+    // content hash; any append after that (a page rendered late) makes the sink
+    // *stale*, and a stale sink refuses to hand out a name — so a build can never
+    // publish a file whose name disagrees with its content.
+    private var frozen : bool = false
+    private var frozen_js_hash : size_t = 0
+    private var frozen_css_hash : size_t = 0
+
+    public func freeze(&mut self) {
+        frozen = true
+        var js_view = js_data.to_view()
+        var css_view = css_data.to_view()
+        frozen_js_hash = fnv1_hash_view(&js_view)
+        frozen_css_hash = fnv1_hash_view(&css_view)
+    }
+
+    public func is_frozen(&self) : bool {
+        return frozen
+    }
+
+    /// True when bytes were appended after `freeze()`, so the recorded name no
+    /// longer describes the content. A build should treat this as an error.
+    public func is_stale(&self) : bool {
+        if(!frozen) { return false }
+        var js_view = js_data.to_view()
+        var css_view = css_data.to_view()
+        const js_changed = fnv1_hash_view(&js_view) != frozen_js_hash
+        const css_changed = fnv1_hash_view(&css_view) != frozen_css_hash
+        return js_changed || css_changed
+    }
+
+    /// The bundle's base name (`SharedAssetsHandle.make("app")` -> "app"),
+    /// defaulting to "shared".
+    public func base_name(&self) : std::string_view {
+        if(name.empty()) { return std::string_view("shared") }
+        return name.to_view()
+    }
+
+    /// `"<base>.<hash>.js"`, or empty when the sink is not frozen or is stale.
+    public func js_name(&self) : std::string {
+        var out = std::string()
+        if(!frozen) { return out }
+        if(is_stale()) { return out }
+        var base = base_name()
+        var hash_s = hex12(frozen_js_hash)
+        var hash = hash_s.to_view()
+        out.append_view(&base)
+        out.append('.')
+        out.append_view(&hash)
+        out.append_view(".js")
+        return out
+    }
+
+    /// `"<base>.<hash>.css"`, or empty when the sink is not frozen or is stale.
+    public func css_name(&self) : std::string {
+        var out = std::string()
+        if(!frozen) { return out }
+        if(is_stale()) { return out }
+        var base = base_name()
+        var hash_s = hex12(frozen_css_hash)
+        var hash = hash_s.to_view()
+        out.append_view(&base)
+        out.append('.')
+        out.append_view(&hash)
+        out.append_view(".css")
+        return out
+    }
+
+    /// Write both buffers under their content-hashed names. Returns false (and
+    /// writes nothing) when the sink is not frozen or went stale — the caller
+    /// must render every page before freezing.
+    public func write_frozen(&self, dir : &std::string_view) : bool {
+        if(!frozen) { return false }
+        if(is_stale()) { return false }
+        unsafe(fs::raw::mkdir(dir.data()))
+
+        if(!js_data.empty()) {
+            var js_name_s = js_name()
+            var js_name_v = js_name_s.to_view()
+            var p = std::string()
+            p.append_view(dir)
+            p.append('/')
+            p.append_view(&js_name_v)
+            unsafe(fs::raw::write_text_file(p.data(), js_data.data() as *u8, js_data.size()))
+        }
+        if(!css_data.empty()) {
+            var css_name_s = css_name()
+            var css_name_v = css_name_s.to_view()
+            var p = std::string()
+            p.append_view(dir)
+            p.append('/')
+            p.append_view(&css_name_v)
+            unsafe(fs::raw::write_text_file(p.data(), css_data.data() as *u8, css_data.size()))
+        }
+        return true
+    }
+
     // ── Serving helper (optional) ────────────────────────────────────────
     // Writes "<dir>/<base_name>.js" and "<dir>/<base_name>.css". Callers that
     // want content-hashed names can hash `js()` / `css()` themselves and serve
@@ -120,8 +219,22 @@ public struct SharedAssetsHandle {
     }
 }
 
-// --- Legacy raw allocation (kept for existing callers) -------------------
-//
+// Content hashes are shortened to 12 hex characters: enough for build-asset
+// identity (48 bits) and short enough to keep URLs readable.
+func hex12(value : size_t) : std::string {
+    const HEX = std::string_view("0123456789abcdef")
+    var out = std::string()
+    var shift : size_t = 44
+    while(true) {
+        const nib = (value >> shift) & 15
+        out.append(HEX.at(nib as uint))
+        if(shift == 0) { break }
+        shift = shift - 4
+    }
+    return out
+}
+
+// --- Legacy raw allocation (kept for existing callers) -------------------//
 // Prefer `SharedAssetsHandle`. These two functions are the raw pointer form:
 // the caller owns the returned pointer and must release it with
 // `shared_assets_free` exactly once.

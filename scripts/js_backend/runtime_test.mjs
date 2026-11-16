@@ -160,6 +160,56 @@ check("pdiff", rt.pdiff(1012, 1000, 4), 3);
   check("printf precision", captured, "pi=3.14 neg=-7\n");
 }
 
+// ── ctype, parsing and string.h over the heap ──────────────────────────────
+{
+  const enc = (s) => new TextEncoder().encode(s);
+  check("isspace ' '", rt.isspace(32), 1);
+  check("isspace 'a'", rt.isspace(97), 0);
+  check("isdigit '7'", rt.isdigit(55), 1);
+  check("isdigit 'x'", rt.isdigit(120), 0);
+  check("toupper", rt.toupper(97), 65);
+  check("tolower", rt.tolower(65), 97);
+  check("ispunct '-'", rt.ispunct(45), 1);
+  check("ispunct 'a'", rt.ispunct(97), 0);
+
+  const p = rt.cstr(enc("  -42xyz"));
+  const endptr = rt.alloc(8, 8);
+  check("strtol value", rt.strtol(p, endptr, 10), -42);
+  check("strtol endptr points at 'x'", rt.ld(endptr, 8, false), p + 5);
+  check("strtol hex base", rt.strtol(rt.cstr(enc("0x1f")), 0, 0), 31);
+  check("strtol base 8", rt.strtol(rt.cstr(enc("0755")), 0, 0), 493);
+  check("atoi", rt.atoi(rt.cstr(enc("123456"))), 123456);
+  check("strtod", rt.strtod(rt.cstr(enc(" -3.5e2rest")), 0), -350);
+  check("atof", rt.atof(rt.cstr(enc("0.25"))), 0.25);
+
+  const a = rt.cstr(enc("hello world"));
+  check("strncmp equal", rt.strncmp(a, rt.cstr(enc("hello")), 5), 0);
+  check("strncmp differs", rt.strncmp(a, rt.cstr(enc("hellp")), 5), -1);
+  check("strchr finds", rt.strchr(a, 119), a + 6);
+  check("strchr missing", rt.strchr(a, 122), 0);
+  const dots = rt.cstr(enc("a.b.c"));
+  check("strrchr finds last", rt.strrchr(dots, 46), dots + 3);
+  check("strstr finds", rt.strstr(a, rt.cstr(enc("world"))), a + 6);
+  check("strstr missing", rt.strstr(a, rt.cstr(enc("nope"))), 0);
+
+  const dst = rt.alloc(32, 1);
+  rt.strcpy(dst, rt.cstr(enc("ab")));
+  rt.strcat(dst, rt.cstr(enc("cd")));
+  check("strcpy+strcat", rt.readCStr(dst), "abcd");
+  const dst2 = rt.alloc(8, 1);
+  rt.strncpy(dst2, rt.cstr(enc("xy")), 4);
+  check("strncpy zero pads", rt.ld(dst2, 1, false) === 120 && rt.ld(dst2 + 2, 1, false) === 0, true);
+
+  const dup = rt.strdup(a);
+  check("strdup copies", rt.readCStr(dup), "hello world");
+  check("strdup is a new block", dup !== a, true);
+
+  check("memcmp equal", rt.memcmp(rt.cstr(enc("abc")), rt.cstr(enc("abc")), 3), 0);
+  check("memcmp differs", rt.memcmp(rt.cstr(enc("abc")), rt.cstr(enc("abd")), 3), -1);
+  check("memchr finds", rt.memchr(a, 111, 11), a + 4);
+  check("memchr missing", rt.memchr(a, 122, 11), 0);
+}
+
 // ── traps name the check that fired ────────────────────────────────────────
 {
   let message = "";

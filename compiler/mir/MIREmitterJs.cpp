@@ -210,10 +210,11 @@ void ModuleEmitter::emit_preamble(std::string& out) {
         out += globals_;
         out += "\n";
     }
-    out += "// --- function addresses (function_addr / indirect calls) ---─────────────\n";
-    out += "const $fa = [];\n";
+    out += "// --- function addresses (function_addr / indirect calls) ---\n";
+    out += "// A function address is a MIR symbol id; this table resolves it.\n";
+    out += "const $fns = [];\n";
     for (SymbolId sym : fa_order_) {
-        out += "$fa[";
+        out += "$fns[";
         append_uint(out, sym);
         out += "] = ";
         out += fa_expr_[sym];
@@ -555,6 +556,20 @@ bool ModuleEmitter::extern_expr(std::string_view name, std::string& out) {
         {"printf", "rt.printf"},    {"malloc", "rt.malloc"},   {"free", "rt.free_"},
         {"realloc", "rt.realloc_"}, {"memcpy", "rt.memcpy"},   {"memmove", "rt.memmove"},
         {"memset", "rt.memset"},    {"strlen", "rt.strlen"},   {"strcmp", "rt.strcmp"},
+        {"strncmp", "rt.strncmp"},  {"strcpy", "rt.strcpy"},   {"strncpy", "rt.strncpy"},
+        {"strcat", "rt.strcat"},    {"strncat", "rt.strncat"}, {"strchr", "rt.strchr"},
+        {"strrchr", "rt.strrchr"},  {"strstr", "rt.strstr"},   {"strdup", "rt.strdup"},
+        {"memcmp", "rt.memcmp"},    {"memchr", "rt.memchr"},
+        {"isspace", "rt.isspace"},  {"isdigit", "rt.isdigit"}, {"isalpha", "rt.isalpha"},
+        {"isalnum", "rt.isalnum"},  {"isxdigit", "rt.isxdigit"},
+        {"isupper", "rt.isupper"},  {"islower", "rt.islower"},
+        {"isprint", "rt.isprint"},  {"isgraph", "rt.isgraph"},
+        {"iscntrl", "rt.iscntrl"},  {"ispunct", "rt.ispunct"},
+        {"toupper", "rt.toupper"},  {"tolower", "rt.tolower"},
+        {"abs", "rt.abs"},          {"labs", "rt.labs"},       {"llabs", "rt.llabs"},
+        {"strtol", "rt.strtol"},    {"strtoll", "rt.strtoll"},
+        {"strtoul", "rt.strtoul"},  {"strtoull", "rt.strtoull"},
+        {"atoi", "rt.atoi"},        {"strtod", "rt.strtod"},   {"atof", "rt.atof"},
         {"abort", "rt.abort"},      {"exit", "rt.exit"},       {"putchar", "rt.putchar"},
     };
     for (const Entry& e : kExterns) {
@@ -613,15 +628,16 @@ bool ModuleEmitter::callee_expr(SymbolId sym, std::string& out) {
 }
 
 bool ModuleEmitter::function_address_expr(SymbolId sym, std::string& out) {
+    // A function address is the MIR symbol id: a number that fits in a pointer
+    // slot, so it survives being stored in a closure's function-pointer field and
+    // read back. `$fns` maps it to the emitted function for indirect calls.
     if (fa_expr_.find(sym) == fa_expr_.end()) {
         std::string callee;
         if (!callee_expr(sym, callee)) return false;
         fa_expr_[sym] = callee;
         fa_order_.push_back(sym);
     }
-    out += "$fa[";
     append_uint(out, sym);
-    out += "]";
     return true;
 }
 
@@ -1391,7 +1407,10 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             const bool sret = maybe_sret != nullptr && maybe_sret->kind() == MIROperandKind::Place;
             std::string name;
             if (!operand_expr(*callee, name)) return fail_at("bad indirect callee");
-            std::string call = "(" + name + ")(";
+            // The callee operand is a function address (a symbol id) read out of
+            // memory; `rt.indirect` resolves it and reports an unresolved address
+            // instead of "undefined is not a function".
+            std::string call = "rt.indirect($fns, " + name + ")(";
             bool first = true;
             if (sret) {
                 call += pname(maybe_sret->id);

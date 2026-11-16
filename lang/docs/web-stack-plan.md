@@ -914,23 +914,39 @@ end (`do_js_job`). The gate is now the differential suite, not a hand-written fi
 ```
 ./scripts/js-backend-test.sh js_backend       # ints, loops, recursion, i8/u32 wrap, div/rem, pointers
 ./scripts/js-backend-test.sh js_backend_std   # std::string SSO+heap, vector<Point>, struct, variant
+./scripts/js-backend-test.sh js_backend_closure # closures, callbacks, owned captures, for-in
+./scripts/js-backend-test.sh js_backend_json  # the json library end to end
+./scripts/js-backend-suites.sh                # all of the above + the runtime's own checks
 ```
 
-Both compile with the native backend and with `--emit-js`, run both, and require **byte-identical
-output**. The std fixture emits **26 of 908** lowered functions (reachability from `main`) into
-~90 KB of JS, and the whole program — `malloc`/`realloc` growth, SSO→heap transition, generic
-`vector<T>` of a struct, variant tag dispatch — behaves exactly like native.
+All compile with the native backend and with `--emit-js`, run both, and require **byte-identical
+output**. Reachability means a bundle carries only what `main` can reach: the std fixture emits
+**26 of 908** lowered functions, JSON **109**.
+
+**Exit criterion met.** `js_backend_json` parses a document with `json::parse`, walks a `JsonValue`
+variant (object/string/number/bool/array), sums an array, and re-encodes with `json::stringify` —
+identical stdout under both backends, including the map's iteration order, which pins the hash
+function too. That is a real library module, not a fixture-shaped subset.
+
+**Closures work through the same gate.** A capturing lambda stored in `std::function` stores the
+capture environment and a function address in a fat pointer; the call passes the environment as the
+first argument (`(fn_address)(env, args…)`). The one change that made this possible is that a
+function address is now a **symbol id (a number)** rather than a function object — a closure stores
+it in a pointer-sized field and reads it back through memory, so it has to survive as a number;
+`rt.indirect($fns, addr)` resolves it and reports an unresolved address instead of "undefined is not
+a function".
 
 What that first version proves and what it does not:
 
 - **Proven:** the value model (places as frame slots released at function exit, aggregates as byte
-  addresses, scalars as `number` with C integer semantics in the runtime), control flow, direct and
-  sret calls, constructors/destructors, `switch`, field/index addressing, `sizeof`/`alignof`/
-  `offsetof` folded from the type table, and C-vs-JS agreement on real std code.
+  addresses, scalars as `number` with C integer semantics in the runtime), control flow, direct, sret
+  and indirect calls, closures with owned captures, constructors/destructors, `switch`,
+  field/index addressing, `sizeof`/`alignof`/`offsetof` folded from the type table, the libc subset
+  std actually uses (`ctype`, `strtol`/`strtod`, `str*`/`mem*`), and C-vs-JS agreement on real std
+  code and on the `json` library.
 - **Not yet:** cross-module ESM splitting (a bundle is one program module today; the split is Phase 3
   with the module split, and per-module files need a symbol→module mapping MIR does not publish),
-  closures/`function_addr` beyond the table, interface dispatch, async, atomics, inline asm, source
-  maps, and minification.
+  interface dispatch (`dynamic_call`), async, atomics, inline asm, source maps, and minification.
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 
@@ -942,6 +958,9 @@ Two design corrections the emitter forced, both now recorded in `js-backend-abi.
 2. **Unsigned 64-bit saturates.** `(size_t)-1` is not representable in a JS number, so
    `x >= (size_t)-1` compared against `-1` and fired std's own "string capacity overflow" guard.
    `u64` now saturates at 2^53 (signed stays exact to ±2^53), which keeps such guards false.
+3. **A function address must be a number.** It is stored in a closure's pointer-sized field and read
+   back through memory, so a JS function object cannot be one; it is the MIR symbol id, resolved by
+   `rt.indirect` at the call.
 
 Then, in order:
 
@@ -953,9 +972,9 @@ Then, in order:
    aggregates as heap bytes, `u64`/`i64` as `number` with the 2^53 bound — **landed** (u64 saturates).
 3. Surface: scalars, control flow, `switch` on variants/ints, functions, recursion, structs,
    fixed arrays, unions, variants, `string`/`string_view`/`&str`, tuples, vectors/maps,
-   `for-in`, closures (`std::function`, capturing lambdas). — **partially landed**: everything listed
-   works *except* closures/`std::function`/`for-in` over custom iterables (needs `function_addr` +
-   indirect calls through the fat pointer, next).
+   `for-in`, closures (`std::function`, capturing lambdas). — **landed** for everything except
+   `for-in` over a *custom* `Iterable`/`Cursor` implementation (std's own iterators work; the shape
+   is the same `CallIndirect` path, so this is untested rather than unimplemented).
 4. Destructors/drop glue emitted as on C (`std::string` frees); borrow checking unchanged; the
    *ownership* decision for GC targets is still owned by proposals 0006/0004. — **landed**.
 5. Interfaces/vtables/`dyn`; async, atomics, inline asm, `DynamicCall`, `Throw` are **diagnostics**

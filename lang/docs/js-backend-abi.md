@@ -270,6 +270,8 @@ check) and swaps the back end in `do_js_job`; each bundle is `<program>.mjs` + `
 |---|---|---|
 | `js_backend` | ints, loops, recursion, `i8`/`u32` wrap, `div`/`rem` sign rules, pointer store/load | 3 files, 25 KB |
 | `js_backend_std` | `std::string` SSO→heap, `vector<Point>` growth, struct fields, variant tag + payload | 3 files, 105 KB (26 of 908 functions reachable) |
+| `js_backend_closure` | capturing lambdas in `std::function`, a closure passed as a parameter, an owned string capture, `for-in` | 3 files, 105 KB |
+| `js_backend_json` | `json::parse` → `JsonValue` variant walk → `json::stringify`, `ordered_map<string, …>` keys | 3 files, 350 KB (109 functions) |
 
 **Shapes emitted**, per MIR construct:
 
@@ -285,8 +287,10 @@ check) and swaps the back end in `do_js_job`; each bundle is `<program>.mjs` + `
 | `init`/`drop`/`destroy` | ctor/dtor calls with the place address; array dtors iterate in reverse |
 | `const.string` | `rt.cstr(new Uint8Array([...]))` at module load |
 | globals | `rt.alloc` + the `MIRConstExpr` tree (int/float/bool/null/string/aggregate/variant/negate/function-ref) |
-| `function_addr` | an index into a per-module `$fa` table |
+| `function_addr` | the symbol id as a number; `$fns[id]` resolves it for indirect calls |
+| `call_indirect` | `rt.indirect($fns, addr)(env, args…)` — a closure's capture environment is the first argument |
 | `__chc_*` helpers | `rt.trap("<helper>", …)`, so a trap names the check that fired |
+| externs | libc subset the stdlib uses: `printf`, `malloc`/`realloc`/`free`, `mem*`, `str*`, `ctype`, `strtol`/`strtod` |
 
 **Two real bugs the gate caught, both now fixed** (they are the reason the gate exists):
 
@@ -295,6 +299,8 @@ check) and swaps the back end in `do_js_job`; each bundle is `<program>.mjs` + `
 2. A plain `load p, ty` reads the place's own storage; only field/index loads dereference a
    pointer-typed place. Getting that wrong read one pointer level too deep, which looked like a
    corrupt pointer rather than a codegen slip.
+3. A function address stored in a closure is read back through memory, so it must be a *number* (the
+   symbol id), not a JS function object — casting a function to `u64` stored `NaN`.
 
 ## 13. What this means for the emitter's shape
 

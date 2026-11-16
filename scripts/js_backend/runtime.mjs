@@ -282,6 +282,213 @@ export function strlen(p) {
   while (HEAP[p + n] !== 0) n++;
   return n;
 }
+
+// ── ctype.h ─────────────────────────────────────────────────────────────────
+// Over the heap's bytes; each returns 1/0 (nonzero means "yes" in C).
+export function isspace(c) { return c === 32 || (c >= 9 && c <= 13) ? 1 : 0; }
+export function isdigit(c) { return c >= 48 && c <= 57 ? 1 : 0; }
+export function isalpha(c) { return ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) ? 1 : 0; }
+export function isalnum(c) { return (isalpha(c) || isdigit(c)) ? 1 : 0; }
+export function isxdigit(c) {
+  return ((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102)) ? 1 : 0;
+}
+export function isupper(c) { return (c >= 65 && c <= 90) ? 1 : 0; }
+export function islower(c) { return (c >= 97 && c <= 122) ? 1 : 0; }
+export function isprint(c) { return (c >= 32 && c < 127) ? 1 : 0; }
+export function isgraph(c) { return (c > 32 && c < 127) ? 1 : 0; }
+export function iscntrl(c) { return (c < 32 || c === 127) ? 1 : 0; }
+export function ispunct(c) { return (isgraph(c) && !isalnum(c)) ? 1 : 0; }
+export function toupper(c) { return (c >= 97 && c <= 122) ? c - 32 : c; }
+export function tolower(c) { return (c >= 65 && c <= 90) ? c + 32 : c; }
+
+export function abs(x) { return x < 0 ? -x : x; }
+export function labs(x) { return x < 0 ? -x : x; }
+export function llabs(x) { return x < 0 ? -x : x; }
+
+// ── number parsing (`<stdlib.h>`) ───────────────────────────────────────────
+function digit_value(c) {
+  if (c >= 48 && c <= 57) return c - 48;
+  if (c >= 97 && c <= 122) return c - 97 + 10;
+  if (c >= 65 && c <= 90) return c - 65 + 10;
+  return 99;
+}
+
+function parse_int_at(p, base) {
+  let i = p;
+  while (isspace(HEAP[i])) i++;
+  let sign = 1;
+  if (HEAP[i] === 45) { sign = -1; i++; } else if (HEAP[i] === 43) i++;
+  let b = base;
+  if (b === 0) {
+    b = 10;
+    if (HEAP[i] === 48) {
+      const n1 = HEAP[i + 1] | 32;
+      if (n1 === 120) { b = 16; i += 2; } else { b = 8; i += 1; }
+    }
+  } else if (b === 16 && HEAP[i] === 48 && (HEAP[i + 1] | 32) === 120) {
+    i += 2;
+  }
+  let value = 0;
+  let any = false;
+  for (;;) {
+    const d = digit_value(HEAP[i]);
+    if (d >= b) break;
+    value = value * b + d;
+    any = true;
+    i++;
+  }
+  if (!any) i = p;
+  return { value: sign < 0 ? -value : value, end: i, any };
+}
+
+export function strtol(p, endptr, base) {
+  const r = parse_int_at(p, base);
+  if (endptr) st(endptr, 8, false, r.any ? r.end : p);
+  return norm(r.value, 64, true);
+}
+export function strtoll(p, endptr, base) { return strtol(p, endptr, base); }
+export function strtoul(p, endptr, base) {
+  const r = parse_int_at(p, base);
+  if (endptr) st(endptr, 8, false, r.any ? r.end : p);
+  return norm(r.value, 64, false);
+}
+export function strtoull(p, endptr, base) { return strtoul(p, endptr, base); }
+export function atoi(p) { return strtol(p, 0, 10) | 0; }
+
+/** The longest `[+-]?digits[.digits][e[+-]digits]` prefix, as a number. */
+export function strtod(p, endptr) {
+  let i = p;
+  while (isspace(HEAP[i])) i++;
+  let start = i;
+  if (HEAP[i] === 45 || HEAP[i] === 43) i++;
+  while (isdigit(HEAP[i])) i++;
+  if (HEAP[i] === 46) {
+    i++;
+    while (isdigit(HEAP[i])) i++;
+  }
+  if (HEAP[i] === 101 || HEAP[i] === 69) {
+    const save = i;
+    i++;
+    if (HEAP[i] === 45 || HEAP[i] === 43) i++;
+    if (isdigit(HEAP[i])) {
+      while (isdigit(HEAP[i])) i++;
+    } else {
+      i = save;
+    }
+  }
+  if (i === start) {
+    if (endptr) st(endptr, 8, false, p);
+    return 0;
+  }
+  let text = "";
+  for (let k = start; k < i; k++) text += String.fromCharCode(HEAP[k]);
+  if (endptr) st(endptr, 8, false, i);
+  const v = Number(text);
+  return Number.isFinite(v) ? v : 0;
+}
+export function atof(p) { return strtod(p, 0); }
+
+// ── string.h` beyond strlen/strcmp ──────────────────────────────────────────
+export function strncmp(a, b, n) {
+  for (let i = 0; i < n; i++) {
+    const x = HEAP[a + i];
+    const y = HEAP[b + i];
+    if (x !== y) return x < y ? -1 : 1;
+    if (x === 0) return 0;
+  }
+  return 0;
+}
+export function strcpy(dst, src) {
+  let i = 0;
+  for (;;) {
+    const c = HEAP[src + i];
+    HEAP[dst + i] = c;
+    if (c === 0) break;
+    i++;
+  }
+  return dst;
+}
+export function strncpy(dst, src, n) {
+  let i = 0;
+  for (; i < n; i++) {
+    const c = HEAP[src + i];
+    HEAP[dst + i] = c;
+    if (c === 0) break;
+  }
+  for (; i < n; i++) HEAP[dst + i] = 0;
+  return dst;
+}
+export function strcat(dst, src) {
+  let i = strlen(dst);
+  let k = 0;
+  for (;;) {
+    const c = HEAP[src + k];
+    HEAP[dst + i + k] = c;
+    if (c === 0) break;
+    k++;
+  }
+  return dst;
+}
+export function strncat(dst, src, n) {
+  let i = strlen(dst);
+  for (let k = 0; k < n; k++) {
+    const c = HEAP[src + k];
+    HEAP[dst + i + k] = c;
+    if (c === 0) return dst;
+  }
+  HEAP[dst + i + Math.min(n, strlen(src))] = 0;
+  return dst;
+}
+export function strchr(p, ch) {
+  const c = ch & 0xff;
+  let i = 0;
+  for (;;) {
+    const x = HEAP[p + i];
+    if (x === c) return p + i;
+    if (x === 0) return 0;
+    i++;
+  }
+}
+export function strrchr(p, ch) {
+  const c = ch & 0xff;
+  let found = 0;
+  let i = 0;
+  for (;;) {
+    const x = HEAP[p + i];
+    if (x === c) found = p + i;
+    if (x === 0) return found;
+    i++;
+  }
+}
+export function strstr(hay, needle) {
+  const nlen = strlen(needle);
+  if (nlen === 0) return hay;
+  let i = 0;
+  for (;;) {
+    if (HEAP[hay + i] === 0) return 0;
+    if (strncmp(hay + i, needle, nlen) === 0) return hay + i;
+    i++;
+  }
+}
+export function strdup(p) {
+  const n = strlen(p);
+  const q = alloc(n + 1, 1);
+  for (let i = 0; i <= n; i++) HEAP[q + i] = HEAP[p + i];
+  return q;
+}
+export function memcmp(a, b, n) {
+  for (let i = 0; i < n; i++) {
+    const x = HEAP[a + i];
+    const y = HEAP[b + i];
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+export function memchr(p, ch, n) {
+  const c = ch & 0xff;
+  for (let i = 0; i < n; i++) if (HEAP[p + i] === c) return p + i;
+  return 0;
+}
 export function strcmp(a, b) {
   let i = 0;
   for (;;) {
@@ -375,6 +582,20 @@ export const rt = {
   ld, st, ldF, stF, load, store, loadF, storeF,
   memcpy, memmove, memset, fill,
   norm, binop, cmp, fbinop, fcmp, unop, cast, padd, psub, pdiff,
-  cstr, readCStr, strlen, strcmp, printf, putchar, abort, exit, trap, HEAP,
+  cstr, readCStr, strlen, strcmp, strncmp, strcpy, strncpy, strcat, strncat,
+  strchr, strrchr, strstr, strdup, memcmp, memchr,
+  isspace, isdigit, isalpha, isalnum, isxdigit, isupper, islower, isprint,
+  isgraph, iscntrl, ispunct, toupper, tolower, abs, labs, llabs,
+  strtol, strtoll, strtoul, strtoull, atoi, strtod, atof,
+  printf, putchar, abort, exit, trap, indirect, HEAP,
 };
+/** Resolve a MIR function address (a symbol id) to the emitted function. */
+export function indirect(table, id) {
+  const fn = table[id];
+  if (typeof fn !== "function") {
+    throw new Error("js runtime: indirect call through an unresolved function address (" + id + ")");
+  }
+  return fn;
+}
+
 export default rt;

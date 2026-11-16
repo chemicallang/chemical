@@ -139,6 +139,10 @@ check "the bridge serves a page as 200 text/html with no-cache" \
       "$(grep -qF 'serve / -> 200 | text/html; charset=utf-8 | no-cache |' "$web" && echo 1 || echo 0)"
 check "the route handler serves the installed site" \
       "$(grep -qF 'handler / -> 200 | text/html; charset=utf-8 | no-cache |' "$web" && echo 1 || echo 0)"
+check "a catch-all router route dispatches into the site" \
+      "$(grep -qF 'router / -> 200 | text/html; charset=utf-8 | no-cache |' "$web" && echo 1 || echo 0)"
+check "the catch-all also reaches the site's own 404" \
+      "$(grep -qE 'router /about/ -> 404 \|' "$web" && echo 1 || echo 0)"
 check "the bridge carries the ETag header" \
       "$(grep -qE 'serve / -> 200 .* \| "[0-9a-f]{12}" \|' "$web" && echo 1 || echo 0)"
 check "the bridge serves the bundle immutably as text/javascript" \

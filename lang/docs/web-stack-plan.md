@@ -1096,10 +1096,12 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `artifact_count()`/`artifact_path()`/`artifact_bytes()` expose the manifest, which is what a
    `web::App` will serve from. Until then the bridge is `webserve` (new,
    `lang/libs/webserve/src/serve.ch`, imports `http` + `page` so neither library depends on the
-   other): `webserve.install(site)` once at startup and `router.add("GET", "/*path",
-   webserve.respond_to_request)` serves the site with `Content-Type`, `Cache-Control`, `ETag` and
-   304 support, copying the body into the response. It is a pure request→response mapping, so it is
-   testable without a socket (the fixture does exactly that).
+   other): `webserve.install(site)` once at startup and a catch-all route
+   (`router.add("GET", "/:path*", ||(req) => webserve.respond_to_request(req))` — the pattern is
+   `/:name*` and the handler must be a lambda) serves the site with `Content-Type`,
+   `Cache-Control`, `ETag` and 304 support, copying the body into the response. It is a pure
+   request→response mapping, so it is testable without a socket: the fixture checks the mapping *and*
+   that `web::Router` dispatches a catch-all into it.
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.

@@ -10,8 +10,14 @@
 //
 //   unsafe { webserve.install(&raw mut site) }
 //   var srv = http::Server.bind(cfg)?
-//   srv.router.add("GET", "/*path", webserve.respond_to_request)
+//   srv.router.add("GET", "/:path*", ||(req) => {
+//       return webserve.respond_to_request(req)
+//   })
 //   srv.serve()
+//
+// Two `web::Router` details that bite: the catch-all pattern is `/:name*` (not
+// `/*name`), and a handler must be a *lambda* - a bare function reference is
+// rejected with `SAFE-SEND-002` ("its capture witness was erased").
 //
 // The site must outlive the server (a process-lifetime build), which is what the
 // `unsafe` on `install` asserts.

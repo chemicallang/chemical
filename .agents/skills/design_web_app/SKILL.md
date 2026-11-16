@@ -471,9 +471,16 @@ if(!site.build()) { /* site.error_message() */ }
 
 unsafe { webserve.install(&raw mut site) }        // the site must outlive the server
 var srv = http::Server.bind(cfg)                  // Result<Server, net::NetError>
-srv.router.add("GET", "/*path", webserve.respond_to_request)
+srv.router.add("GET", "/:path*", ||(req) => {
+    return webserve.respond_to_request(req)
+})
 srv.serve()
 ```
+
+Two `web::Router` details that bite every author once: the catch-all pattern is `/:name*`
+(**not** `/*name`), and the handler must be a **lambda** — a bare function reference
+(`router.add("GET", "/:path*", webserve.respond_to_request)`) is rejected with
+`SAFE-SEND-002: cannot prove this callback is Send + 'static: its capture witness was erased`.
 
 `respond_to_request` maps the `SiteResponse` onto an `http::Response`: status, `Content-Type`,
 `Cache-Control`, `ETag`, `If-None-Match` → 304, and the body. A request before a site is installed is

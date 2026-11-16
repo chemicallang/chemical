@@ -89,6 +89,30 @@ public func main() : int {
     var bundle_res = webserve.serve(site_ptr, &bundle_req)
     report(std::string_view("serve bundle"), &bundle_res)
 
+    // The exact wiring an app writes: a catch-all GET route dispatching into the
+    // installed site. Matched here without a socket - `web::Router` does the
+    // matching, so this covers the pattern + handler, not the TCP layer.
+    var router = web.Router()
+    router.add("GET", "/:path*", ||(req) => {
+        return webserve.respond_to_request(req)
+    })
+    var get_method = std::string()
+    get_method.append_view("GET")
+    var route_path = std::string()
+    route_path.append_view("/")
+    var params = std::vector<std::pair<std::string, std::string>>()
+    var matched = router.match_route(&get_method, &route_path, &mut params)
+    if(matched is Option.Some) {
+        var Some(route) = matched else unsafe { unreachable }
+        var routed = route.handler(request_for("/"))
+        report(std::string_view("router /"), &routed)
+        // The catch-all also reaches the site's own 404 for unknown routes.
+        var unknown = route.handler(request_for("/about/"))
+        report(std::string_view("router /about/"), &unknown)
+    } else {
+        unsafe { printf("router / -> no route matched\n") }
+    }
+
     // A conditional request built from the first response's validator.
     var cached_req = request_for("/")
     var inm_name = std::string_view("If-None-Match")

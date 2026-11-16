@@ -37,3 +37,6 @@ lang/tests/web/fixtures/*/build/
 lang/tests/web/fixtures/*/*.exe
 lang/tests/web/fixtures/*/*.def
 
+lang/tests/web/fixtures/js_abi_spike/native.txt
+lang/tests/web/fixtures/js_abi_spike/js.txt
+

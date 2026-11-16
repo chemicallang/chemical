@@ -1084,6 +1084,12 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `fixtures/static_site_baseline`, `scripts/static-site-test.sh`):
    per-page HTML **109,317 B → 424 B / 409 B**, one bundle of 108,816 B served once and cached by the
    browser, **2 inline `<script>` per page → 0**, CSP clean. Nested routes get `../assets/…`.
+   The build is available **in memory**: `build()` produces the whole artifact set (pages, bundle,
+   per-page chunks) with no filesystem access and `respond(path)` answers from it — `/` and `/about/`
+   resolve to their `index.html` (bare `/about` too), missing paths and traversal attempts get a 404
+   page, have no `Cache-Control` for HTML and `public, max-age=31536000, immutable` for the hashed
+   bundle. `finish()` is `build()` plus writing the same list. `artifact_count()`/`artifact_path()`/
+   `artifact_bytes()` expose the manifest, which is what a `web::App` will serve from.
 6. CSS chunks + `<link>` (CSP-safe), `@layer` ordering, asset manifest, tier ordering and
    `modulepreload` per §3.13.
 7. Closure / duplicate / frozen-chunk / static-vs-shell checks in CI.
@@ -1192,7 +1198,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
 | Size | `scripts/web-probe.sh` regression gate + Phase 5 budgets |
 | Cache | second page of a 2-page app: 0 duplicated runtime/component bytes |
-| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean |
+| Static site | `scripts/static-site-test.sh`: both pages reference the same hashed bundle, nested pages use `../`, 0 inline `<script>`, per-page chunks hashed, probe `--strict` clean; `build()` writes nothing and `respond()` serves 200/404/immutable-cache correctly; `@test`s in the universal plugin suite cover the same contract |
 | Server time | shell ≥ 5× full SSR; static ≥ 50× full SSR (same route, p50) |
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |

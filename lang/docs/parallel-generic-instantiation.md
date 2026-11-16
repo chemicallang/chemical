@@ -624,3 +624,69 @@ The visitor that replaces generic types with concrete types. Holds:
 ### `GenericInstantiatorAPI`
 
 A thin wrapper around `GenericInstantiator` that provides the public API called by `register_generic_args` methods. Created on the stack; manages ownership of the underlying `GenericInstantiator`.
+
+---
+
+# Known issue - instantiation ids collide across modules (OPEN)
+
+## Symptom
+
+A whole-program C build fails on a type conversion that should be impossible:
+
+```
+<string>:54062: error: cannot convert 'struct std_stdstring' to 'unsigned char *const '
+error: couldn't compile the program
+```
+
+The same source built twice can fail once and pass twice: it depends on how the
+parallel symbol-resolution pass interleaves modules. `gcc -fsyntax-only` on the
+generated single translation unit shows the underlying damage even when the build
+succeeds:
+
+```
+Translated.c:246730:8: error: redefinition of 'struct std_stdOption__cgs__36'
+Translated.c:246750:7: error: conflicting types for 'std_stdOption__cgs__36is_some'
+```
+
+## Root cause
+
+`generic_instantiation` on a `MembersContainer` / `FunctionDeclaration` is the
+**index of the instantiation inside its own generic declaration's `instantiations`
+vector** (`GenericStructDecl::instantiate` does `impl->generic_instantiation = itr.first`).
+That vector is per declaration, and every module is parsed into its own AST, so
+each module has its own copy of `std::Option`, `std::vector`, ... and its own
+numbering.
+
+`NameMangler` (`compiler/mangler/NameMangler.cpp`) prints that index as
+`__cgs__<index>`, so the mangled name is only unique *within* a module. Once the
+whole program is emitted into one translation unit (MIR C/LLVM backends), two
+different types can share a name:
+
+```
+std_stdOption__cgs__1   ->   Option<&u8>      (std module, index 1)
+std_stdOption__cgs__1   ->   Option<string>   (page module, index 1)
+```
+
+The first definition wins and the second is silently dropped, so one module's
+code is emitted against the other type's field layout. tcc reports it only when
+some function touches the mismatched field (`Some.value = <std::string>` against
+`uint8_t* const`); otherwise the program miscompiles quietly.
+
+## Why it is intermittent
+
+Which module registers an instantiation at index *n* depends on the order in
+which files finish symbol resolution, so adding or moving unrelated code in a
+module can flip a build from working to broken without touching either type.
+
+## Suggested fix
+
+Make the suffix content-derived instead of positional: hash the mangled generic
+arguments of the instantiation (FNV-1a over the generic declaration identity plus
+its argument list) and print `__cgs__<hex>`. Identical instantiations then share
+a name across modules (so the existing by-name dedupe still merges them) and
+different ones cannot collide. `generic_instantiation` must stay the positional
+index - the instantiator uses it to index `instantiations` and
+`instantiation_statuses` (`GenericInstantiator.cpp`, `waitSignatureFinalized`).
+
+Anything that pattern-matches `__cgs__` (`MIRBorrowCheck.cpp`,
+`TypeVerify.cpp`) matches the prefix, so the suffix can change shape.

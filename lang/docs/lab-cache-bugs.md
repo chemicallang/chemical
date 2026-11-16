@@ -153,3 +153,39 @@ Caveat: this probe is noisier than bugs 1–2 — the same probe has also been s
 failing at link ("`Tcc` couldn't output file") rather than at `redefinition`, and
 compiling cleanly on one run. The collisions depend on the per-process `rand()`
 sequence.
+
+## Bug 4 - a cached module keeps its stale `intrinsics::get_tests` list (OPEN)
+
+### Symptom
+
+Adding `@test` functions to a module compiles and runs, but the new tests do not
+exist: the suite total does not change and `--test-names <new_name>` prints
+nothing (and exits 0). Deleting the build directory makes them appear.
+
+Observed while adding two tests to `lang/tests/compiler_plugins/universal`:
+the cached build ran **426** tests with the *old* ids
+(`static_site_shared_bundle_and_page_chunks 1073741839`,
+`static_site_reports_write_failures 1073741861`), while `--no-cache` ran **428**
+with fresh ids (`1073741865`, `1897`, `1961`, `2051`). The two new bodies were
+present in the generated C either way - only the registry array was old.
+
+### Root cause
+
+`intrinsics::get_tests<TestFunction>()` is a comptime call that reads
+`AnnotationController::get_collection(...)` (see `InterpretGetTests` in
+`ast/utils/GlobalFunctions.cpp`) and bakes the result into the calling module's
+translation as literal struct values. A cached module replays its C text instead
+of being re-lowered, so a module that *depends* on annotated declarations keeps
+the list from the parse that produced its cache entry. The cache key covers the
+module's own source, not the annotation collections of its dependencies.
+
+### Workaround
+
+`--no-cache`, which is what `./scripts/test.sh` passes by default. Any run that
+has to observe annotations after a cached build must pass it.
+
+### Suggested fix
+
+Include the annotation collections of the module's transitive dependencies in the
+cache key, or treat a module whose body reads a collected annotation as
+uncacheable.

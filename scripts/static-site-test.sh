@@ -43,6 +43,25 @@ build_and_run static_site lang/compiled/static_site.exe
 echo "== building the per-page baseline =="
 build_and_run static_site_baseline lang/compiled/static_site_baseline.exe
 
+# The fixture also serves its own build from memory (`respond()`) and prints one
+# `<path> -> <status> | <content-type> | <cache-control> | <bytes>` line per
+# request, so the serving contract is checked against the real HTML/JS bytes.
+"./lang/compiled/static_site.exe" > /tmp/static_site_respond.txt 2>&1
+resp=/tmp/static_site_respond.txt
+status_of() { grep -F "respond $1 ->" "$resp" | head -1 | sed 's/.* -> \([0-9]*\) .*/\1/'; }
+check "the site builds 6 artifacts (2 pages, bundle, CSS, 2 chunks)" \
+      "$([ "$(grep -o 'artifacts=[0-9]*' "$resp" | head -1)" = "artifacts=6" ] && echo 1 || echo 0)"
+check "in memory, / serves a 200 HTML page" \
+      "$([ "$(status_of /)" = "200" ] && grep -qF 'respond / -> 200 | text/html' "$resp" && echo 1 || echo 0)"
+check "in memory, a nested route serves 200 at /about/ and /about" \
+      "$([ "$(status_of /about/)" = "200" ] && [ "$(status_of /about)" = "200" ] && echo 1 || echo 0)"
+check "in memory, an unknown path is a 404" \
+      "$([ "$(status_of /missing)" = "404" ] && echo 1 || echo 0)"
+check "in memory, a traversal attempt is a 404" \
+      "$([ "$(status_of /../secret)" = "404" ] && echo 1 || echo 0)"
+check "in memory, the hashed bundle is served immutably as text/javascript" \
+      "$(grep -qF '| text/javascript; charset=utf-8 | public, max-age=31536000, immutable |' "$resp" && echo 1 || echo 0)"
+
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"
 [ -f "$index" ] || { echo "FAIL: $index was not written" >&2; exit 1; }

@@ -1,4 +1,13 @@
-public #universal Card(props) {
+// Typed props (§3.15a). The Card family enumerates its props instead of spreading
+// `{...props}` onto the DOM, so declaring the surface costs no pass-through: a
+// typo is a compile error, and every optional prop carries the default the body
+// already fell back to, so existing call sites keep compiling unchanged.
+public struct CardProps {
+    // "default" | "sm" — drives the `data-size` attribute the CSS keys on.
+    var size : std::string_view = "default"
+}
+
+public #universal Card(props : CardProps) {
     var card = style {
         position: relative;
         display: flex;
@@ -34,7 +43,14 @@ public #universal Card(props) {
     return <div data-interactive={props.onClick ? "true" : "false"} data-size={size != "default" ? size : null} class={out} onClick={props.onClick}>{props.children}</div>
 }
 
-public #universal CardHeader(props) {
+// The remaining slots take only implicit props (children, class/className,
+// style, key/ref, on*, data-*). Declaring the empty surface is deliberate: it
+// turns `<CardHeader classNam="x">` into a compile error instead of a silently
+// dropped attribute.
+public struct CardSlotProps {
+}
+
+public #universal CardHeader(props : CardSlotProps) {
     var card_header = style {
         display: flex;
         flex-direction: column;
@@ -47,7 +63,12 @@ public #universal CardHeader(props) {
     return <div class={classes + " " + card_header}>{props.children}</div>
 }
 
-public #universal CardTitle(props) {
+public struct CardTitleProps {
+    // heading level: 2, 3 (default) or 4.
+    var level : int = 3
+}
+
+public #universal CardTitle(props : CardTitleProps) {
     var card_title = style {
         font-size: 1.125rem;
         line-height: 1.5rem;
@@ -64,7 +85,7 @@ public #universal CardTitle(props) {
     return <H3 class={classes + " " + card_title}>{props.children}</H3>
 }
 
-public #universal CardDescription(props) {
+public #universal CardDescription(props : CardSlotProps) {
     var card_description = style {
         font-size: 0.875rem;
         line-height: 1.375rem;
@@ -76,7 +97,7 @@ public #universal CardDescription(props) {
     return <p class={classes + " " + card_description}>{props.children}</p>
 }
 
-public #universal CardMeta(props) {
+public #universal CardMeta(props : CardSlotProps) {
     var card_meta = style {
         font-size: 0.75rem;
         line-height: 1.25rem;
@@ -90,7 +111,7 @@ public #universal CardMeta(props) {
 // Shadcn v2 header action slot — place a dropdown/button/icon action in the
 // top-right of a CardHeader. Put it FIRST in the header so it sits on its own
 // row above the title/description (the header stacks vertically).
-public #universal CardAction(props) {
+public #universal CardAction(props : CardSlotProps) {
     var card_action = style {
         display: inline-flex;
         align-items: center;
@@ -105,7 +126,7 @@ public #universal CardAction(props) {
     return <div class={classes + " " + card_action}>{props.children}</div>
 }
 
-public #universal CardContent(props) {
+public #universal CardContent(props : CardSlotProps) {
     var card_content = style {
         padding: 0 1.25rem;
     }
@@ -114,7 +135,7 @@ public #universal CardContent(props) {
     return <div class={classes + " " + card_content}>{props.children}</div>
 }
 
-public #universal CardBody(props) {
+public #universal CardBody(props : CardSlotProps) {
     var card_body = style {
         display: flex;
         flex-direction: column;
@@ -126,7 +147,7 @@ public #universal CardBody(props) {
     return <div class={classes + " " + card_body}>{props.children}</div>
 }
 
-public #universal CardFooter(props) {
+public #universal CardFooter(props : CardSlotProps) {
     var card_footer = style {
         display: flex;
         align-items: center;

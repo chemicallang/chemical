@@ -85,6 +85,10 @@ struct JsConverter {
     var state_inits : std::vector<JsStateInit>
     var target : BufferType = BufferType.JavaScript
     var current_func : *mut FunctionDeclaration = null
+    // Chemical location of the JSX element being converted. JS AST nodes carry no
+    // source location, so a diagnostic about an expression in render position is
+    // reported at its enclosing element instead of at 1:1.
+    var current_element_loc : ubigint = 0
     var component_props_name : std::string_view
     var in_jsx_attribute : bool = false
     var skip_reactive_deref : bool = false

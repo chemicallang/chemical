@@ -8,7 +8,15 @@
 // height from the parent (set `style="height:..."` or wrap in a flex/stack
 // with a set height).
 
-public #universal Separator(props) {
+// Typed props (§3.15a): the component enumerates its surface instead of spreading
+// `{...props}`, so a typo is a compile error. The default is the fallback the body
+// already used, so existing call sites compile unchanged.
+public struct SeparatorProps {
+    // "horizontal" | "vertical"
+    var orientation : std::string_view = "horizontal"
+}
+
+public #universal Separator(props : SeparatorProps) {
     var separator = style {
         flex-shrink: 0;
         background: hsl(var(--border));

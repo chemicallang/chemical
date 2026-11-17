@@ -566,6 +566,9 @@ func (converter : &mut JsConverter) emit_jsx_children_js(children : &std::vector
 
 func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElement) {
         unsafe {
+        // Remember where we are so expression diagnostics can point at this element
+        // (JS nodes have no locations of their own).
+        converter.current_element_loc = element.loc
         const tagNameNode = element.opening.tagName as *mut JsNode
         var isComponent = false
         var tagName = std::string_view()

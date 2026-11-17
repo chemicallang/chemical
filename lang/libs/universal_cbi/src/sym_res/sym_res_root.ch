@@ -6,6 +6,8 @@ func is_implicit_jsx_prop_name(name : &std::string_view) : bool {
     if(name.equals(std::string_view("key"))) return true
     if(name.equals(std::string_view("ref"))) return true
     if(name.equals(std::string_view("style"))) return true
+    // `data-*` is the DOM's own pass-through namespace, never a prop typo.
+    if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
     return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n'
 }
 

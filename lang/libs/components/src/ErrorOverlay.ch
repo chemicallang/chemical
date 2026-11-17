@@ -17,7 +17,14 @@
 // helpers) because `#css` needs a server-only `page` pointer that is absent
 // during client hydration.
 
-public #universal ErrorOverlay(props) {
+// Typed props (§3.15a). Defaults are the fallbacks the body already used.
+public struct ErrorOverlayProps {
+    var title : std::string_view = "Application Error"
+    // how many errors the overlay keeps before dropping the oldest.
+    var max : int = 10
+}
+
+public #universal ErrorOverlay(props : ErrorOverlayProps) {
     var title = props.title || "Application Error"
     var max = props.max || 10
     state errors = []

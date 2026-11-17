@@ -1,4 +1,18 @@
-public #universal Avatar(props) {
+// Typed props (§3.15a). Avatar enumerates its surface rather than spreading
+// `{...props}` onto the DOM, so declaring it costs no pass-through. The `src` and
+// `fallback` branches keep JS truthiness: the injected default is "", which is
+// falsy on both sides, and a `string_view` method call (`.size() > 0`) renders an
+// *empty* expression in universal JSX — see the prop-expression gap in §3.15a.
+public struct AvatarProps {
+    var src : std::string_view = ""
+    var alt : std::string_view = ""
+    var fallback : std::string_view = ""
+    // "xs" | "sm" | "md" (default) | "lg" | "xl"
+    var size : std::string_view = "md"
+    var bordered : bool = false
+}
+
+public #universal Avatar(props : AvatarProps) {
     var avatar = style {
         position: relative;
         display: inline-flex;
@@ -56,7 +70,12 @@ public #universal Avatar(props) {
     </span>
 }
 
-public #universal AvatarMore(props) {
+public struct AvatarMoreProps {
+    // rendered inside the chip: typically "+3".
+    var count : std::string_view = "+"
+}
+
+public #universal AvatarMore(props : AvatarMoreProps) {
     var avatar_count = style {
         display: inline-flex;
         align-items: center;
@@ -77,7 +96,11 @@ public #universal AvatarMore(props) {
 }
 
 // Shadcn AvatarBadge: online/status indicator positioned bottom-right of avatar
-public #universal AvatarBadge(props) {
+public struct AvatarBadgeProps {
+    var label : std::string_view = "status"
+}
+
+public #universal AvatarBadge(props : AvatarBadgeProps) {
     var avatar_badge = style {
         position: absolute;
         bottom: 0;
@@ -93,7 +116,12 @@ public #universal AvatarBadge(props) {
 }
 
 // Shadcn AvatarGroup: overlapping avatar group container
-public #universal AvatarGroup(props) {
+public struct AvatarGroupProps {
+    // 0 (default) renders every child; a positive value caps the visible count.
+    var max : int = 0
+}
+
+public #universal AvatarGroup(props : AvatarGroupProps) {
     var avatar_group = style {
         display: inline-flex;
         align-items: center;
@@ -108,7 +136,10 @@ public #universal AvatarGroup(props) {
 }
 
 // Shadcn AvatarGroupCount: shows +N overflow count
-public #universal AvatarGroupCount(props) {
+public struct AvatarGroupCountProps {
+}
+
+public #universal AvatarGroupCount(props : AvatarGroupCountProps) {
     var avatar_count = style {
         display: inline-flex;
         align-items: center;

@@ -661,6 +661,11 @@ Still to land for typed props (Phase 2 remainder):
   Both default-rejection diagnostics are gone. Covered by
   `universal_typed_props_defaults_reach_ssr_and_payload` (renders the default server-side **and**
   asserts it in the client payload, for both paths).
+  **The call site always wins:** the `#html` injection checks for an existing attribute *before*
+  falling back to the default (the first version injected unconditionally, which duplicated an
+  explicitly passed prop and let the default win — caught by
+  `components_separator_orientation`, where `<Separator orientation="vertical" />` rendered
+  `horizontal`).
 - **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON.
   *Measured (2026-11-17): the single-quote/backslash case is already correct on both paths — a
   literal prop `text="it's a \\ backslash"` and a runtime `string_view` prop both emit valid JS
@@ -1051,7 +1056,77 @@ of the breaking changes in §3.17.
    proves declared props and implicit props render. Remaining: the generated serializer for
    **struct/vector props** (no client representation yet), and value-type checking for raw JS
    literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
-   **The 196-component rollout is now unblocked.**
+   **The 196-component rollout is now unblocked and started (2026-11-17).**
+   `lang/libs/components/src/Card.ch` is typed end to end: `CardProps { size = "default" }`,
+   `CardTitleProps { level = 3 }`, and `CardSlotProps {}` (an **empty** props struct) for the
+   header/description/meta/action/content/body/footer slots, so `<CardHeader classNam="x">` is a
+   compile error instead of a silently dropped attribute. Every optional prop's default is the
+   fallback its body already had, so existing call sites compile unchanged — verified by building
+   `lang/compiled/components-e2e/app` (the heaviest consumer: `data-testid`, `onClick`, `size`) and
+   the plugins suite.
+
+   Typed in the second batch: `Avatar` (`src`, `alt`, `fallback`, `size`, `bordered`), `AvatarMore`
+   (`count`), `AvatarBadge` (`label`), `AvatarGroup` (`max`), `AvatarGroupCount` (empty). `AvatarSm`
+   and `AvatarLg` stay untyped on purpose — they are thin wrappers that spread `{...props}` **into
+   another component** (not onto the DOM), which is the forwarding case the JSX prop validation
+   already allows without a declared surface.
+
+   Also typed in this batch: `SeparatorProps { orientation = "horizontal" }` and
+   `ErrorOverlayProps { title = "Application Error", max = 10 }` — both zero-spread, defaults equal to
+   the body's existing fallbacks. **Slider and Suspense are deliberately not typed:** Slider's
+   controlled/uncontrolled split is `props.value != null`, so a declared default would make every
+   slider controlled (it needs an `Option<int>`-shaped prop, or the body rewritten around a sentinel),
+   and Suspense takes a JSX element in `fallback`, which has no Chemical value type to declare.
+
+   Two rollout rules learned from the first batch:
+   - **`data-*` is implicit.** Both plugins' implicit-prop checks now accept it, like `on*`. Without
+     that, typing any component breaks the universal fixtures, which tag elements with
+     `data-testid` for querying. `aria-*` is *not* implicit yet — add it deliberately, per component,
+     or extend the rule when a component needs it.
+   - **A component that spreads `{...props}` onto a DOM node cannot simply be typed.** Declaring its
+     surface turns every undeclared attribute into a compile error, and the spread exists precisely
+     to forward arbitrary attributes (`role`, `aria-*`, `href`-as-button, vendor attrs). Those
+     components (Button, Badge, Alert, Avatar, Input, Sheet, Typography, Data, Surface, Utilities,
+     Toast, Toggle, Collapsible, ToggleGroup, RadioGroup, Select) need their **spread removed first**.
+
+   **Prop-expression hazard, now reported (warn-then-escalate).** A method call on a prop inside a
+   universal JSX expression renders **nothing** for the whole expression, silently:
+   `{props.src.size() > 0 ? <img …/> : …}` produced an empty child, while `{props.src ? … : …}` and
+   `{props.s != "" ? … : …}` both evaluate correctly (a plain `{props.s}` renders fine, and numbers
+   render fine). So truthiness and `!= ""` are the idioms that work today. Avatar keeps truthiness,
+   and its injected `""` default is falsy on both sides, so SSR and hydration agree.
+
+   The converter now **reports every fall-through** in `convert_jsx_ssr_expression`
+   (`report_unrenderable_ssr_expression`): an unhandled call, or a ternary whose condition the SSR
+   evaluator has no form for. JS AST nodes carry no location, so the converter tracks the enclosing
+   element's Chemical location (`JsConverter.current_element_loc`) and reports there — e.g.
+   `return_guard.ch:55:13`, not `1:1`.
+
+   It is a **warning, not an error, on purpose**, and three real sites prove why an error would be
+   wrong today: `return_guard.ch` (calls local lambdas in render to assert the emitted JS),
+   `to_string.ch` (a `typeof` ternary, JS-emission test) and our own `ErrorOverlay` (a client-only
+   dev overlay: `open=false`, `errors=[]` at SSR, so an empty render is *intended*). Escalation
+   plan: re-baseline the two JS-emission fixtures so they assert the same JS without un-emittable
+   render-position expressions, mark genuinely client-only components (an explicit "no SSR" surface),
+   then turn this into an error.
+
+   **Spread-surface policy (decided 2026-11-17).** A typed props surface is only allowed where the
+   component **enumerates** its attributes; a component that forwards unknown attributes stays
+   untyped. There is deliberately no "open surface" escape hatch: the CBI exposes no struct
+   annotation binding, so marking a props struct `@props_open` would need new compiler↔plugin
+   plumbing, and a surface that accepts any name cannot type-check names anyway (all it would add is
+   value-checking for the declared subset). So the recipe for each remaining component is a body
+   change, not a plugin feature:
+   1. declare the props the body actually *reads* (with the body's existing fallback as the default);
+   2. replace `{...props}` with explicit forwarding of the implicit kinds the component needs
+      (`class`/`className`, `style`, `on*`, `data-*`);
+   3. add `aria-*` to the implicit-prop rule if the component genuinely forwards it, since `aria-*`
+      is not implicit today;
+   4. prove it with that component's SSR assertions in
+      `lang/tests/compiler_plugins/components` (and the universal WebView fixtures for interaction).
+   Components whose spread is load-bearing for an open API (a `Card`-like surface is fine; a
+   `Button` used as a link with arbitrary `role`/`aria` is not) should keep the spread and stay
+   untyped rather than silently narrowing their public surface.
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

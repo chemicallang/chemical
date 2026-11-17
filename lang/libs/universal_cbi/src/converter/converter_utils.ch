@@ -1610,6 +1610,27 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
         }
     }
 
+// An expression in render position that the SSR switch has no form for renders
+// **nothing**, while the client renders the value — a hydration mismatch caused by
+// silently missing markup. That is the failure class typed props exist to
+// eliminate, so every fall-through reports instead of dropping the expression.
+func (converter : &mut JsConverter) report_unrenderable_ssr_expression(what : std::string_view) {
+        unsafe {
+        if(converter.diagnoser == null) return
+        if(converter.current_func == null) return
+        var msg = std::string("this expression cannot be rendered server-side: ")
+        msg.append_view(&what)
+        msg.append_view(" renders nothing at SSR, so the browser would show a value the server never emitted. Compute it into a local variable first (e.g. `var n = props.text.size()` then `{n}`), or move it into an event handler")
+        // A warning today, not an error: two JS-emission fixtures
+        // (`return_guard.ch` calling local lambdas in render, `to_string.ch`'s
+        // `typeof` ternary) deliberately put un-emittable expressions in render
+        // position and assert only the emitted JS. They must be re-baselined before
+        // this can be escalated to a compile error — see §3.15a.
+        const loc : ubigint = if(converter.current_element_loc != 0) converter.current_element_loc else converter.current_func.getEncodedLocation()
+        converter.diagnoser.warning(&msg.to_view(), loc)
+        }
+}
+
 func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNode) {
         unsafe {
         if(node == null) return;
@@ -1683,6 +1704,10 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             JsNodeKind.Ternary => {
                 var tern = node as *mut JsTernary;
                 const condVal = converter.convert_js_expr_to_ssr_bool_value(tern.condition);
+                if(condVal == null) {
+                    converter.report_unrenderable_ssr_expression(std::string_view("the condition of this `{cond ? a : b}` has no SSR form (state, props, literals, comparisons and `&&`/`||` do)"))
+                    return
+                }
                 if(condVal != null) {
                     const builder = converter.builder;
                     const location = intrinsics::get_raw_location();
@@ -1855,6 +1880,14 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                         converter.emit_ssr_map_children(call);
                         return;
                     }
+                }
+                // Any other call in render position has no SSR form: this switch would
+                // fall through and render **nothing**, and the client would then render
+                // the value — a hydration mismatch caused by silently missing markup.
+                // That is the exact failure class typed props exist to eliminate, so
+                // report it instead of dropping the expression (§3.15a).
+                if(converter.diagnoser != null && converter.current_func != null) {
+                    converter.report_unrenderable_ssr_expression(std::string_view("a call other than `.map()` or `createPortal()` has no SSR form (e.g. `{props.text.size()}` yielded empty markup while the browser would show a number)"))
                 }
             }
             JsNodeKind.Identifier => {

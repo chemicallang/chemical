@@ -252,6 +252,9 @@ func is_implicit_prop_name(name : std::string_view) : bool {
     if(name.equals(std::string_view("key"))) return true
     if(name.equals(std::string_view("ref"))) return true
     if(name.equals(std::string_view("style"))) return true
+    // `data-*` is the DOM's own pass-through namespace (it is how the universal
+    // fixtures tag elements for querying), so it is never a prop typo.
+    if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
     return is_event_attribute_name(name)
 }
 
@@ -334,6 +337,13 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
         // the JSX path handles spreads separately.)
         for(var j : uint = 0; j < memberCount; j++) {
             const member : *mut BaseDefMember = members.get(j)
+            // The call site wins: an attribute that is already there is never
+            // overwritten or duplicated by a default.
+            var present : bool = false
+            for(var i : uint = 0; i < element.attributes.size(); i++) {
+                if(element.attributes.at(i).name.equals(&member.getName())) { present = true; break }
+            }
+            if(present) continue
             // A field with a default may be omitted at the call site. The value is
             // injected as a real attribute, so the SSR prop pass and the client
             // props payload both carry it — injecting into one alone would make
@@ -351,11 +361,6 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
                 element.attributes.push(injected)
                 continue
             }
-            var present : bool = false
-            for(var i : uint = 0; i < element.attributes.size(); i++) {
-                if(element.attributes.at(i).name.equals(&member.getName())) { present = true; break }
-            }
-            if(present) continue
             var msg = std::string("missing required prop '")
             msg.append_view(&member.getName())
             msg.append_view("' for component '")

@@ -13,6 +13,7 @@
 // interpreter does — see MIRInterpreter's per-opcode `f.values[rp] = ...`.
 
 #include "MIREmitterJs.h"
+#include "MIRTargetSupport.h"
 #include "MIREmitter.h" // append_uint
 
 #include <algorithm>
@@ -1633,25 +1634,13 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             return true;
         }
 
-        // ── diagnosed, not emitted ──────────────────────────────────────────
-        case MIROpcode::DynamicCall:
-            return fail_at("interface dispatch (dynamic_call) is not supported by the JS backend yet");
-        case MIROpcode::Throw:
-            return fail_at("exceptions are not supported by the JS backend");
-        case MIROpcode::InlineAsm:
-            return fail_at("inline assembly is not supported by the JS backend");
-        case MIROpcode::AtomicLoad:
-        case MIROpcode::AtomicStore:
-        case MIROpcode::AtomicCmpXchg:
-        case MIROpcode::AtomicRMW:
-        case MIROpcode::AtomicFence:
-            return fail_at("atomics are not supported by the JS backend");
-        case MIROpcode::AsyncAwait:
-        case MIROpcode::AsyncFinish:
-        case MIROpcode::AsyncRampFinish:
-        case MIROpcode::AsyncFrameAlloc:
-            return fail_at("coroutines (async) are not supported by the JS backend");
         default:
+            // One answer for "is this expressible for JS?" lives in
+            // MIRTargetSupport, so `--check`, the emitter and (later) the LSP agree
+            // instead of each carrying its own list of gaps.
+            if (const char* reason = mir_unsupported_reason(MIRTargetKind::JS, ins.opcode())) {
+                return fail_at(reason);
+            }
             return fail_at(std::string("opcode '") + opcode_name(ins.opcode()) +
                            "' is not supported by the JS backend");
     }

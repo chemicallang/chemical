@@ -701,6 +701,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRLowerComptime.cpp
         compiler/mir/MIREmitter.cpp
         compiler/mir/MIREmitterJs.cpp
+        compiler/mir/MIRTargetSupport.cpp
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRDeclEmitter.cpp
         compiler/mir/MIRVtable.cpp
@@ -963,6 +964,7 @@ add_executable(MIRTests
         compiler/mir/MIRRegionSignature.cpp
         compiler/mir/MIREmitter.cpp
         compiler/mir/MIREmitterJs.cpp
+        compiler/mir/MIRTargetSupport.cpp
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRFacts.cpp
         compiler/mir/MIRInterpreter.cpp

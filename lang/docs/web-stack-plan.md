@@ -1014,27 +1014,39 @@ Then, in order:
    aggregates as heap bytes, `u64`/`i64` as `number` with the 2^53 bound — **landed** (u64 saturates).
 3. Surface: scalars, control flow, `switch` on variants/ints, functions, recursion, structs,
    fixed arrays, unions, variants, `string`/`string_view`/`&str`, tuples, vectors/maps,
-   `for-in`, closures (`std::function`, capturing lambdas). — **landed** for everything except
-   `for-in` over a *custom* `Iterable`/`Cursor` implementation (std's own iterators work; the shape
-   is the same `CallIndirect` path, so this is untested rather than unimplemented).
+   `for-in`, closures (`std::function`, capturing lambdas). — **landed, including `for-in` over a
+   custom `Iterable`/`Cursor`**: `lang/tests/web/fixtures/js_backend_iter` implements both `Iterable`
+   and `ReversibleIterable` over a user struct with a pointer cursor and runs forward and `reversed`
+   loops; native and JS output agree byte-for-byte, which pins the interface calls (`begin`/`valid`/
+   `current`/`next`, `rbegin`/`previous`/`count`) dispatched by function address on the JS side.
+   That fixture also documents a real trap: `valid` must bound **both** ends, because a `reversed`
+   cursor walks below the first element (an upper-bound-only predicate loops forever, which is
+   exactly how the fixture first hung).
 4. Destructors/drop glue emitted as on C (`std::string` frees); borrow checking unchanged; the
    *ownership* decision for GC targets is still owned by proposals 0006/0004. — **landed**.
 5. Interfaces/vtables/`dyn`; async, atomics, inline asm, `DynamicCall`, `Throw` are **diagnostics**
-   through `MIRTargetSupport`, reporting the callee/type and the Chemical source location. — **partially
-   landed**: the emitter rejects all of these with the function name, the opcode and the *source
-   position*, reports **every** offending site in one build, and `--check --emit-js` runs the same
-   rules without writing anything (so a CI job can ask "does this compile to JavaScript?").
+   through `MIRTargetSupport`, reporting the callee/type and the Chemical source location. — **landed**:
+   the emitter rejects all of these with the function name, the opcode and the *source position*,
+   reports **every** offending site in one build, and `--check --emit-js` runs the same rules without
+   writing anything (so a CI job can ask "does this compile to JavaScript?").
    `scripts/js-backend-diagnostics.sh` is the gate, including the native-symbol case: a call to an
    `@extern` C function is reported as *"native symbol 'getenv' has no JavaScript equivalent
    (declared @extern); a client or shared module must not depend on it"*, not as a module problem.
-   The shared `MIRTargetSupport` table is still not written, so the LSP cannot report these before
-   emission.
+   **The shared table now exists**: `compiler/mir/MIRTargetSupport.{h,cpp}` holds
+   `MIRTargetKind { C, LLVM, JS }`, a `MIRTargetRule` array of (target, opcode, reason) gaps, and
+   `mir_unsupported_reason(target, opcode)`. The emitter no longer carries its own list — its
+   fall-through asks the table — so the emitter, `--check` and any future pre-emission check cannot
+   disagree. The rules are data (reason strings are the user-facing diagnostics) and are unit-testable
+   without standing up an emitter. Remaining: wiring it into the LSP, which does not lower to MIR yet.
 6. ESM emission: one module per Chemical module; shared mangling. — **deferred to Phase 3**: a bundle
    is one program module plus `index.mjs` and `runtime.mjs` today.
 7. Test harness: differential **C-vs-JS conformance** (same program, identical stdout) + a
    Node runner path (the current runner spawns child processes over Win32 pipes and prints
    via `printf`). — **differential harness landed** (`scripts/js-backend-test.sh`,
-   `scripts/js_backend/run.mjs`); the test-runner path comes with the suites.
+   `scripts/js_backend/run.mjs`; five fixtures: `js_backend`, `_std`, `_closure`, `_iter`,
+   `_json`) plus the runtime's own checks and the diagnostics gate in
+   `scripts/js-backend-suites.sh`. **Remaining for Phase 1: the test-runner path** — making a core
+   suite subset run under Node with the same pass/fail reporting as the native runner.
 
 **Exit:** a real module (JSON/regex/pure logic) runs identically under `--tcc` and `--js`;
 core suite subset passes in Node; `--plugins` and all other suites unchanged; compile

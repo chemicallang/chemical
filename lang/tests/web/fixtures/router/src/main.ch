@@ -7,11 +7,11 @@
 // the route's wrapper marked active, and `<meta name="robots" content="noindex">`
 // on a page marked route-missing.
 //
-// The `router` library is deliberately not imported: its `RouterLink`/`NavLink`
-// read `window.$__uni_link_active` during render, which the hydration-safety
-// analysis rejects (SSR cannot reproduce it). That is a real defect in the
-// library, tracked separately; importing it would make this fixture a negative
-// test for the wrong thing.
+// The page also renders a `<NavLink>`, so importing the whole `router` library is
+// part of the gate: `RouterLink`/`NavLink` used to read `window` during render,
+// which the hydration-safety analysis rejects, and that made the library
+// unimportable. Their URL active state is now applied in an effect, so SSR
+// renders the link without `aria-current` and hydration adds it — no mismatch.
 
 #universal RouterApp(props) {
     router "main" {
@@ -29,7 +29,10 @@
 
 func render_home(page : &mut HtmlPage) {
     page.appendTitle("Fixture")
-    #html { <RouterApp /> }
+    #html {
+        <nav class="nav"><NavLink href="/about">About</NavLink></nav>
+        <RouterApp />
+    }
 }
 
 func render_about(page : &mut HtmlPage) {

@@ -15,14 +15,24 @@
  * Active state reads the router signals (§5.4): a URL route subscribes to `$url`
  * (param-aware), an id route to `$current`. Reading the signal — not
  * `r.currentRoute` — is what makes the link re-render on navigation.
+ *
+ * URL active state comes from `$__uni_link_active`, a browser-only runtime
+ * helper, so it is applied in an effect (§3.15b): reading `window` during render
+ * cannot be reproduced by SSR, and the hydration-safety analysis rejects it. The
+ * first client render therefore matches the server (`aria-current` absent), then
+ * the effect sets it — the post-mount pattern for client-only values.
  */
 public #universal RouterLink(props) {
     const r = router(props.router || "main-router")
     const cur = r.$url.value
     const target = r.normPath(props.href)
+    state urlActive = false
+    useEffect(() => {
+        urlActive = window.$__uni_link_active(cur, target, props.end)
+    }, [cur, target, props.end])
     const active = props.routeId
         ? r.$current.value == props.routeId
-        : window.$__uni_link_active(cur, target, props.end)
+        : urlActive
     return <a {...props}
         router={null}
         routeId={null}

@@ -654,9 +654,28 @@ Still to land for typed props (Phase 2 remainder):
   payload, and applying it in only one makes SSR and hydration disagree. The CBI now exposes
   `BaseDefMember.getDefaultValue()` so the generated serializer can own defaults as one change.
   Until then every declared prop is required.
+  **Implementation plan (mapped 2026-11-17, not started).** The JSX path already funnels both
+  emitters through one list — `resolve_attributes()` → `ResolvedAttr`, consumed by
+  `build_ssr_attributes` (SSR) and `emit_js_props_from_resolved` (client)
+  (`universal_cbi/src/converter/converter_jsx.ch`). So: add `defaultValue : *mut Value` to
+  `ResolvedAttr`, append one entry per declared field that has a default and no attribute, and emit
+  it in both consumers (quote when the field type is a string) — one change, both sides agree by
+  construction. The `#html` path is separate (`html_cbi/src/converter/language/component.ch`):
+  inject the missing attribute into `element.attributes` there, which needs a `Value` the element
+  can own — `getDefaultValue()` returns the member's own node and no value-clone binding exists, so
+  either add one or synthesize a literal value of the field type. Also delete the two
+  "has a default value; v1 requires…" diagnostics (`html_cbi/.../component.ch` and
+  `universal_cbi/src/sym_res/sym_res_root.ch`) in the same change, and cover both paths in
+  `lang/tests/web/fixtures/typed_props` (an omitted defaulted prop must render server-side **and**
+  appear in the client payload).
 - **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON, which
   removes the documented escaping footguns (single quotes/backslashes, struct/vector props)
-  by construction.
+  by construction. *Measured (2026-11-17): the single-quote/backslash case is already correct on both
+  paths — a literal prop `text="it's a \\ backslash"` and a runtime `string_view` prop both emit
+  valid JS (`{"text":"it's a \\ backslash"}` / `{"text":'it\'s a \\ backslash'}`, `node --check`
+  clean). What remains real is **defaults** (still rejected, above) and **struct/vector props**
+  (which have no client representation yet), so the serializer is justified by those, not by the
+  escaping case.*
 
 **(b) Hydration-safety analysis (landed).** SSR and the client must agree, so render bodies may not
 read nondeterministic or browser-only state. The pass (`universal_cbi/sym_res/hydration_safety.ch`)
@@ -893,12 +912,12 @@ parallel with Phase 1; everything else is ordered.
       reproduce), plus `lang/tests/web/golden/<fixture>` snapshots for all four,
       checked by `scripts/web-golden-test.sh` (22 checks; the ~100 KB shared
       runtime bundle is excluded from the goldens — its hash still appears in every
-      page). *The router fixture selects routes by id: importing the `router`
-      library currently fails symres because `RouterLink`/`NavLink` read
-      `window.$__uni_link_active` during render, which the hydration-safety
-      analysis rejects. URL deep-link selection stays covered by
-      `lang/tests/libs/router/src/url.ch`; the library defect is a Phase 2/3
-      blocker, not a fixture gap.*
+      page). The router fixture selects routes by id — URL deep-link selection
+      stays covered by `lang/tests/libs/router/src/url.ch` — and it also renders a
+      `<NavLink>`, so `import router` is part of the gate. *That import was
+      broken when the hydration-safety analysis landed (see item 4); the links now
+      apply their URL active state in an effect, and the golden pins the
+      consequence: SSR has the `href` and no `aria-current`.*
 - [~] Router cheap wins: `noindex` on missing/fallback routes **landed**
       (`emit_route_noindex`), the static-export route manifest is kept; typed `Head`
       is **not** done, and the link-active render read above must be fixed first.
@@ -1043,7 +1062,13 @@ of the breaking changes in §3.17.
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a
    clock read, a browser-state read, and the handler case (must compile). It flagged two of our own
-   fixtures, both genuine — they were migrated, not exempted. Remaining refinement: state
+   fixtures, both genuine — they were migrated, not exempted. It also flagged the **router
+   library's own** `RouterLink`/`NavLink`, which read `window.$__uni_link_active` during render and
+   made `import router` fail symres for every app: SSR cannot reproduce that call, so the links now
+   compute URL active state in an effect against the `$url` signal (`urlActive` state + `useEffect`
+   deps `[cur, target, end]`). SSR emits the `href` without `aria-current`, the first client render
+   matches it, and the effect applies the active state — no mismatch, and no exemption added to the
+   analysis. Remaining refinement: state
    initializers expressed as lambdas are currently exempt (a documented false negative).
 
 **Exit:** page 2 of a two-page app ships no runtime and no shared component bytes; the closure check

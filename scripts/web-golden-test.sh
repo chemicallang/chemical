@@ -106,7 +106,7 @@ compare_golden() {
     if [ "$update" = 1 ]; then
         rm -rf "$golden"
         mkdir -p "$golden"
-        ( cd "$dir/output" && tar -cf - --exclude='app.*.js' . ) | ( cd "$golden" && tar -xf - )
+        ( cd "$dir/output" && tar -cf - --exclude='app.*.js' --exclude='*/app.*.js' . ) | ( cd "$golden" && tar -xf - )
         echo "updated $golden"
         return
     fi
@@ -160,6 +160,12 @@ if build_fixture router; then
           "$([ "$(has "$d/about/index.html" 'data-uni-route="main#about" data-uni-route-active="true"')" = 1 ] && [ "$(has "$d/about/index.html" 'data-uni-route="main#home" data-uni-route-active="false"')" = 1 ] && echo 1 || echo 0)"
     check "router: a route-missing page emits robots noindex" \
           "$([ "$(has "$d/missing/index.html" '<meta name="robots" content="noindex">')" = 1 ] && [ "$(hasnt "$d/home/index.html" 'noindex')" = 1 ] && echo 1 || echo 0)"
+    # `import router` must stay possible: the library's links read
+    # `window.$__uni_link_active`, which the hydration-safety pass rejects in
+    # render position. Their active state is post-mount, so SSR has the href and
+    # no `aria-current` — that is the contract this golden pins.
+    check "router: <NavLink> SSRs its href without a render-time aria-current" \
+          "$([ "$(has "$d/home/index.html" 'href="/about"')" = 1 ] && [ "$(hasnt "$d/home/index.html" 'aria-current')" = 1 ] && echo 1 || echo 0)"
     home_ref=$(grep -o 'src="[^"]*app\.[0-9a-f]*\.js"' "$d/home/index.html" | head -1 | sed 's/src="//;s/"$//')
     miss_ref=$(grep -o 'src="[^"]*app\.[0-9a-f]*\.js"' "$d/missing/index.html" | head -1 | sed 's/src="//;s/"$//')
     check "router: every page shares one hashed bundle ($home_ref)" \

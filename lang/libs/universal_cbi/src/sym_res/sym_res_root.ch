@@ -6,8 +6,27 @@ func is_implicit_jsx_prop_name(name : &std::string_view) : bool {
     if(name.equals(std::string_view("key"))) return true
     if(name.equals(std::string_view("ref"))) return true
     if(name.equals(std::string_view("style"))) return true
-    // `data-*` is the DOM's own pass-through namespace, never a prop typo.
+    // Universal HTML attributes (WHATWG "global attributes"). These are what let a
+    // component keep `{...props}` and still be typed: the spread forwards them, and
+    // a typo in a real prop is still a compile error.
+    if(name.equals(std::string_view("id"))) return true
+    if(name.equals(std::string_view("title"))) return true
+    if(name.equals(std::string_view("role"))) return true
+    if(name.equals(std::string_view("tabindex"))) return true
+    if(name.equals(std::string_view("hidden"))) return true
+    if(name.equals(std::string_view("dir"))) return true
+    if(name.equals(std::string_view("lang"))) return true
+    if(name.equals(std::string_view("slot"))) return true
+    if(name.equals(std::string_view("part"))) return true
+    if(name.equals(std::string_view("contenteditable"))) return true
+    if(name.equals(std::string_view("draggable"))) return true
+    if(name.equals(std::string_view("spellcheck"))) return true
+    if(name.equals(std::string_view("inert"))) return true
+    if(name.equals(std::string_view("translate"))) return true
+    if(name.equals(std::string_view("autofocus"))) return true
+    // `data-*` / `aria-*` are the DOM's pass-through namespaces, never a prop typo.
     if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
+    if(name.size() > 5 && name.at(0) == 'a' && name.at(1) == 'r' && name.at(2) == 'i' && name.at(3) == 'a' && name.at(4) == '-') return true
     return name.size() > 2 && name.at(0) == 'o' && name.at(1) == 'n'
 }
 
@@ -50,13 +69,16 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
             const attrNode = element.opening.attributes.at(i)
             if(attrNode.kind != JsNodeKind.JSXAttribute) continue
             const attr = attrNode as *mut JsJSXAttribute
-            if(is_implicit_jsx_prop_name(&attr.name)) continue
 
+            // A **declared** prop is always checked, even when its name is also a
+            // universal attribute (`title` is both), so declaring it cannot silently
+            // opt out of value checking.
             var member : *mut BaseDefMember = null
             for(var j : uint = 0; j < count; j += 1) {
                 const candidate = members.get(j)
                 if(candidate.getName().equals(&attr.name)) { member = candidate; break }
             }
+            if(member == null && is_implicit_jsx_prop_name(&attr.name)) continue
 
             if(member == null) {
                 var msg = std::string("unknown prop '")

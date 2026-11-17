@@ -711,6 +711,23 @@ Client code compiles under the module's error policy: `Result` must be consumed,
 job rejects an unhandled `Result` — the no-panic direction applied to the one place where a panic
 is a broken tab.
 
+**Readiness status (2026-11-17).** What a new user can rely on, and what gates each claim:
+
+| Claim | Gate |
+|---|---|
+| A template app builds, runs and produces the documented output | `scripts/web-starter-test.sh` (14 checks) in CI |
+| A static page ships no JS; a served page hydrates from one shared bundle | `web-golden-test.sh` (4 fixtures), `web-split-test.sh` (15) |
+| Output invariants (no inline `<script>`, no duplicated component defs, hashed assets) | `web-probe.sh --strict` on the static output, in CI |
+| A real module runs identically under native and JS | 5 differential suites + runtime checks + diagnostics |
+| Components and the universal pipeline behave | `--plugins` (1314 tests) |
+| Typed props: names, value types, defaults on both paths, typed `Head` | plugin tests (`universal_typed_props_*`, `page_typed_head_*`, `components_separator_*`) |
+| The `--universal` WebView suite *builds* | compile check (running it needs GTK3 + a display) |
+
+Still open, in the order I would take them: **(1)** the in-process `TestEnv` adapter so a core suite
+subset runs under Node (closes Phase 1); **(2)** wiring `MIRTargetSupport` into the LSP (needs MIR
+lowering in the server); **(3)** aggregate-props serialization; **(4)** typing the remaining ~180
+components under the spread policy (a per-component body change, not a plugin feature).
+
 **Getting started (2026-11-17).** `lang/docs/web-getting-started.md` is the short path for someone
 building an app today: build commands, the four concepts (`#html`, `#css`, `#universal`, typed props +
 defaults), typed `Head`, multiple pages, the component library, and an explicit "not available yet"

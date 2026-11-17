@@ -4020,7 +4020,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 // disagree about it (§3.15a).
                 if(resolvedAttr.defaultValue != null) {
                     const defaultValue = resolvedAttr.defaultValue
-                    const dvType = defaultValue.getType()
+                    const dvType = resolvedAttr.defaultValueType
                     if(dvType != null) {
                         const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
                         attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&resolvedAttr.name, location));

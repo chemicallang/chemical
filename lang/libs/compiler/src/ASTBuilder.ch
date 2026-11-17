@@ -211,7 +211,14 @@ public struct ArrayValue : Value {
 
 public struct BigIntValue : Value {}
 
-public struct BoolValue : Value {}
+public struct BoolValue : Value {
+
+    // The constant this node holds. A plugin that injects a field default must
+    // rebuild the value at the call site rather than reuse the member's node, and
+    // it needs the constant to do that (`var disabled : bool = false`).
+    func getValue(&self) : bool
+
+}
 
 public struct CastedValue : Value {}
 

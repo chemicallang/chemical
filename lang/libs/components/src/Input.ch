@@ -5,7 +5,27 @@
 // the component renders matching data attributes so SSR HTML and the client
 // bundle agree.
 
-public #universal Input(props) {
+// Typed props (Phase 2) for the form controls. Every field has a default so an
+// existing call site keeps compiling, and the values that must stay *absent* on the
+// DOM (`placeholder`, `value`, `aria-label`) are rendered with `? … : null`, because
+// an empty-string default would otherwise emit `placeholder=""` and make an
+// uncontrolled input controlled.
+public struct InputProps {
+    var type : std::string_view = "text"
+    var placeholder : std::string_view = ""
+    // controlled value; omit for an uncontrolled input
+    var value : std::string_view = ""
+    var disabled : bool = false
+    // "default" | "error" | "success"
+    var variant : std::string_view = "default"
+    // "sm" | "default" | "lg"
+    var size : std::string_view = "default"
+    var name : std::string_view = ""
+    var id : std::string_view = ""
+    var ariaLabel : std::string_view = ""
+}
+
+public #universal Input(props : InputProps) {
     var input = style {
         display: inline-flex;
         align-items: center;
@@ -71,8 +91,8 @@ public #universal Input(props) {
     return <input
         {...props}
         type={props.type || "text"}
-        placeholder={props.placeholder}
-        value={props.value}
+        placeholder={props.placeholder ? props.placeholder : null}
+        value={props.value ? props.value : null}
         disabled={props.disabled}
         data-variant={props.variant || "default"}
         data-size={props.size || "default"}
@@ -80,13 +100,25 @@ public #universal Input(props) {
         class={props.className || props.class}
         onClick={props.onClick}
         onChange={props.onChange}
-        id={props.id}
-        name={props.name}
-        aria-label={props.ariaLabel}
+        id={props.id ? props.id : null}
+        name={props.name ? props.name : null}
+        aria-label={props.ariaLabel ? props.ariaLabel : null}
     />
 }
 
-public #universal TextArea(props) {
+public struct TextAreaProps {
+    var placeholder : std::string_view = ""
+    var value : std::string_view = ""
+    var disabled : bool = false
+    var variant : std::string_view = "default"
+    var size : std::string_view = "default"
+    var name : std::string_view = ""
+    var id : std::string_view = ""
+    // 3 is a sane default height; a `rows` of 0 would hide the control
+    var rows : int = 3
+}
+
+public #universal TextArea(props : TextAreaProps) {
     var textarea = style {
         display: flex;
         width: 100%;
@@ -129,8 +161,8 @@ public #universal TextArea(props) {
     }
     return <textarea
         {...props}
-        placeholder={props.placeholder}
-        value={props.value}
+        placeholder={props.placeholder ? props.placeholder : null}
+        value={props.value ? props.value : null}
         disabled={props.disabled}
         data-variant={props.variant || "default"}
         data-size={props.size || "default"}
@@ -138,8 +170,8 @@ public #universal TextArea(props) {
         class={props.className || props.class}
         onClick={props.onClick}
         onChange={props.onChange}
-        id={props.id}
-        name={props.name}
+        id={props.id ? props.id : null}
+        name={props.name ? props.name : null}
         rows={props.rows}
     >{props.children}</textarea>
 }
@@ -147,7 +179,19 @@ public #universal TextArea(props) {
 // Native <select> (kept for plain forms; the styled dropdown lives in
 // Select.ch). `placeholder` renders a disabled placeholder option; `variant`/
 // `size` mirror the Input props; everything else passes through the spread.
-public #universal NativeSelect(props) {
+public struct NativeSelectProps {
+    var value : std::string_view = ""
+    var disabled : bool = false
+    var variant : std::string_view = "default"
+    var size : std::string_view = "default"
+    var name : std::string_view = ""
+    var id : std::string_view = ""
+    var ariaLabel : std::string_view = ""
+    // rendered as a disabled placeholder option when non-empty
+    var placeholder : std::string_view = ""
+}
+
+public #universal NativeSelect(props : NativeSelectProps) {
     var input = style {
         display: inline-flex;
         align-items: center;
@@ -223,7 +267,7 @@ public #universal NativeSelect(props) {
         name={props.name}
         aria-label={props.ariaLabel}
     >
-        {props.placeholder !== undefined ? <option value="" disabled>{props.placeholder}</option> : null}
+        {props.placeholder ? <option value="" disabled>{props.placeholder}</option> : null}
         {props.children}
     </select>
 }

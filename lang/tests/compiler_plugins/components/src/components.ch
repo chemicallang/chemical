@@ -1511,8 +1511,11 @@ public func components_event_attr_skipped_comma_correctness(env : &mut TestEnv) 
     #html { <Button onclick="doSomething()">Go</Button> }
     var js = std::string()
     js.append_view(page.getJs())
-    // The dispatch call should have empty props: {...} not {,} or {...,"children":...}
-    not_contains_string_assert(env, js.to_view(), std::string_view(",\"children\""))
+    // The dispatch props object must have no empty entry: `{,` / `,}` would both
+    // come from the comma-placement bug. (It now carries declared-prop defaults
+    // ahead of `children`, so the old `,``"children"`` probe is no longer valid.)
+    not_contains_string_assert(env, js.to_view(), std::string_view("{,"))
+    not_contains_string_assert(env, js.to_view(), std::string_view(",}"))
     // But children should still be present
     contains_string_assert(env, js.to_view(), std::string_view("children"))
 }

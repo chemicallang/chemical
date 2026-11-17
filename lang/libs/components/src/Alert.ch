@@ -2,7 +2,22 @@
 // warning/accent); `title`/`description` props render the composed layout in
 // one call; `dismissible` shows a close button that fires `onDismiss`.
 // className merges with the generated style class; other props pass through.
-public #universal Alert(props) {
+// Typed props (Phase 2). `title`/`description` have empty-string defaults, so the
+// composed-layout branch tests `!= ""` rather than `!== undefined`: a default is
+// injected for every omitted field, which would make an `undefined` test always
+// true (and the client would then render a value the server never emitted).
+public struct AlertProps {
+    // "default" | "info" | "success" | "error" | "warning" | "accent"
+    var variant : std::string_view = "default"
+    // renders a composed <AlertTitle> above the children
+    var title : std::string_view = ""
+    // renders a composed <AlertDescription> under the title
+    var description : std::string_view = ""
+    // shows a close button that calls onDismiss
+    var dismissible : bool = false
+}
+
+public #universal Alert(props : AlertProps) {
     var alert = style {
         position: relative;
         display: flex;
@@ -73,11 +88,11 @@ public #universal Alert(props) {
     var close = () => {
         if(props.onDismiss) { props.onDismiss() }
     }
-    if(props.title !== undefined || props.description !== undefined) {
+    if(props.title || props.description) {
         return <div role="alert" data-variant={variant} class={out}>
             <div class={alert_content}>
-                {props.title !== undefined ? <AlertTitle>{props.title}</AlertTitle> : null}
-                {props.description !== undefined ? <AlertDescription>{props.description}</AlertDescription> : null}
+                {props.title ? <AlertTitle>{props.title}</AlertTitle> : null}
+                {props.description ? <AlertDescription>{props.description}</AlertDescription> : null}
             </div>
             {props.children}
             {dismissible ? <button type="button" class={alert_dismiss} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}

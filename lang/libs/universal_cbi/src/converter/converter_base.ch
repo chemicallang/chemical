@@ -66,6 +66,11 @@ struct ResolvedAttr {
     // the client props payload get the same value from one place; injecting into
     // either alone would make hydration disagree with SSR.
     var defaultValue : *mut Value = null
+    // Declared type of that field. The injected value may be a freshly built
+    // literal with no attached type, and the attr-value converter must see the
+    // declared type or it picks the wrong variant (a bool default reached the
+    // char-pointer writer and crashed SSR).
+    var defaultValueType : *mut BaseType = null
 }
 
 struct JsConverter {

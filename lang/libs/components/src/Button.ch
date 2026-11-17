@@ -10,7 +10,24 @@
 // Any other prop (style, data-*, aria-*, id, name, ...) passes through via the
 // spread. `loading` swaps children for a "Loading..." label, disables the
 // button and sets aria-busy.
-public #universal Button(props) {
+// Typed props (Phase 2). The family keeps `{...props}` so callers can pass any
+// universal HTML attribute (`role`, `aria-*`, `id`, `title`, `data-*`, …) straight
+// through to the button; those names are implicit, so only a typo in a *declared*
+// prop — `vardant=`, `disabeld=` — is a compile error.
+public struct ButtonProps {
+    // visual style: "default" | "secondary" | "destructive" | "outline" | "ghost"
+    // | "link" | "success" | "info" | "accent"
+    var variant : std::string_view = "default"
+    // "sm" | "default" | "lg" | "icon" | "icon-lg"
+    var size : std::string_view = ""
+    // native button type; "button" unless the caller wants submit/reset
+    var type : std::string_view = "button"
+    var disabled : bool = false
+    // shows "Loading..." and disables the button
+    var loading : bool = false
+}
+
+public #universal Button(props : ButtonProps) {
     var button = style {
         display: inline-flex;
         align-items: center;

@@ -15,6 +15,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
+#include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/Expression.h"
@@ -991,6 +992,18 @@ BaseType* BaseDefMembergetType(BaseDefMember* member) {
 Value* BaseDefMembergetDefaultValue(BaseDefMember* member) {
     if (member->kind() != ASTNodeKind::StructMember) return nullptr;
     return static_cast<StructMember*>(member)->defValue;
+}
+
+// The constant a `BoolValue` holds.
+//
+// A plugin that injects a field default (`var disabled : bool = false`) needs the
+// value, not the node: reusing the member's own node in another function's code is
+// how a bool default ended up fed to a string helper and crashed SSR (SSR/JS agree
+// only if the injected value is rebuilt at the call site). Numeric and string
+// defaults already work because their conversion paths do not require this.
+bool BoolValuegetValue(BoolValue* value) {
+    if (value == nullptr) return false;
+    return value->value;
 }
 
 // The type checker's own value-vs-type rule, exposed so a plugin can validate a

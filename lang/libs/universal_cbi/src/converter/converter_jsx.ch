@@ -57,6 +57,15 @@ func (converter : &mut JsConverter) append_default_props(element : *mut JsJSXEle
             const member = members.get(j)
             const defaultValue = member.getDefaultValue()
             if(defaultValue == null) continue
+            // A **bool** default is rebuilt at the call site from its constant.
+            // Reusing the member's own node here fed a `BoolValue` into the JS
+            // payload's string escaping and crashed SSR (`append_js_escaped_char_ptr`);
+            // string and numeric defaults do not go through that path.
+            var callValue = defaultValue
+            if(defaultValue.getKind() == ValueKind.Bool) {
+                const bv = defaultValue as *mut BoolValue
+                callValue = converter.builder.make_bool_value(bv.getValue(), intrinsics::get_raw_location()) as *mut Value
+            }
             var present : bool = false
             for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
                 const node = element.opening.attributes.at(i)
@@ -69,7 +78,8 @@ func (converter : &mut JsConverter) append_default_props(element : *mut JsJSXEle
                 name : member.getName(),
                 original : null,
                 spreadArgument : null,
-                defaultValue : defaultValue
+                defaultValue : callValue,
+                defaultValueType : member.getType()
             })
         }
 
@@ -90,15 +100,28 @@ func (converter : &mut JsConverter) emit_js_props_from_resolved(attrs : &std::ve
                 converter.str.append_view("\"")
                 converter.str.append_view(&a.name)
                 converter.str.append_view("\": ")
-                const dvType = a.defaultValue.getType()
-                const isStr = dvType != null && (dvType.getKind() == BaseTypeKind.String ||
-                    dvType.getKind() == BaseTypeKind.Pointer ||
-                    dvType.getKind() == BaseTypeKind.ExpressiveString)
+                const dvType = a.defaultValueType
+                // The declared field type and the literal's own type differ in
+                // usefulness: `string_view` is a struct, so the declared type alone
+                // would not say "text" (the payload emitted `plain` unquoted). Check
+                // both — the literal's type for text, the declared type for bool.
+                const valType = a.defaultValue.getType()
+                const isStr = (valType != null && (valType.getKind() == BaseTypeKind.String ||
+                        valType.getKind() == BaseTypeKind.Pointer ||
+                        valType.getKind() == BaseTypeKind.ExpressiveString)) ||
+                    (dvType != null && (dvType.getKind() == BaseTypeKind.String ||
+                        dvType.getKind() == BaseTypeKind.Pointer))
                 if(isStr) {
                     converter.str.append('"')
                     converter.put_chain_in()
                     converter.put_chemical_value_in(a.defaultValue)
                     converter.str.append('"')
+                } else if(dvType != null && dvType.getKind() == BaseTypeKind.Bool) {
+                    // A bool is a JS literal, not a string: emitting it through the
+                    // generic value path produced
+                    // `append_js_escaped_char_ptr(page, false)` and crashed SSR.
+                    const bv = a.defaultValue as *mut BoolValue
+                    if(bv.getValue()) { converter.str.append_view("true") } else { converter.str.append_view("false") }
                 } else {
                     converter.put_chain_in()
                     converter.put_chemical_value_in(a.defaultValue)

@@ -196,6 +196,7 @@ extern "C" {
     BaseType* BaseDefMembergetType(BaseDefMember* member);
 
     Value* BaseDefMembergetDefaultValue(BaseDefMember* member);
+    bool BoolValuegetValue(BoolValue* value);
 
     bool BaseTypesatisfies_value(BaseType* type, Value* value, bool assignment);
 

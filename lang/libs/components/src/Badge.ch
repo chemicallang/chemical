@@ -1,4 +1,15 @@
-public #universal Badge(props) {
+// Typed props (Phase 2). Keeps `{...props}`? No — Badge renders a single <span>
+// and forwards nothing, so its surface is exactly this.
+public struct BadgeProps {
+    // "default" | "secondary" | "accent" | "success" | "error" | "warning" | "info"
+    // | "outline" | "outline-secondary" | "outline-accent" | "outline-success"
+    // | "outline-error" | "outline-warning" | "outline-info"
+    var variant : std::string_view = "default"
+    // "xs" | "sm" | "md" (default) | "lg"
+    var size : std::string_view = "md"
+}
+
+public #universal Badge(props : BadgeProps) {
     var badge = style {
         display: inline-flex;
         align-items: center;

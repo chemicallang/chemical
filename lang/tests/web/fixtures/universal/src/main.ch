@@ -2,6 +2,11 @@
 // times. With source-location hydration ids all three dispatches named the same
 // element (so only the first hydrated); with per-instance ids each gets its own.
 // Three instances is the minimum that also catches an off-by-one in the counter.
+//
+// The page deliberately does not call `defaultUniversalSetup()`: this fixture is
+// about id allocation, so its golden stays readable (`id="u1"…` in the HTML,
+// `$__uni_c(1, …)` in the page's own `index.js`). Served pages go through
+// `StaticSite`, which is where the runtime is one shared hashed asset.
 
 #universal Counter(props) {
     state n = 0

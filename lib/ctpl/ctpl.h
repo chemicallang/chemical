@@ -249,6 +249,13 @@ namespace ctpl {
                         // process (std::terminate) with no message. Report it and
                         // keep the pool alive instead: the job that threw has
                         // already recorded whatever it could.
+#if defined(DISABLE_RTTI_AND_EXCEPTIONS)
+                        // The compiler targets build without exceptions (CMakeLists
+                        // `DISABLE_RTTI_EXCEPTIONS`), so there is nothing to catch:
+                        // a throwing job terminates the process, which is the same
+                        // contract `std::terminate` would give on the other paths.
+                        (*_f)(i);
+#else
                         try {
                             (*_f)(i);
                         } catch (const std::exception& e) {
@@ -256,6 +263,7 @@ namespace ctpl {
                         } catch (...) {
                             std::fprintf(stderr, "[compiler] internal error in a worker thread (unknown exception)\n");
                         }
+#endif
                         --this->active;
                         if (_flag)
                             return;  // the thread is wanted to stop, return even if the queue is not empty yet

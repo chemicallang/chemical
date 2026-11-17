@@ -22,6 +22,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <system_error>
@@ -45,6 +47,36 @@
 #endif
 
 namespace chem {
+
+/**
+ * Thread creation failed. The compiler targets are built without exceptions
+ * (`DISABLE_RTTI_EXCEPTIONS`), where a `throw` is a compile error, so the same
+ * failure is reported and aborted instead. There is no recovery either way: a
+ * pool that cannot start its workers cannot compile anything.
+ */
+[[noreturn]] inline void thread_creation_failed(int err) {
+#ifdef DISABLE_RTTI_AND_EXCEPTIONS
+    std::fprintf(stderr, "[compiler] could not create a compiler worker thread (error %d)\n", err);
+    std::abort();
+#else
+    throw std::system_error(err, std::generic_category(),
+                            "could not create a compiler worker thread");
+#endif
+}
+
+/**
+ * `join`/`detach` on a thread that is not joinable is a programming error, the
+ * same contract `std::thread` has. Without exceptions it is reported and
+ * aborted instead of thrown.
+ */
+[[noreturn]] inline void thread_misuse(const char* what) {
+#ifdef DISABLE_RTTI_AND_EXCEPTIONS
+    std::fprintf(stderr, "[compiler] %s on a non-joinable compiler worker thread\n", what);
+    std::abort();
+#else
+    throw std::system_error(std::make_error_code(std::errc::invalid_argument), what);
+#endif
+}
 
 /**
  * Stack reserved for a compiler work thread. 16 MiB leaves the 512 KiB comptime
@@ -84,8 +116,7 @@ class thread {
             // `_beginthreadex` reports failure through `errno` and returns 0
             const int err = errno;
             delete entry;
-            throw std::system_error(err, std::generic_category(),
-                                    "could not create a compiler worker thread");
+            thread_creation_failed(err);
         }
         handle_ = reinterpret_cast<void*>(handle);
 #else
@@ -98,8 +129,7 @@ class thread {
         if (rc != 0) {
             delete native;
             delete entry;
-            throw std::system_error(rc, std::generic_category(),
-                                    "could not create a compiler worker thread");
+            thread_creation_failed(rc);
         }
         handle_ = native;
 #endif
@@ -134,8 +164,7 @@ class thread {
 
     void join() {
         if (!joinable()) {
-            throw std::system_error(std::make_error_code(std::errc::invalid_argument),
-                                    "join on a non-joinable compiler worker thread");
+            thread_misuse("call to join");
         }
 #if defined(_WIN32)
         WaitForSingleObject(static_cast<HANDLE>(handle_), INFINITE);
@@ -149,8 +178,7 @@ class thread {
 
     void detach() {
         if (!joinable()) {
-            throw std::system_error(std::make_error_code(std::errc::invalid_argument),
-                                    "detach on a non-joinable compiler worker thread");
+            thread_misuse("call to detach");
         }
 #if defined(_WIN32)
         CloseHandle(static_cast<HANDLE>(handle_));

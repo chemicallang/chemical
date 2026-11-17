@@ -1,0 +1,87 @@
+name: Web stack
+
+# The gates that keep lang/docs/web-stack-plan.md honest. Every one of them is a
+# measurement with a pass criterion (§3.19), run against the TCCCompiler build:
+#
+#   js-backend-suites      the JS backend reproduces the native output of four
+#                          fixtures byte for byte, and rejects what it cannot emit
+#                          with a position
+#   static-site-test       two pages share one hashed bundle, no inline <script>,
+#                          in-memory build/serve with ETag + 304
+#   web-golden-test        the Phase 0 fixtures' HTML/JS/CSS match their goldens
+#                          (0 JS for a static page, u1..u5 hydration ids, route
+#                          titles + noindex, the shell baseline)
+#   web-split-test         `--web` builds shared+client as JS and shared+server as
+#                          native, and a native symbol reached from shared fails
+#                          the client pass with its source location
+#
+# These run on pull requests because they are the only checks that notice a
+# bundle regression: without them the numbers in the plan drift and nobody sees it.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: web-stack-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  web-stack:
+    name: Web stack gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3
+
+      - name: Set up Node (the JS backend fixtures run their bundles)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up TinyCC
+        run: ./scripts/setup.sh
+
+      - name: Configure TCCCompiler
+        run: ./scripts/configure.sh --no-llvm --generator Ninja
+
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j "$(nproc)"
+
+      - name: JS backend differential suites
+        run: ./scripts/js-backend-suites.sh
+
+      - name: Static site (shared bundle, no inline scripts, ETag/304)
+        run: ./scripts/static-site-test.sh
+
+      - name: Phase 0 fixture goldens
+        run: ./scripts/web-golden-test.sh
+
+      - name: Two-job web build (`--web`)
+        run: ./scripts/web-split-test.sh
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-stack-logs
+          path: |
+            /tmp/web_golden_*.log
+            /tmp/web_golden_*.diff
+            /tmp/web_golden_probe_*.txt
+            lang/compiled/web-split-gate/*.log
+          if-no-files-found: ignore

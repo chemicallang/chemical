@@ -41,6 +41,17 @@ public variant PageParameter {
 // `routes.json` manifest (§13.2.3). Page-local, so `page` need not know about
 // `router::RoutePattern`.
 @direct_init
+// Typed head metadata (§3.17 #5, §3.12): one declaration for the document head
+// instead of ad-hoc `<title>` strings appended from page bodies. Every field is
+// optional and empty/false means "emit nothing", so `Head{title: "Docs"}` is the
+// common case and the rest are opt-in.
+public struct Head {
+    var title : std::string_view = ""
+    var description : std::string_view = ""
+    var canonical : std::string_view = ""
+    var noindex : bool = false
+}
+
 public struct RouteManifestEntry {
     var router : std::string_view
     var pattern : std::string_view    // "/projects/{id}", or "" for a fallback
@@ -131,6 +142,10 @@ public struct HtmlPage {
     var pageJs : std::string
 
     var pageHeadJs : std::string
+    // Start of the typed-head block emitted by `set_head`, so a later call can
+    // replace it instead of appending a duplicate `<title>`.
+    var head_mark_start : size_t = 0
+    var head_mark_valid : bool = false
 
     var pageJsEnd : std::string
     var js_hoist_pos : ubigint = 0
@@ -777,6 +792,37 @@ public struct HtmlPage {
         pageHead.append_view(std::string_view("<title>"))
         pageHead.append_view(esc.to_view())
         pageHead.append_view(std::string_view("</title>"))
+    }
+
+    // Typed head metadata. Calling it again **replaces** the previously emitted
+    // block instead of appending a second `<title>`, so a layout can set a default
+    // and a page can override it (last call wins).
+    public func set_head(&mut self, head : &Head) {
+        if(head_mark_valid) { pageHead.resize(head_mark_start) }
+        head_mark_start = pageHead.size()
+        head_mark_valid = true
+
+        if(head.title.size() > 0) {
+            const esc = escape_html_view(head.title)
+            pageHead.append_view(std::string_view("<title>"))
+            pageHead.append_view(esc.to_view())
+            pageHead.append_view(std::string_view("</title>"))
+        }
+        if(head.description.size() > 0) {
+            const esc = escape_html_view(head.description)
+            pageHead.append_view(std::string_view("<meta name=\"description\" content=\""))
+            pageHead.append_view(esc.to_view())
+            pageHead.append_view(std::string_view("\">"))
+        }
+        if(head.canonical.size() > 0) {
+            const esc = escape_html_view(head.canonical)
+            pageHead.append_view(std::string_view("<link rel=\"canonical\" href=\""))
+            pageHead.append_view(esc.to_view())
+            pageHead.append_view(std::string_view("\">"))
+        }
+        if(head.noindex) {
+            pageHead.append_view(std::string_view("<meta name=\"robots\" content=\"noindex\">"))
+        }
     }
 
     // Server-only: a 404 (`route_missing`) body must not be indexed; a matched

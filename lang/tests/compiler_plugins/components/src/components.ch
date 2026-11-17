@@ -915,6 +915,42 @@ public func components_slider_disabled(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("data-disabled=\"true\""))
 }
 
+// Typed head metadata (§3.17 #5): `Head` is one declaration for the document head,
+// every field optional, and a later `set_head` replaces the earlier block (a layout
+// default overridden by a page) instead of appending a second `<title>`.
+@test
+public func page_typed_head_emits_and_replaces(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_head(Head { title: "Default | Docs", noindex: true })
+    page.set_head(Head { title: "Widgets <Docs>", description: "a \"quoted\" desc", canonical: "https://x.test/widgets" })
+    var head = std::string()
+    head.append_view(page.getHead())
+    contains_string_assert(env, head.to_view(), std::string_view("<title>Widgets &lt;Docs&gt;</title>"))
+    contains_string_assert(env, head.to_view(), std::string_view("content=\"a &quot;quoted&quot; desc\""))
+    contains_string_assert(env, head.to_view(), std::string_view("<link rel=\"canonical\" href=\"https://x.test/widgets\">"))
+    // the replaced block's noindex must be gone, and there is exactly one title
+    if(!first_missing_and_single(head.to_view(), std::string_view("noindex"), std::string_view("<title>"))) {
+        env.error("typed head: second set_head must replace the first block (one title, no leftover noindex)")
+    }
+}
+
+// True when `gone` does not occur and `single` occurs exactly once.
+func first_missing_and_single(hay : std::string_view, gone : std::string_view, single : std::string_view) : bool {
+    if(hay.size() == 0 || gone.size() == 0 || single.size() == 0) return false
+    var i : size_t = 0
+    while(i + gone.size() <= hay.size()) {
+        if(hay.subview(i, i + gone.size()).equals(&gone)) return false
+        i++
+    }
+    var count : int = 0
+    i = 0
+    while(i + single.size() <= hay.size()) {
+        if(hay.subview(i, i + single.size()).equals(&single)) count++
+        i++
+    }
+    return count == 1
+}
+
 @test
 public func components_separator_orientation(env : &mut TestEnv) {
     var page = HtmlPage()

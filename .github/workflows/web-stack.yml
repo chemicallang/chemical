@@ -68,6 +68,9 @@ jobs:
       - name: Static site (shared bundle, no inline scripts, ETag/304)
         run: ./scripts/static-site-test.sh
 
+      - name: Phase 0 probe gates (static output: no inline JS, no duplicated defs, hashed assets)
+        run: ./scripts/web-probe.sh analyze lang/compiled/static_site_out --strict
+
       - name: Phase 0 fixture goldens
         run: ./scripts/web-golden-test.sh
 

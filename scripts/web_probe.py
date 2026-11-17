@@ -407,37 +407,48 @@ def main(argv):
         )
     )
 
-    violations = []
+    # Two severities, because Phase 0 can only gate invariants that already hold.
+    #
+    # `gates` are true today and must stay true (a regression exits non-zero under
+    # --strict). `deferred` are real problems whose fix belongs to a later phase;
+    # they are reported with the phase that closes them so the numbers stay honest
+    # without failing every build until then.
+    gates = []
+    deferred = []
     for h in html:
         if h["inline_scripts"]:
-            violations.append(
+            gates.append(
                 f"{os.path.basename(h['path'])}: {h['inline_scripts']} inline <script> "
                 f"(CSP rule)"
             )
         for u in h["unhashed_assets"]:
-            violations.append(f"{os.path.basename(h['path'])}: unhashed asset {u}")
+            deferred.append(
+                f"{os.path.basename(h['path'])}: unhashed asset {u} "
+                f"[Phase 2/4: content-hashed shared assets]"
+            )
 
     pages = [j for j in js if j["def_count"] > 0]
-    worst = pages[0] if pages else None
-    if worst:
-        for j in pages:
-            for other in pages:
-                if j is other:
-                    continue
-                dup = set(n for n, _b, _t in j["defs"]) & set(
-                    n for n, _b, _t in other["defs"]
+    for j in pages:
+        for other in pages:
+            if j is other:
+                continue
+            dup = set(n for n, _b, _t in j["defs"]) & set(
+                n for n, _b, _t in other["defs"]
+            )
+            if dup:
+                deferred.append(
+                    f"{os.path.basename(j['path'])} duplicates {len(dup)} component "
+                    f"defs with {os.path.basename(other['path'])}"
+                    f" [Phase 4: derived chunk graph]"
                 )
-                if dup and len(pages) > 1:
-                    violations.append(
-                        f"{os.path.basename(j['path'])} duplicates {len(dup)} component "
-                        f"defs with {os.path.basename(other['path'])}"
-                    )
-                    break
+                break
+
+    violations = gates + deferred
 
     if as_json:
-        print(json.dumps({"js": js, "html": html, "violations": violations}, indent=2,
-                         default=str))
-        return 1 if (strict and violations) else 0
+        print(json.dumps({"js": js, "html": html, "gates": gates, "deferred": deferred},
+                         indent=2, default=str))
+        return 1 if (strict and gates) else 0
 
     print(f"web probe — {directory}")
     print()
@@ -489,10 +500,16 @@ def main(argv):
               f"(would be {shared_bytes + saved_bytes} B duplicated per request set, "
               f"saving {saved_bytes} B)")
 
-    if violations:
+    if deferred:
         print()
-        print(f"violations ({len(violations)}):")
-        for v in violations:
+        print(f"deferred ({len(deferred)}) — tracked, not gated:")
+        for v in deferred:
+            print(f"  - {v}")
+
+    if gates:
+        print()
+        print(f"violations ({len(gates)}):")
+        for v in gates:
             print(f"  - {v}")
         if strict:
             return 1

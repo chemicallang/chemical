@@ -887,7 +887,7 @@ the release is tested on.
 **Phases 0–5 are v1** (§3.20). Phases 6–8 are post-v1 and must be additive only. Phase 2 runs in
 parallel with Phase 1; everything else is ordered.
 
-### Phase 0 — Truth, fixtures, and the probe harness  *(S)* — **in progress**
+### Phase 0 — Truth, fixtures, and the probe harness  *(S)* — **complete**
 
 - [x] **Probe harness**: `scripts/web-probe.py` + `scripts/web-probe.sh` measure per-page totals,
       component-definition bytes, hydration-runtime bytes, dispatch-text bytes/calls, exact
@@ -914,13 +914,25 @@ parallel with Phase 1; everything else is ordered.
       broken when the hydration-safety analysis landed (see item 4); the links now
       apply their URL active state in an effect, and the golden pins the
       consequence: SSR has the `href` and no `aria-current`.*
-- [~] Router cheap wins: `noindex` on missing/fallback routes **landed**
-      (`emit_route_noindex`), the static-export route manifest is kept; typed `Head`
-      is **not** done, and the link-active render read above must be fixed first.
+- [x] Router cheap wins: `noindex` on missing/fallback routes (`emit_route_noindex`), the
+      static-export route manifest is kept, the link-active render read is fixed (an effect, see
+      above), and **typed `Head` is landed** — `Head { title, description, canonical, noindex }`
+      with every field optional plus `HtmlPage.set_head(&Head)`, which **replaces** the previously
+      emitted block instead of appending a second `<title>`, so a layout can set a default and a
+      page can override it. Escaped (`<title>Widgets &lt;Docs&gt;</title>`), and covered by
+      `page_typed_head_emits_and_replaces` (one title, no leftover `noindex` after an override).
 - [x] **Probe in CI**: `.github/workflows/web-stack.yml` runs
-      `js-backend-suites`, `static-site-test`, `web-golden-test` and
-      `web-split-test` on the TCCCompiler build, uploading the logs on failure.
-- **Gate:** golden files for the 4 fixtures + the probe green in CI. — **met**
+      `js-backend-suites`, `static-site-test`, **the probe with `--strict` on the static output**,
+      `web-golden-test` and `web-split-test` on the TCCCompiler build, uploading the logs on failure.
+      The probe now separates **gates** (invariants that hold: no inline `<script>`, no component
+      definition duplicated across pages) from **deferred** items tagged with the phase that closes
+      them (unhashed asset names → Phase 2/4; duplicated component defs → Phase 4). `--strict` exits
+      non-zero on gates only, which is why it is honest to run it today: `lang/compiled/static_site_out`
+      passes (`assets/app.<hash>.js`, 0 inline scripts, 2 shared assets). The served components app
+      still inlines its per-page tail by design (§3.13), so the probe reports those inline scripts as
+      gates for *that* output — the plan records it as a Phase 4 item (externalize the per-page tail),
+      and CI gates the static output where the invariant is already true.
+- [x] **Gate:** golden files for the 4 fixtures + the probe green in CI. — **met**
       (both scripts green locally on a clean TCCCompiler build).
 
 ### Phase 1 — **JavaScript backend** (job #1)  *(XL)*

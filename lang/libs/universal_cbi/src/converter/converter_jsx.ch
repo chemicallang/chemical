@@ -25,7 +25,53 @@ func (converter : &mut JsConverter) resolve_attributes(element : *mut JsJSXEleme
                 })
             }
         }
+        converter.append_default_props(element, &mut out)
         return out
+
+        }
+    }
+
+// Declared props the call site omits, whose props-struct field has a default.
+//
+// This is the single place defaults enter the pipeline: the SSR attribute list and
+// the client props payload are both built from `ResolvedAttr`, so the server and
+// the browser see the same value by construction. A spread attribute disables the
+// injection, because it may supply the prop at runtime.
+func (converter : &mut JsConverter) append_default_props(element : *mut JsJSXElement, out : &mut std::vector<ResolvedAttr>) {
+        unsafe {
+        const signature = element.componentSignature
+        if(signature == null) return
+        const propsStruct = signature.propsStruct
+        if(propsStruct == null) return
+        const members = propsStruct.getMembers()
+        if(members == null) return
+        const count : uint = members.size()
+        if(count == 0) return
+
+        for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
+            const node = element.opening.attributes.at(i)
+            if(node != null && node.kind == JsNodeKind.JSXSpreadAttribute) { return }
+        }
+
+        for(var j : uint = 0; j < count; j += 1) {
+            const member = members.get(j)
+            const defaultValue = member.getDefaultValue()
+            if(defaultValue == null) continue
+            var present : bool = false
+            for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
+                const node = element.opening.attributes.at(i)
+                if(node == null || node.kind != JsNodeKind.JSXAttribute) continue
+                if((node as *mut JsJSXAttribute).name.equals(&member.getName())) { present = true; break }
+            }
+            if(present) continue
+            out.push(ResolvedAttr {
+                kind : JsxAttrKind.Value,
+                name : member.getName(),
+                original : null,
+                spreadArgument : null,
+                defaultValue : defaultValue
+            })
+        }
 
         }
     }
@@ -38,7 +84,26 @@ func (converter : &mut JsConverter) emit_js_props_from_resolved(attrs : &std::ve
             const a = attrs.get_ptr(i)
             if(!*first) converter.str.append_view(", ")
             *first = false
-            if(a.original != null) {
+            if(a.defaultValue != null) {
+                // Omitted declared prop with a field default: emit the value the
+                // struct declares, exactly as the SSR attribute list does.
+                converter.str.append_view("\"")
+                converter.str.append_view(&a.name)
+                converter.str.append_view("\": ")
+                const dvType = a.defaultValue.getType()
+                const isStr = dvType != null && (dvType.getKind() == BaseTypeKind.String ||
+                    dvType.getKind() == BaseTypeKind.Pointer ||
+                    dvType.getKind() == BaseTypeKind.ExpressiveString)
+                if(isStr) {
+                    converter.str.append('"')
+                    converter.put_chain_in()
+                    converter.put_chemical_value_in(a.defaultValue)
+                    converter.str.append('"')
+                } else {
+                    converter.put_chain_in()
+                    converter.put_chemical_value_in(a.defaultValue)
+                }
+            } else if(a.original != null) {
                 converter.str.append_view("\"")
                 converter.str.append_view(&a.original.name)
                 converter.str.append_view("\": ")

@@ -649,33 +649,24 @@ Still to land for typed props (Phase 2 remainder):
   `prop 'count' of component 'Card' expects 'int' but got 'string'`.
   Limitation: a **raw JS literal** inside a JSX body (`count={"nope"}` in a `#universal` body) has
   no Chemical type, so it is not value-checked there; the `#html` path is fully checked.
-- **Defaults** — `var count : int = 0` in a props struct is **rejected** in v1 rather than
-  half-applied: the value would have to be injected into both the SSR attrs and the client props
-  payload, and applying it in only one makes SSR and hydration disagree. The CBI now exposes
-  `BaseDefMember.getDefaultValue()` so the generated serializer can own defaults as one change.
-  Until then every declared prop is required.
-  **Implementation plan (mapped 2026-11-17, not started).** The JSX path already funnels both
-  emitters through one list — `resolve_attributes()` → `ResolvedAttr`, consumed by
-  `build_ssr_attributes` (SSR) and `emit_js_props_from_resolved` (client)
-  (`universal_cbi/src/converter/converter_jsx.ch`). So: add `defaultValue : *mut Value` to
-  `ResolvedAttr`, append one entry per declared field that has a default and no attribute, and emit
-  it in both consumers (quote when the field type is a string) — one change, both sides agree by
-  construction. The `#html` path is separate (`html_cbi/src/converter/language/component.ch`):
-  inject the missing attribute into `element.attributes` there, which needs a `Value` the element
-  can own — `getDefaultValue()` returns the member's own node and no value-clone binding exists, so
-  either add one or synthesize a literal value of the field type. Also delete the two
-  "has a default value; v1 requires…" diagnostics (`html_cbi/.../component.ch` and
-  `universal_cbi/src/sym_res/sym_res_root.ch`) in the same change, and cover both paths in
-  `lang/tests/web/fixtures/typed_props` (an omitted defaulted prop must render server-side **and**
-  appear in the client payload).
-- **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON, which
-  removes the documented escaping footguns (single quotes/backslashes, struct/vector props)
-  by construction. *Measured (2026-11-17): the single-quote/backslash case is already correct on both
-  paths — a literal prop `text="it's a \\ backslash"` and a runtime `string_view` prop both emit
-  valid JS (`{"text":"it's a \\ backslash"}` / `{"text":'it\'s a \\ backslash'}`, `node --check`
-  clean). What remains real is **defaults** (still rejected, above) and **struct/vector props**
-  (which have no client representation yet), so the serializer is justified by those, not by the
-  escaping case.*
+- **Defaults — landed (2026-11-17).** `var count : int = 0` in a props struct is allowed, and a
+  call site may omit the prop. The value is injected into both sides from one place per path:
+  * **JSX path** (`converter_jsx.ch`): `resolve_attributes()` appends one `ResolvedAttr` per omitted
+    defaulted field (`defaultValue : *mut Value`), and both consumers of that list —
+    `build_ssr_attributes` (SSR attribute) and `emit_js_props_from_resolved` (client payload) —
+    emit it. A spread attribute disables the injection, since it may supply the prop at runtime.
+  * **`#html` path** (`html_cbi/.../component.ch`): the missing field is injected as a real
+    `HtmlAttribute` carrying a `ChemicalAttributeValue` built with the plugin-side
+    `builder.allocate<T>()`, so the SSR prop pass and the client payload both see it.
+  Both default-rejection diagnostics are gone. Covered by
+  `universal_typed_props_defaults_reach_ssr_and_payload` (renders the default server-side **and**
+  asserts it in the client payload, for both paths).
+- **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON.
+  *Measured (2026-11-17): the single-quote/backslash case is already correct on both paths — a
+  literal prop `text="it's a \\ backslash"` and a runtime `string_view` prop both emit valid JS
+  (`{"text":"it's a \\ backslash"}` / `{"text":'it\'s a \\ backslash'}`, `node --check` clean),
+  and defaults now work. What remains real is **struct/vector props**, which have no client
+  representation yet, so the serializer is justified by those rather than by escaping or defaults.*
 
 **(b) Hydration-safety analysis (landed).** SSR and the client must agree, so render bodies may not
 read nondeterministic or browser-only state. The pass (`universal_cbi/sym_res/hydration_safety.ch`)
@@ -1052,12 +1043,15 @@ of the breaking changes in §3.17.
    immutable header in `web::App` — both belong with `web::Static` in Phase 4/5.
 3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, attribute-name
    validation on both the `#html` and JSX paths, **required-prop enforcement**, **value-type
-   checking** against the field type (via the type checker's own `satisfies`), and an explicit
-   rejection of default values. Negative tests cover unknown prop, missing prop, props type not
-   found/must be a struct, value-type mismatch, and defaults; a positive test proves declared props
-   and implicit props render. Remaining: the generated props serializer (which also brings defaults
-   back), and value-type checking for raw JS literals inside a JSX body (they carry no Chemical type
-   — the `#html` path is fully checked).
+   checking** against the field type (via the type checker's own `satisfies`), and **props
+   defaults** — landed 2026-11-17: a field initializer may be omitted at the call site and is
+   injected into both the SSR attribute and the client payload on both paths (§3.15a), covered by
+   `universal_typed_props_defaults_reach_ssr_and_payload`. Negative tests cover unknown prop,
+   missing prop, props type not found/must be a struct, and value-type mismatch; a positive test
+   proves declared props and implicit props render. Remaining: the generated serializer for
+   **struct/vector props** (no client representation yet), and value-type checking for raw JS
+   literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
+   **The 196-component rollout is now unblocked.**
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

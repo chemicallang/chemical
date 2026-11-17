@@ -61,6 +61,11 @@ struct ResolvedAttr {
     var name : std::string_view
     var original : *mut JsJSXAttribute
     var spreadArgument : *mut JsNode
+    // A declared prop the call site omitted, taken from the props struct's field
+    // default (§3.15a). Both emitters consume this list, so the SSR attribute and
+    // the client props payload get the same value from one place; injecting into
+    // either alone would make hydration disagree with SSR.
+    var defaultValue : *mut Value = null
 }
 
 struct JsConverter {

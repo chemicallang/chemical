@@ -3982,6 +3982,22 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 const resolvedAttr = resolvedAttrs.get_ptr(i);
                 if(resolvedAttr.kind == JsxAttrKind.Event || resolvedAttr.kind == JsxAttrKind.ClientOnly) continue;
 
+                // An omitted declared prop with a field default: the value comes from
+                // the props struct, so the SSR attribute and the client payload cannot
+                // disagree about it (§3.15a).
+                if(resolvedAttr.defaultValue != null) {
+                    const defaultValue = resolvedAttr.defaultValue
+                    const dvType = defaultValue.getType()
+                    if(dvType != null) {
+                        const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
+                        attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&resolvedAttr.name, location));
+                        attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, dvType, defaultValue));
+                        attrValues.push(attrStructVal);
+                        pushedCount++;
+                    }
+                    continue
+                }
+
                 if(resolvedAttr.original != null) {
 
                     const attr = resolvedAttr.original;

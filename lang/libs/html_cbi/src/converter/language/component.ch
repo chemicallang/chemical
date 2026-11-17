@@ -334,16 +334,21 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
         // the JSX path handles spreads separately.)
         for(var j : uint = 0; j < memberCount; j++) {
             const member : *mut BaseDefMember = members.get(j)
-            // v1: defaults are rejected rather than half-applied. SSR attrs and the
-            // client props payload would each need to inject the value, and a
-            // mismatch between them makes hydration disagree with SSR.
-            if(member.getDefaultValue() != null) {
-                var msg = std::string("props field '")
-                msg.append_view(&member.getName())
-                msg.append_view("' of component '")
-                msg.append_view(&signature.name)
-                msg.append_view("' has a default value; v1 requires every declared prop to be supplied at the call site")
-                converter.diagnoser.error(msg.to_view(), element.loc)
+            // A field with a default may be omitted at the call site. The value is
+            // injected as a real attribute, so the SSR prop pass and the client
+            // props payload both carry it — injecting into one alone would make
+            // hydration disagree with SSR (§3.15a). The JSX path does the same
+            // through `ResolvedAttr.defaultValue`.
+            const defaultValue = member.getDefaultValue()
+            if(defaultValue != null) {
+                const attrValue = converter.builder.allocate<ChemicalAttributeValue>()
+                attrValue.kind = AttributeValueKind.Chemical
+                attrValue.value = defaultValue
+                const injected = converter.builder.allocate<HtmlAttribute>()
+                injected.name = member.getName()
+                injected.value = unsafe(attrValue as *AttributeValue)
+                injected.loc = element.loc
+                element.attributes.push(injected)
                 continue
             }
             var present : bool = false

@@ -126,18 +126,10 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
 
         for(var j : uint = 0; j < count; j += 1) {
             const member = members.get(j)
-            // v1: defaults are rejected rather than half-applied (SSR attrs and the
-            // client props payload would have to agree).
-            if(member.getDefaultValue() != null) {
-                var dmsg = std::string("props field '")
-                dmsg.append_view(&member.getName())
-                dmsg.append_view("' of component '")
-                dmsg.append_view(compName)
-                dmsg.append_view("' has a default value; v1 requires every declared prop to be supplied at the call site")
-                diagnoser.error(dmsg.to_view(), element.loc)
-                *ok = false
-                continue
-            }
+            // A field with a default may be omitted: the converter injects the value
+            // into both the SSR attributes and the client props payload from
+            // `ResolvedAttr.defaultValue` (§3.15a).
+            if(member.getDefaultValue() != null) continue
             var present : bool = false
             for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
                 const attrNode = element.opening.attributes.at(i)

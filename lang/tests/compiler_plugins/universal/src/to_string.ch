@@ -65,6 +65,59 @@ public func universal_typed_props_render_and_accept_implicit_props(env : &mut Te
     }
 }
 
+// Props defaults (§3.15a): a field with an initializer may be omitted at the call
+// site, and the value must reach BOTH the SSR markup and the client payload —
+// injecting it into one alone makes hydration disagree with SSR. The `#html` path
+// (`component.ch`) injects the attribute; the JSX path goes through
+// `ResolvedAttr.defaultValue`, which both emitters read.
+public struct GreetingChipProps {
+    var label : std::string_view
+    var tone : std::string_view = "plain"
+    var count : int = 2
+}
+
+#universal GreetingChip(props : GreetingChipProps) {
+    return <span data-tone={props.tone}>{props.label}:{props.count}</span>
+}
+
+#universal GreetingChipHost(props) {
+    return <div><GreetingChip label="jsx" /></div>
+}
+
+@test
+public func universal_typed_props_defaults_reach_ssr_and_payload(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <GreetingChip label="html" />
+        <GreetingChipHost />
+    }
+    const html = page.getHtml()
+    if(!has_sub(html, std::string_view("data-tone=\"plain\""))) {
+        env.error("props defaults: the #html call site did not render the string default")
+        return
+    }
+    if(!has_sub(html, std::string_view("html:2"))) {
+        env.error("props defaults: the #html call site did not render the int default")
+        return
+    }
+    if(!has_sub(html, std::string_view("jsx:2"))) {
+        env.error("props defaults: the JSX call site did not render the defaults")
+        return
+    }
+    const js = page.getJs()
+    if(!has_sub(js, std::string_view("tone\":\"plain\""))) {
+        env.error("props defaults: the string default is missing from the #html payload")
+        return
+    }
+    if(!has_sub(js, std::string_view("tone\": \"plain\""))) {
+        env.error("props defaults: the string default is missing from the JSX payload")
+        return
+    }
+    if(!has_sub(js, std::string_view("count\":2")) && !has_sub(js, std::string_view("count\": 2"))) {
+        env.error("props defaults: the int default is missing from the client payload")
+    }
+}
+
 @test
 public func universal_element_in_html_works(env : &mut TestEnv) {
     var page = HtmlPage()

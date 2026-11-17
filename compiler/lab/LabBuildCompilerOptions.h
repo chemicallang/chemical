@@ -8,6 +8,17 @@
 #include "compiler/SanitizerOptions.h"
 
 /**
+ * Which side of a `--web` build a job compiles. A web application is built
+ * twice from one build script: `Server` (shared + server modules, native backend)
+ * and `Client` (shared + client modules, JS backend).
+ */
+enum class WebSide : unsigned char {
+    None,
+    Server,
+    Client
+};
+
+/**
  * this allows you to control the compilation process
  */
 class LabBuildCompilerOptions : public ASTProcessorOptions {
@@ -129,6 +140,20 @@ public:
 
     /** Output directory for `emit_js` (created if missing). */
     std::string emit_js_dir;
+
+    /**
+     * `--web`: build the application twice from the same build script — once for
+     * the server side (native backend) and once for the client side (JS backend).
+     * See lang/docs/web-stack-plan.md §3.1.
+     */
+    bool web_build = false;
+
+    /**
+     * Which side the current pass compiles (`WebSide::None` outside a web build).
+     * Set by `LabBuildCompiler::build_web_module_no_alloc` around each pass, so
+     * every job created by the build script sees the same side.
+     */
+    WebSide web_side = WebSide::None;
 
 #ifdef COMPILER_BUILD
 

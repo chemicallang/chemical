@@ -382,6 +382,7 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("minify-c", "minify-c", CmdOptionType::NoValue),
             CmdOption("emit-c", "emit-c", CmdOptionType::NoValue),
             CmdOption("emit-js", "emit-js", CmdOptionType::SingleValue),
+            CmdOption("web", "web", CmdOptionType::NoValue),
             CmdOption("incremental", "incremental", CmdOptionType::NoValue),
             CmdOption("keepc", "keepc", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
@@ -528,10 +529,18 @@ int compiler_main(int argc, char *argv[]) {
             auto& emit_js_dir = options.option_new("emit-js", "emit-js");
             opts->emit_js_dir = emit_js_dir.has_value() ? std::string(emit_js_dir.value())
                                                         : std::string("js-out");
+            // A bundle's entry point is named by the emitter, not by the linker,
+            // so `main` keeps its module mangling (a client module's `main` is an
+            // ordinary library function).
+            opts->keep_main_mangled = true;
         }
         if (options.has_value("incremental", "incremental")) {
             opts->translate_to_single_file = false;
         }
+        // `--web`: build the application once per side from one build script
+        // (server: native executable; client: JS bundle). See
+        // lang/docs/web-stack-plan.md §3.1.
+        opts->web_build = options.has_value("web", "web");
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();

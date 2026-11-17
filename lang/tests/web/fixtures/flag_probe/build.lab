@@ -1,0 +1,19 @@
+import lab;
+import std;
+import "@cstd/build.lab" as cstd_mod
+
+using namespace lab::raw;
+
+public func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Module {
+    unsafe {
+        const target = __chx_job.getTarget()
+        printf("flags web=%d server=%d client=%d js=%d\n",
+            target.web as int, target.server as int, target.client as int, target.js as int)
+        var deps : [1]ModuleDependency;
+        var i : uint = 0;
+        deps[i++] = ModuleDependency { module: cstd_mod.build(ctx, __chx_job), info: null };
+        const deps_view = std::span<ModuleDependency>(deps, i);
+        const mod = ctx.new_package(ModuleType.Directory, PackageKind.Application, "", "flagprobe", deps_view);
+        return mod;
+    }
+}

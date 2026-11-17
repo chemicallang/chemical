@@ -61,7 +61,21 @@ struct TargetData {
     // ARM32 hard-float AAPCS-VFP variant (gnueabihf / musleabihf).
     bool hard_float = false;
 
+    // web build sides (lang/docs/web-stack-plan.md §3.1). `web` is true in both
+    // passes of a `--web` build; `server`/`client` say which side the current job
+    // compiles (a module's chemical.mod guards its imports with them), and `js`
+    // says the job's back end is the JavaScript emitter.
+    bool web = false;
+    bool server = false;
+    bool client = false;
+    bool js = false;
+
 };
+// This struct crosses CBI by pointer: the Chemical mirror
+// (lang/libs/lab/src/target_data.ch) must have exactly this many fields, in this
+// order, starting with `c`. A missing field silently shifts every flag after it.
+static_assert(sizeof(TargetData) == 49, "TargetData and lang/libs/lab/src/target_data.ch have drifted apart");
+static_assert(sizeof(bool) == 1, "TargetData crosses CBI as a bool array; keep the Chemical mirror in order");
 
 /**
  * we use this to create target data, it may not be accurate for

@@ -54,6 +54,17 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     }
     // setting the default output mode
     set_job_mode(job->target_data, options->out_mode);
+    // web build sides. `prepare_target_data` wipes the struct for a cross target,
+    // so these are established here, after it ran. A build script reads them
+    // through `__chx_job.getTarget()` to guard `import`/`source` per side.
+    job->target_data.web = options->web_build || options->web_side != WebSide::None;
+    job->target_data.server = options->web_side == WebSide::Server;
+    job->target_data.client = options->web_side == WebSide::Client;
+    // `js` is a property of the job's back end: build-script (JIT) and CBI jobs
+    // always run through TinyCC, never through the JS emitter.
+    job->target_data.js = options->emit_js && (job->type == LabJobType::Executable
+                                               || job->type == LabJobType::Library
+                                               || job->type == LabJobType::Interpretation);
     // setting job specific variables
 #ifdef LSP_BUILD
     job->target_data.lsp = true;

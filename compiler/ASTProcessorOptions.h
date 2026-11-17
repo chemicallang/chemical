@@ -78,6 +78,17 @@ public:
     bool check_only = false;
 
     /**
+     * Do not unmangle an application module's `main`.
+     *
+     * A native executable needs the symbol spelled `main`. A JavaScript bundle
+     * does not: its entry point is named explicitly (`$entryName` in the emitted
+     * `index.mjs`), so leaving `main` mangled like any other function keeps the
+     * bundle's entry independent of which module declares it — which is how the
+     * client side of a web build uses `client`'s `main` as the bundle entry.
+     */
+    bool keep_main_mangled = false;
+
+    /**
      * is target system 64Bit
      */
     bool is64Bit;

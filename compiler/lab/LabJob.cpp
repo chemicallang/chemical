@@ -85,12 +85,24 @@ std::optional<bool> is_condition_enabled(TargetData& target_data, const chem::st
             return target_data.powerpc64;
         case hasherFn("riscv"):
             return target_data.riscv;
+        case hasherFn("riscv32"):
+            return target_data.riscv32;
+        case hasherFn("riscv64"):
+            return target_data.riscv64;
         case hasherFn("s390x"):
             return target_data.s390x;
         case hasherFn("wasm32"):
             return target_data.wasm32;
         case hasherFn("wasm64"):
             return target_data.wasm64;
+        case hasherFn("web"):
+            return target_data.web;
+        case hasherFn("server"):
+            return target_data.server;
+        case hasherFn("client"):
+            return target_data.client;
+        case hasherFn("js"):
+            return target_data.js;
         default:
             return std::nullopt;
     }

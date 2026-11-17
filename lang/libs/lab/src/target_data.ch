@@ -47,10 +47,22 @@ public struct TargetData {
     var powerpc : bool = false;
     var powerpc64 : bool = false;
     var riscv : bool = false;
+    // riscv32/riscv64 must stay here: this struct is a byte-for-byte mirror of
+    // compiler/lab/TargetData.h, and omitting a field shifts every flag after it
+    // (a missing pair here made `if wasm32` read `riscv64`, and `client`/`server`
+    // read the wrong bytes until it was fixed).
+    var riscv32 : bool = false;
+    var riscv64 : bool = false;
     var s390x : bool = false;
     var wasm32 : bool = false;
     var wasm64 : bool = false;
     // ARM32 hard-float AAPCS-VFP variant (gnueabihf / musleabihf).
     var hard_float : bool = false;
+
+    // web build sides — must stay in the same order as compiler/lab/TargetData.h
+    var web : bool = false;
+    var server : bool = false;
+    var client : bool = false;
+    var js : bool = false;
 
 };

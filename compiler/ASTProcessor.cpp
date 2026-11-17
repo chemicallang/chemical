@@ -765,7 +765,9 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     // we need to search for main function in each module and make it no_mangle
     // so it won't be mangled (module scope and name gets added, which can cause no entry point error)
     // only do this for application modules - library modules keep main mangled
-    if(module->package_kind == PackageKind::Application) {
+    // A JavaScript bundle names its entry explicitly, so it keeps `main` mangled
+    // (see ASTProcessorOptions::keep_main_mangled).
+    if(module->package_kind == PackageKind::Application && !options->keep_main_mangled) {
         const auto main_func = resolver->find("main");
         if(main_func && main_func->kind() == ASTNodeKind::FunctionDecl) {
             if (options->verbose) {

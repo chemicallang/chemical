@@ -269,10 +269,13 @@ struct CmdOptions {
     }
 
     /**
-     * check if option has value
+     * check if option has value. An option the parse table does not know is
+     * reported as absent: probing for a flag that was never registered must not
+     * dereference a null pointer (it crashed every build before).
      */
     bool has_value(const std::string_view& opt, const std::string_view& small_opt) {
         auto value = single_opt_val_ptr(opt, small_opt);
+        if(value == nullptr) return false;
         return value->has_value();
     }
 

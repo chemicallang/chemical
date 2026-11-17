@@ -3583,6 +3583,13 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
         bool promote_to_app
 ) {
 
+    // `--web`: one build script, two passes (client + server). Handled before
+    // anything else because the whole build is repeated, not one job. `web_side`
+    // is what keeps a pass from recursing into this branch.
+    if (options->web_build && options->web_side == WebSide::None && mod_file_source) {
+        return build_web_module_no_alloc(context, path, final_job, promote_to_app);
+    }
+
     // mkdir the build directory
     create_dir(options->build_dir);
 
@@ -3658,6 +3665,105 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
 
     return job_result;
 
+}
+
+int LabBuildCompiler::build_web_module_no_alloc(
+        LabBuildContext& context,
+        const std::string_view& path,
+        LabJob* final_job,
+        bool promote_to_app
+) {
+    const auto verbose = options->verbose;
+
+    // The application's own build directory (where `build.lab`'s JIT cache lives)
+    // stays as the caller set it, so the second pass reuses the compiled build
+    // script. Each side gets a build directory of its own, so the two passes share
+    // no object files, no `inst.names` journal and no `built_files` cache: a
+    // client-only edit never invalidates a server object, and vice versa.
+    const std::string base_dir = final_job->build_dir.empty()
+                                 ? options->build_dir
+                                 : final_job->build_dir.to_std_string();
+    const std::string client_dir = resolve_rel_child_path_str(base_dir, "web-client");
+    const std::string server_dir = resolve_rel_child_path_str(base_dir, "web-server");
+    // Where the client bundle lands. Its entry module is `<stem>.mjs`; `index.mjs`
+    // re-exports it plus `$run()` / `$find(name)`.
+    const std::string client_assets_dir = resolve_rel_child_path_str(client_dir, "assets");
+
+    // Saved so both passes leave the options exactly as they found them.
+    const bool saved_emit_js = options->emit_js;
+    const std::string saved_emit_js_dir = options->emit_js_dir;
+    const WebSide saved_side = options->web_side;
+    const bool saved_keep_main_mangled = options->keep_main_mangled;
+
+    auto restore_options = [&]() {
+        options->emit_js = saved_emit_js;
+        options->emit_js_dir = saved_emit_js_dir;
+        options->web_side = saved_side;
+        options->keep_main_mangled = saved_keep_main_mangled;
+    };
+
+    // ── client side ─────────────────────────────────────────────────────────
+    // Client first: the server build will consume this bundle (an `assets.ch`
+    // generated from it as soon as the chunk graph lands), so the order is fixed
+    // now rather than flipped later.
+    if (verbose) {
+        std::cout << "[lab] web build: client side (" << path << ")" << std::endl;
+    }
+    LabJob client_job(LabJobType::Executable, chem::string("web-client"),
+                      chem::string(resolve_rel_child_path_str(client_assets_dir, "client.mjs")),
+                      chem::string(client_dir), options->out_mode);
+    LabBuildContext::initialize_job(&client_job, options, "");
+    client_job.attrs = final_job->attrs;
+    client_job.target_data.web = true;
+    client_job.target_data.server = false;
+    client_job.target_data.client = true;
+    client_job.target_data.js = true;
+
+    options->web_side = WebSide::Client;
+    options->emit_js = true;
+    options->emit_js_dir = client_assets_dir;
+    // The bundle's entry point is the `client` module's `main`, so it keeps its
+    // module mangling and `index.mjs` names it explicitly.
+    options->keep_main_mangled = true;
+
+    auto result = build_module_build_file_no_alloc(context, path, &client_job, true, promote_to_app);
+    if (result != 0) {
+        restore_options();
+        std::cerr << rang::fg::red << "[lab] error: " << rang::fg::reset
+                  << "web build: the client side failed; the server side was not built"
+                  << std::endl;
+        return result;
+    }
+
+    // ── server side ─────────────────────────────────────────────────────────
+    if (verbose) {
+        std::cout << "[lab] web build: server side (" << path << ")" << std::endl;
+    }
+    options->web_side = WebSide::Server;
+    options->emit_js = false;
+    options->emit_js_dir.clear();
+    // A native executable needs the symbol spelled `main`.
+    options->keep_main_mangled = false;
+
+    final_job->target_data.web = true;
+    final_job->target_data.server = true;
+    final_job->target_data.client = false;
+    final_job->target_data.js = false;
+    final_job->build_dir.clear();
+    final_job->build_dir.append(server_dir.data(), server_dir.size());
+
+    result = build_module_build_file_no_alloc(context, path, final_job, true, promote_to_app);
+    restore_options();
+    if (result != 0) {
+        std::cerr << rang::fg::red << "[lab] error: " << rang::fg::reset
+                  << "web build: the server side failed" << std::endl;
+        return result;
+    }
+
+    std::cout << "[lab] web build complete" << std::endl;
+    std::cout << "[lab]   server executable : " << final_job->abs_path.to_std_string() << std::endl;
+    std::cout << "[lab]   client bundle     : " << client_assets_dir << std::endl;
+    return 0;
 }
 
 std::string LabBuildCompiler::get_commands_cache_dir() {
@@ -5391,20 +5497,21 @@ export function $find(name) {
   return $exports[name];
 }
 
+/** The mangled name of the program's entry point (`main`, or a module's main). */
+export const $entryName = ")JS";
+    index += main_mangled;
+    index += "\";\n";
+    index += R"JS(
+
 /** The program's entry point. */
 export function $entry() {
-  const direct = $exports["main"];
-  if (direct) return direct;
-  for (const name of Object.keys($exports)) {
-    if (name === "main" || name.endsWith("__main")) return $exports[name];
-  }
-  return undefined;
+  return $exports[$entryName];
 }
 
 /** Run the program; returns its exit code. */
 export function $run() {
   const main = $entry();
-  if (!main) throw new Error("js backend: the program has no entry point");
+  if (!main) throw new Error("js backend: the program has no entry point (" + $entryName + ")");
   const rc = main();
   return typeof rc === "number" ? rc : 0;
 }

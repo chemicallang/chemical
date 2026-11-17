@@ -711,6 +711,13 @@ Client code compiles under the module's error policy: `Result` must be consumed,
 job rejects an unhandled `Result` — the no-panic direction applied to the one place where a panic
 is a broken tab.
 
+**Getting started (2026-11-17).** `lang/docs/web-getting-started.md` is the short path for someone
+building an app today: build commands, the four concepts (`#html`, `#css`, `#universal`, typed props +
+defaults), typed `Head`, multiple pages, the component library, and an explicit "not available yet"
+list so nobody designs around `chemical serve`, `web_build`, the derived bundle graph or client-side
+Chemical. It is anchored by a real, verified app at `lang/compiled/starter/` (two pages, two hydrated
+components with typed props and defaults, a `Head`, and a `#css` block) rather than by snippets.
+
 ### 3.16 Compilation-performance foundations (so later releases can actually get faster)
 
 None of this is a speedup on its own except where noted; these are the properties the later

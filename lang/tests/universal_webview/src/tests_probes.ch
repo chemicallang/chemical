@@ -71,7 +71,7 @@
         window.__plcRuns = (window.__plcRuns || 0) + 1
         return () => { window.__plcCleanups = (window.__plcCleanups || 0) + 1 }
     }, [props.tick])
-    return <span data-testid="plc-out">{window.$__uni_value(props.tick)}</span>
+    return <span data-testid="plc-out">{props.tick}</span>
 }
 
 #universal ProbeLayoutParent(props) {
@@ -285,7 +285,7 @@
         window.__pepRuns = (window.__pepRuns || 0) + 1
         return () => { window.__pepCleanups = (window.__pepCleanups || 0) + 1 }
     }, [props.tick])
-    return <span data-testid="pep-out">{window.$__uni_value(props.tick)}</span>
+    return <span data-testid="pep-out">{props.tick}</span>
 }
 
 #universal ProbeEffectPropParent(props) {

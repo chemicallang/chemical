@@ -1,0 +1,132 @@
+# Building a web app
+
+This is the short, verified path from a clean checkout to a running site. It
+describes what works **today**; the fuller target architecture is
+[`web-stack-plan.md`](web-stack-plan.md), and the parts of it that are not
+available yet are listed at the end so nothing here surprises you.
+
+## 1. Build the compiler
+
+```bash
+./scripts/setup.sh                 # libtcc + submodules
+./scripts/configure.sh --no-llvm   # TCCCompiler only (the web stack needs no LLVM)
+./scripts/build.sh --tcc -j "$(nproc)"
+```
+
+## 2. Build and run the starter
+
+The starter is a working app at `templates/web-starter/`, not a snippet — copy it
+somewhere and edit it:
+
+```bash
+cmake-build-debug/TCCCompiler templates/web-starter/chemical.mod \
+    -o lang/compiled/web-starter --mode debug_quick
+./lang/compiled/web-starter
+# → wrote lang/compiled/web-starter-output/index.html and about.html
+```
+
+That writes:
+
+| file | what it is |
+|---|---|
+| `index.html`, `about.html` | server-rendered markup, with hydration markers (`id="u1"`) |
+| `index.js` | the component definitions the page needs |
+| `index_head.js` | the small head runtime |
+| `index.css` | the page's compiled CSS |
+
+Open `index.html` directly, or serve the directory with anything, e.g.
+`cd lang/compiled/web-starter-output && python3 -m http.server 8000` (a server is
+nicer once you add anything that fetches).
+
+## 3. The four things to learn
+
+```chemical
+// 1. Static markup. A page made only of `#html` ships 0 bytes of JavaScript.
+#html {
+    <main class="page">
+        <h1>Hello</h1>
+    </main>
+}
+
+// 2. A component: rendered on the server AND hydrated in the browser from this
+//    one source. `state` is reactive in the browser.
+public struct CounterProps {
+    var label : std::string_view = "Clicked"   // every field has a default, so
+    var step : int = 1                          // call sites may omit any of them
+}
+
+#universal Counter(props : CounterProps) {
+    state n = 0
+    return <div>
+        <button onClick={() => { n = n + props.step }}>{props.label}</button>
+        <span>{n}</span>
+    </div>
+}
+```
+
+- **Typed props** (`props : CounterProps`) make a typo a compile error instead of
+  `undefined` in the browser: `<Counter labl="x" />` fails with
+  `unknown prop 'labl' for component 'Counter'; declared props: label, step`.
+  A declared field with an initializer may be omitted, and the default reaches
+  both the server markup and the client payload.
+- **Implicit props** are always accepted: `children`, `class`/`className`,
+  `style`, `key`, `ref`, `on*` and `data-*`.
+
+Head metadata is typed rather than ad-hoc strings:
+
+```chemical
+page.set_head(Head { title: "Home", description: "…", canonical: "…", noindex: false })
+```
+
+Every field is optional; a second call **replaces** the block (a layout sets a
+default, a page overrides it).
+
+## 4. Multiple pages
+
+`page.writeToDirectory(dir, name)` writes `<name>.html` and its assets. It
+creates only the directory it is given, so pass a flat path — nested routes are
+`StaticSite`'s job, not `writeToDirectory`'s.
+
+## 5. The component library
+
+`lang/libs/components/` is a shadcn-style library (Card, Button, Badge, Alert,
+Avatar, Input, Sheet, Typography, …). Add `import components` to
+`chemical.mod` and use it like any other component:
+
+```chemical
+#html { <Card><CardHeader><CardTitle>Hello</CardTitle></CardHeader></Card> }
+```
+
+Props are being typed component by component (16 of 196 today, starting with the
+families that enumerate their attributes rather than spreading `{...props}` onto
+the DOM). Untyped components accept any attribute name, exactly as before, so
+nothing breaks as the rollout continues.
+
+## What is not available yet
+
+These are planned, not shipped — do not design around them:
+
+- **`chemical serve` / a dev server.** You run a build script and serve the
+  output yourself.
+- **Declaring the app once and deriving client/server bundles** (`web::App`,
+  `web_build`, chunk graph). The client/server split is done by hand today.
+- **Writing client logic in Chemical.** Client behaviour lives in `#universal`
+  component bodies (and `#js` escape hatches); the JS backend emits ES modules
+  for whole programs but is not wired into the bundle graph.
+- **Production packaging**: minification, `--static` multi-page export,
+  sessions/CSRF, gzip precompression, size budgets.
+
+## Known sharp edge
+
+A **method call on a prop inside a universal JSX expression** renders nothing,
+silently:
+
+```chemical
+{props.text.size() > 0 ? <b>x</b> : null}   // renders EMPTY
+{props.text ? <b>x</b> : null}              // correct ("" is falsy)
+{props.text != "" ? <b>x</b> : null}        // correct
+```
+
+The compiler reports this as a warning with the element's location, so
+`--mode debug_quick` builds will show it. Compute the value into a local first
+(`var n = props.text.size()` then `{n}`) and it works.

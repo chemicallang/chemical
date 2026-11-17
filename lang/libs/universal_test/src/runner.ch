@@ -166,7 +166,7 @@ func ut_bridge(method : string_view, args : string_view) : string {
         g_results.push(r)
     } else if(method.size() == 8) {
         // "all_done" — stop the message loop
-        if(g_wv != null) { webview::raw::webview_stop(g_wv) }
+        if(g_wv != null) { unsafe { webview::raw::webview_stop(g_wv) } }
     }
     return string("{}")
 }
@@ -394,7 +394,9 @@ func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, 
 @expand
 public comptime func universal_test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {
     const tests = ut_all()
-    return run_universal_tests(std::span<UTFunction>(tests), argc, argv)
+    // The runner owns the WebView and the native handles it drives, so this is the
+    // unsafe boundary: the `raw` webview calls below are the caller's assertion.
+    return unsafe(run_universal_tests(std::span<UTFunction>(tests), argc, argv))
 }
 
 /**
@@ -472,9 +474,11 @@ public unsafe func run_universal_tests_reporting(tests : std::span<UTFunction>, 
 /** Single-runner entry point: streams to a default console reporter. */
 @retained
 public unsafe func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv : **char) : int {
-    var console = new_console_reporter()
-    run_universal_tests_reporting(tests, &mut console, argc, argv)
-    return finish_reporter(&mut console)
+    unsafe {
+        var console = new_console_reporter()
+        run_universal_tests_reporting(tests, &mut console, argc, argv)
+        return finish_reporter(&mut console)
+    }
 }
 
 type UTHandleRunFn = (h : *mut test_report::ffi::TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
@@ -492,12 +496,13 @@ public unsafe func universal_handle_run(h : *mut test_report::ffi::TestRunnerHan
 
 @retained
 public func make_universal_runner_handle(tests : std::span<UTFunction>) : test_report::ffi::TestRunnerHandle {
-    return test_report::ffi::make_runner_handle(
+    // Handing raw spans to the reporting bridge is the unsafe boundary here.
+    return unsafe(test_report::ffi::make_runner_handle(
         string_view("universal_test"),
         tests.data() as *void,
         tests.size(),
         universal_handle_run as UTHandleRunFn
-    )
+    ))
 }
 
 /**

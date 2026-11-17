@@ -1045,8 +1045,13 @@ Then, in order:
    via `printf`). — **differential harness landed** (`scripts/js-backend-test.sh`,
    `scripts/js_backend/run.mjs`; five fixtures: `js_backend`, `_std`, `_closure`, `_iter`,
    `_json`) plus the runtime's own checks and the diagnostics gate in
-   `scripts/js-backend-suites.sh`. **Remaining for Phase 1: the test-runner path** — making a core
-   suite subset run under Node with the same pass/fail reporting as the native runner.
+   `scripts/js-backend-suites.sh`.   **Remaining for Phase 1: the test-runner path** — making a core suite subset run under Node with
+   the same pass/fail reporting as the native runner. Why it is not a script: `test_runner` dispatches
+   each `@test` in a **child process** and `TestEnv` reports over a pipe (`error`/`info`/`success`
+   carry the message to the parent), so under Node — where process spawning and those externs are
+   unavailable — the runner needs an **in-process** `TestEnv` adapter plus a loop over
+   `get_tests()` that reproduces the native line format and summary counts. That is the unit of work,
+   not a wrapper around `node run.mjs`.
 
 **Exit:** a real module (JSON/regex/pure logic) runs identically under `--tcc` and `--js`;
 core suite subset passes in Node; `--plugins` and all other suites unchanged; compile

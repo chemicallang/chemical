@@ -62,6 +62,19 @@ public struct MutexGuard<T> {
         return unsafe(&mut *self.value)
     }
 
+    /// A shared borrow of the guarded value, for a read-only critical section.
+    ///
+    /// Without this, a reader had no choice but `get()`, whose `&mut T` makes
+    /// every later access through the same guard a fresh exclusive borrow — so
+    /// two READS of one guard conflicted with each other under
+    /// `SAFE-BORROW-001` ("placing a mutable borrow here conflicts with another
+    /// live borrow of the same place"), and a read of a field could not be live
+    /// across a read of another field. `&self` also states the intent: nothing
+    /// below can write, and the compiler now enforces that.
+    public func get_ref(&self) : &T {
+        return unsafe(&*self.value)
+    }
+
     // Atomically release the guard's native mutex and block on `cv`. When this
     // returns, the same guard still holds the lock.
     public func wait(&mut self, cv : &Condvar) {

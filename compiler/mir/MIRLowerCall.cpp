@@ -7676,10 +7676,26 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         }
         // a lambda converted to a `std::function` is wrapped by the instance
         // type's comptime `make` constructor (fn ptr + closure data)
+        //
+        // The lambda is looked for through `unsafe(..)`/`as`/single-step access
+        // chains: those are compile-time markers, and a lambda behind one is
+        // still a lambda. Missing that made `var cb = unsafe((|&h|(x) => ..))`
+        // store the bare trampoline pointer in the instance struct, which the C
+        // backend rejects ("cannot convert 'int (*)(void*, int)' to struct ...").
+        Value* lambda_arg = arg;
+        while (lambda_arg != nullptr) {
+            if (lambda_arg->val_kind() == ValueKind::UnsafeValue) {
+                lambda_arg = static_cast<UnsafeValue*>(lambda_arg)->getValue();
+            } else if (lambda_arg->val_kind() == ValueKind::CastedValue) {
+                lambda_arg = lambda_arg->as_casted_value_unsafe()->value;
+            } else {
+                break;
+            }
+        }
         CapturingFunctionType* cap = nullptr;
         if (conv_type) cap = conv_type->get_cap_func_type();
-        if (!cap && arg && arg->val_kind() == ValueKind::LambdaFunc && arg->getType()) {
-            cap = arg->getType()->get_cap_func_type();
+        if (!cap && lambda_arg && lambda_arg->val_kind() == ValueKind::LambdaFunc && lambda_arg->getType()) {
+            cap = lambda_arg->getType()->get_cap_func_type();
         }
         // `std::function<T>` may resolve to the instance struct directly (a
         // `%capture` typealias instantiation), so also accept a struct target
@@ -7690,7 +7706,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 cap_inst = cln->as_struct_def_unsafe()->known_type();
             }
         }
-        if (cap_inst && arg && arg->val_kind() == ValueKind::LambdaFunc) {
+        if (cap_inst && lambda_arg && lambda_arg->val_kind() == ValueKind::LambdaFunc) {
             BaseType* inst = cap_inst;
             FunctionDeclaration* imp = nullptr;
             ASTNode* in = inst ? inst->get_direct_linked_canonical_node() : nullptr;
@@ -7701,23 +7717,23 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                     imp = mk->as_function_unsafe();
                 }
             }
-            if (!imp && inst) imp = inst->implicit_constructor_for(arg);
+            if (!imp && inst) imp = inst->implicit_constructor_for(lambda_arg);
             if (imp) {
                 // an `@expand` lambda constructor is lowered at this site
                 if (is_comptime_template_fn(imp)) {
-                    std::vector<Value*> one{arg};
+                    std::vector<Value*> one{lambda_arg};
                     return inline_comptime_template(imp, MIRExprResult::void_result(), nullptr,
                                                     one, error);
                 }
                 if (imp->is_comptime() && comptime_ctor_eval_) {
-                    Value* ev = comptime_ctor_eval_(imp, arg);
+                    Value* ev = comptime_ctor_eval_(imp, lambda_arg);
                     if (ev) return lower_expr(ev, error);
                 }
                 const TypeId mt = types_.map(inst);
                 const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
                 MIRArgScope _ag_scope(*this);
                 std::vector<MIROperand>& cargs = _ag_scope.v;
-                std::vector<Value*> one{arg};
+                std::vector<Value*> one{lambda_arg};
                 if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
                 const SymbolId sym = intern_function(imp);
                 builder_->init(tmp, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));

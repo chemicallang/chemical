@@ -23,10 +23,21 @@ public struct JsonParseError {
     var message : std::string
 }
 
-// parse JSON text into a JsonValue tree
+// parse JSON text into a JsonValue tree, with strings capped at 4 KiB.
+//
+// The default ceiling is right for an ordinary request body and wrong for a
+// body that CARRIES a file: account's profile pictures arrive as base64 inside
+// JSON, up to 8 MiB in one string. Those callers say so with
+// `parse_with_limit` rather than being refused by an arbitrary 4096.
 public func parse(text : std::string_view) : std::Result<JsonValue, JsonParseError> {
+    return parse_with_limit(text, 4096)
+}
+
+// parse JSON text into a JsonValue tree, with every string capped at
+// `max_string` bytes.
+public func parse_with_limit(text : std::string_view, max_string : size_t) : std::Result<JsonValue, JsonParseError> {
     var handler = ASTJsonHandler()
-    var parser = JsonParser(128, 4096)
+    var parser = JsonParser(128, max_string)
     var r = parser.parse(text.data(), text.size(), &mut handler)
     if(!r.ok) {
         return std::Result.Err<JsonValue, JsonParseError>(JsonParseError {

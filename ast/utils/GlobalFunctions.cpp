@@ -258,6 +258,43 @@ static Value* resolve_ref(Value* val, InterpretScope *call_scope) {
     return value;
 }
 
+// The element count of a fixed array, read from its TYPE.
+//
+// This is the fallback for `intrinsics::size` and it is also the more correct
+// answer: the length of a fixed array is a property of its type, not of one
+// particular initializer. It matters in practice because the implicit
+// `&[N]T -> [T]` conversions hand the intrinsic a REFERENCE to the array, and a
+// `var buf : [8]u8` with no initializer has no ArrayValue for `resolve_ref` to
+// find — the length then exists only in the type, and an intrinsic that only
+// looked at values failed with "couldn't get value for intrinsics::size" on
+// perfectly good code.
+static bool array_size_from_type(BaseType* type, uint64_t& out, InterpretScope* call_scope) {
+    if(type == nullptr) { return false; }
+    auto canon = type->canonical();
+    if(canon == nullptr) { return false; }
+    switch(canon->kind()) {
+        case BaseTypeKind::Pointer:
+            return array_size_from_type(canon->as_pointer_type_unsafe()->type, out, call_scope);
+        case BaseTypeKind::Reference:
+            return array_size_from_type(canon->as_reference_type_unsafe()->type, out, call_scope);
+        case BaseTypeKind::Array: {
+            auto arr = canon->as_array_type_unsafe();
+            out = arr->get_array_size();
+            if(out == 0 && arr->array_size_value != nullptr && call_scope != nullptr) {
+                // `[N * 2]T`: the length is a constant expression evaluated
+                // lazily, so asking for it is the only way to learn it.
+                auto size_val = resolve_ref(arr->array_size_value, call_scope);
+                if(size_val != nullptr && size_val->val_kind() == ValueKind::IntN) {
+                    out = (uint64_t) size_val->as_int_num_value_unsafe()->get_num_value();
+                }
+            }
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
 class InterpretSize : public FunctionDeclaration {
 public:
 
@@ -285,11 +322,25 @@ public:
         const auto loc = val->encoded_location();
         auto value = resolve_ref(val, call_scope);
         if(!value) {
+            // No value to measure, but the TYPE may still know: that is the case
+            // for an uninitialised `var buf : [8]u8` reached through a
+            // reference, which is exactly how the implicit array -> slice
+            // conversions call this.
+            uint64_t type_size = 0;
+            if(array_size_from_type(val->getType(), type_size, call_scope)) {
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(type_size, typeBuilder.getU64Type(), loc);
+            }
             call_scope->error("couldn't get value for intrinsics::size", call);
             return new (allocator.allocate<IntNumValue>()) IntNumValue(0, typeBuilder.getU64Type(), loc);;
         }
         const auto val_kind = value->val_kind();
         if(val_kind != ValueKind::String && val_kind != ValueKind::ArrayValue) {
+            // Same reasoning as above: a reference to an array has no
+            // ArrayValue, and its length lives in the type.
+            uint64_t type_size = 0;
+            if(array_size_from_type(value->getType(), type_size, call_scope)) {
+                return new (allocator.allocate<IntNumValue>()) IntNumValue(type_size, typeBuilder.getU64Type(), loc);
+            }
             std::string msg = "intrinsics::size called with invalid arguments (value kind ";
             msg += std::to_string((int) val_kind);
             msg += ", type kind ";

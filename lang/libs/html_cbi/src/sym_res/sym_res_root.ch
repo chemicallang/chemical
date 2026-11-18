@@ -319,6 +319,31 @@ func sym_res_root(
             var signature = embedded.getDataPtr() as *mut ComponentSignature;
             element.componentSignature = signature;
 
+            // `@optional` props: the `#html` converter's required-prop check runs in
+            // codegen, where no annotation controller is reachable, so the names are
+            // collected here (symres, per call site) onto the component's signature.
+            // universal_cbi does the same on the JSX path; the loop skips names that are
+            // already recorded so a component used from both paths is not duplicated.
+            if(signature.propsTypeName.size() > 0) {
+                var propsTypeNameLocal = signature.propsTypeName
+                const propsNodeLocal = resolver.resolve(&propsTypeNameLocal)
+                if(propsNodeLocal != null) {
+                    const propsStructLocal = propsNodeLocal as *mut StructDefinition
+                    const membersLocal = propsStructLocal.getMembers()
+                    if(membersLocal != null) {
+                        for(var oi : uint = 0; oi < membersLocal.size(); oi += 1) {
+                            const om = membersLocal.get(oi)
+                            if(!controller.isMarked(unsafe(om as *mut ASTNode), "optional")) continue
+                            var already : bool = false
+                            for(var pi : uint = 0; pi < signature.optionalProps.size(); pi += 1) {
+                                if(signature.optionalProps.at(pi).equals(&om.getName())) { already = true; break }
+                            }
+                            if(!already) { signature.optionalProps.push_back(om.getName()) }
+                        }
+                    }
+                }
+            }
+
             for (var j : uint = 0; j < signature.params.size(); j += 1) {
                 const param = signature.params.get_ptr(j);
                 if (!param.is_optional) {

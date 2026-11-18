@@ -277,6 +277,9 @@ func is_implicit_prop_name(name : std::string_view) : bool {
     // forward it to `aria-label` explicitly, so requiring every props struct to
     // declare it again would be noise. `aria-*` is implicit for the same reason.
     if(name.equals(std::string_view("ariaLabel"))) return true
+    // The form name, forwarded explicitly by the form controls to the DOM
+    // element; declaring it in every props struct would be noise.
+    if(name.equals(std::string_view("name"))) return true
     // `data-*` / `aria-*` are the DOM's pass-through namespaces, never a prop typo.
     if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
     if(name.size() > 5 && name.at(0) == 'a' && name.at(1) == 'r' && name.at(2) == 'i' && name.at(3) == 'a' && name.at(4) == '-') return true
@@ -377,6 +380,14 @@ func (converter : &mut ASTConverter) validate_props(element : *mut HtmlElement, 
             // props payload both carry it — injecting into one alone would make
             // hydration disagree with SSR (§3.15a). The JSX path does the same
             // through `ResolvedAttr.defaultValue`.
+            // `@optional`: may be omitted and is never injected, so it is simply absent
+            // from the rendered attributes and the client payload. universal_cbi's symres
+            // records the names on the signature, which is shared by both paths.
+            var isOptional : bool = false
+            for(var oi : uint = 0; oi < signature.optionalProps.size(); oi += 1) {
+                if(signature.optionalProps.at(oi).equals(&member.getName())) { isOptional = true; break }
+            }
+            if(isOptional) continue
             const defaultValue = member.getDefaultValue()
             if(defaultValue != null) {
                 const attrValue = converter.builder.allocate<ChemicalAttributeValue>()

@@ -559,6 +559,7 @@ All built-in annotations recognized by the compiler:
 | `@allow_zeroed` | struct, union, variant | Allows `zeroed<T>()` even when the type has a constructor/destructor |
 | `@no_drop` | struct, union, variant | Suppresses all drop glue (automatic and explicit `@delete`); used by `ManuallyDrop`/`MaybeUninit` |
 | `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
+| `@optional` | struct field (props struct) | A typed `#universal` prop that may be omitted: not required, no value injected, and absent from both the SSR attributes and the client payload (so `props.x != null` tells "not passed"). Marking a field both `@optional` and defaulted is an error. See `.agents/skills/universal/SKILL.md` |
 | `@volatile` | var, const | Marks variable as volatile — prevents compiler optimization of loads/stores |
 | `@packed` | struct, union | Packed layout (alignment 1); references to packed fields are rejected with `SAFE-VALID-008` |
 | `@repr("C")` / `@repr("packed")` / `@repr("transparent")` | struct, union (transparent: struct only) | Explicit C/natural layout, packed layout, or single-field transparent-newtype layout |

@@ -813,6 +813,23 @@ public func neg_universal_prop_literal_kind_mismatch(env : &mut TestEnv) {
 // always mean "absent" — both are covered by the positive fixtures that pass a
 // numeric literal and by the `null` fallbacks in Alert/Typography.
 
+// `@optional` and a default are contradictory: the default would be injected at every
+// call site, so the prop could never be absent — which is the whole point of `@optional`.
+@test
+public func neg_universal_optional_prop_with_default(env : &mut TestEnv) {
+    var ch = "public struct P {\n    @optional var open : bool = false\n}\n#universal Box(props : P) {\n    return <div>{props.open ? \"y\" : \"n\"}</div>\n}\n#universal Host(props) {\n    return <div><Box /></div>\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_optional_with_default", ch, "is marked @optional but also has a default value", NEG_MOD_UNIVERSAL)
+}
+
+// An optional prop is optional, not unchecked: a passed value must still match the
+// field's declared type.
+@test
+public func neg_universal_optional_prop_value_checked(env : &mut TestEnv) {
+    var ch = "public struct P {\n    @optional var count : int\n}\n#universal Box(props : P) {\n    return <div>{props.count}</div>\n}\nfunc Render(page : &mut HtmlPage) {\n    #html { <Box count={\"nope\"} /> }\n}\npublic func main() : int {\n    return 0\n}\n"
+    var mod = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\nimport html_cbi\nimport css_cbi\n"
+    expect_compile_error_with_mod(env, "universal_optional_value", ch, "prop 'count' of component 'Box' expects 'int' but got 'string'", mod)
+}
+
 // Hydration safety: reading the clock during render makes the server and the
 // browser disagree, which is the bug class that used to be found in a browser
 // console.

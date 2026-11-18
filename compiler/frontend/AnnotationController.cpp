@@ -529,6 +529,12 @@ void AnnotationController::initialize() {
             { "packed", { annot_handler_packed, "packed", AnnotationDefType::Handler } },
             { "repr", { annot_handler_repr, "repr", AnnotationDefType::Handler } },
             { "no_drop", { annot_handler_no_drop, "no_drop", AnnotationDefType::Handler } },
+            // A marker for typed `#universal` props: the field is omitted from the client
+            // payload and the SSR attributes when the caller does not pass it, so the body
+            // sees the prop as absent (the runtime props object has no key) instead of a
+            // fabricated default. Universe/HTML CBI reject nothing about it; the plugins
+            // only stop requiring the field and stop injecting a value.
+            { "optional", { nullptr, "optional", AnnotationDefType::Marker } },
             { "non_dyn", { annot_handler_non_dyn, "non_dyn", AnnotationDefType::Handler } },
             { "partial_instantiate", { annot_handler_partial_instantiate, "partial_instantiate", AnnotationDefType::Handler } },
 

@@ -69,11 +69,20 @@ public struct CounterProps {
   `unknown prop 'labl' for component 'Counter'; declared props: label, step`.
   A declared field with an initializer may be omitted, and the default reaches
   both the server markup and the client payload.
+- **Three kinds of prop field.** `var count : int` is required at the call
+  site; `var count : int = 0` may be omitted and the default is injected into
+  both the server markup and the client payload; `@optional var count : int`
+  may be omitted and stays *absent* (the client payload has no key for it, and
+  `props.count != null` is false). Use `@optional` for a controlled/uncontrolled
+  prop such as `checked`, `value` or `open`, and for anything the component body
+  already falls back on (`props.size || "md"`). `@optional` together with a
+  default is a compile error.
 - **Implicit props** are always accepted by *any* component, typed or not:
   `children`, `class`/`className`, `style`, `key`, `ref`, `on*`, `data-*`,
   every `aria-*`, and the universal DOM attributes `id`, `title`, `role`,
   `tabindex`, `hidden`, `dir`, `lang`, `slot`, `part`, `contenteditable`,
-  `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`. That is what lets
+  `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`, `name`,
+  `ariaLabel`. That is what lets
   a component keep `{...props}` and forward `role`/`aria-label` while still
   type-checking its own knobs. A *declared* prop of the same name is still
   value-checked, so `id={3}` on a component declaring `id : string_view` fails.
@@ -103,7 +112,7 @@ Avatar, Input, Sheet, Typography, …). Add `import components` to
 #html { <Card><CardHeader><CardTitle>Hello</CardTitle></CardHeader></Card> }
 ```
 
-Props are typed on 166 of the 184 components. That includes everything you need
+Props are typed on 172 of the 184 components. That includes everything you need
 to build a page today: Card, Button (+ every variant/size wrapper), Badge, Alert,
 Avatar, Separator, ErrorOverlay, Input/TextArea/NativeSelect (+ the `Field` family,
 `InputGroup`/`InputIcon`/`InputAddon` and their wrappers), all of Typography,
@@ -114,13 +123,11 @@ Spinner, Divider, Kbd, Breadcrumbs) and the item components of Sheet, Toast,
 Collapsible, ToggleGroup, RadioGroup and Select.
 
 The remaining 18 accept any attribute name, exactly as before, so nothing breaks.
-They fall into two groups: components whose props are a controlled/uncontrolled
-pair (`Sheet`, `Collapsible`, `Toast`, `Select`, `Slider`, `ToggleGroup`,
-`RadioGroup`, `Checkbox`, `Radio`, `Switch` — `open`/`value`/`checked` must be
-able to stay absent, which a declared default or a required field cannot express),
-and components that take a JSX element or array (`Popover`/`Dialog`/`Dropdown`/
-`Tooltip` triggers, `AccordionItem`'s trigger, `Suspense`'s fallback, `Tabs`,
-`Pagination`). Until then those accept any prop name and are still checked at
+All twelve take a **JSX element or an array** as a prop (`Popover`/`Dialog`/
+`Dropdown`/`Tooltip` triggers, `AccordionItem`'s and `Collapsible`'s trigger,
+`Suspense`'s fallback, `Toast`'s action, `Tabs`, `Pagination`, `Select`'s
+`options`, `ToggleGroup`'s multi-select values). Those have no Chemical value
+type to declare, so the component stays permissive rather than rejecting them. Until then those accept any prop name and are still checked at
 runtime by the browser, not by the compiler.
 
 Two things to know when you call a typed component:

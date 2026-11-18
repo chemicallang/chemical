@@ -3,7 +3,19 @@
 // semantics, and `onChange`/`onClick` both fire on interaction
 // (onChange receives the native change event). className merges with the
 // control styles.
-public #universal Checkbox(props) {
+// Typed props (Phase 2) for the form controls. `checked` is `@optional`: passed it
+// makes the control controlled, omitted it stays absent so the DOM input keeps its own
+// state (and `checked={props.checked}` renders no attribute at all).
+public struct CheckboxProps {
+    @optional var checked : bool
+    var disabled : bool = false
+    // "sm" | "md" | "lg" — `@optional` because the body already falls back to "md";
+    // a declared default would be injected and then spread onto the element as a bogus
+    // `size="md"` attribute. `name`/`id` are implicit universal attributes.
+    @optional var size : std::string_view
+}
+
+public #universal Checkbox(props : CheckboxProps) {
     var toggle = style {
         display: inline-flex;
         align-items: center;
@@ -159,7 +171,14 @@ public #universal Checkbox(props) {
     </label>
 }
 
-public #universal Radio(props) {
+public struct RadioProps {
+    @optional var checked : bool
+    var disabled : bool = false
+    // see CheckboxProps.size
+    @optional var size : std::string_view
+}
+
+public #universal Radio(props : RadioProps) {
     var toggle = style {
         display: inline-flex;
         align-items: center;
@@ -315,7 +334,14 @@ public #universal Radio(props) {
     </label>
 }
 
-public #universal Switch(props) {
+public struct SwitchProps {
+    @optional var checked : bool
+    var disabled : bool = false
+    // see CheckboxProps.size
+    @optional var size : std::string_view
+}
+
+public #universal Switch(props : SwitchProps) {
     var toggle = style {
         display: inline-flex;
         align-items: center;

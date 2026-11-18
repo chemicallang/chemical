@@ -1,6 +1,19 @@
-// Typed props (Phase 2). `RadioGroup` stays untyped while `value`/`defaultValue` are
-// controlled-vs-uncontrolled axis props (see Sheet.ch); `RadioGroupItem` is typed and
-// declares `__rgName`, the internal group key the parent injects into its children.
+// Typed props (Phase 2). `value` is `@optional` (controlled when passed) and
+// `defaultValue` seeds the uncontrolled state; `RadioGroupItem` declares
+// `__rgName`, the internal group key the parent injects into its children.
+
+public struct RadioGroupProps {
+    // controlled selection
+    @optional var value : std::string_view
+    // initial selection of an uncontrolled group
+    @optional var defaultValue : std::string_view
+    var name : std::string_view = ""
+    var disabled : bool = false
+    // "column" | "row" (the body falls back to "column")
+    @optional var direction : std::string_view
+    // internal: the group key its items look up in context
+    var __rgName : std::string_view = ""
+}
 
 public struct RadioGroupItemProps {
     var name : std::string_view = ""
@@ -31,7 +44,7 @@ public struct RadioGroupItemProps {
 // it back reactively. The group threads its `name` into item vnodes so items
 // resolve their key without repeating `name` on every item.
 
-public #universal RadioGroup(props) {
+public #universal RadioGroup(props : RadioGroupProps) {
     var radio_group = style {
         display: flex;
         gap: 0.75rem 1.25rem;

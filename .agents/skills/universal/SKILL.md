@@ -90,8 +90,22 @@ Its body (built in `react/ast_replace.ch` → `universal_replacementNode`) does,
 ## Typed props
 
 `#universal Name(props : Props)` declares the component's prop surface; the struct's fields are the
-props (all required, no defaults yet) and implicit props (`children`, `class`/`className`, `on*`) are
-always allowed. Both directions are compile errors:
+props and implicit props (`children`, `class`/`className`, `on*`, `data-*`, `aria-*`, the universal
+DOM attributes) are always allowed. A field is one of three kinds:
+
+| declaration | omitted at the call site | value at SSR / client |
+|---|---|---|
+| `var count : int` | **error** (`missing required prop`) | always present |
+| `var count : int = 0` | default is injected into **both** the SSR attributes and the client payload | always present |
+| `@optional var count : int` | allowed, nothing is injected | **absent** (`props.count == null`, `undefined` in the client) |
+
+`@optional` is what controlled/uncontrolled components need (`checked`, `value`, `open`): the prop
+is genuinely missing unless the caller passes it, so `props.checked != null` distinguishes "controlled"
+from "let the DOM own its state". `@optional` plus a default is a compile error (the default would
+always be injected, so the prop could never be absent) — pick one: a default when SSR and the client
+must agree on a value, `@optional` when absence is meaningful, and neither when the value is required.
+
+Both directions are compile errors:
 
 ```
 missing required prop 'count' for component 'Card' at src/main.ch:12:10

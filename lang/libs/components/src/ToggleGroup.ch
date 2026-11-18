@@ -1,6 +1,10 @@
-// Typed props (Phase 2). `ToggleGroup` stays untyped while `value`/`defaultValue` are
-// controlled-vs-uncontrolled axis props (see Sheet.ch); `ToggleGroupItem` is typed and
-// declares `__rgName`, the internal group key the parent injects into its children.
+// Typed props (Phase 2). `value` is `@optional` (controlled when passed) and
+// `defaultValue` seeds the uncontrolled state; `ToggleGroupItem` declares
+// `__rgName`, the internal group key the parent injects into its children.
+
+// ToggleGroup itself stays untyped: in "multiple" mode `value`/`defaultValue` are
+// arrays of keys, so one field would have to accept `string_view | []string`, which a
+// props struct cannot express. Its items are typed.
 
 public struct ToggleGroupItemProps {
     var name : std::string_view = ""
@@ -8,9 +12,9 @@ public struct ToggleGroupItemProps {
     // this item's key inside the group
     var value : std::string_view = ""
     // "default" | "outline"
-    var variant : std::string_view = "default"
+    @optional var variant : std::string_view
     // "sm" | "default" | "lg"
-    var size : std::string_view = "default"
+    @optional var size : std::string_view
     // internal: set by ToggleGroup from its own name so the item can find its context
     var __rgName : std::string_view = ""
 }

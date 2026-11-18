@@ -17,7 +17,23 @@
 // Note: thumb/range positions use CSS `calc()` with the value embedded as a
 // literal so the SSR HTML matches the hydrated first render exactly.
 
-public #universal Slider(props) {
+// Typed props (Phase 2). `value`/`defaultValue` are the controlled/uncontrolled
+// pair, both `@optional`: a caller passes `value` to control the slider or
+// `defaultValue` to only seed its internal state.
+public struct SliderProps {
+    // controlled position
+    @optional var value : int
+    // initial position of an uncontrolled slider
+    @optional var defaultValue : int
+    // the body already falls back to 0 / 100 / 1, and a declared default would be
+    // injected and then rendered as a bogus element attribute
+    @optional var min : int
+    @optional var max : int
+    @optional var step : int
+    var disabled : bool = false
+}
+
+public #universal Slider(props : SliderProps) {
     var slider = style {
         position: relative;
         display: flex;

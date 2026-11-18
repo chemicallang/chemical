@@ -131,6 +131,55 @@ public func universal_typed_props_defaults_reach_ssr_and_payload(env : &mut Test
     }
 }
 
+// `@optional` props (Phase 2): a field marked `@optional` may be omitted. It is not
+// required and nothing is injected, so the prop is *absent* from the SSR attributes and
+// the client payload — which is what a controlled/uncontrolled component needs.
+public struct DraftProps {
+    @optional var note : std::string_view
+    @optional var count : int
+    var title : std::string_view
+}
+
+#universal Draft(props : DraftProps) {
+    return <span data-note={props.note} data-count={props.count} data-has={props.note != null ? "y" : "n"}>{props.title}</span>
+}
+
+#universal DraftHost(props) {
+    return <div><Draft title="jsx" /><Draft title="jsx2" note="passed" count={7} /></div>
+}
+
+@test
+public func universal_optional_props_are_absent_unless_passed(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <Draft title="html" />
+        <DraftHost />
+    }
+    const html = page.getHtml()
+    // Omitted optional props are absent from the SSR markup, not rendered as "" / 0.
+    if(!has_sub(html, std::string_view("data-has=\"n\""))) {
+        env.error("optional props: an omitted @optional prop was not absent in SSR")
+        return
+    }
+    if(has_sub(html, std::string_view("data-note=\"\""))) {
+        env.error("optional props: an omitted @optional prop rendered an empty attribute")
+        return
+    }
+    if(!has_sub(html, std::string_view("data-note=\"passed\""))) {
+        env.error("optional props: a passed @optional prop did not render")
+        return
+    }
+    const js = page.getJs()
+    // The client payload must not invent the key either.
+    if(has_sub(js, std::string_view("note\":\"\"")) || has_sub(js, std::string_view("note\": \"\""))) {
+        env.error("optional props: the client payload invented an empty optional prop")
+        return
+    }
+    if(!has_sub(js, std::string_view("note"))) {
+        env.error("optional props: the passed optional prop is missing from the payload")
+    }
+}
+
 @test
 public func universal_element_in_html_works(env : &mut TestEnv) {
     var page = HtmlPage()

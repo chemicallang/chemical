@@ -15,6 +15,9 @@
 // Works in both controlled (`open` set) and uncontrolled modes, matching
 // the Dialog/Dropdown conventions used elsewhere in the library.
 
+// Untyped: `trigger` is a JSX element, which has no Chemical value type to declare
+// (the same blocker as Suspense's `fallback`). Every other prop here is a plain value,
+// so this is the only reason the component stays untyped.
 public #universal Collapsible(props) {
     var collapsible = style {
         display: grid;

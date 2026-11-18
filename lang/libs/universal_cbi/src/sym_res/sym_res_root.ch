@@ -28,6 +28,9 @@ func is_implicit_jsx_prop_name(name : &std::string_view) : bool {
     // forward it to `aria-label` explicitly, so requiring every props struct to
     // declare it again would be noise. `aria-*` is implicit for the same reason.
     if(name.equals(std::string_view("ariaLabel"))) return true
+    // The form name, forwarded explicitly by the form controls to the DOM
+    // element; declaring it in every props struct would be noise.
+    if(name.equals(std::string_view("name"))) return true
     // `data-*` / `aria-*` are the DOM's pass-through namespaces, never a prop typo.
     if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
     if(name.size() > 5 && name.at(0) == 'a' && name.at(1) == 'r' && name.at(2) == 'i' && name.at(3) == 'a' && name.at(4) == '-') return true
@@ -115,6 +118,29 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
         const members = propsStruct.getMembers()
         if(members == null) return
         const count : uint = members.size()
+
+        // `@optional var checked : bool` — the field may be omitted, gets no default, and
+        // is absent from both the SSR attributes and the client payload, so the body sees
+        // "not passed" (`props.checked != null`). The annotation controller is only
+        // reachable here (symres), so the names are recorded on the signature for the
+        // converter's own checks.
+        const annotationController = resolver.getAnnotationController()
+        for(var oi : uint = 0; oi < count; oi += 1) {
+            const om = members.get(oi)
+            if(!annotationController.isMarked(unsafe(om as *mut ASTNode), "optional")) continue
+            // `@optional` and a field default are contradictory: a default is injected
+            // at every call site (so the prop is never absent), which is exactly what
+            // `@optional` exists to avoid. Say so instead of silently picking one.
+            if(om.getDefaultValue() != null) {
+                var msg = std::string("prop '")
+                msg.append_view(&om.getName())
+                msg.append_view("' is marked @optional but also has a default value; an optional prop is absent when omitted, so drop the default (let the component body fall back) or drop @optional")
+                diagnoser.error(msg.to_view(), element.loc)
+                *ok = false
+                continue
+            }
+            signature.optionalProps.push_back(om.getName())
+        }
 
         for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
             const attrNode = element.opening.attributes.at(i)
@@ -235,6 +261,13 @@ func append_unknown_prop_errors(resolver : *mut SymbolResolver, diagnoser : *mut
             // into both the SSR attributes and the client props payload from
             // `ResolvedAttr.defaultValue` (§3.15a).
             if(member.getDefaultValue() != null) continue
+            // `@optional` may be omitted too, but nothing is injected — absence is the
+            // contract (a controlled/uncontrolled axis prop, an optional label, …).
+            var isOptional : bool = false
+            for(var oi : uint = 0; oi < signature.optionalProps.size(); oi += 1) {
+                if(signature.optionalProps.at(oi).equals(&member.getName())) { isOptional = true; break }
+            }
+            if(isOptional) continue
             var present : bool = false
             for(var i : uint = 0; i < element.opening.attributes.size(); i += 1) {
                 const attrNode = element.opening.attributes.at(i)

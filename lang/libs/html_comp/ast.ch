@@ -22,6 +22,12 @@ public struct ComponentSignature {
     // keeps untyped props (the pre-v1 form).
     var propsTypeName : std::string_view
     var propsStruct : *mut StructDefinition = null
+    // Fields marked `@optional` in the props struct. They may be omitted, are never
+    // defaulted, and are simply absent from the SSR attributes and the client payload,
+    // so the body's `props.x != null` (or truthiness) test sees "not passed". Collected
+    // at symres, where the annotation controller is reachable, and consumed by both
+    // required-prop checks (the JSX path and the `#html` path).
+    var optionalProps : std::vector<std::string_view>
     var functionNode : *mut FunctionDeclaration = null
     // The parsed JS/JSX body of a `#universal` component, back-pointed so the
     // router (a consumer) can validate `props.X` reads / `dangerouslySetInnerHTML`

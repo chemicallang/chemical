@@ -672,6 +672,25 @@ Still to land for typed props (Phase 2 remainder):
   explicitly passed prop and let the default win — caught by
   `components_separator_orientation`, where `<Separator orientation="vertical" />` rendered
   `horizontal`).
+- **`@optional` props — absence without a default (landed 2026-11-18).** The controlled half of a
+  controlled/uncontrolled pair (`checked`, `value`, `open`) needs a third state: not required (the
+  caller may omit it) and not defaulted (a default is injected at every call site, so the prop could
+  never be absent). `@optional var checked : bool` is that state. Mechanism: the Rust-side
+  `optional` marker annotation is registered in `AnnotationController`; `universal_cbi`'s symres and
+  (because the `#html` converter runs in codegen where no controller is reachable) `html_cbi`'s
+  symres collect the marked member names onto `ComponentSignature.optionalProps`, which both
+  required-prop checks consult. Nothing else changes: no injection, the declared type still
+  value-checks a passed value (including the raw-literal kind check), and the body keeps reading
+  `props.x` — which is a *runtime* prop object, so an omitted field is genuinely `undefined` (this is
+  why the feature needed no runtime work). Guarded: `@optional` on a defaulted field is a compile
+  error. Covered by `universal_optional_props_are_absent_unless_passed` (both paths, SSR markup and
+  client payload), `neg_universal_optional_prop_with_default`, and
+  `neg_universal_optional_prop_value_checked`.
+  A rule this surfaced in the components: **prefer `@optional` over a default when the body already
+  falls back** (`props.size || "md"`). A declared default is injected and then forwarded by a
+  `{...props}` spread as a bogus element attribute (`size="md"` on a `<label>`, `id=""` on an
+  `<input>`); `@optional` keeps the attribute off the DOM and changes nothing else.
+
 - **A default is a value, not a node — two bugs from the first typed batches (fixed 2026-11-18).**
   Injecting a default into the SSR attribute and the client payload reuses the *call-site* emitters,
   which are built for values that came from source. A freshly built literal has no attached type, so
@@ -1133,7 +1152,7 @@ of the breaking changes in §3.17.
    proves declared props and implicit props render. Remaining: the generated serializer for
    **struct/vector props** (no client representation yet), and value-type checking for raw JS
    literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
-   **Rollout state (2026-11-18, end of batch): 166 of 184 components typed.** (The plan's "196"
+   **Rollout state (2026-11-18, end of batch): 172 of 184 components typed.** (The plan's "196"
    was an estimate; the library has 184 `#universal` declarations.) The 18 left are blocked on a
    feature, not on effort — see the two gaps below. Coverage by family: Card, Button (12), Badge
    (15), Alert (13), Avatar (7), Separator, ErrorOverlay, Input/TextArea/NativeSelect + Field
@@ -1141,21 +1160,17 @@ of the breaking changes in §3.17.
    Data (17), Utilities (14), ToggleGroupItem, RadioGroupItem, SelectItem, Sheet slots (7),
    Toast slots (2), Collapsible slots (2).
 
-   **Gap A — controlled/uncontrolled axis props (10 components: `Sheet`, `Collapsible`, `Toast`,
-   `Select`, `Slider`, `ToggleGroup`, `RadioGroup`, `Checkbox`, `Radio`, `Switch`).** These read
-   `props.open != null` / `props.value != null` / `props.checked != null`, i.e. *absence* is
-   meaningful. Typed props have exactly two states — a default (injected at the call site, so
-   never absent) and no default (required) — so declaring one of these fields would either make
-   every instance controlled or force every caller to pass it. They stay untyped (permissive, not
-   broken) until typed props gain an **optional-without-default** field. The smallest shape that
-   fits: mark the field in the props struct (`var checked : bool?`, or a `@optional` marker once
-   CBI exposes annotations on `VarDeclaration`) meaning "omit unless the caller passes it; do not
-   inject; do not require". It touches both plugins' required-check, the JSX/`#html` injection, and
-   the call-site value check — one change, then these 10 are typed mechanically.
+   **Gap A — controlled/uncontrolled axis props — CLOSED (2026-11-18).** `@optional` gives typed
+   props the missing third state (see the §3.15a bullet), and the ten components it blocked are
+   typed: `Sheet`, `Collapsible`*reverted to untyped for a different reason*, `Slider`, `RadioGroup`,
+   `Checkbox`, `Radio`, `Switch`; `Select` and `ToggleGroup` moved to Gap B (array-valued props) and
+   `Toast` to Gap B (`action` is an element). `Collapsible` also moved to Gap B: its `trigger` is a
+   JSX element, not the `open` axis.
 
-   **Gap B — JSX element and array props (8 components: `Popover`, `Dialog`, `Dropdown`, `Tooltip`
-   (`trigger`/`content`), `AccordionItem` (`trigger`), `Suspense` (`fallback`), `Tabs`
-   (`tabs`/`panels`), `Pagination` (`pages`)).** A JSX element or an array of JSX/descriptors has
+   **Gap B — JSX element and array props (12 components: `Popover`, `Dialog`, `Dropdown`, `Tooltip`
+   (`trigger`/`content`), `AccordionItem` (`trigger`), `Collapsible` (`trigger`), `Suspense`
+   (`fallback`), `Toast` (`action`), `Tabs` (`tabs`/`panels`), `Pagination` (`pages`), `Select`
+   (`options`), `ToggleGroup` (`value`/`defaultValue` are arrays in "multiple" mode)).** A JSX element or an array of JSX/descriptors has
    no Chemical value type to declare, so there is nothing to type-check against. These need either
    an element type in the JSX surface or for the component to take those parts as `children`
    slots; not part of the prop-typing work.
@@ -1582,11 +1597,9 @@ universal attributes, per-instance hydration ids, `SharedAssets` freeze/hash, ty
 
 **Open, in order of value per unit of work:**
 
-1. **Optional-without-default props** (Gap A in §3.15a). One language-surface change — a field that
-   is neither defaulted (injected, never absent) nor required — then the last 10 components type
-   mechanically and `value`/`checked`/`open` become checkable everywhere. Touches: both plugins'
-   required check and injection, the call-site value check, `ASTBuilder` if the marker is an
-   annotation. *Prerequisite for any controlled component being typed.*
+1. ~~**Optional-without-default props**~~ — **done 2026-11-18** (`@optional`, §3.15a). The control
+   components it unblocked are typed; what remains untyped is Gap B (JSX element / array props),
+   which needs an element type in the JSX surface rather than a props feature.
 2. **`web::Static` production output** (Phase 5 item 2, minus the pieces that need `web::App`):
    `base_path`, `sitemap.xml`/`robots.txt`, hover prefetch, and the deprecated
    `writeToDirectory` shim. `page.StaticSite` is the base; this is additive to it, so it does not

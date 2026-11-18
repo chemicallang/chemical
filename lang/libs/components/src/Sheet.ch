@@ -23,7 +23,26 @@ public struct SheetContentProps {
 // Like Dialog, both controlled and uncontrolled modes are supported; the
 // backdrop click and the Escape key dismiss it.
 
-public #universal Sheet(props) {
+// Typed props (Phase 2). `open` is a controlled/uncontrolled axis prop: it is
+// `@optional`, so omitting it leaves the prop *absent* (the internal `open` state
+// then drives the panel) while passing it makes the sheet controlled. `@optional`
+// fields are neither required nor defaulted — see the plan's §3.15a.
+public struct SheetProps {
+    // controlled: leave it out and the sheet manages its own state
+    @optional var open : bool
+    // uncontrolled initial state
+    var defaultOpen : bool = false
+    // "left" | "right" | "top" | "bottom" — the body falls back to "right", so these
+    // are `@optional` rather than defaulted (a default would be forwarded by the props
+    // spread as an element attribute).
+    @optional var side : std::string_view
+    // panel width for left/right sides (any CSS length); empty = the CSS default
+    @optional var width : std::string_view
+    // optional title rendered above the body
+    @optional var title : std::string_view
+}
+
+public #universal Sheet(props : SheetProps) {
     var sheet_overlay = style {
         position: fixed;
         inset: 0;

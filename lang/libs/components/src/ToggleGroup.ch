@@ -1,3 +1,20 @@
+// Typed props (Phase 2). `ToggleGroup` stays untyped while `value`/`defaultValue` are
+// controlled-vs-uncontrolled axis props (see Sheet.ch); `ToggleGroupItem` is typed and
+// declares `__rgName`, the internal group key the parent injects into its children.
+
+public struct ToggleGroupItemProps {
+    var name : std::string_view = ""
+    var disabled : bool = false
+    // this item's key inside the group
+    var value : std::string_view = ""
+    // "default" | "outline"
+    var variant : std::string_view = "default"
+    // "sm" | "default" | "lg"
+    var size : std::string_view = "default"
+    // internal: set by ToggleGroup from its own name so the item can find its context
+    var __rgName : std::string_view = ""
+}
+
 // Shadcn-style ToggleGroup: a group of toggle buttons built from children:
 //
 //      <ToggleGroup type="single" defaultValue="bold" onValueChange={(v) => ...}>
@@ -83,7 +100,7 @@ public #universal ToggleGroup(props) {
     return <div role="group" {...props} class={classes + " " + toggle_group} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-public #universal ToggleGroupItem(props) {
+public #universal ToggleGroupItem(props : ToggleGroupItemProps) {
     var toggle_group_item = style {
         display: inline-flex;
         align-items: center;

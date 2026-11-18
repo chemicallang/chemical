@@ -1,3 +1,13 @@
+// Typed props (Phase 2). `Select` stays untyped while `value`/`defaultValue` are
+// controlled-vs-uncontrolled axis props and `options` is an array of descriptors
+// (see Sheet.ch).
+
+public struct SelectItemProps {
+    var selected : bool = false
+    // the value this option contributes to the select
+    var value : std::string_view = ""
+}
+
 // Shadcn-style Select: a custom dropdown listbox (no native <select>).
 //
 // Two modes:
@@ -295,7 +305,7 @@ public #universal Select(props) {
     </div>
 }
 
-public #universal SelectItem(props) {
+public #universal SelectItem(props : SelectItemProps) {
     var select_item = style {
         display: flex;
         align-items: center;

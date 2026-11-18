@@ -1,3 +1,7 @@
+// Typed props (Phase 2). `Toast` stays untyped while `visible`/`defaultVisible`/
+// `duration` are controlled-vs-uncontrolled axis props (see Sheet.ch) and `action` is a
+// JSX element with no Chemical value type.
+
 // Shadcn-style Toast system: ToastViewport + Toast (+ Toaster helper).
 //
 // Toast props:
@@ -13,7 +17,7 @@
 // a toast inside a viewport when it should appear. Controlled mode: pass
 // `visible` + `onClose` and render the toast conditionally from parent state.
 
-public #universal ToastViewport(props) {
+public #universal ToastViewport(props : SlotProps) {
     var toast_viewport = style {
         position: fixed;
         bottom: 0;
@@ -146,6 +150,6 @@ public #universal Toast(props) {
 
 // Toaster: a ready-made viewport container. Render <Toaster> once per page
 // and drop <Toast> children into it from your app.
-public #universal Toaster(props) {
+public #universal Toaster(props : SlotProps) {
     return <ToastViewport {...props}>{props.children}</ToastViewport>
 }

@@ -1,3 +1,9 @@
+// Wrapper surfaces (Phase 2). A `ButtonSuccess`-style wrapper renders
+// `<Button {...props} variant="success">`, so the only sound declared surface is the
+// parent's: it accepts exactly the names the parent accepts (the pinned prop is just
+// overridden). That still catches `<ButtonSucces>`-shaped typos and value errors on
+// `size`/`disabled`/`type`, which the old untyped surface let through.
+
 // Shadcn-style Button with variant/size props.
 //
 // The single `button_styles` block emits one hashed class that contains the
@@ -168,47 +174,64 @@ public #universal Button(props : ButtonProps) {
 }
 
 // Legacy wrappers — keep every previously-public name working.
-public #universal ButtonPrimary(props) {
+public #universal ButtonPrimary(props : ButtonWrapperProps) {
     return <Button {...props}>{props.children}</Button>
 }
 
-public #universal ButtonGhost(props) {
+public #universal ButtonGhost(props : ButtonWrapperProps) {
     return <Button {...props} variant="ghost">{props.children}</Button>
 }
 
-public #universal ButtonOutline(props) {
+public #universal ButtonOutline(props : ButtonWrapperProps) {
     return <Button {...props} variant="outline">{props.children}</Button>
 }
 
-public #universal ButtonDanger(props) {
+public #universal ButtonDanger(props : ButtonWrapperProps) {
     return <Button {...props} variant="destructive">{props.children}</Button>
 }
 
-public #universal ButtonSuccess(props) {
+public #universal ButtonSuccess(props : ButtonWrapperProps) {
     return <Button {...props} variant="success">{props.children}</Button>
 }
 
-public #universal ButtonInfo(props) {
+public #universal ButtonInfo(props : ButtonWrapperProps) {
     return <Button {...props} variant="info">{props.children}</Button>
 }
 
-public #universal ButtonAccent(props) {
+public #universal ButtonAccent(props : ButtonWrapperProps) {
     return <Button {...props} variant="accent">{props.children}</Button>
 }
 
-public #universal ButtonSm(props) {
+public #universal ButtonSm(props : ButtonWrapperProps) {
     return <Button {...props} size="sm">{props.children}</Button>
 }
 
-public #universal ButtonLg(props) {
+public #universal ButtonLg(props : ButtonWrapperProps) {
     return <Button {...props} size="lg">{props.children}</Button>
 }
 
-public #universal IconButton(props) {
+public #universal IconButton(props : ButtonWrapperProps) {
     return <Button {...props} size="icon">{props.children}</Button>
 }
 
-public #universal Fab(props) {
+// Wrappers must not declare a default for the prop they pin. A wrapper renders
+// `<Button {...props} variant="destructive">`, and a defaulted wrapper field is
+// *injected at the wrapper's own call site* and then forwarded by `{...props}`,
+// where it fights the pinned attribute (`ButtonDanger` rendered
+// data-variant="default" until `variant` was dropped here). So the wrapper surface is
+// the parent's props minus the pinned dimension.
+public struct ButtonWrapperProps {
+    var type : std::string_view = "button"
+    var disabled : bool = false
+    var loading : bool = false
+}
+
+// Fab is its own control: a round floating action button.
+public struct FabProps {
+    var disabled : bool = false
+}
+
+public #universal Fab(props : FabProps) {
     var fab = style {
         display: inline-flex;
         align-items: center;

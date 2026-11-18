@@ -1,3 +1,16 @@
+// Typed props (Phase 2). `RadioGroup` stays untyped while `value`/`defaultValue` are
+// controlled-vs-uncontrolled axis props (see Sheet.ch); `RadioGroupItem` is typed and
+// declares `__rgName`, the internal group key the parent injects into its children.
+
+public struct RadioGroupItemProps {
+    var name : std::string_view = ""
+    var disabled : bool = false
+    // this option's key inside the group
+    var value : std::string_view = ""
+    // internal: set by RadioGroup from its own name so the item can find its context
+    var __rgName : std::string_view = ""
+}
+
 // Shadcn-style RadioGroup: a set of mutually-exclusive radio options built from
 // children:
 //
@@ -67,7 +80,7 @@ public #universal RadioGroup(props) {
     return <div role="radiogroup" {...props} class={radio_group} data-direction={direction} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-public #universal RadioGroupItem(props) {
+public #universal RadioGroupItem(props : RadioGroupItemProps) {
     var radio_item = style {
         display: inline-flex;
         align-items: center;

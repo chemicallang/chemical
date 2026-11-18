@@ -1,4 +1,54 @@
-public #universal Divider(props) {
+// Typed props (Phase 2). Layout utilities take the knobs they actually read; the
+// pure slots use the shared `SlotProps` (Input.ch). `class`/`className`/`children`,
+// `data-*`, `aria-*` and the universal DOM attributes stay implicit everywhere.
+
+public struct SkeletonProps {
+    // any CSS length ("12rem", "100%"); empty = natural size
+    var width : std::string_view = ""
+    var height : std::string_view = ""
+    // round (avatar-style) placeholder
+    var circle : bool = false
+}
+
+public struct SpinnerProps {
+    // "sm" | "md" | "lg"
+    var size : std::string_view = "md"
+    // accessible name announced by role="status" (default "loading")
+    var label : std::string_view = ""
+}
+
+public struct ContainerProps {
+    // "sm" | "md" | "lg" | "full" | "default"
+    var size : std::string_view = "default"
+}
+
+public struct StackProps {
+    // "column" | "row"
+    var direction : std::string_view = "column"
+    // spacing token: "xs" | "sm" | "md" | "lg" | "xl" | "none"
+    var gap : std::string_view = "md"
+    // "start" | "center" | "end" | "stretch"
+    var align : std::string_view = ""
+    // "start" | "center" | "end" | "between"
+    var justify : std::string_view = ""
+}
+
+public struct GridProps {
+    // fixed column count ("2", "3", "4"); empty = responsive auto-fit
+    var cols : std::string_view = ""
+    var gap : std::string_view = "md"
+}
+
+public struct BreadcrumbLinkProps {
+    // empty renders "#"
+    var href : std::string_view = ""
+}
+
+public struct BreadcrumbSeparatorProps {
+    var separator : std::string_view = "/"
+}
+
+public #universal Divider(props : SlotProps) {
     var divider = style {
         height: 1px;
         background: hsl(var(--border));
@@ -8,7 +58,7 @@ public #universal Divider(props) {
     return <hr {...props} class={divider} />
 }
 
-public #universal Kbd(props) {
+public #universal Kbd(props : SlotProps) {
     var kbd = style {
         display: inline-flex;
         align-items: center;
@@ -26,7 +76,7 @@ public #universal Kbd(props) {
     return <kbd {...props} class={kbd}>{props.children}</kbd>
 }
 
-public #universal Skeleton(props) {
+public #universal Skeleton(props : SkeletonProps) {
     var skeleton = style {
         display: inline-block;
         border-radius: var(--radius);
@@ -63,7 +113,7 @@ public #universal Skeleton(props) {
     return <div class={out} style={style} aria-hidden="true" {...props} />
 }
 
-public #universal Spinner(props) {
+public #universal Spinner(props : SpinnerProps) {
     var spinner = style {
         display: inline-block;
         border-radius: 50%;
@@ -82,7 +132,7 @@ public #universal Spinner(props) {
     return <span class={out} style={style} role="status" aria-label={props.label || "loading"} />
 }
 
-public #universal Container(props) {
+public #universal Container(props : ContainerProps) {
     var container = style {
         width: 100%;
         margin-inline: auto;
@@ -105,7 +155,7 @@ public #universal Container(props) {
     return <div class={out}>{props.children}</div>
 }
 
-public #universal Stack(props) {
+public #universal Stack(props : StackProps) {
     var stack = style {
         display: flex;
         box-sizing: border-box;
@@ -158,7 +208,7 @@ public #universal Stack(props) {
     return <div class={out}>{props.children}</div>
 }
 
-public #universal Grid(props) {
+public #universal Grid(props : GridProps) {
     var grid = style {
         display: grid;
         gap: 1rem;
@@ -184,7 +234,7 @@ public #universal Grid(props) {
     return <div class={out} style={style}>{props.children}</div>
 }
 
-public #universal Breadcrumbs(props) {
+public #universal Breadcrumbs(props : SlotProps) {
     var breadcrumbs = style {
         display: flex;
         align-items: center;
@@ -205,7 +255,7 @@ public #universal Breadcrumbs(props) {
     return <nav aria-label="Breadcrumb" class={classes + " " + breadcrumbs}>{props.children}</nav>
 }
 
-public #universal BreadcrumbItem(props) {
+public #universal BreadcrumbItem(props : SlotProps) {
     var breadcrumb_item = style {
         display: inline-flex;
         align-items: center;
@@ -216,7 +266,7 @@ public #universal BreadcrumbItem(props) {
     return <li class={classes + " " + breadcrumb_item}>{props.children}</li>
 }
 
-public #universal BreadcrumbLink(props) {
+public #universal BreadcrumbLink(props : BreadcrumbLinkProps) {
     var breadcrumb_link = style {
         color: hsl(var(--muted-foreground));
         text-decoration: none;
@@ -231,7 +281,7 @@ public #universal BreadcrumbLink(props) {
     return <a href={props.href || "#"} class={classes + " " + breadcrumb_link}>{props.children}</a>
 }
 
-public #universal BreadcrumbCurrent(props) {
+public #universal BreadcrumbCurrent(props : SlotProps) {
     var breadcrumb_current = style {
         color: hsl(var(--foreground));
         font-weight: 500;
@@ -241,7 +291,7 @@ public #universal BreadcrumbCurrent(props) {
     return <span class={classes + " " + breadcrumb_current} aria-current="page">{props.children}</span>
 }
 
-public #universal BreadcrumbSeparator(props) {
+public #universal BreadcrumbSeparator(props : BreadcrumbSeparatorProps) {
     var breadcrumb_sep = style {
         color: hsl(var(--muted-foreground));
         opacity: 0.6;
@@ -254,7 +304,7 @@ public #universal BreadcrumbSeparator(props) {
 }
 
 // BreadcrumbEllipsis: collapsed breadcrumb indicator
-public #universal BreadcrumbEllipsis(props) {
+public #universal BreadcrumbEllipsis(props : SlotProps) {
     var breadcrumb_ellipsis = style {
         display: inline-flex;
         align-items: center;
@@ -275,7 +325,7 @@ public #universal BreadcrumbEllipsis(props) {
 }
 
 // BreadcrumbList: ordered list wrapper (shadcn composition)
-public #universal BreadcrumbList(props) {
+public #universal BreadcrumbList(props : SlotProps) {
     var breadcrumbs = style {
         display: flex;
         align-items: center;

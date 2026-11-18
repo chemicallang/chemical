@@ -272,32 +272,45 @@ public #universal NativeSelect(props : NativeSelectProps) {
     </select>
 }
 
-// Legacy wrappers — keep every previously-public name working.
-public #universal InputFilled(props) {
+// Legacy wrappers — keep every previously-public name working. Each forwards
+// `{...props}` into `<Input>` with a pinned variant/size, so the wrapper surface is
+// `Input`'s minus the pinned dimension (an injected pinned default would be forwarded
+// by the spread and fight the attribute; see Button.ch).
+public struct InputWrapperProps {
+    var type : std::string_view = "text"
+    var placeholder : std::string_view = ""
+    var value : std::string_view = ""
+    var disabled : bool = false
+    var name : std::string_view = ""
+    var id : std::string_view = ""
+    var ariaLabel : std::string_view = ""
+}
+
+public #universal InputFilled(props : InputWrapperProps) {
     return <Input {...props} variant="filled">{props.children}</Input>
 }
 
-public #universal InputSuccess(props) {
+public #universal InputSuccess(props : InputWrapperProps) {
     return <Input {...props} variant="success">{props.children}</Input>
 }
 
-public #universal InputError(props) {
+public #universal InputError(props : InputWrapperProps) {
     return <Input {...props} variant="error">{props.children}</Input>
 }
 
-public #universal InputGhost(props) {
+public #universal InputGhost(props : InputWrapperProps) {
     return <Input {...props} variant="ghost">{props.children}</Input>
 }
 
-public #universal InputSm(props) {
+public #universal InputSm(props : InputWrapperProps) {
     return <Input {...props} size="sm">{props.children}</Input>
 }
 
-public #universal InputLg(props) {
+public #universal InputLg(props : InputWrapperProps) {
     return <Input {...props} size="lg">{props.children}</Input>
 }
 
-public #universal InputDisabled(props) {
+public #universal InputDisabled(props : InputWrapperProps) {
     return <Input {...props} disabled={true}>{props.children}</Input>
 }
 

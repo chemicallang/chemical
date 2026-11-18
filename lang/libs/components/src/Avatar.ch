@@ -157,10 +157,19 @@ public #universal AvatarGroupCount(props : AvatarGroupCountProps) {
     return <span class={classes + " " + avatar_count}>{props.children}</span>
 }
 
-// Legacy aliases
-public #universal AvatarSm(props) {
+// Legacy aliases. The size is pinned, so it is deliberately absent from the wrapper
+// surface: an injected `size` default would be forwarded by `{...props}` and fight the
+// pinned attribute (see Button.ch).
+public struct AvatarWrapperProps {
+    var src : std::string_view = ""
+    var alt : std::string_view = ""
+    var fallback : std::string_view = ""
+    var bordered : bool = false
+}
+
+public #universal AvatarSm(props : AvatarWrapperProps) {
     return <Avatar {...props} size="sm">{props.children}</Avatar>
 }
-public #universal AvatarLg(props) {
+public #universal AvatarLg(props : AvatarWrapperProps) {
     return <Avatar {...props} size="lg">{props.children}</Avatar>
 }

@@ -1127,13 +1127,42 @@ of the breaking changes in §3.17.
    proves declared props and implicit props render. Remaining: the generated serializer for
    **struct/vector props** (no client representation yet), and value-type checking for raw JS
    literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
-   **Rollout state (2026-11-18): 36 of 196 components typed, 148 left.** Remaining, in the order
-   worth doing next — `Surface.ch` 39 (mostly structural `div` wrappers: the cheap empty-struct
-   pass), `Data.ch` 20 (table primitives, the first family with real per-component knobs since
-   Typography), `Utilities.ch` 14, then the wrapper tails of `Badge.ch` 14 / `Alert.ch` 12 /
-   `Button.ch` 11 (variant/size wrappers — same shape as `InputSuccess`/`InputSm`: keep them
-   untyped if they only spread into another component), `Sheet.ch` 8, `Toggle.ch`/`Toast.ch`/
-   `Collapsible.ch` 3 each, and `Select.ch` 2.
+   **Rollout state (2026-11-18, end of batch): 166 of 184 components typed.** (The plan's "196"
+   was an estimate; the library has 184 `#universal` declarations.) The 18 left are blocked on a
+   feature, not on effort — see the two gaps below. Coverage by family: Card, Button (12), Badge
+   (15), Alert (13), Avatar (7), Separator, ErrorOverlay, Input/TextArea/NativeSelect + Field
+   family + InputGroup/Icon/Addon + 7 wrappers (17), Typography (23 incl. aliases), Surface (35),
+   Data (17), Utilities (14), ToggleGroupItem, RadioGroupItem, SelectItem, Sheet slots (7),
+   Toast slots (2), Collapsible slots (2).
+
+   **Gap A — controlled/uncontrolled axis props (10 components: `Sheet`, `Collapsible`, `Toast`,
+   `Select`, `Slider`, `ToggleGroup`, `RadioGroup`, `Checkbox`, `Radio`, `Switch`).** These read
+   `props.open != null` / `props.value != null` / `props.checked != null`, i.e. *absence* is
+   meaningful. Typed props have exactly two states — a default (injected at the call site, so
+   never absent) and no default (required) — so declaring one of these fields would either make
+   every instance controlled or force every caller to pass it. They stay untyped (permissive, not
+   broken) until typed props gain an **optional-without-default** field. The smallest shape that
+   fits: mark the field in the props struct (`var checked : bool?`, or a `@optional` marker once
+   CBI exposes annotations on `VarDeclaration`) meaning "omit unless the caller passes it; do not
+   inject; do not require". It touches both plugins' required-check, the JSX/`#html` injection, and
+   the call-site value check — one change, then these 10 are typed mechanically.
+
+   **Gap B — JSX element and array props (8 components: `Popover`, `Dialog`, `Dropdown`, `Tooltip`
+   (`trigger`/`content`), `AccordionItem` (`trigger`), `Suspense` (`fallback`), `Tabs`
+   (`tabs`/`panels`), `Pagination` (`pages`)).** A JSX element or an array of JSX/descriptors has
+   no Chemical value type to declare, so there is nothing to type-check against. These need either
+   an element type in the JSX surface or for the component to take those parts as `children`
+   slots; not part of the prop-typing work.
+
+   **Wrapper rule (applies to all 40+ `ButtonSuccess`-style delegates).** A wrapper renders
+   `<Parent {...props} pinned="value">`, and a **defaulted** wrapper field is injected at the
+   wrapper's own call site and then forwarded by `{...props}` — where it fights the pinned
+   attribute. `ButtonDanger` rendered `data-variant="default"` and dropped its destructive styling
+   until `variant` was removed from the wrapper struct. So every wrapper surface is *the parent's
+   props minus the pinned dimension* (`ButtonWrapperProps`, `BadgeWrapperProps`,
+   `AlertWrapperProps`, `AvatarWrapperProps`, `InputWrapperProps`). The remaining fields still
+   give name- and value-checking (`<ButtonSm type="sumbit">` fails, `<ButtonSm disabled="yes">`
+   fails) which the old untyped surface let through.
 
    **The 196-component rollout was unblocked on 2026-11-17.**
    `lang/libs/components/src/Card.ch` is typed end to end: `CardProps { size = "default" }`,
@@ -1167,8 +1196,8 @@ of the breaking changes in §3.17.
      components looked untypeable. The fix is on the validation side: **universal DOM attributes are
      implicit** in both plugins, exactly like `class`/`className`/`children`/`on*`/`data-*`. The
      implicit set is `id`, `title`, `role`, `tabindex`, `hidden`, `dir`, `lang`, `slot`, `part`,
-     `contenteditable`, `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`, plus every
-     `aria-*`. So `{...props}` keeps forwarding `role`/`aria-label`/vendor attributes while the
+     `contenteditable`, `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`,
+     `ariaLabel` (the Chemical spelling of `aria-label`), plus every `aria-*`. So `{...props}` keeps forwarding `role`/`aria-label`/vendor attributes while the
      declared surface is still name- and value-checked. A **declared** prop of the same name is
      still value-checked: member lookup happens *before* the implicit check on both paths (a
      declared `id : string_view` rejects `id={3}`; the implicit rule would have accepted it).

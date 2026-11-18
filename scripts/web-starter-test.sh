@@ -21,7 +21,12 @@ check() { # name, condition-exit
     if [ "$2" -eq 0 ]; then echo "ok   $1"; else echo "FAIL $1"; fail=1; fi
 }
 
-rm -rf "$out_dir" "$exe"
+# The template builds in place, so its own build dir holds the CBI plugin objects
+# (`universal.dir/object_tcc.o`, …). A plain build does not revalidate those against
+# the plugin sources: a stale one links against the old symbol set and fails with
+# `unresolved reference to 'compiler_VecRef__…'`. Always start clean so the gate tests
+# the current library rather than a cached plugin.
+rm -rf "$out_dir" "$exe" templates/web-starter/build
 "$compiler" templates/web-starter/chemical.mod -o "$exe" --mode debug_quick \
     > lang/compiled/web-starter-build.log 2>&1
 check "template compiles" $?

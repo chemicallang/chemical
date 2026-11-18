@@ -1,3 +1,6 @@
+// Typed props (Phase 2). `Collapsible` stays untyped while `open`/`defaultOpen` are
+// controlled-vs-uncontrolled axis props (see Sheet.ch).
+
 // Shadcn-style Collapsible: a stateful show/hide region.
 //
 // Props:
@@ -91,7 +94,7 @@ public #universal Collapsible(props) {
 }
 
 // Low-level styled trigger/content for manual controlled composition.
-public #universal CollapsibleTrigger(props) {
+public #universal CollapsibleTrigger(props : SlotProps) {
     var collapsible_trigger = style {
         display: inline-flex;
         align-items: center;
@@ -128,7 +131,7 @@ public #universal CollapsibleTrigger(props) {
     return <button {...props} type="button" class={collapsible_trigger}>{props.children}</button>
 }
 
-public #universal CollapsibleContent(props) {
+public #universal CollapsibleContent(props : SlotProps) {
     var collapsible_content = style {
         overflow: hidden;
         transition: height 0.25s var(--ease), opacity 0.2s ease;

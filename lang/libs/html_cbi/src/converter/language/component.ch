@@ -273,6 +273,10 @@ func is_implicit_prop_name(name : std::string_view) : bool {
     if(name.equals(std::string_view("inert"))) return true
     if(name.equals(std::string_view("translate"))) return true
     if(name.equals(std::string_view("autofocus"))) return true
+    // The Chemical spelling of the aria-label attribute: components that take it
+    // forward it to `aria-label` explicitly, so requiring every props struct to
+    // declare it again would be noise. `aria-*` is implicit for the same reason.
+    if(name.equals(std::string_view("ariaLabel"))) return true
     // `data-*` / `aria-*` are the DOM's pass-through namespaces, never a prop typo.
     if(name.size() > 5 && name.at(0) == 'd' && name.at(1) == 'a' && name.at(2) == 't' && name.at(3) == 'a' && name.at(4) == '-') return true
     if(name.size() > 5 && name.at(0) == 'a' && name.at(1) == 'r' && name.at(2) == 'i' && name.at(3) == 'a' && name.at(4) == '-') return true

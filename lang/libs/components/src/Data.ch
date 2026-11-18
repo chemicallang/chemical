@@ -1,9 +1,55 @@
+// Typed props (Phase 2). Slots take the shared `SlotProps` (Input.ch). Three
+// components stay untyped because they take a JSX/array surface that has no Chemical
+// value type: `Tabs` (`tabs`/`panels` arrays of JSX), `AccordionItem` (`trigger`) and
+// `Pagination` (`pages` is an array of page descriptors).
+
+public struct ProgressProps {
+    // 0..max; the bar width
+    var value : int = 0
+    var max : int = 100
+    // rendered above the bar when non-empty
+    var label : std::string_view = ""
+    // prints "value/max" over the bar
+    var showValue : bool = false
+    // appended to that readout ("%", "MB", …)
+    var suffix : std::string_view = ""
+    // "default" | "success" | "destructive" | …
+    var variant : std::string_view = "default"
+    // "sm" | "md" | "lg"
+    var size : std::string_view = "md"
+}
+
+public struct AccordionProps {
+    // allow several sections open at once
+    var multiple : bool = false
+}
+
+public struct TabListProps {
+    // "line" | "pills" | …
+    var variant : std::string_view = "line"
+    // "horizontal" | "vertical"
+    var orientation : std::string_view = "horizontal"
+}
+
+public struct TabProps {
+    var disabled : bool = false
+    // the currently shown tab (also read by TabActive)
+    var selected : bool = false
+    var variant : std::string_view = "line"
+    var orientation : std::string_view = "horizontal"
+}
+
+public struct TabActiveProps {
+    var variant : std::string_view = "line"
+    var orientation : std::string_view = "horizontal"
+}
+
 // Shadcn-style Progress bar with optional label/value.
 // Usage:
 //   <Progress value={56} />
 //   <Progress value={56}><ProgressLabel>Upload progress</ProgressLabel><ProgressValue /></Progress>
 //   <Progress value={56} variant="success" size="lg" />
-public #universal Progress(props) {
+public #universal Progress(props : ProgressProps) {
     var progress = style {
         appearance: none;
         width: 100%;
@@ -79,7 +125,7 @@ public #universal Progress(props) {
     var value = props.value || 0
     var max = props.max || 100
     return <div style="display:grid;gap:0.25rem;width:100%;">
-        {props.label !== undefined ? <span class={progress_label}>{props.label}</span> : null}
+        {props.label ? <span class={progress_label}>{props.label}</span> : null}
         <div style="display:flex;align-items:center;gap:0.5rem;">
             <progress {...props} max={max} value={value} data-variant={variant} data-size={size} class={progress}></progress>
             {props.showValue ? <span class={progress_value}>{value}{props.max ? "/" + max : ""}{props.suffix || ""}</span> : null}
@@ -87,7 +133,7 @@ public #universal Progress(props) {
     </div>
 }
 
-public #universal ProgressLabel(props) {
+public #universal ProgressLabel(props : SlotProps) {
     var progress_label = style {
         font-size: 0.8125rem;
         font-weight: 500;
@@ -97,7 +143,7 @@ public #universal ProgressLabel(props) {
     return <span class={progress_label}>{props.children}</span>
 }
 
-public #universal ProgressValue(props) {
+public #universal ProgressValue(props : SlotProps) {
     var progress_value = style {
         font-size: 0.8125rem;
         font-weight: 600;
@@ -114,7 +160,7 @@ public #universal ProgressValue(props) {
 // Accordion: styled wrapper for a group of AccordionItems.
 // Passes through all props. Keyboard navigation: ArrowUp/Down move between
 // triggers, Home/End jump to first/last trigger.
-public #universal Accordion(props) {
+public #universal Accordion(props : AccordionProps) {
     var accordion = style {
         width: 100%;
     }
@@ -242,7 +288,7 @@ public #universal AccordionItem(props) {
 
 // Standalone AccordionTrigger: styled clickable header (no state).
 // Use inside AccordionItem for composition, or standalone for custom layouts.
-public #universal AccordionTrigger(props) {
+public #universal AccordionTrigger(props : SlotProps) {
     var accordion_trigger = style {
         display: flex;
         align-items: center;
@@ -289,7 +335,7 @@ public #universal AccordionTrigger(props) {
 }
 
 // Standalone AccordionContent: collapsible content panel (no state).
-public #universal AccordionContent(props) {
+public #universal AccordionContent(props : SlotProps) {
     var accordion_content = style {
         overflow: hidden;
         font-size: 0.875rem;
@@ -495,7 +541,7 @@ public #universal Tabs(props) {
     return <div {...props} class={tabs} data-orientation={orientation}>{props.children}</div>
 }
 
-public #universal TabList(props) {
+public #universal TabList(props : TabListProps) {
     var tab_list = style {
         display: inline-flex;
         align-items: center;
@@ -528,7 +574,7 @@ public #universal TabList(props) {
     return <div {...props} data-variant={variant} data-orientation={orientation} class={tab_list} role="tablist" aria-orientation={orientation}>{props.children}</div>
 }
 
-public #universal Tab(props) {
+public #universal Tab(props : TabProps) {
     var tab = style {
         border: 0;
         padding: 0.65rem 1rem;
@@ -594,7 +640,7 @@ public #universal Tab(props) {
     return <button {...props} type="button" data-disabled={disabled ? "true" : "false"} data-active={props.selected ? "true" : "false"} data-variant={props.variant} data-orientation={props.orientation} class={tab} role="tab" aria-selected={props.selected ? "true" : "false"} tabIndex={props.selected ? 0 : -1} disabled={disabled}>{props.children}</button>
 }
 
-public #universal TabActive(props) {
+public #universal TabActive(props : TabActiveProps) {
     var tab = style {
         border: 0;
         padding: 0.65rem 1rem;
@@ -659,7 +705,7 @@ public #universal TabActive(props) {
     return <button {...props} type="button" data-active="true" data-variant={props.variant} data-orientation={props.orientation} class={tab} role="tab" aria-selected="true" tabIndex={0}>{props.children}</button>
 }
 
-public #universal TabPanel(props) {
+public #universal TabPanel(props : SlotProps) {
     var tab_panel = style {
         padding: 1rem 0;
         font-size: 0.875rem;
@@ -732,7 +778,7 @@ public #universal Pagination(props) {
     return <nav {...props} class={pagination}>{props.children}</nav>
 }
 
-public #universal PageItem(props) {
+public #universal PageItem(props : SlotProps) {
     var pagination_item = style {
         min-width: 2.4rem;
         height: 2.4rem;
@@ -750,7 +796,7 @@ public #universal PageItem(props) {
     return <a {...props} class={pagination_item}>{props.children}</a>
 }
 
-public #universal PageItemActive(props) {
+public #universal PageItemActive(props : SlotProps) {
     var pagination_active = style {
         background: hsl(var(--primary));
         color: hsl(var(--primary-foreground));
@@ -759,7 +805,7 @@ public #universal PageItemActive(props) {
     return <PageItem {...props} class={pagination_active}>{props.children}</PageItem>
 }
 
-public #universal List(props) {
+public #universal List(props : SlotProps) {
     var list = style {
         margin: 0;
         padding: 0;
@@ -770,7 +816,7 @@ public #universal List(props) {
     return <ul {...props} class={list}>{props.children}</ul>
 }
 
-public #universal ListItem(props) {
+public #universal ListItem(props : SlotProps) {
     var list_item = style {
         padding: 0.85rem 1rem;
         border: 1px solid hsl(var(--border));
@@ -781,7 +827,7 @@ public #universal ListItem(props) {
     return <li {...props} class={list_item}>{props.children}</li>
 }
 
-public #universal Table(props) {
+public #universal Table(props : SlotProps) {
     var table = style {
         width: 100%;
         border-collapse: separate;
@@ -794,7 +840,7 @@ public #universal Table(props) {
     return <table {...props} class={table}>{props.children}</table>
 }
 
-public #universal TableHeadCell(props) {
+public #universal TableHeadCell(props : SlotProps) {
     var table_head_cell = style {
         padding: 0.85rem 1rem;
         text-align: left;
@@ -808,7 +854,7 @@ public #universal TableHeadCell(props) {
     return <th {...props} class={table_head_cell}>{props.children}</th>
 }
 
-public #universal TableCell(props) {
+public #universal TableCell(props : SlotProps) {
     var table_cell = style {
         padding: 0.9rem 1rem;
         color: hsl(var(--foreground));

@@ -1,3 +1,13 @@
+// Typed props (Phase 2). `Sheet` itself stays untyped while `open`/`defaultOpen` exist:
+// a controlled-vs-uncontrolled pair needs an "optional, absent by default" prop, which
+// typed props cannot express yet (a default would make every sheet controlled, and a
+// field without a default is required). See the plan's §3.15a note.
+
+public struct SheetContentProps {
+    // "left" | "right" | "top" | "bottom"
+    var side : std::string_view = "right"
+}
+
 // Shadcn-style Sheet: a modal panel that slides in from an edge of the
 // screen (like shadcn's Sheet / Dialog with side placement).
 //
@@ -125,7 +135,7 @@ public #universal Sheet(props) {
     )
 }
 
-public #universal SheetBackdrop(props) {
+public #universal SheetBackdrop(props : SlotProps) {
     var sheet_backdrop = style {
         position: absolute;
         inset: 0;
@@ -136,7 +146,7 @@ public #universal SheetBackdrop(props) {
     return <div {...props} class={sheet_backdrop}></div>
 }
 
-public #universal SheetContent(props) {
+public #universal SheetContent(props : SheetContentProps) {
     var sheet_content = style {
         position: relative;
         z-index: 1;
@@ -176,7 +186,7 @@ public #universal SheetContent(props) {
     return <div {...props} class={sheet_content} data-side={props.side}>{props.children}</div>
 }
 
-public #universal SheetHeader(props) {
+public #universal SheetHeader(props : SlotProps) {
     var sheet_header = style {
         display: flex;
         align-items: center;
@@ -188,7 +198,7 @@ public #universal SheetHeader(props) {
     return <div {...props} class={sheet_header}>{props.children}</div>
 }
 
-public #universal SheetTitle(props) {
+public #universal SheetTitle(props : SlotProps) {
     var sheet_title = style {
         font-size: 1.125rem;
         font-weight: 600;
@@ -197,7 +207,7 @@ public #universal SheetTitle(props) {
     return <div {...props} class={sheet_title}>{props.children}</div>
 }
 
-public #universal SheetClose(props) {
+public #universal SheetClose(props : SlotProps) {
     var sheet_close = style {
         display: inline-flex;
         align-items: center;
@@ -220,7 +230,7 @@ public #universal SheetClose(props) {
     return <button {...props} type="button" class={sheet_close}>{props.children}</button>
 }
 
-public #universal SheetBody(props) {
+public #universal SheetBody(props : SlotProps) {
     var sheet_body = style {
         padding: 1.25rem;
         display: grid;
@@ -229,7 +239,7 @@ public #universal SheetBody(props) {
     return <div {...props} class={sheet_body}>{props.children}</div>
 }
 
-public #universal SheetDescription(props) {
+public #universal SheetDescription(props : SlotProps) {
     var sheet_desc = style {
         font-size: 0.875rem;
         color: hsl(var(--muted-foreground));

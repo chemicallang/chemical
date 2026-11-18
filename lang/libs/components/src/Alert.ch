@@ -1,3 +1,13 @@
+// Wrapper surfaces (Phase 2): each delegates to `<Alert {...props} variant="…">`.
+// `variant` is deliberately absent — an injected default would be forwarded by the
+// spread and fight the pinned attribute (see Button.ch).
+
+public struct AlertWrapperProps {
+    var title : std::string_view = ""
+    var description : std::string_view = ""
+    var dismissible : bool = false
+}
+
 // Shadcn-style alert. `variant` picks the tone (default/info/success/error/
 // warning/accent); `title`/`description` props render the composed layout in
 // one call; `dismissible` shows a close button that fires `onDismiss`.
@@ -104,7 +114,7 @@ public #universal Alert(props : AlertProps) {
     </div>
 }
 
-public #universal AlertTitle(props) {
+public #universal AlertTitle(props : SlotProps) {
     var alert_title = style {
         font-weight: 600;
         font-size: 0.9375rem;
@@ -117,7 +127,7 @@ public #universal AlertTitle(props) {
     return <h5 class={classes + " " + alert_title}>{props.children}</h5>
 }
 
-public #universal AlertBody(props) {
+public #universal AlertBody(props : SlotProps) {
     var alert_body = style {
         color: hsl(var(--muted-foreground));
         font-size: 0.875rem;
@@ -130,11 +140,11 @@ public #universal AlertBody(props) {
 }
 
 // Shadcn name for the body text — AlertBody kept as a legacy alias.
-public #universal AlertDescription(props) {
+public #universal AlertDescription(props : SlotProps) {
     return <AlertBody {...props}>{props.children}</AlertBody>
 }
 
-public #universal AlertIcon(props) {
+public #universal AlertIcon(props : SlotProps) {
     var alert_icon = style {
         display: inline-flex;
         align-items: center;
@@ -146,7 +156,7 @@ public #universal AlertIcon(props) {
     return <span class={classes + " " + alert_icon}>{props.children}</span>
 }
 
-public #universal AlertContent(props) {
+public #universal AlertContent(props : SlotProps) {
     var alert_content = style {
         flex: 1;
         min-width: 0;
@@ -157,29 +167,29 @@ public #universal AlertContent(props) {
 }
 
 // Legacy aliases
-public #universal AlertAccent(props) {
+public #universal AlertAccent(props : AlertWrapperProps) {
     return <Alert {...props} variant="accent">{props.children}</Alert>
 }
-public #universal AlertSuccess(props) {
+public #universal AlertSuccess(props : AlertWrapperProps) {
     return <Alert {...props} variant="success">{props.children}</Alert>
 }
-public #universal AlertError(props) {
+public #universal AlertError(props : AlertWrapperProps) {
     return <Alert {...props} variant="error">{props.children}</Alert>
 }
-public #universal AlertWarning(props) {
+public #universal AlertWarning(props : AlertWrapperProps) {
     return <Alert {...props} variant="warning">{props.children}</Alert>
 }
-public #universal AlertInfo(props) {
+public #universal AlertInfo(props : AlertWrapperProps) {
     return <Alert {...props} variant="info">{props.children}</Alert>
 }
 
 // Destructive variant (shadcn naming convention)
-public #universal AlertDestructive(props) {
+public #universal AlertDestructive(props : AlertWrapperProps) {
     return <Alert {...props} variant="error">{props.children}</Alert>
 }
 
 // Shadcn AlertAction: positioned absolutely in the top-right corner of the alert.
-public #universal AlertAction(props) {
+public #universal AlertAction(props : SlotProps) {
     var alert_action = style {
         position: absolute;
         top: 0.75rem;

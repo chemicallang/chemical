@@ -1,4 +1,11 @@
-public #universal Paper(props) {
+// Typed props (Phase 2). Most of this file is structural slots that only accept
+// `children` and the implicit class/aria/DOM attributes, so they take the shared
+// `SlotProps` (declared in Input.ch). Four components stay untyped because they take a
+// JSX *element* prop — Popover (`trigger`), Dialog (`trigger`), Tooltip (`content`)
+// and Dropdown (`trigger`) — and a JSX element has no Chemical value type to declare
+// (same reason as Suspense's `fallback`).
+
+public #universal Paper(props : SlotProps) {
     var paper = style {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%), hsl(var(--background));
         border: 1px solid hsl(var(--border));
@@ -9,7 +16,7 @@ public #universal Paper(props) {
     return <section {...props} class={paper}>{props.children}</section>
 }
 
-public #universal AppBar(props) {
+public #universal AppBar(props : SlotProps) {
     var appbar = style {
         display: flex;
         align-items: center;
@@ -24,7 +31,7 @@ public #universal AppBar(props) {
     return <header {...props} class={appbar}>{props.children}</header>
 }
 
-public #universal Drawer(props) {
+public #universal Drawer(props : SlotProps) {
     var drawer = style {
         width: 280px;
         max-width: 100%;
@@ -39,7 +46,7 @@ public #universal Drawer(props) {
     return <aside {...props} class={drawer}>{props.children}</aside>
 }
 
-public #universal Menu(props) {
+public #universal Menu(props : SlotProps) {
     // Portaled into document.body and positioned fixed by $__uni_floating;
     // visibility is driven by data-open (inline style would wipe positioning).
     var menu = style {
@@ -62,7 +69,7 @@ public #universal Menu(props) {
     return <div {...props} role="menu" class={menu}>{props.children}</div>
 }
 
-public #universal MenuItem(props) {
+public #universal MenuItem(props : SlotProps) {
     var menu_item = style {
         display: flex;
         align-items: center;
@@ -151,11 +158,11 @@ public #universal Popover(props) {
     return <div {...props} class={popover} class={classes}>{props.children}</div>
 }
 
-public #universal PopoverTrigger(props) {
+public #universal PopoverTrigger(props : SlotProps) {
     return <button {...props} type="button">{props.children}</button>
 }
 
-public #universal PopoverContent(props) {
+public #universal PopoverContent(props : SlotProps) {
     var popover = style {
         width: 280px;
         max-width: 100%;
@@ -172,7 +179,7 @@ public #universal PopoverContent(props) {
     return <div {...props} class={popover}>{props.children}</div>
 }
 
-public #universal PopoverHeader(props) {
+public #universal PopoverHeader(props : SlotProps) {
     var popover_header = style {
         display: grid;
         gap: 0.125rem;
@@ -180,7 +187,7 @@ public #universal PopoverHeader(props) {
     return <div {...props} class={popover_header}>{props.children}</div>
 }
 
-public #universal PopoverTitle(props) {
+public #universal PopoverTitle(props : SlotProps) {
     var popover_title = style {
         font-size: 0.875rem;
         font-weight: 600;
@@ -191,7 +198,7 @@ public #universal PopoverTitle(props) {
     return <h3 {...props} class={popover_title}>{props.children}</h3>
 }
 
-public #universal PopoverDescription(props) {
+public #universal PopoverDescription(props : SlotProps) {
     var popover_desc = style {
         font-size: 0.8125rem;
         color: hsl(var(--muted-foreground));
@@ -329,7 +336,7 @@ public #universal Dialog(props) {
     )
 }
 
-public #universal DialogBackdrop(props) {
+public #universal DialogBackdrop(props : SlotProps) {
     var dialog_backdrop = style {
         position: absolute;
         inset: 0;
@@ -339,7 +346,19 @@ public #universal DialogBackdrop(props) {
     return <div {...props} class={dialog_backdrop}></div>
 }
 
-public #universal DialogContent(props) {
+// DialogContent/Body split: `size` picks the panel width preset, `scrollable`
+// keeps the panel's overflow hidden so an inner DialogBody scrolls.
+public struct DialogContentProps {
+    // "sm" | "default" | "lg"
+    var size : std::string_view = "default"
+    var scrollable : bool = false
+    // the panel's own close button; false hides it for confirm-style dialogs
+    var showCloseButton : bool = true
+    // the close button calls props.onClose (an implicit `on*` prop) or
+    // window.$__uni_dialog_close, whichever exists
+}
+
+public #universal DialogContent(props : DialogContentProps) {
     var dialog_content = style {
         width: 420px;
         max-width: 100%;
@@ -396,7 +415,7 @@ public #universal DialogContent(props) {
     </div>
 }
 
-public #universal DialogHeader(props) {
+public #universal DialogHeader(props : SlotProps) {
     var dialog_header = style {
         display: grid;
         gap: 0.375rem;
@@ -406,7 +425,7 @@ public #universal DialogHeader(props) {
     return <div {...props} class={dialog_header}>{props.children}</div>
 }
 
-public #universal DialogTitle(props) {
+public #universal DialogTitle(props : SlotProps) {
     var dialog_title = style {
         font-size: 1.125rem;
         font-weight: 600;
@@ -418,7 +437,7 @@ public #universal DialogTitle(props) {
     return <h2 {...props} class={dialog_title} class={classes}>{props.children}</h2>
 }
 
-public #universal DialogDescription(props) {
+public #universal DialogDescription(props : SlotProps) {
     var dialog_desc = style {
         font-size: 0.875rem;
         color: hsl(var(--muted-foreground));
@@ -428,7 +447,7 @@ public #universal DialogDescription(props) {
     return <p {...props} class={dialog_desc} class={classes}>{props.children}</p>
 }
 
-public #universal DialogBody(props) {
+public #universal DialogBody(props : SlotProps) {
     var dialog_body = style {
         overflow-y: auto;
         flex: 1;
@@ -438,7 +457,7 @@ public #universal DialogBody(props) {
     return <div {...props} class={dialog_body}>{props.children}</div>
 }
 
-public #universal DialogFooter(props) {
+public #universal DialogFooter(props : SlotProps) {
     var dialog_footer = style {
         display: flex;
         align-items: center;
@@ -452,11 +471,11 @@ public #universal DialogFooter(props) {
 }
 
 // Legacy alias
-public #universal DialogActions(props) {
+public #universal DialogActions(props : SlotProps) {
     return <DialogFooter {...props}>{props.children}</DialogFooter>
 }
 
-public #universal Snackbar(props) {
+public #universal Snackbar(props : SlotProps) {
     var snackbar = style {
         display: inline-flex;
         align-items: center;
@@ -543,21 +562,21 @@ public #universal Tooltip(props) {
 
 // TooltipProvider: wraps the app to configure global tooltip behavior.
 // delay: global hover delay override (ms)
-public #universal TooltipProvider(props) {
+public #universal TooltipProvider(props : SlotProps) {
     return <span {...props}>{props.children}</span>
 }
 
 // TooltipContent: wraps tooltip text content (shadcn API compatibility)
-public #universal TooltipContent(props) {
+public #universal TooltipContent(props : SlotProps) {
     return <span {...props}>{props.children}</span>
 }
 
 // TooltipTrigger: wraps the trigger element (shadcn API compatibility)
-public #universal TooltipTrigger(props) {
+public #universal TooltipTrigger(props : SlotProps) {
     return <span {...props}>{props.children}</span>
 }
 
-public #universal Icon(props) {
+public #universal Icon(props : SlotProps) {
     var icon = style {
         display: inline-flex;
         align-items: center;
@@ -575,7 +594,7 @@ public #universal Icon(props) {
     return <span {...props} class={icon}>{props.children}</span>
 }
 
-public #universal BottomBar(props) {
+public #universal BottomBar(props : SlotProps) {
     var bottom_bar = style {
         width: 100%;
         max-width: 420px;
@@ -593,7 +612,7 @@ public #universal BottomBar(props) {
     return <nav {...props} class={bottom_bar}>{props.children}</nav>
 }
 
-public #universal EmptyState(props) {
+public #universal EmptyState(props : SlotProps) {
     var empty_state = style {
         display: grid;
         gap: 0.75rem;
@@ -606,7 +625,7 @@ public #universal EmptyState(props) {
     return <section {...props} class={empty_state}>{props.children}</section>
 }
 
-public #universal StatCard(props) {
+public #universal StatCard(props : SlotProps) {
     var stat_card = style {
         display: grid;
         gap: 0.5rem;
@@ -679,7 +698,7 @@ public #universal Dropdown(props) {
     </div>
 }
 
-public #universal DropdownItem(props) {
+public #universal DropdownItem(props : SlotProps) {
     return <MenuItem {...props}>{props.children}</MenuItem>
 }
 
@@ -693,15 +712,15 @@ public #universal DropdownItem(props) {
 //           <DropdownMenuItem>Logout</DropdownMenuItem>
 //       </DropdownMenuContent>
 //   </DropdownMenu>
-public #universal DropdownMenu(props) {
+public #universal DropdownMenu(props : SlotProps) {
     return <span {...props}>{props.children}</span>
 }
 
-public #universal DropdownMenuTrigger(props) {
+public #universal DropdownMenuTrigger(props : SlotProps) {
     return <span {...props} onClick={props.onClick}>{props.children}</span>
 }
 
-public #universal DropdownMenuContent(props) {
+public #universal DropdownMenuContent(props : SlotProps) {
     var dropdown_content = style {
         min-width: 220px;
         position: fixed;
@@ -724,7 +743,11 @@ public #universal DropdownMenuContent(props) {
     return <div {...props} class={dropdown_content} role="menu">{props.children}</div>
 }
 
-public #universal DropdownMenuItem(props) {
+public struct DropdownMenuItemProps {
+    var disabled : bool = false
+}
+
+public #universal DropdownMenuItem(props : DropdownMenuItemProps) {
     var dropdown_item = style {
         display: flex;
         align-items: center;
@@ -756,7 +779,7 @@ public #universal DropdownMenuItem(props) {
     return <button type="button" role="menuitem" data-disabled={disabled ? "true" : "false"} class={classes + " " + dropdown_item} onClick={props.onClick} disabled={disabled}>{props.children}</button>
 }
 
-public #universal DropdownMenuSeparator(props) {
+public #universal DropdownMenuSeparator(props : SlotProps) {
     var dropdown_separator = style {
         height: 1px;
         background: hsl(var(--border));
@@ -765,7 +788,7 @@ public #universal DropdownMenuSeparator(props) {
     return <div role="separator" class={dropdown_separator}></div>
 }
 
-public #universal DropdownMenuLabel(props) {
+public #universal DropdownMenuLabel(props : SlotProps) {
     var dropdown_label = style {
         padding: 0.375rem 0.5rem;
         font-size: 0.75rem;
@@ -775,7 +798,7 @@ public #universal DropdownMenuLabel(props) {
     return <div class={dropdown_label}>{props.children}</div>
 }
 
-public #universal DropdownMenuShortcut(props) {
+public #universal DropdownMenuShortcut(props : SlotProps) {
     var dropdown_shortcut = style {
         margin-left: auto;
         font-size: 0.75rem;
@@ -785,7 +808,12 @@ public #universal DropdownMenuShortcut(props) {
     return <span class={dropdown_shortcut}>{props.children}</span>
 }
 
-public #universal DropdownMenuCheckboxItem(props) {
+public struct DropdownMenuCheckboxItemProps {
+    var checked : bool = false
+    var disabled : bool = false
+}
+
+public #universal DropdownMenuCheckboxItem(props : DropdownMenuCheckboxItemProps) {
     var dropdown_item = style {
         display: flex;
         align-items: center;

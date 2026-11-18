@@ -219,13 +219,13 @@ public #universal Blockquote(props : BlockquoteProps) {
 }
 
 // Legacy aliases
-public #universal TypographyH1(props) { return <H1 {...props} /> }
-public #universal TypographyH2(props) { return <H2 {...props} /> }
-public #universal TypographyH3(props) { return <H3 {...props} /> }
-public #universal TypographyH4(props) { return <H4 {...props} /> }
-public #universal TypographyH5(props) { return <H5 {...props} /> }
-public #universal TypographyH6(props) { return <H6 {...props} /> }
-public #universal TypographyText(props) { return <Text {...props}>{props.children}</Text> }
-public #universal TypographyLead(props) { return <Lead {...props}>{props.children}</Lead> }
-public #universal TypographyCaption(props) { return <Caption {...props}>{props.children}</Caption> }
-public #universal TypographyCode(props) { return <CodeText {...props}>{props.children}</CodeText> }
+public #universal TypographyH1(props : PlainTextProps) { return <H1 {...props} /> }
+public #universal TypographyH2(props : PlainTextProps) { return <H2 {...props} /> }
+public #universal TypographyH3(props : PlainTextProps) { return <H3 {...props} /> }
+public #universal TypographyH4(props : PlainTextProps) { return <H4 {...props} /> }
+public #universal TypographyH5(props : PlainTextProps) { return <H5 {...props} /> }
+public #universal TypographyH6(props : PlainTextProps) { return <H6 {...props} /> }
+public #universal TypographyText(props : TextProps) { return <Text {...props}>{props.children}</Text> }
+public #universal TypographyLead(props : PlainTextProps) { return <Lead {...props}>{props.children}</Lead> }
+public #universal TypographyCaption(props : PlainTextProps) { return <Caption {...props}>{props.children}</Caption> }
+public #universal TypographyCode(props : PlainTextProps) { return <CodeText {...props}>{props.children}</CodeText> }

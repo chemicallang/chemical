@@ -103,11 +103,25 @@ Avatar, Input, Sheet, Typography, …). Add `import components` to
 #html { <Card><CardHeader><CardTitle>Hello</CardTitle></CardHeader></Card> }
 ```
 
-Props are being typed component by component (36 of 196 today). Card, Button,
-Badge, Alert, Avatar, Separator, ErrorOverlay, the form controls (`Input`,
-`TextArea`, `NativeSelect`, the `Field` family, `InputGroup`, `InputIcon`,
-`InputAddon`) and all of Typography are typed. Untyped components accept any
-attribute name, exactly as before, so nothing breaks as the rollout continues.
+Props are typed on 166 of the 184 components. That includes everything you need
+to build a page today: Card, Button (+ every variant/size wrapper), Badge, Alert,
+Avatar, Separator, ErrorOverlay, Input/TextArea/NativeSelect (+ the `Field` family,
+`InputGroup`/`InputIcon`/`InputAddon` and their wrappers), all of Typography,
+Surface (Paper, AppBar, Drawer, Menu, Popover/Dialog/Tooltip/Dropdown slots,
+Snackbar, Icon, EmptyState, StatCard), Data (Progress, Accordion, TabList/Tab/
+TabPanel, Table, List, PageItem), Utilities (Container, Stack, Grid, Skeleton,
+Spinner, Divider, Kbd, Breadcrumbs) and the item components of Sheet, Toast,
+Collapsible, ToggleGroup, RadioGroup and Select.
+
+The remaining 18 accept any attribute name, exactly as before, so nothing breaks.
+They fall into two groups: components whose props are a controlled/uncontrolled
+pair (`Sheet`, `Collapsible`, `Toast`, `Select`, `Slider`, `ToggleGroup`,
+`RadioGroup`, `Checkbox`, `Radio`, `Switch` — `open`/`value`/`checked` must be
+able to stay absent, which a declared default or a required field cannot express),
+and components that take a JSX element or array (`Popover`/`Dialog`/`Dropdown`/
+`Tooltip` triggers, `AccordionItem`'s trigger, `Suspense`'s fallback, `Tabs`,
+`Pagination`). Until then those accept any prop name and are still checked at
+runtime by the browser, not by the compiler.
 
 Two things to know when you call a typed component:
 
@@ -118,6 +132,13 @@ Two things to know when you call a typed component:
   `name`, `aria-label`) are absent unless you pass them, so an input stays
   uncontrolled when you omit `value`. When you *do* pass `value=""` deliberately,
   it is treated as "unset" — pass a real value to make the input controlled.
+
+### If a build fails with `unresolved reference to 'compiler_VecRef__…'`
+
+Your build directory holds CBI plugin objects (`<build>/universal.dir/object_tcc.o`)
+compiled from an older version of the component library; a plain build does not
+revalidate them against the plugin sources. Delete the build directory (or build with
+`--no-cache`) after changing library or plugin code.
 
 ## What is not available yet
 

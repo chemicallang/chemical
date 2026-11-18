@@ -1,3 +1,11 @@
+// Wrapper surfaces (Phase 2): each delegates to `<Badge {...props} variant="…">`.
+// `variant` is deliberately absent from the wrapper struct — an injected default would
+// be forwarded by the spread and fight the pinned attribute (see Button.ch).
+
+public struct BadgeWrapperProps {
+    var size : std::string_view = ""
+}
+
 // Typed props (Phase 2). Keeps `{...props}`? No — Badge renders a single <span>
 // and forwards nothing, so its surface is exactly this.
 public struct BadgeProps {
@@ -121,45 +129,45 @@ public #universal Badge(props : BadgeProps) {
 }
 
 // Legacy aliases
-public #universal BadgeAccent(props) {
+public #universal BadgeAccent(props : BadgeWrapperProps) {
     return <Badge {...props} variant="accent">{props.children}</Badge>
 }
-public #universal BadgeSuccess(props) {
+public #universal BadgeSuccess(props : BadgeWrapperProps) {
     return <Badge {...props} variant="success">{props.children}</Badge>
 }
-public #universal BadgeError(props) {
+public #universal BadgeError(props : BadgeWrapperProps) {
     return <Badge {...props} variant="error">{props.children}</Badge>
 }
-public #universal Chip(props) {
+public #universal Chip(props : BadgeWrapperProps) {
     return <Badge {...props} variant="outline">{props.children}</Badge>
 }
-public #universal ChipAccent(props) {
+public #universal ChipAccent(props : BadgeWrapperProps) {
     return <Badge {...props} variant="accent">{props.children}</Badge>
 }
-public #universal ChipSuccess(props) {
+public #universal ChipSuccess(props : BadgeWrapperProps) {
     return <Badge {...props} variant="success">{props.children}</Badge>
 }
-public #universal ChipError(props) {
+public #universal ChipError(props : BadgeWrapperProps) {
     return <Badge {...props} variant="error">{props.children}</Badge>
 }
-public #universal ChipWarning(props) {
+public #universal ChipWarning(props : BadgeWrapperProps) {
     return <Badge {...props} variant="warning">{props.children}</Badge>
 }
-public #universal ChipInfo(props) {
+public #universal ChipInfo(props : BadgeWrapperProps) {
     return <Badge {...props} variant="info">{props.children}</Badge>
 }
-public #universal BadgeOutline(props) {
+public #universal BadgeOutline(props : BadgeWrapperProps) {
     return <Badge {...props} variant="outline">{props.children}</Badge>
 }
-public #universal BadgeInfo(props) {
+public #universal BadgeInfo(props : BadgeWrapperProps) {
     return <Badge {...props} variant="info">{props.children}</Badge>
 }
-public #universal BadgeWarning(props) {
+public #universal BadgeWarning(props : BadgeWrapperProps) {
     return <Badge {...props} variant="warning">{props.children}</Badge>
 }
-public #universal BadgeGhost(props) {
+public #universal BadgeGhost(props : BadgeWrapperProps) {
     return <Badge {...props} variant="ghost">{props.children}</Badge>
 }
-public #universal BadgeLink(props) {
+public #universal BadgeLink(props : BadgeWrapperProps) {
     return <Badge {...props} variant="link">{props.children}</Badge>
 }

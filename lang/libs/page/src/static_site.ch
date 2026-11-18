@@ -69,6 +69,10 @@ public struct StaticSite {
     /// render must not poison the build, so it reports here instead of `failure`.
     private var dynamic_error : std::string
 
+    /// Absolute origin this build is published under (`https://example.com`),
+    /// used by `export_sitemap`. Empty means "site-relative only".
+    private var site_url : std::string
+
     @make
     public func make(out_dir : std::string_view, base_name : std::string_view = "app", asset_prefix : std::string_view = "assets") : StaticSite {
         var dir_s = std::string()
@@ -92,8 +96,16 @@ public struct StaticSite {
             written : false,
             failed : false,
             failure : std::string(),
-            dynamic_error : std::string()
+            dynamic_error : std::string(),
+            site_url : std::string()
         }
+    }
+
+    /// The absolute origin URLs in `export_sitemap` are written against
+    /// (`https://example.com`, no trailing slash). Call before `build()`.
+    public func set_site_url(&mut self, url : std::string_view) {
+        site_url.clear()
+        site_url.append_view(&url)
     }
 
     /// Attach the shared sink to `page` and record it at `path` (relative to the
@@ -420,6 +432,70 @@ public struct StaticSite {
         return site_response(200, a.content_type, cache, a.bytes.to_view(), etag)
     }
 
+    // ── Export extras (static hosting) ───────────────────────────────────
+    /// Add `sitemap.xml` for every **exported page** to the artifact set: one
+    /// `<url>` per pre-rendered route, absolutised against `set_site_url`. A
+    /// per-request route is not in it (it was never pre-rendered), so the sitemap
+    /// can never advertise a URL this build does not serve from cache.
+    ///
+    /// Call before `build()`/`finish()`: the artifact list is what the build
+    /// freezes, and adding to it afterwards would publish a manifest that
+    /// disagrees with the bundle.
+    public func export_sitemap(&mut self) : bool {
+        if(built) {
+            fail_with("export_sitemap must be called before build()")
+            return false
+        }
+        if(site_url.empty()) {
+            fail_with("export_sitemap needs set_site_url()")
+            return false
+        }
+        var xml = std::string()
+        xml.append_view("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        xml.append_view("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n")
+        var i : ubigint = 0
+        while(i < paths.size()) {
+            var target = paths.at(i)
+            var loc = sitemap_loc(&site_url, &target)
+            var loc_view = loc.to_view()
+            xml.append_view("  <url><loc>")
+            xml.append_view(&loc_view)
+            xml.append_view("</loc></url>\n")
+            i = i + 1
+        }
+        xml.append_view("</urlset>\n")
+        var path = std::string()
+        path.append_view("sitemap.xml")
+        push_artifact(path, xml, std::string_view("application/xml; charset=utf-8"), false)
+        return true
+    }
+
+    /// Add `robots.txt` pointing at this build's sitemap. Same pre-build rule as
+    /// `export_sitemap`.
+    public func export_robots(&mut self, sitemap : bool = true) : bool {
+        if(built) {
+            fail_with("export_robots must be called before build()")
+            return false
+        }
+        var body = std::string()
+        body.append_view("User-agent: *\nAllow: /\n")
+        if(sitemap) {
+            if(site_url.empty()) {
+                fail_with("export_robots needs set_site_url() for an absolute sitemap URL")
+                return false
+            }
+            var loc = sitemap_loc(&site_url, &std::string_view("sitemap.xml"))
+            var loc_view = loc.to_view()
+            body.append_view("Sitemap: ")
+            body.append_view(&loc_view)
+            body.append('\n')
+        }
+        var path = std::string()
+        path.append_view("robots.txt")
+        push_artifact(path, body, std::string_view("text/plain; charset=utf-8"), false)
+        return true
+    }
+
     // ── Per-request (dynamic) routes ─────────────────────────────────────
     /// Attach `page` to the site's sink, so its page-independent bytes (the runtime,
     /// component definitions, global CSS) go to the shared bundle instead of into the
@@ -696,8 +772,17 @@ func normalize_request_path(path : std::string_view) : std::string {
 
 // The URL prefix one page needs to reach the site's asset directory: a page at
 // `about/index.html` needs `../assets/`, the root page needs `assets/`.
+//
+// An **absolute** prefix (`/app/assets`, a mount path) is used as-is for every
+// page: a base path is already absolute, so prepending `../` to it would point
+// outside the mount.
 func page_url_prefix(target : std::string_view, asset_prefix : std::string_view) : std::string {
     var out = std::string()
+    if(asset_prefix.size() > 0 && asset_prefix.at(0) == '/') {
+        out.append_view(&asset_prefix)
+        out.append('/')
+        return out
+    }
     var i : ubigint = 0
     while(i < target.size()) {
         if(target.at(i) == '/') {
@@ -707,6 +792,32 @@ func page_url_prefix(target : std::string_view, asset_prefix : std::string_view)
     }
     out.append_view(&asset_prefix)
     out.append('/')
+    return out
+}
+
+// An absolute URL for one exported artifact: `index.html` -> `<site>/`,
+// `about/index.html` -> `<site>/about/`, anything else -> `<site>/<path>`.
+func sitemap_loc(site_url : &std::string, target : &std::string_view) : std::string {
+    var out = std::string()
+    var base = site_url.to_view()
+    out.append_view(&base)
+
+    const index_html = std::string_view("index.html")
+    if(target.equals(&index_html)) {
+        out.append('/')
+        return out
+    }
+    const dir_index = std::string_view("/index.html")
+    if(target.ends_with(&dir_index)) {
+        var dir_len = target.size() - dir_index.size()
+        var dir = unsafe(std::string_view(target.data(), dir_len))
+        out.append('/')
+        out.append_view(&dir)
+        out.append('/')
+        return out
+    }
+    out.append('/')
+    out.append_view(target)
     return out
 }
 

@@ -110,6 +110,13 @@ change and render the rest per request, from one build and one bundle.
 its `no-cache` + ETag 304 path; a per-request route is answered `no-store` with no
 validator.
 
+For an app that actually serves (or needs sessions and CSRF), use `web::App` from
+`lang/libs/web` instead of wiring `StaticSite` yourself: `app.page(path, Handler)`
+registers a pre-rendered route, `app.live(path, Handler)` a per-request one,
+`app.redirect`/`app.not_found` cover the rest, and `web::SessionStore` provides
+cookie-backed sessions (`HttpOnly`, `SameSite=Lax`) with constant-time CSRF checks.
+The detail is in the `design_web_app` skill, "`web::App` — the route table".
+
 ## 5. The component library
 
 `lang/libs/components/` is a shadcn-style library (Card, Button, Badge, Alert,

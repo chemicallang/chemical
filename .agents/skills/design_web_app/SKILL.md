@@ -522,9 +522,81 @@ srv.router.add("GET", "/:path*", ||(req) => {
 })
 ```
 
-What is deliberately still missing (it belongs to `web::App`, see the `web-stack-plan`): a route table
-that dispatches for you (today the app matches paths itself), `Vary: Cookie`, and a session-aware
-render hook.
+What `StaticSite` deliberately does not do: match route patterns, pick a cache policy per route, or
+model redirects/404. That is `web::App` (below).
+
+### `web::App` — the route table (use this for a real app)
+
+`lang/libs/web` (`web::App`) owns the route table and does the dispatch `StaticSite` leaves to you.
+Each route declares **when** its HTML is made; the app builds one bundle for all of them.
+
+```chemical
+public func Home(page : &mut HtmlPage, req : &http::Request) { … }
+public func Account(page : &mut HtmlPage, req : &http::Request) { … }
+
+var app = web::App.make("dist", "app", "assets")
+app.page("/", Home)                  // pre-rendered at build: no-cache + ETag + 304
+app.page("/pricing", Pricing)
+app.live("/account/{id}", Account)   // per request: no-store, request data
+app.live("/files/{path*}", Files)
+app.redirect("/prices", "/pricing")  // 308 by default
+app.not_found(Missing)               // rendered per request, warmed with the bundle
+app.set_base_path("/app")            // optional: serve the whole app under a mount
+app.export_sitemap("https://example.com", true)   // sitemap.xml + robots.txt, before build()
+
+if(!app.finish()) { /* app.error_message() */ }  // build() + write the exportable routes
+
+unsafe { web::install(&raw mut app) }
+srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
+```
+
+- **Route handlers are `(page : &mut HtmlPage, req : &http::Request) => void`** — the same shape for a
+  pre-rendered and a per-request route. `page` must be named `page` for `#html`; `req` gives you
+  `req.param("id")`, `req.query`, headers.
+- **`page()` patterns must be concrete.** `{param}` in a pre-rendered route is a build error (there is
+  no value at build time); use `live()`.
+- **`live()` warms automatically.** `build()` renders each live route once into a discarded page, so
+  its components join the frozen bundle. A live route that renders a component the bundle does not
+  carry is answered **503** with the reason, never HTML that cannot hydrate.
+- **`handle(&mut req)` fills `req.route_params`** for the matched pattern (after which `req.param`
+  works), then dispatches: redirects → live routes → pre-rendered pages/assets → the 404 route.
+- **Cache policy is per route**: pre-rendered is `no-cache` + ETag (304 on `If-None-Match`); a live
+  route is `no-store` with no validator unless you pass `cache_control` (and `vary`, e.g.
+  `"accept-language"`).
+- **`finish()` writes only the pre-rendered routes** (plus sitemap/robots). A per-request route is not
+  an artifact — a static export of an app with live routes is exactly the exportable subset.
+
+### Sessions, cookies and CSRF
+
+`http` has the cookie layer and `web` the session layer; neither keeps global state.
+
+```chemical
+var jar = http.CookieJar.of(&req)                 // parses every Cookie header
+if(jar.get("theme") is Option.Some) { … }
+
+res.cookie("theme", "dark", http.CookieOptions.make("/", "Lax", true, true, 86400))
+res.delete_cookie("theme", http.CookieOptions.make())
+
+var store = web::SessionStore.make()              // one per process
+var session = store.create()                      // 48-hex id, record created on first write
+var existing = store.load(&req)
+if(existing is Option.Some) {
+    var Some(s) = existing else unsafe { unreachable }
+    session = s
+}
+store.set(&session, "user", "ada")
+var token = store.csrf_token(&session)            // render into <input type="hidden" name="_csrf">
+store.attach(&mut res, &session)                  // Set-Cookie: session=<id>; Path=/; SameSite=Lax; HttpOnly
+// on a POST:
+if(!store.verify_csrf(&session, submitted_token)) { /* 403 */ }
+store.destroy(&mut res, &session)                 // drops the server record and expires the cookie
+```
+
+Defaults are the safe ones: `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Secure` (pass `secure: true` /
+`store.set_secure(true)` in production — `http://localhost` needs the default). Cookie names and
+values that cannot be serialised produce **no** header rather than a broken one. CSRF comparison is
+constant time. The store is in-memory (process lifetime) and the interface is what a persistent store
+implements.
 
 ### Serving it over HTTP
 
@@ -612,7 +684,8 @@ of the right-hand column has landed yet** — code written against it will not c
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
 | assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
-| serving | `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, plus **per-request routes** (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), served over `http::Server` through `webserve` | `web::App.handle(req)`, route table + per-route chunks, three delivery modes (static / shell+slots / full SSR) |
+| serving | **`web::App`** (route table: `page`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `webserve` bridge | per-route chunks, shell+slots (byte-range) delivery, `Vary: Cookie` render hook |
+| sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
 | JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, minification, `--static` |
 | props | untyped `(props)`, or typed `(props : Props)` | optional props / defaults (`@props`) |

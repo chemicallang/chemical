@@ -950,7 +950,7 @@ brotli, islands, SPA shell mode, multi-app vendor sharing, SRI.
 | frozen at v1 (users write it) | fluid forever (internals) |
 |---|---|
 | `chemical.mod` shape, module names `shared`/`server`/`client` | chunking algorithm, vendor threshold, budget numbers |
-| `web::App`, `web::Bundle`, `web::Shell`, `web::SlotFills`, `web::Client`, `web::Session`, `web::Form`, `web::Static` signatures | minifier quality, mangling scheme, runtime size |
+| `web::App`, `web::Bundle`, `web::Shell`, `web::SlotFills`, `web::Client`, `web::Session` (landed), `web::Form`, `web::Static` signatures | minifier quality, mangling scheme, runtime size |
 | `@props` syntax, `#universal` declaration form, hydration manifest **format** | props payload encoding details, id allocation strategy |
 | build flags `--web`, `--static`, `--out`, `server`/`client`/`js` target flags | emitter optimisations, compile-time performance, cache layout |
 | chunk **naming scheme** (`runtime.<h>.js`, `route/<id>.<h>.js`) and asset URL shape | which unit lands in which tier |
@@ -1430,9 +1430,25 @@ byte-identically to full SSR; no inline `<script>`.
 2. **`--static` MPA build** (§3.14): shared chunks across all pages, zero-JS pages stay zero-JS,
    `base_path`, `sitemap.xml`/`robots.txt`, optional hover prefetch, `web::Static.build` replacing
    `writeToDirectory` (deprecated shim for one release).
+   **Export extras landed (2026-11-18):** `page.StaticSite.set_site_url` +
+   `export_sitemap()`/`export_robots()` emit the sitemap for the **pre-rendered** routes only
+   (never a per-request route), and an absolute `asset_prefix` (`/app/assets`) is used as-is by
+   every page, so `web::App.set_base_path("/app")` serves the same build under a mount path
+   (`web-app-test.sh` checks the mounted page keeps `/app/assets/...`). Still open: the
+   `--static` MPA command itself (`export_sitemap` is the API it will call), hover prefetch,
+   and `web::Static.build` replacing `writeToDirectory`.
 3. **Sessions** (pulled forward from Phase 7): cookie jar, `Set-Cookie` parsing, `web::Session`
    with a server-side store interface, CSRF tokens for state-changing endpoints, same-origin
    default. No real app ships without these, so they gate v1.
+   **Landed (2026-11-18):** `lang/libs/http/src/cookies.ch` — `http.CookieJar.of(&req)` /
+   `get`/`has`/`len`, `http.CookieOptions` (Path, Domain, `SameSite`, `HttpOnly`, `Secure`,
+   `Max-Age`), `set_cookie_value` (rejects unsafe names/values instead of emitting a broken
+   header) and `Response.cookie`/`delete_cookie`; `lang/libs/web/src/session.ch` —
+   `web::SessionStore` (`load`/`create`/`get`/`set`/`remove`/`csrf_token`/`verify_csrf`/
+   `rotate_csrf`/`attach`/`destroy`), an in-memory record store, 48-hex random ids from
+   `osrand`, `HttpOnly` + `SameSite=Lax` + `Path=/` on the session cookie, and constant-time
+   CSRF comparison. `web-app-test.sh` covers the flow (13 session/cookie checks). Still open:
+   a persistent store implementation and the `Vary: Cookie` render hook.
 4. **Skills + migration kit** (§3.21): `web_app` (rewrite), `web_migration`, `web_client` (new),
    updates to `universal`/`components_e2e`/`testing`/`AGENTS.md`, the reference app inside
    `web_app`, and the one-sentence bootstrap prompt. Wire `skill conformance` into CI so every
@@ -1533,7 +1549,8 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | CSP | production output contains no inline `<script>` |
 | Static | `--static` output shares runtime + vendor chunks across pages; `#html`-only pages emit 0 JS |
 | Props | unknown/missing/mistyped prop = compile error with the declared prop set; **all 196 components typed** (a grep-based count in CI) |
-| Sessions | a form flow with cookies + CSRF works with JavaScript disabled |
+| App | `scripts/web-app-test.sh`: one route table mixing pre-rendered and per-request routes on one bundle — pre-rendered `200`/`no-cache`/ETag/`304`, per-request `200`/`no-store`/no ETag with per-request data, `{id}` and `{path*}` captures, `308` redirects, a rendered 404 route, traversal refused, sitemap lists only pre-rendered routes, `robots.txt` points at it, mount path served with `/app/assets/...`, `web::serve_request` serves the installed app, `finish()` writes only the exportable routes, and the session/cookie/CSRF flow. 46 checks |
+| Sessions | a form flow with cookies + CSRF works with JavaScript disabled (cookie jar + `web::Session` + CSRF are in; the no-JS form fixture is the remaining half) |
 | Skills | every code block in `.agents/skills/web_*` compiles in CI; the skill's API list matches the compiler's diagnostics (0 drift); the reference app builds, serves and passes browser E2E |
 | Determinism | render body reading time/random/DOM state = compile error; hydration-mismatch overlay green in E2E |
 | Browser | `components-e2e`: route split, in-memory serving, head update, typed client, assets |
@@ -1635,10 +1652,13 @@ source maps); Phase 2 (typed props on 172/184 components, defaults and `@optiona
 universal attributes, per-instance hydration ids, `SharedAssets` freeze/hash, typed `Head`,
 `page.StaticSite` + `webserve`, `templates/web-starter` + its gate). Gates:
 `web-golden-test.sh`, `web-split-test.sh`, `web-probe.sh analyze … --strict`,
-`static-site-test.sh`, `js-backend-suites.sh`, `web-starter-test.sh`, `test.sh --tcc --plugins`
-(1315), `test.sh --tcc --negative` (900). `static-site-test.sh` now also covers the **mixed** case:
-one build serving pre-rendered pages from memory and a route rendered per request against the same
-content-hashed bundle (both answered with their own cache policy).
+`static-site-test.sh`, `js-backend-suites.sh`, `web-starter-test.sh`, `web-app-test.sh`,
+`test.sh --tcc --plugins` (1315), `test.sh --tcc --negative` (900). `static-site-test.sh` now also
+covers the **mixed** case: one build serving pre-rendered pages from memory and a route rendered per
+request against the same content-hashed bundle (both answered with their own cache policy).
+`web-app-test.sh` (46 checks) covers the route table on top: per-route cache policy, `{id}`/`{path*}`
+captures, redirects, the rendered 404 route, the mount path, sitemap/robots export, sessions,
+cookies and CSRF.
 
 **Open, in order of value per unit of work.** The order is application-first by decision (§3.12):
 nothing that only the static export needs outranks work that makes a served app faster or more
@@ -1658,10 +1678,10 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    kinds, two requests produce different bodies, no inline script, no validator on the dynamic
    answer). What is deliberately *not* here, and belongs to `web::App`: a route table that dispatches
    per route (the app still matches paths itself), `Vary: Cookie`, and a session-aware render hook.
-3. **`web::Static` export output** (Phase 5 item 2, minus the pieces that need `web::App`):
-   `base_path`, `sitemap.xml`/`robots.txt`, hover prefetch, and the deprecated
-   `writeToDirectory` shim. `page.StaticSite` is the base; this is additive to it, so it does not
-   violate the frozen surface.
+3. **`web::Static` export output** (Phase 5 item 2) — **export extras done 2026-11-18**
+   (`StaticSite.set_site_url` + `export_sitemap()`/`export_robots()`, absolute `asset_prefix` for a
+   mount path, both gated by `web-app-test.sh`). Still open: the `--static` MPA command that calls
+   them, hover prefetch, and the deprecated `writeToDirectory` shim.
 4. **Node test-runner** (Phase 1's last item). `test_runner` spawns a child per `@test` and
    `TestEnv` reports over a pipe; under Node that needs an in-process `TestEnv` and a loop over
    `get_tests()`. Blocked on interface dispatch: `TestEnv` is an interface, and `DynamicCall` is a
@@ -1671,14 +1691,18 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    import-edge enforcement, the two-job build, and the minimal typed `dom` slice. This is the gate
    every remaining client-side feature waits on, and it is the largest single item left.
 6. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay.
-7. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6): `web_build` unit graph and chunking by
-   route closure, `App`/`Bundle` over `StaticSite.respond`, `Shell` + byte-range slots, CSS chunks
-   and `modulepreload`. Steps 5 and 7's static half are already satisfied by `page.StaticSite` and
-   the probe script.
-8. **Sessions + CSRF** (Phase 5 item 3) — cookie jar, `Set-Cookie`, `web::Session` with a store
-   interface, CSRF for state-changing endpoints. Deliberately after `web::App`, because it is a
-   request-pipeline feature and there is no pipeline to put it in yet; the `http` server is usable
-   without it today.
+7. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6) — **`web::App` done 2026-11-18**
+   (`lang/libs/web/src/app.ch`): one route table mixing pre-rendered (`page`) and per-request
+   (`live`) routes over one frozen bundle, per-route cache policy + `Vary`, `{id}`/`{path*}`
+   captures filled into `req.route_params`, `not_found` and `redirect` classes, `set_base_path`,
+   `build()`/`finish()` with the mandatory warm pass (a live route needing an un-bundled component
+   is refused with 503, never served), and `install`/`serve_request` for the `http::Server` router.
+   Still open: `web_build`'s unit graph and chunking by route closure, `Bundle`/`Shell` +
+   byte-range slots, CSS chunks and `modulepreload`. Step 5 and 7's static half are satisfied by
+   `page.StaticSite` and the probe script.
+8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
+   `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by
+   `web-app-test.sh`). A persistent store and the `Vary: Cookie` render hook remain.
 9. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
    conformance` in CI.
 

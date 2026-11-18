@@ -10,6 +10,7 @@
 out
 .vs
 debug
+templates
 lang/sample/compiled
 lang/compiled
 lang/tests/build

@@ -386,6 +386,22 @@ public struct Response {
         self.body = ResponseBody.Text(out)
     }
 
+    /// Append a `Set-Cookie` header. A name or value that cannot be serialised
+    /// (see `set_cookie_value`) appends nothing rather than a broken header.
+    public func cookie(&mut self, name : string_view, value : string_view, opts : CookieOptions) {
+        var header = set_cookie_value(name, value, &opts)
+        if(header.empty()) { return }
+        var k = string()
+        k.append_view("Set-Cookie")
+        self.headers.append(k, header)
+    }
+
+    /// Expire a cookie: same name and attributes, empty value, `Max-Age=0`.
+    public func delete_cookie(&mut self, name : string_view, opts : CookieOptions) {
+        var expired = opts.with("", "", false, false, -1)
+        self.cookie(name, string_view(""), expired)
+    }
+
     public func bytes(&mut self, v : &[u8]) {
         var out = vector<u8>()
         out.reserve(v.size())

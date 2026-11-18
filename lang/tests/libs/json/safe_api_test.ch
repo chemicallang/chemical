@@ -95,3 +95,97 @@ func test_json_parser_parse_view_empty_input(env : &mut TestEnv) {
         env.error("empty input is not valid JSON")
     }
 }
+
+// ---------------------------------------------------------------------------
+// `parse` / `parse_with_limit`
+//
+// `parse` keeps a 4096-byte ceiling on any single string, which is right for a
+// config document and wrong for every real upload: an 8 MiB profile picture is
+// one base64 JSON string. `parse_with_limit` lets the caller state its own
+// ceiling instead of the limit being baked into the parser.
+// ---------------------------------------------------------------------------
+
+/// A one-string document of `count` bytes: `{ "data" : "AAAA…" }`.
+func string_document(count : size_t) : std::string {
+    var doc = std::string()
+    doc.append_view("{ \"data\" : \"")
+    var i : size_t = 0
+    while(i < count) {
+        doc.append('A')
+        i += 1
+    }
+    doc.append_view("\" }")
+    return doc
+}
+
+@test
+func test_parse_keeps_its_default_string_ceiling(env : &mut TestEnv) {
+    // The default is a deliberate guard, not an oversight: a string past it is
+    // refused rather than silently truncated.
+    var doc = string_document(5000u)
+    var parsed = json::parse(doc.to_view())
+    if(parsed is std::Result.Ok) {
+        env.error("json::parse accepted a 5000-byte string; the 4096 ceiling is not enforced")
+    }
+}
+
+@test
+func test_parse_with_limit_accepts_a_string_under_its_ceiling(env : &mut TestEnv) {
+    // The upload case: a string far past 4096 bytes is accepted once the caller
+    // raises the ceiling.
+    var doc = string_document(5000u)
+    var parsed = json::parse_with_limit(doc.to_view(), 8192u)
+    if(parsed is std::Result.Err) {
+        env.error("parse_with_limit refused a 5000-byte string with an 8192-byte ceiling")
+        return
+    }
+    var Ok(value) = parsed else unsafe { unreachable }
+    if(!(value is JsonValue.Object)) {
+        env.error("parse_with_limit did not return the parsed object")
+        return
+    }
+    var Object(members) = value else unsafe { unreachable }
+    var field = members.get(&std::string("data"))
+    if(field is std::Option.None) {
+        env.error("parse_with_limit dropped the string field")
+        return
+    }
+    var Some(entry) = field else unsafe { unreachable }
+    if(!(entry is JsonValue.String)) {
+        env.error("parse_with_limit did not return the string field as a string")
+        return
+    }
+    var String(text) = entry else unsafe { unreachable }
+    if(text.size() != 5000u) {
+        env.error("parse_with_limit truncated the string field")
+    }
+}
+
+@test
+func test_parse_with_limit_still_refuses_a_string_over_its_ceiling(env : &mut TestEnv) {
+    // A stated ceiling is a ceiling, not a hint.
+    var doc = string_document(9000u)
+    var parsed = json::parse_with_limit(doc.to_view(), 8192u)
+    if(parsed is std::Result.Ok) {
+        env.error("parse_with_limit accepted a 9000-byte string with an 8192-byte ceiling")
+    }
+}
+
+@test
+func test_parse_with_limit_does_not_change_small_documents(env : &mut TestEnv) {
+    // Raising the ceiling must not alter parsing itself.
+    var parsed = json::parse_with_limit("{\"a\": 1, \"b\": [true, null]}", 8192u)
+    if(parsed is std::Result.Err) {
+        env.error("parse_with_limit rejected a valid small document")
+        return
+    }
+    var Ok(value) = parsed else unsafe { unreachable }
+    if(!(value is JsonValue.Object)) {
+        env.error("parse_with_limit did not return an object")
+        return
+    }
+    var Object(members) = value else unsafe { unreachable }
+    if(members.size() != 2u) {
+        env.error("parse_with_limit changed the member count")
+    }
+}

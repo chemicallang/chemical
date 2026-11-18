@@ -288,11 +288,40 @@ static bool array_size_from_type(BaseType* type, uint64_t& out, InterpretScope* 
                     out = (uint64_t) size_val->as_int_num_value_unsafe()->get_num_value();
                 }
             }
+            // An unsized array (`[]T`, the shape of a slice parameter) carries
+            // no length of its own; `out` stays 0 and the caller decides. NOTE:
+            // inside an inlined comptime constructor the parameter has exactly
+            // this type, so a length that only the caller knows is lost here —
+            // see `value_array_size` below and the open bug it documents.
             return true;
         }
         default:
             return false;
     }
+}
+
+// The element count of the array a VALUE refers to.
+//
+// `array_size_from_type` on the value's own type is not enough, because the
+// conversion that asks for this size has already happened: `&mut buf` inside an
+// inlined comptime constructor has the *parameter's* type (`&mut []u8`, which is
+// unsized), while the storage it points at — the caller's `var buf : [16]u8` —
+// is the thing whose length is wanted. Reading 0 from the unsized parameter type
+// and returning it made `osrand::fill(&mut buf)` on an uninitialised buffer fill
+// ZERO bytes, silently leaving uninitialised stack memory in place of random
+// bytes. So look through the access chain to the place that owns the storage.
+static bool value_array_size(Value* val, uint64_t& out, InterpretScope* call_scope) {
+    if(val == nullptr) { return false; }
+    if(array_size_from_type(val->getType(), out, call_scope)) { return true; }
+    if(val->val_kind() == ValueKind::AccessChain) {
+        auto* chain = val->as_access_chain_unsafe();
+        // From the innermost component outwards: `&mut a` is one component (the
+        // array itself), `&mut a.field` is the chain down to the field.
+        for(auto it = chain->values.rbegin(); it != chain->values.rend(); ++it) {
+            if(array_size_from_type((*it)->getType(), out, call_scope)) { return true; }
+        }
+    }
+    return false;
 }
 
 class InterpretSize : public FunctionDeclaration {
@@ -327,7 +356,7 @@ public:
             // reference, which is exactly how the implicit array -> slice
             // conversions call this.
             uint64_t type_size = 0;
-            if(array_size_from_type(val->getType(), type_size, call_scope)) {
+            if(value_array_size(val, type_size, call_scope)) {
                 return new (allocator.allocate<IntNumValue>()) IntNumValue(type_size, typeBuilder.getU64Type(), loc);
             }
             call_scope->error("couldn't get value for intrinsics::size", call);
@@ -338,7 +367,7 @@ public:
             // Same reasoning as above: a reference to an array has no
             // ArrayValue, and its length lives in the type.
             uint64_t type_size = 0;
-            if(array_size_from_type(value->getType(), type_size, call_scope)) {
+            if(value_array_size(value, type_size, call_scope)) {
                 return new (allocator.allocate<IntNumValue>()) IntNumValue(type_size, typeBuilder.getU64Type(), loc);
             }
             std::string msg = "intrinsics::size called with invalid arguments (value kind ";

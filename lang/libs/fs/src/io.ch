@@ -213,6 +213,20 @@ public func copy_file(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
     return unsafe(raw::copy_file(stext.c_str(), dtext.c_str()))
 }
 
+/// Copy a directory tree recursively, creating `dst` if it does not exist.
+///
+/// The safe façade lost this when the raw layer was split out, and the static
+/// generators need it: `organization-website` copies its whole `assets/` tree on
+/// every build. Re-implementing a recursive walk in a product would also have to
+/// re-implement the platform rules for directory creation and name encoding,
+/// which is exactly what this module exists to keep in one place.
+public func copy_directory(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
+    if(src.has_nul() || dst.has_nul()) { return Result.Err(FsError.InvalidInput()) }
+    var stext = src.as_string()
+    var dtext = dst.as_string()
+    return unsafe(raw::copy_directory(stext.c_str(), dtext.c_str(), false))
+}
+
 public func move_path(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
     if(src.has_nul() || dst.has_nul()) { return Result.Err(FsError.InvalidInput()) }
     var stext = src.as_string()

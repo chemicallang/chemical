@@ -6,6 +6,49 @@ func test_pathbuf(p : &std::string) : path::PathBuf {
 }
 
 @test
+func test_safe_copy_directory(env : &mut TestEnv) {
+    var base = make_test_base_dir(env);
+    var base_path = test_pathbuf(&base)
+    fs::remove_dir_all(&base_path.as_path())
+
+    // src/nested/a.txt
+    var src = make_child_path(&base, "src")
+    var src_path = test_pathbuf(&src)
+    var made = fs::create_dir_all(&src_path.as_path())
+    if(made is Result.Err) { env.error("copy fixture: src dir failed"); return }
+    var nested = make_child_path(&src, "nested")
+    var nested_path = test_pathbuf(&nested)
+    var made_nested = fs::create_dir_all(&nested_path.as_path())
+    if(made_nested is Result.Err) { env.error("copy fixture: nested dir failed"); return }
+    var file = make_child_path(&nested, "a.txt")
+    var file_path = test_pathbuf(&file)
+    var payload : [2]u8 = ['h', 'i']
+    var view : [u8] = payload
+    var w = fs::write(&file_path.as_path(), view)
+    if(w is Result.Err) { env.error("copy fixture: write failed"); return }
+
+    var dst = make_child_path(&base, "dst")
+    var dst_path = test_pathbuf(&dst)
+    var copied = fs::copy_directory(&src_path.as_path(), &dst_path.as_path())
+    expect_true(env, !(copied is Result.Err), "copy_directory failed")
+
+    // The tree, not just the top directory: a copy that creates `dst` and stops
+    // would still pass a check on `dst` alone.
+    var copied_file = make_child_path(&dst, "nested/a.txt")
+    var copied_path = test_pathbuf(&copied_file)
+    expect_true(env, fs::exists(&copied_path.as_path()), "nested file should exist after copy")
+    var read_back = fs::read_to_string(&copied_path.as_path())
+    if(read_back is Result.Err) {
+        env.error("copied file is not readable text")
+    } else {
+        var Ok(text) = read_back else unsafe { unreachable }
+        expect_true(env, text.equals(&string("hi")), "copied bytes should match the source")
+    }
+
+    fs::remove_dir_all(&base_path.as_path())
+}
+
+@test
 func test_safe_write_and_read_file(env : &mut TestEnv) {
     var base = make_test_base_dir(env);
     var base_path = test_pathbuf(&base)

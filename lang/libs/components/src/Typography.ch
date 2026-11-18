@@ -1,4 +1,33 @@
-public #universal H1(props) {
+// Typed props (Phase 2). Text-bearing headings only take `class`/`className`/
+// `children` (implicit universal props), so their struct is intentionally empty —
+// that still catches a mistyped semantic prop like `<H1 variant="big">` at the call
+// site. Components with real knobs declare them below.
+public struct PlainTextProps {
+}
+
+public struct HeadingProps {
+    // 1..6; picks the <hN> tag
+    var level : int = 1
+}
+
+public struct TextProps {
+    // "p" | "span" | "div"
+    var as : std::string_view = "p"
+    var muted : bool = false
+}
+
+public struct LinkProps {
+    var href : std::string_view = ""
+    var target : std::string_view = ""
+    var rel : std::string_view = ""
+}
+
+public struct BlockquoteProps {
+    // rendered as a trailing <cite> when non-empty
+    var cite : std::string_view = ""
+}
+
+public #universal H1(props : PlainTextProps) {
     var h1 = style {
         font-size: 2.25rem;
         line-height: 2.5rem;
@@ -12,7 +41,7 @@ public #universal H1(props) {
     return <h1 class={classes + " " + h1}>{props.children}</h1>
 }
 
-public #universal H2(props) {
+public #universal H2(props : PlainTextProps) {
     var h2 = style {
         font-size: 1.875rem;
         line-height: 2.25rem;
@@ -26,7 +55,7 @@ public #universal H2(props) {
     return <h2 class={classes + " " + h2}>{props.children}</h2>
 }
 
-public #universal H3(props) {
+public #universal H3(props : PlainTextProps) {
     var h3 = style {
         font-size: 1.5rem;
         line-height: 2rem;
@@ -40,7 +69,7 @@ public #universal H3(props) {
     return <h3 class={classes + " " + h3}>{props.children}</h3>
 }
 
-public #universal H4(props) {
+public #universal H4(props : PlainTextProps) {
     var h4 = style {
         font-size: 1.25rem;
         line-height: 1.75rem;
@@ -54,7 +83,7 @@ public #universal H4(props) {
     return <h4 class={classes + " " + h4}>{props.children}</h4>
 }
 
-public #universal H5(props) {
+public #universal H5(props : PlainTextProps) {
     var h5 = style {
         font-size: 1.125rem;
         line-height: 1.75rem;
@@ -67,7 +96,7 @@ public #universal H5(props) {
     return <h5 class={classes + " " + h5}>{props.children}</h5>
 }
 
-public #universal H6(props) {
+public #universal H6(props : PlainTextProps) {
     var h6 = style {
         font-size: 1rem;
         line-height: 1.5rem;
@@ -80,7 +109,7 @@ public #universal H6(props) {
     return <h6 class={classes + " " + h6}>{props.children}</h6>
 }
 
-public #universal Heading(props) {
+public #universal Heading(props : HeadingProps) {
     var level = props.level || 1
     if(level == 2) { return <H2 {...props}>{props.children}</H2> }
     if(level == 3) { return <H3 {...props}>{props.children}</H3> }
@@ -90,7 +119,7 @@ public #universal Heading(props) {
     return <H1 {...props}>{props.children}</H1>
 }
 
-public #universal Text(props) {
+public #universal Text(props : TextProps) {
     var text = style {
         font-size: 1rem;
         line-height: 1.75rem;
@@ -110,7 +139,7 @@ public #universal Text(props) {
     return <p data-muted={muted ? "true" : "false"} class={out}>{props.children}</p>
 }
 
-public #universal Lead(props) {
+public #universal Lead(props : PlainTextProps) {
     var lead = style {
         font-size: 1.25rem;
         line-height: 1.75rem;
@@ -122,7 +151,7 @@ public #universal Lead(props) {
     return <p class={classes + " " + lead}>{props.children}</p>
 }
 
-public #universal Caption(props) {
+public #universal Caption(props : PlainTextProps) {
     var caption = style {
         font-size: 0.875rem;
         line-height: 1.25rem;
@@ -134,7 +163,7 @@ public #universal Caption(props) {
     return <p class={classes + " " + caption}>{props.children}</p>
 }
 
-public #universal CodeText(props) {
+public #universal CodeText(props : PlainTextProps) {
     var code = style {
         font-family: var(--font-mono);
         font-size: 0.875em;
@@ -148,7 +177,7 @@ public #universal CodeText(props) {
     return <code class={classes + " " + code}>{props.children}</code>
 }
 
-public #universal Link(props) {
+public #universal Link(props : LinkProps) {
     var link = style {
         color: hsl(var(--primary));
         text-decoration: underline;
@@ -165,10 +194,10 @@ public #universal Link(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var out = classes + " " + link
-    return <a class={out} href={props.href} target={props.target} rel={props.rel} id={props.id} onClick={props.onClick}>{props.children}</a>
+    return <a class={out} href={props.href ? props.href : null} target={props.target ? props.target : null} rel={props.rel ? props.rel : null} id={props.id ? props.id : null} onClick={props.onClick}>{props.children}</a>
 }
 
-public #universal Blockquote(props) {
+public #universal Blockquote(props : BlockquoteProps) {
     var blockquote = style {
         margin: 0;
         border-left: 3px solid hsl(var(--border));

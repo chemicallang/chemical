@@ -301,21 +301,34 @@ public #universal InputDisabled(props) {
     return <Input {...props} disabled={true}>{props.children}</Input>
 }
 
-public #universal Field(props) {
+public struct FieldProps {
+    // rendered above the control as a FieldLabel when non-empty
+    var label : std::string_view = ""
+    // rendered below as a FieldHint / FieldError when non-empty
+    var hint : std::string_view = ""
+    var error : std::string_view = ""
+}
+
+public #universal Field(props : FieldProps) {
     var field = style {
         display: grid;
         gap: 0.5rem;
         text-align: left;
     }
     return <label class={field} class={props.className || props.class}>
-        {props.label !== undefined ? <FieldLabel>{props.label}</FieldLabel> : null}
+        {props.label ? <FieldLabel>{props.label}</FieldLabel> : null}
         {props.children}
-        {props.hint !== undefined ? <FieldHint>{props.hint}</FieldHint> : null}
-        {props.error !== undefined ? <FieldError>{props.error}</FieldError> : null}
+        {props.hint ? <FieldHint>{props.hint}</FieldHint> : null}
+        {props.error ? <FieldError>{props.error}</FieldError> : null}
     </label>
 }
 
-public #universal FieldLabel(props) {
+// Only `class`/`className`/`children` — an empty struct still rejects unknown
+// semantic props at the call site.
+public struct SlotProps {
+}
+
+public #universal FieldLabel(props : SlotProps) {
     var field_label = style {
         font-size: 0.875rem;
         font-weight: 600;
@@ -325,7 +338,7 @@ public #universal FieldLabel(props) {
     return <span class={field_label} class={props.className || props.class}>{props.children}</span>
 }
 
-public #universal FieldHint(props) {
+public #universal FieldHint(props : SlotProps) {
     var field_hint = style {
         font-size: 0.8125rem;
         color: hsl(var(--muted-foreground));
@@ -333,7 +346,7 @@ public #universal FieldHint(props) {
     return <span class={field_hint} class={props.className || props.class}>{props.children}</span>
 }
 
-public #universal FieldError(props) {
+public #universal FieldError(props : SlotProps) {
     var field_error = style {
         font-size: 0.8125rem;
         font-weight: 500;
@@ -343,7 +356,12 @@ public #universal FieldError(props) {
 }
 
 // Shadcn InputGroup: wraps an Input with leading/trailing icons or addons
-public #universal InputGroup(props) {
+public struct InputGroupProps {
+    // disables the wrapper's focus ring affordance
+    var disabled : bool = false
+}
+
+public #universal InputGroup(props : InputGroupProps) {
     var input_group = style {
         display: inline-flex;
         align-items: center;
@@ -382,7 +400,12 @@ public #universal InputGroup(props) {
     return <div {...props} class={classes + " " + input_group} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-public #universal InputIcon(props) {
+public struct InputIconProps {
+    // "start" | "end" — trailing icons are ordered after the input
+    var position : std::string_view = "start"
+}
+
+public #universal InputIcon(props : InputIconProps) {
     var input_icon = style {
         display: inline-flex;
         align-items: center;
@@ -399,7 +422,7 @@ public #universal InputIcon(props) {
     return <span class={classes + " " + input_icon} style={posStyle}>{props.children}</span>
 }
 
-public #universal InputAddon(props) {
+public #universal InputAddon(props : SlotProps) {
     var input_addon = style {
         display: inline-flex;
         align-items: center;

@@ -69,8 +69,14 @@ public struct CounterProps {
   `unknown prop 'labl' for component 'Counter'; declared props: label, step`.
   A declared field with an initializer may be omitted, and the default reaches
   both the server markup and the client payload.
-- **Implicit props** are always accepted: `children`, `class`/`className`,
-  `style`, `key`, `ref`, `on*` and `data-*`.
+- **Implicit props** are always accepted by *any* component, typed or not:
+  `children`, `class`/`className`, `style`, `key`, `ref`, `on*`, `data-*`,
+  every `aria-*`, and the universal DOM attributes `id`, `title`, `role`,
+  `tabindex`, `hidden`, `dir`, `lang`, `slot`, `part`, `contenteditable`,
+  `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`. That is what lets
+  a component keep `{...props}` and forward `role`/`aria-label` while still
+  type-checking its own knobs. A *declared* prop of the same name is still
+  value-checked, so `id={3}` on a component declaring `id : string_view` fails.
 
 Head metadata is typed rather than ad-hoc strings:
 
@@ -97,10 +103,21 @@ Avatar, Input, Sheet, Typography, …). Add `import components` to
 #html { <Card><CardHeader><CardTitle>Hello</CardTitle></CardHeader></Card> }
 ```
 
-Props are being typed component by component (16 of 196 today, starting with the
-families that enumerate their attributes rather than spreading `{...props}` onto
-the DOM). Untyped components accept any attribute name, exactly as before, so
-nothing breaks as the rollout continues.
+Props are being typed component by component (36 of 196 today). Card, Button,
+Badge, Alert, Avatar, Separator, ErrorOverlay, the form controls (`Input`,
+`TextArea`, `NativeSelect`, the `Field` family, `InputGroup`, `InputIcon`,
+`InputAddon`) and all of Typography are typed. Untyped components accept any
+attribute name, exactly as before, so nothing breaks as the rollout continues.
+
+Two things to know when you call a typed component:
+
+- **Omitted props take the declared default on both server and client.** You do
+  not need to repeat a default at the call site.
+- **A default may leave the attribute off the DOM entirely.** Optional text props
+  that the browser treats specially (`placeholder`, `value`, `href`, `id`,
+  `name`, `aria-label`) are absent unless you pass them, so an input stays
+  uncontrolled when you omit `value`. When you *do* pass `value=""` deliberately,
+  it is treated as "unset" — pass a real value to make the input controlled.
 
 ## What is not available yet
 

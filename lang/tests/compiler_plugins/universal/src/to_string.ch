@@ -74,10 +74,14 @@ public struct GreetingChipProps {
     var label : std::string_view
     var tone : std::string_view = "plain"
     var count : int = 2
+    // bool default regression: injecting it used to pass a _Bool to
+    // append_js_escaped_char_ptr and segfault SSR when this component was used
+    // inside another component's JSX.
+    var flag : bool = false
 }
 
 #universal GreetingChip(props : GreetingChipProps) {
-    return <span data-tone={props.tone}>{props.label}:{props.count}</span>
+    return <span data-tone={props.tone} data-flag={props.flag ? "y" : "n"}>{props.label}:{props.count}</span>
 }
 
 #universal GreetingChipHost(props) {
@@ -115,6 +119,15 @@ public func universal_typed_props_defaults_reach_ssr_and_payload(env : &mut Test
     }
     if(!has_sub(js, std::string_view("count\":2")) && !has_sub(js, std::string_view("count\": 2"))) {
         env.error("props defaults: the int default is missing from the client payload")
+        return
+    }
+    // bool default: SSR sees it as the rendered attribute, the payload as a JS literal
+    if(!has_sub(html, std::string_view("data-flag=\"n\""))) {
+        env.error("props defaults: the bool default did not reach the SSR markup")
+        return
+    }
+    if(!has_sub(js, std::string_view("flag\":false")) && !has_sub(js, std::string_view("flag\": false"))) {
+        env.error("props defaults: the bool default is not a JS boolean in the client payload")
     }
 }
 

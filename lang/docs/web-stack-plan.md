@@ -666,6 +666,24 @@ Still to land for typed props (Phase 2 remainder):
   explicitly passed prop and let the default win — caught by
   `components_separator_orientation`, where `<Separator orientation="vertical" />` rendered
   `horizontal`).
+- **A default is a value, not a node — two bugs from the first typed batches (fixed 2026-11-18).**
+  Injecting a default into the SSR attribute and the client payload reuses the *call-site* emitters,
+  which are built for values that came from source. A freshly built literal has no attached type, so
+  `appliedValue.getType()` was `null` and the attr-value converter picked the wrong variant for a
+  **bool**: the payload path emitted `append_js_escaped_char_ptr(page, false)` — a `_Bool` passed as
+  a `*char` — and SSR **segfaulted** (`page_HtmlPageappend_js_escaped_char_ptr` ← the *outer*
+  component ← `main`) for any typed component with a bool default used inside another component's
+  JSX. Both the crash and the quoting loss were structural, not per-component. The rules now:
+  * `ResolvedAttr` carries `defaultValueType` — the **declared field type** — and that is what the
+    SSR attr-value converter sees. The type of the literal is only useful for text detection
+    (`string_view` is a *struct*, so a declared type of `string_view` does not say "text"; the
+    payload emitted `"tone": plain` unquoted until `isStr` checked both types).
+  * A **bool** default is written straight into the payload as the JS literal `true`/`false`; it is
+    never routed through the generic value path. That needs the value, which a `BoolValue` node did
+    not expose to a plugin, so the CBI gained `BoolValue::getValue()` (C++ binding + `ASTBuilder.ch`).
+  Regression coverage: `components_dropdown_*` (bool default in a nested component) and
+  `universal_typed_props_defaults_reach_ssr_and_payload` (the unquoted-string regression).
+
 - **Serializer from the type** — replace the ad-hoc prop payload building with generated JSON.
   *Measured (2026-11-17): the single-quote/backslash case is already correct on both paths — a
   literal prop `text="it's a \\ backslash"` and a runtime `string_view` prop both emit valid JS
@@ -1109,7 +1127,15 @@ of the breaking changes in §3.17.
    proves declared props and implicit props render. Remaining: the generated serializer for
    **struct/vector props** (no client representation yet), and value-type checking for raw JS
    literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
-   **The 196-component rollout is now unblocked and started (2026-11-17).**
+   **Rollout state (2026-11-18): 36 of 196 components typed, 148 left.** Remaining, in the order
+   worth doing next — `Surface.ch` 39 (mostly structural `div` wrappers: the cheap empty-struct
+   pass), `Data.ch` 20 (table primitives, the first family with real per-component knobs since
+   Typography), `Utilities.ch` 14, then the wrapper tails of `Badge.ch` 14 / `Alert.ch` 12 /
+   `Button.ch` 11 (variant/size wrappers — same shape as `InputSuccess`/`InputSm`: keep them
+   untyped if they only spread into another component), `Sheet.ch` 8, `Toggle.ch`/`Toast.ch`/
+   `Collapsible.ch` 3 each, and `Select.ch` 2.
+
+   **The 196-component rollout was unblocked on 2026-11-17.**
    `lang/libs/components/src/Card.ch` is typed end to end: `CardProps { size = "default" }`,
    `CardTitleProps { level = 3 }`, and `CardSlotProps {}` (an **empty** props struct) for the
    header/description/meta/action/content/body/footer slots, so `<CardHeader classNam="x">` is a
@@ -1136,11 +1162,36 @@ of the breaking changes in §3.17.
      that, typing any component breaks the universal fixtures, which tag elements with
      `data-testid` for querying. `aria-*` is *not* implicit yet — add it deliberately, per component,
      or extend the rule when a component needs it.
-   - **A component that spreads `{...props}` onto a DOM node cannot simply be typed.** Declaring its
-     surface turns every undeclared attribute into a compile error, and the spread exists precisely
-     to forward arbitrary attributes (`role`, `aria-*`, `href`-as-button, vendor attrs). Those
-     components (Button, Badge, Alert, Avatar, Input, Sheet, Typography, Data, Surface, Utilities,
-     Toast, Toggle, Collapsible, ToggleGroup, RadioGroup, Select) need their **spread removed first**.
+   - **A spreading component is typed without removing its spread** — superseded rule. Declaring a
+     surface used to turn every undeclared attribute into a compile error, so the pass-through
+     components looked untypeable. The fix is on the validation side: **universal DOM attributes are
+     implicit** in both plugins, exactly like `class`/`className`/`children`/`on*`/`data-*`. The
+     implicit set is `id`, `title`, `role`, `tabindex`, `hidden`, `dir`, `lang`, `slot`, `part`,
+     `contenteditable`, `draggable`, `spellcheck`, `inert`, `translate`, `autofocus`, plus every
+     `aria-*`. So `{...props}` keeps forwarding `role`/`aria-label`/vendor attributes while the
+     declared surface is still name- and value-checked. A **declared** prop of the same name is
+     still value-checked: member lookup happens *before* the implicit check on both paths (a
+     declared `id : string_view` rejects `id={3}`; the implicit rule would have accepted it).
+
+   **Third batch — the form and text families (2026-11-18).** 36 components now carry a declared
+   props struct. Button (12), Badge (15) and Alert (13) were the first spreading families; then
+   `Input`/`TextArea`/`NativeSelect`, all thirteen Typography components, and the `Field` family
+   (`Field`, `FieldLabel`, `FieldHint`, `FieldError`, `InputGroup`, `InputIcon`, `InputAddon`).
+   Empty props structs (`CardSlotProps`, `SlotProps`, `PlainTextProps`) carry the win cheaply: they
+   declare no knob but still reject a mistyped semantic prop at the call site.
+
+   Three rules from this batch, all encoded in the component sources:
+   - **A default must not change controlled/uncontrolled semantics.** `placeholder`, `value`,
+     `href`, `target`, `rel`, `id`, `name` and `aria-label` must stay *absent* from the DOM when
+     unset, so their bodies render `prop={props.x ? props.x : null}` instead of a bare `{props.x}`
+     (an `""` default would otherwise emit `placeholder=""` and make an uncontrolled input
+     controlled). `null` on an attribute means "omit" on both the SSR and the client side.
+   - **Structural defaults beat sentinel defaults.** `TextAreaProps.rows` defaults to `3`, not `0`
+     — `rows="0"` hides the control, and `rows={props.rows > 0 ? … : null}` is the unreliable
+     comparison-in-attribute shape (see the prop-expression hazard below).
+   - **`prop !== undefined` stops working once the field has a default.** `Field`'s
+     `label`/`hint`/`error` and `NativeSelect`'s `placeholder` test truthiness (`props.label ? … : null`),
+     which is what the injected `""` default means anyway.
 
    **Prop-expression hazard, now reported (warn-then-escalate).** A method call on a prop inside a
    universal JSX expression renders **nothing** for the whole expression, silently:

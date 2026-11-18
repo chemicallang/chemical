@@ -465,6 +465,67 @@ if(again.not_modified()) { /* 304: no body, same ETag + cache policy */ }
 asset revalidates without re-hashing. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)`
 expose the build's manifest (pages, bundle, chunks).
 
+### Mixed sites: pre-rendered pages and per-request routes
+
+Real sites are rarely all-static: `/` and `/pricing` can be pre-rendered while `/account` and
+`/invoices/:id` must be rendered per request. `StaticSite` expresses both in **one build** over one
+bundle — a site is a route table, not a mode.
+
+```chemical
+// 1. Warm pass, BEFORE build(): render every per-request route once, discard the page.
+var warm = HtmlPage()
+site.attach_dynamic(&mut warm)
+warm.defaultUniversalSetup()
+render_account(&mut warm, std::string_view("warm"))
+
+if(!site.build()) { /* site.error_message() */ }
+
+// 2. Per request: a fresh page, the same sink, the site's frozen head tags.
+var page = HtmlPage()
+site.attach_dynamic(&mut page)
+page.defaultUniversalSetup()
+render_account(&mut page, session_user_name)
+var html = site.render_dynamic(&mut page)      // "" means refused: dynamic_error_message()
+var res = site.dynamic_response(&html)         // 200 text/html, no-store, no ETag
+```
+
+- **`attach_dynamic(&mut page)`** attaches the site's sink, so the runtime, component definitions and
+  global CSS the bundle already carries contribute **zero bytes** to the page. What is left is this
+  request's SSR markup plus its dispatch statements — inline, because they are request-scoped.
+- **`render_dynamic`** returns the complete document with the site's frozen `<script src>`/`<link>`,
+  and **refuses** (empty string, reason in `dynamic_error_message()`) when the route needs a component
+  the frozen bundle does not contain. That refusal is the point of the warm pass: the warm render is
+  what puts a dynamic-only component into the bundle. The alternative — appending it at request time —
+  would leave a published, content-hashed URL naming bytes it no longer holds, i.e. HTML whose
+  hydration silently misses a definition.
+- **`dynamic_response`** is `no-store` with **no ETag**: the same URL now returns different bytes, so
+  there is nothing to validate. Pass `"private, no-cache"` only when a render is genuinely stable per
+  URL. An empty document is a **503**, not an empty 200.
+- **Pre-rendered routes are unaffected**: `no-cache` + ETag + the `respond_if_none_match` 304 path.
+  Dynamic routes are not artifacts — `artifact_count()` does not change and nothing is written for
+  them — so `finish()` / a static export covers exactly the routes you pre-rendered.
+
+Serving both kinds over HTTP is the app's own dispatch, because a dynamic route needs a render
+callback that `webserve` cannot invent:
+
+```chemical
+srv.router.add("GET", "/:path*", ||(req) => {
+    if(req.path == "/account") {          // a per-request route
+        var page = HtmlPage()
+        site.attach_dynamic(&mut page)
+        page.defaultUniversalSetup()
+        render_account(&mut page, whoami(req))
+        var html = site.render_dynamic(&mut page)
+        return html_response(site.dynamic_response(&html))
+    }
+    return webserve.respond_to_request(req)   // pre-rendered routes + assets
+})
+```
+
+What is deliberately still missing (it belongs to `web::App`, see the `web-stack-plan`): a route table
+that dispatches for you (today the app matches paths itself), `Vary: Cookie`, and a session-aware
+render hook.
+
 ### Serving it over HTTP
 
 `webserve` (`lang/libs/webserve`) is the bridge from a built site to `http::Server`. It imports both
@@ -551,7 +612,7 @@ of the right-hand column has landed yet** — code written against it will not c
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
 | assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
-| serving | `StaticSite.build()` + `respond(path)` / `respond_if_none_match`, served over `http::Server` through `webserve` | `web::App.handle(req)`, route table + per-route chunks, three delivery modes (static / shell+slots / full SSR) |
+| serving | `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, plus **per-request routes** (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), served over `http::Server` through `webserve` | `web::App.handle(req)`, route table + per-route chunks, three delivery modes (static / shell+slots / full SSR) |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
 | JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, minification, `--static` |
 | props | untyped `(props)`, or typed `(props : Props)` | optional props / defaults (`@props`) |

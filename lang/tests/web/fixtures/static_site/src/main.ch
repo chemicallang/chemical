@@ -19,6 +19,19 @@
     return <span class="badge">{props.children}</span>
 }
 
+// Used *only* by the per-request route: it reaches the shared bundle through the
+// warm pass, not through a pre-rendered page.
+#universal Ticker(props) {
+    state t = 0
+    return <span class="ticker">{props.label}:{t}</span>
+}
+
+// Never rendered before build(): the per-request render must refuse it rather than
+// append to the frozen bundle.
+#universal Late(props) {
+    return <span class="late">{props.children}</span>
+}
+
 func render_index(page : &mut HtmlPage) {
     page.appendTitle("Index")
     #html {
@@ -38,6 +51,25 @@ func render_about(page : &mut HtmlPage) {
             <Counter />
             <Badge>shared</Badge>
         </div>
+    }
+}
+
+// A route rendered per request. `who` makes two requests differ, which is what
+// makes it dynamic (a pre-rendered page would be byte-identical).
+func render_account(page : &mut HtmlPage, who : std::string_view) {
+    page.appendTitle("Account")
+    #html {
+        <div class="page account">
+            <h1>Account</h1>
+            <Badge>shared</Badge>
+            <Ticker label={who} />
+        </div>
+    }
+}
+
+func render_late(page : &mut HtmlPage) {
+    #html {
+        <div class="page late"><Late>too late</Late></div>
     }
 }
 
@@ -64,6 +96,14 @@ public func main() : int {
     site.add(&mut about, "about/index.html")
     about.defaultUniversalSetup()
     render_about(&mut about)
+
+    // Warm pass: render every per-request route once before `build()`, so the
+    // components only it uses (`Ticker`) are part of the frozen bundle. The warmed
+    // page is discarded — nothing here becomes an artifact.
+    var warm = HtmlPage()
+    site.attach_dynamic(&mut warm)
+    warm.defaultUniversalSetup()
+    render_account(&mut warm, std::string_view("warm"))
 
     // In-memory build + serving, before anything touches the filesystem.
     if(!site.build()) {
@@ -103,6 +143,50 @@ public func main() : int {
     }
     var stale = site.respond_if_none_match("/", std::string_view("\"stale\""))
     unsafe { printf("stale etag -> %d | %llu B\n", stale.status, stale.body.size()) }
+
+    // ── per-request routes ───────────────────────────────────────────────
+    // Same URL, different bytes: this is what makes the route dynamic, and why it
+    // is answered `no-store` with no validator. It still loads the site's frozen
+    // bundle (there is no second copy of the runtime).
+    var dyn_a = HtmlPage()
+    site.attach_dynamic(&mut dyn_a)
+    dyn_a.defaultUniversalSetup()
+    render_account(&mut dyn_a, std::string_view("ada"))
+    var html_a = site.render_dynamic(&mut dyn_a)
+    var res_a = site.dynamic_response(&html_a)
+    unsafe {
+        printf("dynamic ada -> %d | %s | %llu B | etag=[%s]\n",
+            res_a.status, res_a.cache_control.data(), res_a.body.size(), res_a.etag.data())
+    }
+    unsafe { printf("---dynamic ada---\n%s\n---end---\n", html_a.data()) }
+
+    var dyn_b = HtmlPage()
+    site.attach_dynamic(&mut dyn_b)
+    dyn_b.defaultUniversalSetup()
+    render_account(&mut dyn_b, std::string_view("grace"))
+    var html_b = site.render_dynamic(&mut dyn_b)
+    var res_b = site.dynamic_response(&html_b)
+    unsafe {
+        printf("dynamic grace -> %d | %s | %llu B | same_bytes=%d\n",
+            res_b.status, res_b.cache_control.data(), res_b.body.size(),
+            (html_a.size() == html_b.size()) as int)
+    }
+    unsafe { printf("---dynamic grace---\n%s\n---end---\n", html_b.data()) }
+
+    // A component the frozen bundle does not contain cannot be served: the render
+    // is refused (empty document -> 503) instead of publishing HTML whose hydration
+    // would miss a definition. Do this last: appending to the sink marks it stale.
+    var dyn_late = HtmlPage()
+    site.attach_dynamic(&mut dyn_late)
+    dyn_late.defaultUniversalSetup()
+    render_late(&mut dyn_late)
+    var html_late = site.render_dynamic(&mut dyn_late)
+    var res_late = site.dynamic_response(&html_late)
+    unsafe {
+        printf("dynamic late -> %d | %s | %llu B | error=%s\n",
+            res_late.status, res_late.cache_control.data(), res_late.body.size(),
+            site.dynamic_error_message().data())
+    }
 
     // `finish()` is build + write: the build is already done, so this is the write.
     if(!site.finish()) {

@@ -481,11 +481,37 @@ Three modes, one render pipeline, chosen per route:
 | **shell + slots** | once per route, at build or first use | one alloc + N splices | personalised pages, dashboards, app shells |
 | **full SSR** | per request | full component walk | data-dependent structure |
 
+**The unit of delivery is a route, never a site.** A project is a route table in which each route
+carries its own mode; no build flag, output format or library type may assume the whole site is
+static (or wholly dynamic). The modes compose inside one binary: `/docs/*` pre-rendered at build,
+`/dashboard` from a frozen shell, `/invoices/:id` rendered per request, all sharing one client
+bundle. `--static` is therefore an *export of the routes that need no request*, not a property of
+the site; a route that needs a request is reported per route and the rest still export.
+
+**The default and the optimisation target is the application, not the export.** An app's per-request
+cost is the thing users feel, so the dynamic path is the one the pipeline is optimised for, and
+static delivery is the degenerate case of it (a route whose render was already run). Concretely, v1
+must make these true *for serving apps*, and no static-only convenience may be a prerequisite for
+any of them:
+
+| concern | requirement |
+|---|---|
+| per-request render | full SSR is a supported route mode with a measured per-request cost and no build-time work added to it |
+| caching | per-route policy: `immutable` for hashed assets, `no-cache`+ETag for pre-rendered HTML, `no-store`/`private` for personalised HTML, `Vary` where the render depends on a request header |
+| personalisation | shell + slots (§3.12 below), so a logged-in header does not cost a full render |
+| correctness under load | one shared bundle per build (not per request), no per-request allocation of hydration ids, ids frozen with the shell so client and server agree |
+| non-happy paths | 404, redirect and error pages are route classes with the same caching rules, not a fallback afterthought |
+| sessions | cookie jar + CSRF (§Phase 5) work in the dynamic path first; the static export simply has none |
+
 The middle mode does not exist today. The current pattern (`lang/compiled/playground/app/main.ch`)
 is: render one `HtmlPage`, call `toString()` once, capture the string in a `send_sync_function`
 handler, return `html_response(view)`. That is fast, but there is no way to inject anything
 request-specific short of rebuilding the entire page — which is exactly what "we sometimes have
-dynamic content per request" turns into.
+dynamic content per request" turns into. The interim bridge (landed 2026-11-18) is
+`StaticSite.render_dynamic` / `StaticSite.dynamic_response`: a route rendered per request against
+the site's already-frozen, content-hashed bundle, answered `no-store` with no ETag, while its
+pre-rendered siblings keep serving from memory. That is the full-SSR mode of this section on the
+current stack, and it is what a real app uses until `web::App` arrives.
 
 **Slots.** A render marks request-varying regions:
 
@@ -571,7 +597,21 @@ Rules that make "we control how code is shared" true:
 
 Static output today is per page: build an `HtmlPage`, `writeToDirectory`, done — so two pages
 duplicate the runtime and every shared component (measured in §0). `--static` is the same client
-job and the same chunk graph, with "serve" replaced by "write":
+job and the same chunk graph, with "serve" replaced by "write".
+
+**This is an export step applied per route, not a build mode for the project.** The rules that keep
+it honest:
+
+- A route declares whether it can be exported; only those are rendered at build. A route that needs
+  a request (session, path parameter, query) is **skipped with a warning naming it**, and the rest of
+  the export proceeds — exportability is never inferred from "the site is static".
+- The exported routes and the served routes are the *same build*: same bundle bytes, same hash, same
+  component units. Exporting must not change the artifact set the dynamic routes serve, so a project
+  can deploy the directory to a CDN for marketing pages and the binary for the app, and a browser
+  moving between them stays cache-warm.
+- `base_path`, `sitemap.xml`, `robots.txt` and prefetch describe the **exported subset**, so they are
+  output-and-metadata features, and they are explicitly *not* allowed to gate dynamic serving in the
+  sequencing (§9.1 puts them after `web::App`).
 
 ```
 chemical build --web --static                 # every route -> dist/<path>/index.html + dist/assets/*
@@ -895,7 +935,8 @@ will not change afterwards:
 | **JS backend, "minimal but real"** (§3.7) + ESM emission + source maps + C-vs-JS differential | 1 |
 | `shared`/`server`/`client` modules, `server`/`client`/`js` flags, `chemical build --web`, `MIRTargetSupport`, minimal `dom`, `chemical serve` + dev overlay, `web::Client` completion handlers | 3 |
 | `web_build` graph, `web::App`/`Bundle`, `web::Shell` + slots, embedded assets, CSS chunks, closure/cache checks | 4 |
-| JS + CSS minifier, hashed names, `--static` MPA with cross-page sharing, `--profile` | 5 |
+| per-route delivery mode (pre-rendered / shell+slots / per-request SSR) in one app, each with its own cache policy; mixed static+dynamic in one project | 4 (interim form landed on `StaticSite`, §3.12) |
+| JS + CSS minifier, hashed names, `--static` **export of the exportable route subset** with cross-page sharing, `--profile` | 5 |
 | sessions/cookies + CSRF, `web::Session`, `web::Form` | 5 (pulled forward from 7) |
 | **skills + migration kit + the one-sentence bootstrap prompt** (§3.21) | 5 |
 
@@ -1149,12 +1190,14 @@ of the breaking changes in §3.17.
    injected into both the SSR attribute and the client payload on both paths (§3.15a), covered by
    `universal_typed_props_defaults_reach_ssr_and_payload`. Negative tests cover unknown prop,
    missing prop, props type not found/must be a struct, and value-type mismatch; a positive test
-   proves declared props and implicit props render. Remaining: the generated serializer for
-   **struct/vector props** (no client representation yet), and value-type checking for raw JS
-   literals inside a JSX body (they carry no Chemical type — the `#html` path is fully checked).
+   proves declared props and implicit props render. Raw JS literals in a JSX body are
+   now kind-checked too (`append_unknown_prop_errors`, negative test
+   `neg_universal_prop_literal_kind_mismatch`). Remaining: the generated serializer for
+   **struct/vector props** (no client representation yet) — which is also why Gap B's array props
+   cannot be typed.
    **Rollout state (2026-11-18, end of batch): 172 of 184 components typed.** (The plan's "196"
-   was an estimate; the library has 184 `#universal` declarations.) The 18 left are blocked on a
-   feature, not on effort — see the two gaps below. Coverage by family: Card, Button (12), Badge
+   was an estimate; the library has 184 `#universal` declarations.) The 12 left are blocked on a
+   feature, not on effort — see Gap B below. Coverage by family: Card, Button (12), Badge
    (15), Alert (13), Avatar (7), Separator, ErrorOverlay, Input/TextArea/NativeSelect + Field
    family + InputGroup/Icon/Addon + 7 wrappers (17), Typography (23 incl. aliases), Surface (35),
    Data (17), Utilities (14), ToggleGroupItem, RadioGroupItem, SelectItem, Sheet slots (7),
@@ -1588,40 +1631,55 @@ ordered so the next agent can take the top one without re-reading the whole plan
 
 **Done and gated.** Phase 0 (fixtures, goldens, probe with gates/deferred split, CI);
 Phase 1 steps 0–5 (ABI, emitter, differential suites, diagnostics through `MIRTargetSupport`,
-source maps); Phase 2 (typed props on 166/184 components, defaults on both paths, implicit
+source maps); Phase 2 (typed props on 172/184 components, defaults and `@optional` on both paths, implicit
 universal attributes, per-instance hydration ids, `SharedAssets` freeze/hash, typed `Head`,
 `page.StaticSite` + `webserve`, `templates/web-starter` + its gate). Gates:
 `web-golden-test.sh`, `web-split-test.sh`, `web-probe.sh analyze … --strict`,
 `static-site-test.sh`, `js-backend-suites.sh`, `web-starter-test.sh`, `test.sh --tcc --plugins`
-(1314), `test.sh --tcc --negative` (898).
+(1315), `test.sh --tcc --negative` (900). `static-site-test.sh` now also covers the **mixed** case:
+one build serving pre-rendered pages from memory and a route rendered per request against the same
+content-hashed bundle (both answered with their own cache policy).
 
-**Open, in order of value per unit of work:**
+**Open, in order of value per unit of work.** The order is application-first by decision (§3.12):
+nothing that only the static export needs outranks work that makes a served app faster or more
+capable, and the route-mode work (#2, then #5–#7) precedes the export extras (#3).
 
 1. ~~**Optional-without-default props**~~ — **done 2026-11-18** (`@optional`, §3.15a). The control
    components it unblocked are typed; what remains untyped is Gap B (JSX element / array props),
    which needs an element type in the JSX surface rather than a props feature.
-2. **`web::Static` production output** (Phase 5 item 2, minus the pieces that need `web::App`):
+2. ~~**Per-request routes on the current stack**~~ — **done 2026-11-18** (the §3.12 bridge:
+   `StaticSite.attach_dynamic` / `render_dynamic` / `dynamic_response` / `dynamic_error_message`). A project that pre-renders some routes and renders others per request — the
+   normal shape of a real app — could not be expressed before this: `StaticSite` could only serve
+   frozen bytes, and the playground pattern could only render everything per request with no shared
+   bundle. Now a dynamic route renders into a fresh `HtmlPage` at request time, gets the site's
+   frozen `<script src>`/`<link>` head tags (so the client bundle is byte-identical to the static
+   routes'), and is answered `no-store` with no ETag, while its pre-rendered siblings keep their
+   `no-cache` + ETag path. Guarded by `scripts/static-site-test.sh` (same bundle hash on both route
+   kinds, two requests produce different bodies, no inline script, no validator on the dynamic
+   answer). What is deliberately *not* here, and belongs to `web::App`: a route table that dispatches
+   per route (the app still matches paths itself), `Vary: Cookie`, and a session-aware render hook.
+3. **`web::Static` export output** (Phase 5 item 2, minus the pieces that need `web::App`):
    `base_path`, `sitemap.xml`/`robots.txt`, hover prefetch, and the deprecated
    `writeToDirectory` shim. `page.StaticSite` is the base; this is additive to it, so it does not
    violate the frozen surface.
-3. **Node test-runner** (Phase 1's last item). `test_runner` spawns a child per `@test` and
+4. **Node test-runner** (Phase 1's last item). `test_runner` spawns a child per `@test` and
    `TestEnv` reports over a pipe; under Node that needs an in-process `TestEnv` and a loop over
    `get_tests()`. Blocked on interface dispatch: `TestEnv` is an interface, and `DynamicCall` is a
    diagnostic on the JS target. Either bind the runner's env statically (a `NodeTestEnv` struct
    passed by value — no vtable) or land `DynamicCall` in the emitter. The former is smaller.
-4. **Phase 3 module split + `--web`** (steps 1, 3): real `shared`/`server`/`client` modules,
+5. **Phase 3 module split + `--web`** (steps 1, 3): real `shared`/`server`/`client` modules,
    import-edge enforcement, the two-job build, and the minimal typed `dom` slice. This is the gate
    every remaining client-side feature waits on, and it is the largest single item left.
-5. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay.
-6. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6): `web_build` unit graph and chunking by
+6. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay.
+7. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6): `web_build` unit graph and chunking by
    route closure, `App`/`Bundle` over `StaticSite.respond`, `Shell` + byte-range slots, CSS chunks
    and `modulepreload`. Steps 5 and 7's static half are already satisfied by `page.StaticSite` and
    the probe script.
-7. **Sessions + CSRF** (Phase 5 item 3) — cookie jar, `Set-Cookie`, `web::Session` with a store
+8. **Sessions + CSRF** (Phase 5 item 3) — cookie jar, `Set-Cookie`, `web::Session` with a store
    interface, CSRF for state-changing endpoints. Deliberately after `web::App`, because it is a
    request-pipeline feature and there is no pipeline to put it in yet; the `http` server is usable
    without it today.
-8. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
+9. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
    conformance` in CI.
 
 **Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
@@ -1644,6 +1702,11 @@ is worse than a feature shipping a release late.
 - A page's initial JS ≤ 50 KB min; runtime ≤ 45 KB min (35 KB after runtime mangling).
 - A personalised route is served from a frozen shell in one allocation plus one `memcpy` per slot,
   byte-identical to full SSR, and ≥ 5× faster (measured).
+- **An application, not just an export:** the same binary serves pre-rendered routes from memory
+  (`no-cache` + ETag), a personalised route per request (`private`/`no-store`), and a shell route
+  from the frozen buffer — all referencing one content-hashed bundle, and a route can move between
+  modes without changing a client URL. Per-request SSR of the components app is measured and
+  budgeted, not assumed.
 - All 196 components have typed props; a typo'd prop, a typo'd DOM member, a nondeterministic read
   in a render body, and an `i64` in client code are all compile errors with a fix.
 - A form flow with sessions and CSRF works with JavaScript disabled; the same flow works with

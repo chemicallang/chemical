@@ -102,6 +102,14 @@ default, a page overrides it).
 creates only the directory it is given, so pass a flat path — nested routes are
 `StaticSite`'s job, not `writeToDirectory`'s.
 
+Most sites are **not** entirely static: you pre-render the pages that never
+change and render the rest per request, from one build and one bundle.
+`StaticSite.add` registers a pre-rendered page; `StaticSite.attach_dynamic` +
+`render_dynamic` render a route at request time against that same frozen bundle
+(the detail: `design_web_app`, "Mixed sites"). A route the export can serve keeps
+its `no-cache` + ETag 304 path; a per-request route is answered `no-store` with no
+validator.
+
 ## 5. The component library
 
 `lang/libs/components/` is a shadcn-style library (Card, Button, Badge, Alert,

@@ -65,6 +65,9 @@ public struct StaticSite {
     private var written : bool
     private var failed : bool
     private var failure : std::string
+    /// Why the last `render_dynamic` refused (empty on success). A per-request
+    /// render must not poison the build, so it reports here instead of `failure`.
+    private var dynamic_error : std::string
 
     @make
     public func make(out_dir : std::string_view, base_name : std::string_view = "app", asset_prefix : std::string_view = "assets") : StaticSite {
@@ -88,7 +91,8 @@ public struct StaticSite {
             build_failed : false,
             written : false,
             failed : false,
-            failure : std::string()
+            failure : std::string(),
+            dynamic_error : std::string()
         }
     }
 
@@ -414,6 +418,104 @@ public struct StaticSite {
             return site_response(304, a.content_type, cache, std::string_view(""), etag)
         }
         return site_response(200, a.content_type, cache, a.bytes.to_view(), etag)
+    }
+
+    // ── Per-request (dynamic) routes ─────────────────────────────────────
+    /// Attach `page` to the site's sink, so its page-independent bytes (the runtime,
+    /// component definitions, global CSS) go to the shared bundle instead of into the
+    /// page. Call this **before** rendering into the page.
+    ///
+    /// Before `build()` this is the **warm pass**: render every dynamic route once
+    /// this way, discard the page, and the route's components become part of the
+    /// frozen bundle. After `build()` the same call is how a request-time page is
+    /// prepared; the render must not need anything the bundle lacks (see
+    /// `render_dynamic`).
+    public func attach_dynamic(&mut self, page : &mut HtmlPage) : bool {
+        if(!assets.is_valid()) {
+            dynamic_error.clear()
+            dynamic_error.append_view("shared asset allocation failed")
+            return false
+        }
+        var shared = assets.get_mut()
+        page.attach_shared_ref(shared)
+        return true
+    }
+
+    /// Render `page` for **this request** against the site's already-frozen bundle,
+    /// and return the complete document.
+    ///
+    /// The page is attached to the site's sink before rendering, so everything the
+    /// bundle already carries — the hydration runtime, every component definition,
+    /// the global CSS — contributes **no bytes**: the returned HTML has the site's
+    /// frozen `<script src>`/`<link>` in `<head>` and only this request's markup
+    /// plus its dispatch tail. Call `page.defaultUniversalSetup()` for the page (as
+    /// for a pre-rendered page) before writing its `#html`.
+    ///
+    /// Returns an empty string when the site is not built, or when the route would
+    /// need bytes the frozen bundle does not have (a component that never rendered
+    /// before `build()`). That is not a warning: appending them would make the
+    /// published, content-hashed URL disagree with the bytes it names, so the render
+    /// is refused and `dynamic_error_message()` says what is missing. **Warm every
+    /// dynamic route once before `build()`** — render it into a throwaway page — and
+    /// its components become part of the bundle.
+    ///
+    /// After that warm pass the sink is only read, so concurrent requests are safe
+    /// while it stays frozen; do not rebuild the site while serving it.
+    public func render_dynamic(&mut self, page : &mut HtmlPage) : std::string {
+        var out = std::string()
+        dynamic_error.clear()
+        if(!assets.is_valid()) {
+            dynamic_error.append_view("shared asset allocation failed")
+            return out
+        }
+        if(!built || build_failed) {
+            dynamic_error.append_view("site not built; dynamic routes render after build()")
+            return out
+        }
+        var shared = assets.get_mut()
+        if(!shared.is_frozen()) {
+            dynamic_error.append_view("site not frozen; call build() first")
+            return out
+        }
+        if(!attach_dynamic(page)) { return out }
+        var head_view = head_tags.to_view()
+        var empty_src = std::string_view("")
+        var html = page.toStringWithAssets(head_view, empty_src)
+        if(shared.is_stale()) {
+            // The page needed a component the bundle does not contain. Say so, and
+            // name the fix, instead of serving HTML whose hydration cannot run.
+            dynamic_error.append_view("dynamic route needs components the frozen bundle does not contain; render the route once before build()")
+            out.clear()
+            return out
+        }
+        out.append_string(&html)
+        return out
+    }
+
+    /// Answer a per-request render. `html` must outlive the response — the body is
+    /// a view into it, never a copy.
+    ///
+    /// 200 `text/html` with `no-store` by default: the same URL now returns
+    /// different bytes on every request, so a shared cache must not keep them. Pass
+    /// `"private, no-cache"` only when the render is actually stable per URL, and
+    /// add your own validator if you do. No `ETag` is set — there is nothing for a
+    /// client to revalidate against.
+    ///
+    /// An empty `html` (a refused `render_dynamic`, or a route that chose to render
+    /// nothing) is a **503**, not a 200 with an empty page: it means the site could
+    /// not render, and `dynamic_error_message()` carries the reason.
+    public func dynamic_response(&self, html : &std::string, cache_control : std::string_view = "no-store") : SiteResponse {
+        var body = html.to_view()
+        if(!built || build_failed || body.empty()) {
+            return site_response(503, std::string_view("text/plain; charset=utf-8"),
+                std::string_view("no-store"), std::string_view("dynamic route could not be rendered"), std::string_view(""))
+        }
+        return site_response(200, std::string_view("text/html; charset=utf-8"), cache_control, body, std::string_view(""))
+    }
+
+    /// Why the last `render_dynamic` returned nothing (empty on success).
+    public func dynamic_error_message(&self) : std::string_view {
+        return dynamic_error.to_view()
     }
 
     // ── Internals ────────────────────────────────────────────────────────

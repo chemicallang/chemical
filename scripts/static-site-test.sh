@@ -94,6 +94,32 @@ check "each page has its own hashed chunk" \
       "$(grep -qE 'src="[^"]*index\.[0-9a-f]+\.js"' "$index" && \
          grep -qE 'src="[^"]*about_index\.[0-9a-f]+\.js"' "$about" && echo 1 || echo 0)"
 
+# ── per-request routes live in the same build as the pre-rendered ones ─────
+# A site is a route table, not a mode: `/account` is rendered per request while
+# `/` and `/about/` are served from the frozen artifact set. The dynamic page must
+# load the *same* content-hashed bundle (no second runtime) and must not be
+# cacheable, because the same URL returns different bytes.
+dyn_ada=$(awk '/^---dynamic ada---$/{f=1;next}/^---end---$/{f=0}f' "$resp")
+dyn_grace=$(awk '/^---dynamic grace---$/{f=1;next}/^---end---$/{f=0}f' "$resp")
+check "a per-request route renders 200 with no-store and no validator" \
+      "$(grep -qE '^dynamic ada -> 200 \| no-store \| [0-9]+ B \| etag=\[\]$' "$resp" && echo 1 || echo 0)"
+check "two requests to the same route return different bytes" \
+      "$(grep -qF 'same_bytes=0' "$resp" && echo 1 || echo 0)"
+check "the dynamic page references the shared bundle the static pages use" \
+      "$(printf '%s' "$dyn_ada" | grep -qF "$index_ref" && echo 1 || echo 0)"
+check "the dynamic page does not repeat the hydration runtime" \
+      "$(printf '%s' "$dyn_ada" | grep -qF '$__uni_hydration_queue' && echo 0 || echo 1)"
+check "the dynamic page has exactly one external script (the bundle)" \
+      "$([ "$(printf '%s' "$dyn_ada" | grep -o '<script src=' | wc -l)" = "1" ] && echo 1 || echo 0)"
+check "the dynamic page carries its own request-scoped dispatch inline" \
+      "$(printf '%s' "$dyn_ada" | grep -qF 'window.$__uni_c(' && echo 1 || echo 0)"
+check "a dynamic render sees the request's data, not the warm-pass data" \
+      "$(printf '%s' "$dyn_ada" | grep -qF 'ada:0' && printf '%s' "$dyn_grace" | grep -qF 'grace:0' && echo 1 || echo 0)"
+check "a route needing an un-bundled component is refused with a 503" \
+      "$(grep -qF 'dynamic late -> 503 |' "$resp" && grep -qF 'frozen bundle' "$resp" && echo 1 || echo 0)"
+check "a dynamic route is not written as an artifact" \
+      "$([ ! -e "$shared_dir/account/index.html" ] && echo 1 || echo 0)"
+
 # ── the bundle is written once and carries the runtime ─────────────────────
 bundle="$shared_dir/assets/$(basename "$index_ref")"
 check "the shared bundle exists on disk" "$([ -f "$bundle" ] && echo 1 || echo 0)"
@@ -190,4 +216,4 @@ echo
 echo "shared:   $shared_html_bytes B of HTML for 2 pages, one bundle of $(wc -c < "$bundle") B served once"
 echo "baseline: $baseline_bytes B for the same page, runtime inlined in every page"
 echo
-echo "PASS: static pages share one hashed bundle and ship no inline scripts"
+echo "PASS: static pages share one hashed bundle and ship no inline scripts; per-request routes join the same bundle"

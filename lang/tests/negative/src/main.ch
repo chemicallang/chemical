@@ -777,13 +777,15 @@ public func neg_universal_missing_typed_prop(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "universal_missing_typed_prop", ch, "missing required prop 'count' for component 'Card'", NEG_MOD_UNIVERSAL)
 }
 
-// Defaults are rejected rather than half-applied: SSR and hydration must agree,
-// and only the generated props serializer (a later step) can apply a default in
-// both places.
+// A default is *accepted*: the converter injects it into both the SSR attributes
+// and the client payload, so SSR and hydration agree. (This test used to assert the
+// opposite, back when defaults were rejected rather than half-applied; the positive
+// assertion lives in the plugin suite, `universal_typed_props_defaults_reach_ssr_and_payload`,
+// and this keeps the negative suite from claiming a rule that no longer exists.)
 @test
-public func neg_universal_props_default_rejected(env : &mut TestEnv) {
+public func neg_universal_props_default_accepted(env : &mut TestEnv) {
     var ch = "public struct CardProps {\n    var title : std::string_view\n    var count : int = 0\n}\n#universal Card(props : CardProps) {\n    return <div>{props.title}</div>\n}\n#universal Host(props) {\n    return <Card title=\"ok\" />\n}\npublic func main() : int {\n    return 0\n}\n"
-    expect_compile_error_with_mod(env, "universal_props_default", ch, "has a default value; v1 requires every declared prop", NEG_MOD_UNIVERSAL)
+    expect_compile_success_with_mod(env, "universal_props_default", ch, NEG_MOD_UNIVERSAL)
 }
 
 // A prop's value is checked against the field's declared type with the type
@@ -796,6 +798,20 @@ public func neg_universal_prop_type_mismatch(env : &mut TestEnv) {
     var mod = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\nimport html_cbi\nimport css_cbi\n"
     expect_compile_error_with_mod(env, "universal_prop_type", ch, "prop 'count' of component 'Card' expects 'int' but got 'string'", mod)
 }
+
+// A raw JS literal inside a `#universal` body carries no Chemical type, so the
+// type checker cannot judge it — but its *kind* can still be compared with the
+// declared field type. A string literal for an `int` prop is a mistake in any
+// language, and this is the JSX-side counterpart of the `#html` check above.
+@test
+public func neg_universal_prop_literal_kind_mismatch(env : &mut TestEnv) {
+    var ch = "public struct ChipProps {\n    var count : int = 1\n}\n#universal Chip(props : ChipProps) {\n    return <span>{props.count}</span>\n}\n#universal Host(props) {\n    return <Chip count={\"3\"} />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_prop_literal_kind", ch, "prop 'count' of component 'Chip' expects 'int' but got a string literal", NEG_MOD_UNIVERSAL)
+}
+
+// The same check must not fire for a matching literal kind, and `null`/`undefined`
+// always mean "absent" — both are covered by the positive fixtures that pass a
+// numeric literal and by the `null` fallbacks in Alert/Typography.
 
 // Hydration safety: reading the clock during render makes the server and the
 // browser disagree, which is the bug class that used to be found in a browser

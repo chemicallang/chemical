@@ -647,8 +647,14 @@ Still to land for typed props (Phase 2 remainder):
   do for a field assignment (no new conversion rules invented in a plugin). The diagnostic spells
   both types using `BaseType::representation()`:
   `prop 'count' of component 'Card' expects 'int' but got 'string'`.
-  Limitation: a **raw JS literal** inside a JSX body (`count={"nope"}` in a `#universal` body) has
-  no Chemical type, so it is not value-checked there; the `#html` path is fully checked.
+  A **raw JS literal** inside a JSX body (`count={"nope"}`) has no Chemical type, so the type
+  checker cannot judge it — the converter compares its *kind* with the declared field type instead
+  (`string literal` / `number literal` / `boolean literal`). A string literal for an `int` prop is
+  rejected (`prop 'count' of component 'Chip' expects 'int' but got a string literal`), numbers and
+  booleans for text props are rejected, `null`/`undefined` always mean "absent", and struct/other
+  field types are left unchecked. Anything that is not a plain literal (a call, a member access)
+  is still only checked on the `#html` path. Covered by
+  `neg_universal_prop_literal_kind_mismatch`.
 - **Defaults — landed (2026-11-17).** `var count : int = 0` in a props struct is allowed, and a
   call site may omit the prop. The value is injected into both sides from one place per path:
   * **JSX path** (`converter_jsx.ch`): `resolve_attributes()` appends one `ResolvedAttr` per omitted
@@ -1559,6 +1565,55 @@ Phase 6  SPA routes/prefetch/head + realtime + async           (L)
 Phase 7  full DOM + canvas/pointer + uploads + i64            (L)
 Phase 8  hardening + streaming + a11y + escape-hatch audit     (M)
 ```
+
+### 9.1 Where v1 actually stands (2026-11-18)
+
+Nothing here is a guess: each line names the artefact that proves the claim, and the open items are
+ordered so the next agent can take the top one without re-reading the whole plan.
+
+**Done and gated.** Phase 0 (fixtures, goldens, probe with gates/deferred split, CI);
+Phase 1 steps 0–5 (ABI, emitter, differential suites, diagnostics through `MIRTargetSupport`,
+source maps); Phase 2 (typed props on 166/184 components, defaults on both paths, implicit
+universal attributes, per-instance hydration ids, `SharedAssets` freeze/hash, typed `Head`,
+`page.StaticSite` + `webserve`, `templates/web-starter` + its gate). Gates:
+`web-golden-test.sh`, `web-split-test.sh`, `web-probe.sh analyze … --strict`,
+`static-site-test.sh`, `js-backend-suites.sh`, `web-starter-test.sh`, `test.sh --tcc --plugins`
+(1314), `test.sh --tcc --negative` (898).
+
+**Open, in order of value per unit of work:**
+
+1. **Optional-without-default props** (Gap A in §3.15a). One language-surface change — a field that
+   is neither defaulted (injected, never absent) nor required — then the last 10 components type
+   mechanically and `value`/`checked`/`open` become checkable everywhere. Touches: both plugins'
+   required check and injection, the call-site value check, `ASTBuilder` if the marker is an
+   annotation. *Prerequisite for any controlled component being typed.*
+2. **`web::Static` production output** (Phase 5 item 2, minus the pieces that need `web::App`):
+   `base_path`, `sitemap.xml`/`robots.txt`, hover prefetch, and the deprecated
+   `writeToDirectory` shim. `page.StaticSite` is the base; this is additive to it, so it does not
+   violate the frozen surface.
+3. **Node test-runner** (Phase 1's last item). `test_runner` spawns a child per `@test` and
+   `TestEnv` reports over a pipe; under Node that needs an in-process `TestEnv` and a loop over
+   `get_tests()`. Blocked on interface dispatch: `TestEnv` is an interface, and `DynamicCall` is a
+   diagnostic on the JS target. Either bind the runner's env statically (a `NodeTestEnv` struct
+   passed by value — no vtable) or land `DynamicCall` in the emitter. The former is smaller.
+4. **Phase 3 module split + `--web`** (steps 1, 3): real `shared`/`server`/`client` modules,
+   import-edge enforcement, the two-job build, and the minimal typed `dom` slice. This is the gate
+   every remaining client-side feature waits on, and it is the largest single item left.
+5. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay.
+6. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6): `web_build` unit graph and chunking by
+   route closure, `App`/`Bundle` over `StaticSite.respond`, `Shell` + byte-range slots, CSS chunks
+   and `modulepreload`. Steps 5 and 7's static half are already satisfied by `page.StaticSite` and
+   the probe script.
+7. **Sessions + CSRF** (Phase 5 item 3) — cookie jar, `Set-Cookie`, `web::Session` with a store
+   interface, CSRF for state-changing endpoints. Deliberately after `web::App`, because it is a
+   request-pipeline feature and there is no pipeline to put it in yet; the `http` server is usable
+   without it today.
+8. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
+   conformance` in CI.
+
+**Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
+needs Phase 3's module split; Phase 7 (full `dom`, canvas, uploads) needs the typed `dom` slice
+from Phase 3; Phase 8 is ongoing hardening.
 
 Phase 2 is independent of Phase 1 and delivers the headline sharing and typing wins in one
 workstream while the backend is built in the other. If a phase slips, the *cut* is always taken

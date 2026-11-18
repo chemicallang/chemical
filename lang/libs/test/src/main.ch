@@ -254,6 +254,14 @@ public func make_test_runner_handle(tests : std::span<TestFunction>) : test_repo
  * site so `get_tests()` sees the caller's @test declarations, mirroring
  * `test_runner`.
  */
+// `@expand`, like `universal_test_runner_handle`: the call has to be expanded at
+// the caller's site, because `get_tests()` must see the caller's @test
+// declarations. Without it the body was folded once against the library's own
+// (empty) test list, and the literal inside `make_test_runner_handle` was
+// evaluated with an unbound `%literal_string` parameter — which surfaced as
+// "intrinsics::size called with invalid arguments (value kind 22)" for every
+// function in the runner path.
+@expand
 public comptime func test_runner_handle() : test_report::ffi::TestRunnerHandle {
     const t = get_tests()
     return make_test_runner_handle(std::span<TestFunction>(t))

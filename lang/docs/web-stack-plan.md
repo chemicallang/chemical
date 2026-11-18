@@ -1346,11 +1346,38 @@ in a render body fails compilation.
 1. New target flags `server`/`client`/`js` in `TargetData`, CLI `--web`, and the two-job build
    (§3.1). The split is **real modules** (`shared`, `server`, `client`, each with its own
    `chemical.mod`); `shared` is restricted to pure logic/models. Import-edge enforcement +
-   per-job module-set check.
+   per-job module-set check. — **landed** (`LabBuildCompiler::build_web_module_no_alloc`:
+   client pass = `shared` + `client` as JS, server pass = `shared` + `server` + `src` as
+   native, each with its own build directory; conditional `source`/`import … if server|client`
+   picks the module set, so a module outside the pass is simply not in the job. Gated by
+   `scripts/web-split-test.sh`, including the native-symbol-in-client diagnostic.)
 2. `MIRTargetSupport`: per-symbol/type availability on `js`, with the first unsupported callee
-   reported at its source location (replaces `MIRPortability`-as-gate).
+   reported at its source location (replaces `MIRPortability`-as-gate). — opcode table landed;
+   the per-*symbol* answer lives in the emitter (`callee_expr`: "native symbol 'x' has no
+   JavaScript equivalent (declared @extern); a client or shared module must not depend on it",
+   at the call's location). Moving that into the shared table is still open (it is what `--check`
+   and the LSP should ask).
 3. Minimal `dom` slice (proposal 0008): `Document`, `Element`, `Event`, `fetch`,
    `localStorage`, `URL` — enough for client modules to be useful; full 0008 later.
+   **Landed 2026-11-18:** `lang/libs/dom` (`document`, `Document.get_element_by_id`/
+   `query_selector`/`create_element`/`body`, `Element` text/attributes/value/children/
+   `add_event_listener`, `Event.prevent_default`/`stop_propagation`/`target`/`key`,
+   `fetch_text`, `storage_get`/`storage_set`/`storage_remove`, `url_origin`/
+   `url_pathname`/`url_search_param`), all safe by default with the raw host bindings under
+   `dom::raw`. Browser objects cannot live in the emulated heap, so a `Document`/
+   `Element`/`Event` is a **handle**: an index into a host table in the JS runtime that is
+   never reused (a stale handle names its original object, never a different element).
+   Callbacks (a listener, a fetch completion) travel as MIR function addresses and are
+   resolved through the emitted module's `$fns` table, which the module now registers with
+   `rt.register_fns`. Text crosses as `string_view`/`*char` in the heap. Gated by
+   `scripts/web-dom-test.sh` (16 checks): the fixture's `client/*.ch` interaction is
+   compiled by the `--web` client job and then **run** by
+   `scripts/js_backend/dom_harness.mjs` (a small DOM + `localStorage` + `fetch` on
+   `globalThis`) — document queries, element text/attributes/value, two real click
+   callbacks, a fetch completion, storage and `URL` all produce expected output, and the
+   source map still decodes to the listener's line. Also fixed on the way: `rt.printf` now
+   supports `%.*s` (the idiom every Chemical test uses to print a `string_view`), which had
+   been printing `%*s` literally in the JS backend.
 4. **Source maps** from the start of generated client code. — **landed in the emitter**
    (`--emit-js` writes `<program>.mjs.map` + a `sourceMappingURL` comment; one segment per
    instruction line, mapping to the Chemical `file:line:column` the instruction came from). The gate
@@ -1539,6 +1566,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | JS diagnostics | `scripts/js-backend-diagnostics.sh`: an unsupported construct fails the build with `file:line:column` for **every** site; a native-only `@extern` is explained as such; `--check` validates without writing |
 | JS source maps | `scripts/js_backend/sourcemap_check.mjs` (run per fixture): decodes `mappings`, requires every source line in range and a mapping on a known statement's line |
 | Modules | module-split violations fail (shared→client import, client→native symbol) |
+| `dom` | `scripts/web-dom-test.sh`: `client/*.ch` using typed `dom` compiles in the `--web` client job, the emitted bundle calls `rt.dom.*` (never the raw extern names), registers `$fns`, and under `scripts/js_backend/dom_harness.mjs` produces the expected output for document/element/event/fetch/storage/URL; server-only HTML is absent from the client bundle and client-only symbols from the server executable; the source map decodes to the listener's line |
 | Hydration | ids unique per instance; closure check (unreachable id = build error) |
 | Bundles | duplicate-unit = 0; frozen chunk cannot grow; every chunk hashed |
 | Shell | `shell.emit(empty)` byte-identical to full SSR; no component may render into a slot |
@@ -1656,6 +1684,9 @@ universal attributes, per-instance hydration ids, `SharedAssets` freeze/hash, ty
 `test.sh --tcc --plugins` (1315), `test.sh --tcc --negative` (900). `static-site-test.sh` now also
 covers the **mixed** case: one build serving pre-rendered pages from memory and a route rendered per
 request against the same content-hashed bundle (both answered with their own cache policy).
+**Phase 3 is largely in:** the two-job `--web` build with real `shared`/`server`/`client`
+modules, source maps, and the minimal typed `dom` slice (`lang/libs/dom`) now runs a
+`client/*.ch` interaction against a host DOM under Node (`web-dom-test.sh`).
 `web-app-test.sh` (46 checks) covers the route table on top: per-route cache policy, `{id}`/`{path*}`
 captures, redirects, the rendered 404 route, the mount path, sitemap/robots export, sessions,
 cookies and CSRF.
@@ -1687,10 +1718,14 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    `get_tests()`. Blocked on interface dispatch: `TestEnv` is an interface, and `DynamicCall` is a
    diagnostic on the JS target. Either bind the runner's env statically (a `NodeTestEnv` struct
    passed by value — no vtable) or land `DynamicCall` in the emitter. The former is smaller.
-5. **Phase 3 module split + `--web`** (steps 1, 3): real `shared`/`server`/`client` modules,
-   import-edge enforcement, the two-job build, and the minimal typed `dom` slice. This is the gate
-   every remaining client-side feature waits on, and it is the largest single item left.
-6. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay.
+5. ~~**Phase 3 module split + `--web` + typed `dom`**~~ — **done 2026-11-18** (items 1–4 of
+   Phase 3: real `shared`/`server`/`client` modules and the two-job build, `MIRTargetSupport`,
+   source maps, and the minimal `dom` slice, gated by `web-split-test.sh` and
+   `web-dom-test.sh`). What remains from Phase 3 is item 5 (`chemical serve`) and item 6
+   (unhandled `Result` in client code is an error), plus the per-symbol target table under
+   Phase 3 item 2.
+6. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay, and the
+   error-ingestion endpoint that turns a client exception into a source-mapped terminal report.
 7. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6) — **`web::App` done 2026-11-18**
    (`lang/libs/web/src/app.ch`): one route table mixing pre-rendered (`page`) and per-request
    (`live`) routes over one frozen bundle, per-route cache policy + `Vary`, `{id}`/`{path*}`
@@ -1707,8 +1742,8 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    conformance` in CI.
 
 **Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
-needs Phase 3's module split; Phase 7 (full `dom`, canvas, uploads) needs the typed `dom` slice
-from Phase 3; Phase 8 is ongoing hardening.
+needs `web_build`'s route-closure chunk graph; Phase 7 (the rest of `dom`: canvas, uploads,
+pointer/rAF, `WebSocket`) builds on the slice that now exists; Phase 8 is ongoing hardening.
 
 Phase 2 is independent of Phase 1 and delivers the headline sharing and typing wins in one
 workstream while the backend is built in the other. If a phase slips, the *cut* is always taken

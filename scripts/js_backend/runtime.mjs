@@ -522,8 +522,14 @@ export function printf(fmtPtr, ...args) {
     let precision = -1;
     if (spec === ".") {
       spec = fmt[i++];
-      precision = 0;
-      while (spec >= "0" && spec <= "9") { precision = precision * 10 + (spec.charCodeAt(0) - 48); spec = fmt[i++]; }
+      if (spec === "*") {
+        // `%.*s` / `%.*s`-style: the precision is the next argument.
+        precision = Math.trunc(args[ai++]);
+        spec = fmt[i++];
+      } else {
+        precision = 0;
+        while (spec >= "0" && spec <= "9") { precision = precision * 10 + (spec.charCodeAt(0) - 48); spec = fmt[i++]; }
+      }
     }
     // length modifiers: %zu, %lu, %lld, %hhu ...
     while (spec === "z" || spec === "l" || spec === "h" || spec === "j" || spec === "t") spec = fmt[i++];
@@ -535,7 +541,12 @@ export function printf(fmtPtr, ...args) {
       case "X": out += Math.trunc(a).toString(16).toUpperCase(); break;
       case "o": out += Math.trunc(a).toString(8); break;
       case "c": out += String.fromCharCode(a); break;
-      case "s": out += a ? readCStr(a) : "(null)"; break;
+      case "s": {
+        let text = a ? readCStr(a) : "(null)";
+        if (a && precision >= 0) text = text.slice(0, precision);
+        out += text;
+        break;
+      }
       case "f": out += precision >= 0 ? a.toFixed(precision) : String(a); break;
       case "g": case "e": out += String(a); break;
       case "p": out += "0x" + Math.trunc(a).toString(16); break;
@@ -577,6 +588,158 @@ export function exit(code) {
 }
 
 // One namespace object so emitted code can import a single binding.
+// ── the DOM host (`dom`, proposal 0008) ─────────────────────────────────────
+// A browser object cannot live in the emulated heap, so a DOM reference is a
+// **handle**: an index into `hosts`, a table of the real JS objects. `0` is null,
+// and an index is never reused, so a stale handle names the object it was made
+// from (the browser keeps it alive for as long as the page does) instead of
+// aliasing a different element.
+//
+// Everything else here is marshalling: strings travel as heap `string_view`s
+// (`{ptr,len}`, 16 bytes) or as C strings returned by the host, and a Chemical
+// callback travels as its function address (a symbol id resolved through `$fns`,
+// which the emitted module registers with `rt.register_fns`).
+let fnTable = null;
+
+/** Give the runtime the emitted module's `$fns` table, so host callbacks can call
+ * back into Chemical code. Called once per bundle at module scope. */
+export function register_fns(table) {
+  fnTable = table;
+}
+
+const hosts = [null];
+
+function retain(value) {
+  if (value === null || value === undefined) return 0;
+  hosts.push(value);
+  return hosts.length - 1;
+}
+
+function resolve_handle(handle) {
+  const value = hosts[handle];
+  if (value === undefined) throw new Error("js runtime: invalid dom handle " + handle);
+  return value;
+}
+
+const domDecoder = new TextDecoder();
+const domEncoder = new TextEncoder();
+
+/** A heap `string_view` as a JS string. */
+function text_at(viewAddr) {
+  if (!viewAddr) return "";
+  const ptr = ld(viewAddr, 8, false);
+  const len = ld(viewAddr + 8, 8, false);
+  if (!ptr || !len) return "";
+  return domDecoder.decode(HEAP.subarray(ptr, ptr + len));
+}
+
+/** A JS string as a heap C string (the shape a `*char` return needs). */
+function cstr_of(text) {
+  return cstr(domEncoder.encode(text));
+}
+
+/** A JS string as a heap `string_view`, for a Chemical callback parameter. */
+function view_of(text) {
+  const bytes = domEncoder.encode(text);
+  const addr = alloc(16, 8);
+  st(addr, 8, false, cstr(bytes));
+  st(addr + 8, 8, false, bytes.length);
+  return addr;
+}
+
+function call_chemical(fn, ...args) {
+  if (fnTable === null) throw new Error("js runtime: a dom callback fired before rt.register_fns");
+  return indirect(fnTable, fn)(...args);
+}
+
+function document_object() {
+  if (typeof globalThis.document === "undefined") {
+    throw new Error("js runtime: no document available (dom code must run in a browser)");
+  }
+  return globalThis.document;
+}
+
+function element(handle) {
+  const value = resolve_handle(handle);
+  if (!value) throw new Error("js runtime: a dom operation used a null element");
+  return value;
+}
+
+function storage() {
+  if (typeof globalThis.localStorage === "undefined") {
+    throw new Error("js runtime: no localStorage available");
+  }
+  return globalThis.localStorage;
+}
+
+export const dom = {
+  document: () => retain(document_object()),
+  body: (doc) => retain(element(doc).body),
+
+  get_element_by_id: (doc, id) => retain(element(doc).getElementById(text_at(id))),
+  query_selector: (root, selector) => retain(element(root).querySelector(text_at(selector))),
+  create_element: (doc, tag) => retain(element(doc).createElement(text_at(tag))),
+
+  set_text: (handle, text) => { element(handle).textContent = text_at(text); },
+  text: (handle) => cstr_of(element(handle).textContent ?? ""),
+  set_html: (handle, html) => { element(handle).innerHTML = text_at(html); },
+
+  set_attribute: (handle, name, value) => { element(handle).setAttribute(text_at(name), text_at(value)); },
+  get_attribute: (handle, name) => {
+    const value = element(handle).getAttribute(text_at(name));
+    return value === null ? 0 : cstr_of(value);
+  },
+  has_attribute: (handle, name) => (element(handle).hasAttribute(text_at(name)) ? 1 : 0),
+  remove_attribute: (handle, name) => { element(handle).removeAttribute(text_at(name)); },
+
+  set_value: (handle, value) => { element(handle).value = text_at(value); },
+  value: (handle) => cstr_of(element(handle).value ?? ""),
+
+  append_child: (parent, child) => { element(parent).appendChild(element(child)); },
+  remove: (handle) => {
+    const node = element(handle);
+    if (node.parentNode) node.parentNode.removeChild(node);
+  },
+  focus: (handle) => { element(handle).focus(); },
+
+  // A listener receives a pointer to a one-field `Event { handle }` slot: MIR passes
+  // an aggregate by address, so the Chemical callback reads its handle from there.
+  on: (handle, event, fn) => {
+    element(handle).addEventListener(text_at(event), (browserEvent) => {
+      const slot = alloc(8, 8);
+      st(slot, 8, false, retain(browserEvent));
+      call_chemical(fn, slot);
+    });
+  },
+
+  prevent_default: (event) => { const e = resolve_handle(event); if (e && e.preventDefault) e.preventDefault(); },
+  stop_propagation: (event) => { const e = resolve_handle(event); if (e && e.stopPropagation) e.stopPropagation(); },
+  target: (event) => retain(resolve_handle(event).target),
+  key: (event) => cstr_of(resolve_handle(event).key ?? ""),
+
+  // `fetch(url, callback)`; the callback is `(status : int, body : string_view)`,
+  // with status 0 for a network failure (the body is then the error message).
+  fetch_text: (url, fn) => {
+    globalThis.fetch(text_at(url))
+      .then((response) => response.text().then((body) => call_chemical(fn, response.status, view_of(body))))
+      .catch((error) => call_chemical(fn, 0, view_of(String(error && error.message ? error.message : error))));
+  },
+
+  storage_get: (key) => {
+    const value = storage().getItem(text_at(key));
+    return value === null ? 0 : cstr_of(value);
+  },
+  storage_set: (key, value) => { storage().setItem(text_at(key), text_at(value)); },
+  storage_remove: (key) => { storage().removeItem(text_at(key)); },
+
+  url_origin: (url) => cstr_of(new URL(text_at(url)).origin),
+  url_pathname: (url) => cstr_of(new URL(text_at(url)).pathname),
+  url_search_param: (url, name) => {
+    const value = new URL(text_at(url)).searchParams.get(text_at(name));
+    return value === null ? 0 : cstr_of(value);
+  },
+};
+
 export const rt = {
   alloc, malloc, realloc_, free_, frame_mark, frame_release, frame_alloc,
   ld, st, ldF, stF, load, store, loadF, storeF,
@@ -588,6 +751,7 @@ export const rt = {
   isgraph, iscntrl, ispunct, toupper, tolower, abs, labs, llabs,
   strtol, strtoll, strtoul, strtoull, atoi, strtod, atof,
   printf, putchar, abort, exit, trap, indirect, HEAP,
+  register_fns, dom,
 };
 /** Resolve a MIR function address (a symbol id) to the emitted function. */
 export function indirect(table, id) {

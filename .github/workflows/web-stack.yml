@@ -11,6 +11,8 @@ name: Web stack
 #   web-app-test           `web::App`: one route table mixing pre-rendered and
 #                          per-request routes on one bundle, per-route cache policy,
 #                          redirects/404, mount path, sitemap, sessions + CSRF
+#   web-dom-test           client/*.ch using the typed `dom` module compiles in the
+#                          --web client job and runs against a host DOM under Node
 #   web-golden-test        the Phase 0 fixtures' HTML/JS/CSS match their goldens
 #                          (0 JS for a static page, u1..u5 hydration ids, route
 #                          titles + noindex, the shell baseline)
@@ -76,6 +78,9 @@ jobs:
 
       - name: App route table (mixed delivery, one bundle, sessions + CSRF)
         run: ./scripts/web-app-test.sh
+
+      - name: Typed `dom` in a client module (compiled to JS, run against a DOM)
+        run: node --version && ./scripts/web-dom-test.sh
 
       - name: Phase 0 probe gates (static output: no inline JS, no duplicated defs, hashed assets)
         run: ./scripts/web-probe.sh analyze lang/compiled/static_site_out --strict

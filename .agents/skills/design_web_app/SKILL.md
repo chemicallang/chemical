@@ -598,6 +598,67 @@ values that cannot be serialised produce **no** header rather than a broken one.
 constant time. The store is in-memory (process lifetime) and the interface is what a persistent store
 implements.
 
+### Client modules and typed `dom`
+
+Browser code lives in a `client` module and is compiled to JavaScript by
+`chemical build --web` (one application, two jobs: `shared` + `client` → JS,
+`shared` + `server` + `src` → native). Reach for the typed `dom` module instead of
+`#js` — a typo is a compile error instead of a blank page:
+
+```chemical
+// client/chemical.mod
+module client
+source "."
+import std
+import dom
+import "../shared"          // pure logic only: no dom, no page, no platform
+
+// client/counter.ch
+public func on_click(e : &dom::Event) {
+    e.prevent_default()
+    var doc = dom.document()
+    var node = doc.get_element_by_id("count")
+    if(node is Option.Some) {
+        var Some(label) = node else unsafe { unreachable }
+        var next = shared_next(shared_parse_int(label.text().to_view()))
+        label.set_text(shared_label(next).to_view())
+    }
+}
+
+public func main() : int {
+    var doc = dom.document()
+    var button = doc.get_element_by_id("count-button")
+    if(button is Option.Some) {
+        var Some(el) = button else unsafe { unreachable }
+        el.add_event_listener("click", on_click)
+    }
+    dom::fetch_text("/api/count", on_loaded)   // (status : int, body : &string_view)
+    return 0
+}
+```
+
+- **Handles, not pointers.** `Document`/`Element`/`Event` hold an opaque id into a host
+  table the JS runtime owns. Copies are free, there is nothing to free, and a stale
+  handle never aliases a different element. On the native side `dom` has no
+  implementation: import it from a `client` module only.
+- **The split is enforced by the module set**, not by annotations: the client pass
+  compiles `shared` + `client`, the server pass `shared` + `server` + `src`, each with
+  its own build directory. Calling a native-only symbol from `shared` or `client` fails
+  the client pass by name and source location (`web-split-test.sh`).
+- **v1 surface:** `document()`, `Document.get_element_by_id`/`query_selector`/
+  `create_element`/`body`, `Element` text/`set_html`/attributes/`value`/`append_child`/
+  `remove`/`focus`/`add_event_listener`/`query_selector`, `Event.prevent_default`/
+  `stop_propagation`/`target`/`key`, `fetch_text`, `storage_get`/`storage_set`/
+  `storage_remove`, `url_origin`/`url_pathname`/`url_search_param`. Raw host bindings
+  live under `dom::raw`; canvas, uploads, pointer/rAF and `WebSocket` are later work.
+- **`set_html` is trusted-markup only** — it parses HTML and never escapes; use
+  `set_text` for anything that came from a user.
+- Debugging: the client job always emits a source map (`web-client.mjs.map`), so a
+  browser stack frame maps back to the `.ch` line. `scripts/web-dom-test.sh` runs the
+  same fixture headlessly under Node with a small DOM harness
+  (`scripts/js_backend/dom_harness.mjs`) — the fastest way to see a `dom` change work
+  without a browser.
+
 ### Serving it over HTTP
 
 `webserve` (`lang/libs/webserve`) is the bridge from a built site to `http::Server`. It imports both
@@ -686,6 +747,7 @@ of the right-hand column has landed yet** — code written against it will not c
 | assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
 | serving | **`web::App`** (route table: `page`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `webserve` bridge | per-route chunks, shell+slots (byte-range) delivery, `Vary: Cookie` render hook |
 | sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
+| client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
 | JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, minification, `--static` |
 | props | untyped `(props)`, or typed `(props : Props)` | optional props / defaults (`@props`) |

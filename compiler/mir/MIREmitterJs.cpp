@@ -371,6 +371,9 @@ void ModuleEmitter::emit_preamble(std::string& out) {
         out += fa_expr_[sym];
         out += ";\n";
     }
+    // Host callbacks (`dom` event listeners, `fetch` completion) call back into
+    // Chemical code by function address, so the runtime needs this table.
+    out += "rt.register_fns($fns);\n";
     out += "\n";
 }
 
@@ -751,6 +754,38 @@ bool ModuleEmitter::extern_expr(std::string_view name, std::string& out) {
         {"strtoul", "rt.strtoul"},  {"strtoull", "rt.strtoull"},
         {"atoi", "rt.atoi"},        {"strtod", "rt.strtod"},   {"atof", "rt.atof"},
         {"abort", "rt.abort"},      {"exit", "rt.exit"},       {"putchar", "rt.putchar"},
+        // The `dom` host (proposal 0008, `lang/libs/dom`). Each entry is one
+        // `@extern @no_mangle` declaration in the `dom` module's `raw` namespace;
+        // the JS-side implementation lives in `scripts/js_backend/runtime.mjs`.
+        {"chx_dom_document", "rt.dom.document"},
+        {"chx_dom_body", "rt.dom.body"},
+        {"chx_dom_get_element_by_id", "rt.dom.get_element_by_id"},
+        {"chx_dom_query_selector", "rt.dom.query_selector"},
+        {"chx_dom_create_element", "rt.dom.create_element"},
+        {"chx_dom_set_text", "rt.dom.set_text"},
+        {"chx_dom_text", "rt.dom.text"},
+        {"chx_dom_set_html", "rt.dom.set_html"},
+        {"chx_dom_set_attribute", "rt.dom.set_attribute"},
+        {"chx_dom_get_attribute", "rt.dom.get_attribute"},
+        {"chx_dom_has_attribute", "rt.dom.has_attribute"},
+        {"chx_dom_remove_attribute", "rt.dom.remove_attribute"},
+        {"chx_dom_set_value", "rt.dom.set_value"},
+        {"chx_dom_value", "rt.dom.value"},
+        {"chx_dom_append_child", "rt.dom.append_child"},
+        {"chx_dom_remove", "rt.dom.remove"},
+        {"chx_dom_focus", "rt.dom.focus"},
+        {"chx_dom_on", "rt.dom.on"},
+        {"chx_dom_prevent_default", "rt.dom.prevent_default"},
+        {"chx_dom_stop_propagation", "rt.dom.stop_propagation"},
+        {"chx_dom_target", "rt.dom.target"},
+        {"chx_dom_key", "rt.dom.key"},
+        {"chx_dom_fetch_text", "rt.dom.fetch_text"},
+        {"chx_dom_storage_get", "rt.dom.storage_get"},
+        {"chx_dom_storage_set", "rt.dom.storage_set"},
+        {"chx_dom_storage_remove", "rt.dom.storage_remove"},
+        {"chx_dom_url_origin", "rt.dom.url_origin"},
+        {"chx_dom_url_pathname", "rt.dom.url_pathname"},
+        {"chx_dom_url_search_param", "rt.dom.url_search_param"},
     };
     for (const Entry& e : kExterns) {
         if (name == e.name) {

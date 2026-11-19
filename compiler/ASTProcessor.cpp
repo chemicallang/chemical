@@ -2423,6 +2423,11 @@ bool mir_translate_after_declaration(
     // `module.functions` in source order, so it stays serial; impl methods and
     // embedded-node-produced functions stay serial too (see the collector).
     std::unordered_map<FunctionDeclaration*, std::string> pre_lowered;
+    // Functions whose parallel pre-lowering failed, with the reason. Reported by
+    // `lower_and_emit`, which is where the diagnostic (and source location) is
+    // produced; retrying the emission is impossible because the symbol name was
+    // claimed before it failed.
+    std::unordered_map<FunctionDeclaration*, std::string> pre_lower_failures;
     // Top-level embedded declarations resolved before pre-lowering (see
     // `mir_presolve_embedded_decls`); `process_nodes` reuses these so the macro
     // replacement runs exactly once.
@@ -2449,6 +2454,10 @@ bool mir_translate_after_declaration(
             module.set_single_threaded(false);
             std::atomic<size_t> next{0};
             std::vector<std::vector<std::pair<FunctionDeclaration*, std::string>>> results(nworkers);
+            // A worker's failure must not be swallowed: the symbol was already
+            // claimed, so the serial retry below would skip it and emit nothing
+            // (the function would silently vanish from the object).
+            std::vector<std::vector<std::pair<FunctionDeclaration*, std::string>>> failures(nworkers);
             ctpl::thread_pool local_pool(static_cast<int>(nworkers));
             std::vector<std::future<void>> futs;
             futs.reserve(nworkers);
@@ -2468,6 +2477,8 @@ bool mir_translate_after_declaration(
                         if (mir_lower_and_emit_into(ctx, module, fd, false, err,
                                                     emission_registry)) {
                             r.emplace_back(fd, std::move(ctx.out));
+                        } else {
+                            failures[w].emplace_back(fd, std::move(err));
                         }
                     }
                 }));
@@ -2476,6 +2487,9 @@ bool mir_translate_after_declaration(
             module.set_single_threaded(true);
             for (auto& r : results) {
                 for (auto& pr : r) pre_lowered.emplace(pr.first, std::move(pr.second));
+            }
+            for (auto& f : failures) {
+                for (auto& pr : f) pre_lower_failures.emplace(pr.first, std::move(pr.second));
             }
         }
     }
@@ -2490,6 +2504,12 @@ bool mir_translate_after_declaration(
         if (it != pre_lowered.end()) {
             visitor.writer.append(it->second.data(), it->second.size());
             return true;
+        }
+        auto failed = pre_lower_failures.find(decl);
+        if (failed != pre_lower_failures.end()) {
+            std::cerr << "[MIR] lowering/emission failed (" << decl->name_str()
+                      << "): " << failed->second << "\n";
+            return false;
         }
         std::string error;
         if (!mir_lower_and_emit_into(task, module, decl, llvm_collect, error,

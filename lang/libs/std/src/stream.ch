@@ -188,28 +188,29 @@ public struct CommandLineStream {
 public comptime func print(expr : %expressive_string) {
     var line = std::string()
     intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr)
-    write_stdout(&line)
+    // Best effort by design: `try_print` is the checked form (WEB-CLIENT-001).
+    var _ = write_stdout(&line)
 }
 
 @expand
 public comptime func println(expr : %expressive_string) {
     var line = std::string()
     intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr, '\n')
-    write_stdout(&line)
+    var _ = write_stdout(&line)
 }
 
 @expand
 public comptime func eprint(expr : %expressive_string) {
     var line = std::string()
     intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr)
-    write_stderr(&line)
+    var _ = write_stderr(&line)
 }
 
 @expand
 public comptime func eprintln(expr : %expressive_string) {
     var line = std::string()
     intrinsics::expr_str_block_value(std::StringStream { str : &mut line }, expr, '\n')
-    write_stderr(&line)
+    var _ = write_stderr(&line)
 }
 
 // Checked forms: `print`/`println` are best effort (a console write failure is

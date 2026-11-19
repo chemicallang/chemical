@@ -14,6 +14,8 @@
 
 #include "compiler/mir/MIRInstruction.h"
 
+#include <string_view>
+
 namespace mir {
 
     enum class MIRTargetKind : uint8_t { C, LLVM, JS };
@@ -31,5 +33,24 @@ namespace mir {
     // nullptr when `opcode` is supported for `target`, otherwise the reason the
     // construct cannot be emitted (a complete user-facing sentence fragment).
     const char* mir_unsupported_reason(MIRTargetKind target, MIROpcode opcode);
+
+    /**
+     * A whole symbol that a target cannot provide, matched by mangled-name
+     * *prefix* (one rule covers a family: `chx_dom_` is 29 host declarations).
+     */
+    struct MIRTargetSymbolRule {
+        MIRTargetKind target;
+        const char* name_prefix;
+        const char* reason;   // never empty: the rule only exists for unsupported names
+    };
+
+    // The symbol rule table. Exposed for tooling (`--check`, the LSP) that must
+    // answer "is this symbol available on <target>?" before emission.
+    const MIRTargetSymbolRule* mir_target_symbol_rules();
+    std::size_t mir_target_symbol_rule_count();
+
+    // nullptr when `name` is available for `target`, otherwise the same kind of
+    // user-facing reason as `mir_unsupported_reason`.
+    const char* mir_unsupported_symbol_reason(MIRTargetKind target, std::string_view name);
 
 } // namespace mir

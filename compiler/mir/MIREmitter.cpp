@@ -3,6 +3,7 @@
 #include "MIREmitter.h"
 
 #include "MIRFacts.h"
+#include "MIRTargetSupport.h"
 #include "MIRMangleBuffer.h"
 #include "MIRTraversal.h"
 #include "MIRABI.h"
@@ -2300,6 +2301,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     c_abi ? &module.types.get(callee_rec.c_abi_type) : nullptr;
                 std::string call;
                 append_symbol_name(module, callee->id, call);
+                // A symbol the C target does not provide (the `dom` host API) is
+                // refused here, with its reason, instead of becoming an undefined
+                // reference at link time.
+                if (const char* reason =
+                        mir_unsupported_symbol_reason(MIRTargetKind::C, call)) {
+                    error = reason;
+                    return false;
+                }
                 call += "(";
                 if (sret && !c_abi) {
                     call += "&";
@@ -2589,6 +2598,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const ValueId v = inst.result_or_place;
                 const MIROperand* s = operand_at(function, inst, 0);
                 if (!s) { error = "function_addr missing symbol"; return false; }
+                {
+                    std::string fname;
+                    append_symbol_name(module, s->id, fname);
+                    if (const char* reason =
+                            mir_unsupported_symbol_reason(MIRTargetKind::C, fname)) {
+                        error = reason;
+                        return false;
+                    }
+                }
                 append_vname_declarator(module, function.values[v].type, v, out);
                 out += " = ";
                 append_symbol_name(module, s->id, out);

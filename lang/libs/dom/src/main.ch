@@ -7,7 +7,10 @@
 //
 // Client modules only. The handles name browser objects, so the server job (native)
 // has no implementation for them: import `dom` from a `client` module, never from
-// `shared` or `server`.
+// `shared` or `server`. A native build that reaches one of these symbols is refused
+// by the shared per-symbol target table (`MIRTargetSymbolRule` in
+// `compiler/mir/MIRTargetSupport.cpp`), so the mistake is a translation-time
+// diagnostic, not a link error.
 //
 //     import dom in `client/chemical.mod`, then:
 //
@@ -35,9 +38,9 @@ using std::string_view;
 // Raw host bindings.
 //
 // One `@extern @no_mangle` declaration per browser operation. The JS backend maps
-// the symbol name to `rt.dom.*`; the C/LLVM backends have no definition for these
-// (a `dom` call in a server module is a link error, which is why client modules own
-// them). A handle is `0` for "no element", so an `Option` is built on the safe side
+// the symbol name to `rt.dom.*`; the C/LLVM backends have no definition for these and
+// refuse to emit a call to them (the `chx_dom_` rule in `MIRTargetSupport`), which is
+// why client modules own them. A handle is `0` for "no element", so an `Option` is built on the safe side
 // instead of crossing the boundary as an aggregate.
 // ---------------------------------------------------------------------------
 public namespace raw {

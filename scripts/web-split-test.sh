@@ -7,6 +7,13 @@
 #   web_split_native   `shared` calls `getenv` and `client` calls that shared
 #                      function: the client pass must refuse it by name and by
 #                      source location, and the server side must not be built.
+#   client_result      client `main` discards a `std::Result`: the client pass
+#                      must reject it (`WEB-CLIENT-001`), while the same discard
+#                      in server-only code is allowed. The gate then rewrites the
+#                      client discard to `var _ = ...` and builds again.
+#   dom_in_server      a server module calls the typed `dom` API: the per-symbol
+#                      table in `MIRTargetSupport` must refuse the client-only
+#                      host symbols during translation, not at link time.
 #
 # Both directions run through the real CLI, so this is the gate that keeps the
 # two-job build honest: a regression that silently lets native code into the
@@ -82,6 +89,70 @@ if command -v node >/dev/null 2>&1; then
 else
     check "node is available to run the client bundle" 0
 fi
+
+echo
+echo "== client_result: a discarded Result fails the client pass, never the server"
+res_build="lang/tests/web/fixtures/client_result/build"
+rm -rf "$res_build"
+res_log="$out_root/client_result.log"
+if "$compiler" lang/tests/web/fixtures/client_result/chemical.mod --web \
+        --build-dir "$res_build" -o "$out_root/client_result.exe" > "$res_log" 2>&1; then
+    check "a discarded Result in client code is rejected (it built)" 0
+else
+    check "a discarded Result in client code is rejected" 1
+fi
+check "the diagnostic names the rule" "$(file_has "$res_log" 'WEB-CLIENT-001')"
+check "the diagnostic explains the fix" \
+      "$(file_has "$res_log" "unhandled 'Result' in client code")"
+check "the diagnostic names the discard idiom" "$(file_has "$res_log" "var _ = ...")"
+check "the diagnostic points at the client source" "$(file_has "$res_log" 'client/main.ch')"
+check "the diagnostic is attributed to the client pass" \
+      "$(file_has "$res_log" 'web build: the client side failed')"
+check "no client bundle was emitted for the rejected client" \
+      "$([ -f "$res_build/web-client/assets/client.mjs" ] && echo 0 || echo 1)"
+
+# The escape hatch: the same tree with `var _ = shared_parse("x")` must build,
+# which also proves the server-side discard in `src/main.ch` is tolerated.
+res_ok="$out_root/client_result_ok"
+rm -rf "$res_ok"
+cp -r lang/tests/web/fixtures/client_result "$res_ok"
+rm -rf "$res_ok/build"
+sed -i 's/^    shared_parse("x")$/    var _ = shared_parse("x")/' "$res_ok/client/main.ch"
+res_ok_log="$out_root/client_result_ok.log"
+if "$compiler" "$res_ok/chemical.mod" --web --build-dir "$res_ok/build" \
+        -o "$res_ok/client_result.exe" > "$res_ok_log" 2>&1; then
+    check "a deliberate discard (var _ = ...) builds in both jobs" 1
+else
+    check "a deliberate discard (var _ = ...) builds in both jobs (see $res_ok_log)" 0
+    tail -25 "$res_ok_log" >&2
+fi
+check "the server side is built once the client is accepted" \
+      "$([ -x "$res_ok/client_result.exe" ] && echo 1 || echo 0)"
+check "the server job runs despite discarding a Result" \
+      "$("$res_ok/client_result.exe" > /dev/null 2>&1 && echo 1 || echo 0)"
+
+echo
+echo "== dom_in_server: the typed DOM has no native implementation"
+dom_build="lang/tests/web/fixtures/dom_in_server/build"
+rm -rf "$dom_build"
+dom_log="$out_root/dom_in_server.log"
+if "$compiler" lang/tests/web/fixtures/dom_in_server/chemical.mod --web \
+        --build-dir "$dom_build" -o "$out_root/dom_in_server.exe" > "$dom_log" 2>&1; then
+    check "a server module using dom is rejected (it built)" 0
+else
+    check "a server module using dom is rejected" 1
+fi
+check "the diagnostic names the reason" "$(file_has "$dom_log" 'client-only')"
+check "the diagnostic names the dom host API" \
+      "$(file_has "$dom_log" "the 'dom' host API")"
+check "the diagnostic says where to move the call" \
+      "$(file_has "$dom_log" "call it from a 'client' module")"
+check "the refusal happens during translation, not at link time" \
+      "$(file_has "$dom_log" 'failure during translation to c in the module dom')"
+check "no link error is reached" \
+      "$(grep -qF -- 'unresolved reference' "$dom_log" && echo 0 || echo 1)"
+check "no server executable was linked" \
+      "$([ -x "$out_root/dom_in_server.exe" ] && echo 0 || echo 1)"
 
 echo
 echo "== web_split_native: a native symbol reached from shared must fail the client pass"

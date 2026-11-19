@@ -226,6 +226,17 @@ public:
 
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 
+    /**
+     * an expression statement: rejects a discarded `std::Result` in client code
+     * (lang/docs/web-stack-plan.md §3.15d)
+     */
+    void VisitValueWrapper(ValueWrapperNode* node);
+
+    void VisitAccessChainNode(AccessChainNode* node);
+
+    /** Reports `WEB-CLIENT-001` when a discarded value is a `std::Result`. */
+    void report_discarded_result(Value* value);
+
 
     // -------- Generic Declarations ------------
     // -------- Only Template is visited --------

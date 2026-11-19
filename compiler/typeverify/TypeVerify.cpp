@@ -41,6 +41,9 @@
 #include "ast/structures/EnumMember.h"
 #include "ast/values/AwaitExpression.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/ValueWrapperNode.h"
+#include "ast/statements/AccessChainNode.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/statements/Assignment.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/BlockScope.h"
@@ -5011,6 +5014,54 @@ static/heap storage";
         }
     }
 
+}
+
+// -------- Client error policy (lang/docs/web-stack-plan.md §3.15d) --------
+
+namespace {
+
+    /**
+     * `std::Result<T, E>`. Client code must consume it: a discarded Result is a
+     * failure nobody handles, and the failure mode in a browser is a silently
+     * broken tab (the JS target cannot unwind). Matched by declaration, not by
+     * spelling, so a user type named `Result` elsewhere is unaffected.
+     */
+    bool is_std_result_type(BaseType* type) {
+        if (type == nullptr) return false;
+        VariantDefinition* variant = type->get_direct_linked_variant();
+        if (variant == nullptr || variant->name_view() != "Result") return false;
+        ASTNode* parent = variant->parent();
+        if (parent == nullptr || parent->kind() != ASTNodeKind::NamespaceDecl) return false;
+        return ((Namespace*) parent)->identifier == "std";
+    }
+
+}
+
+void TypeVerifier::report_discarded_result(Value* value) {
+    if (!target_data.client || value == nullptr) return;
+    // A discarded call/chain statement does not always carry the chain's type,
+    // so fall back to the type of the value it ends on.
+    auto type = value->getType();
+    if (type == nullptr && value->val_kind() == ValueKind::AccessChain) {
+        auto chain = value->as_access_chain_unsafe();
+        if (!chain->values.empty()) type = chain->values.back()->getType();
+    }
+    if (!is_std_result_type(type)) return;
+    diagnoser.error(value).with_code("WEB-CLIENT-001")
+        << "unhandled 'Result' in client code; a client module must consume the result "
+           "(bind it, match on it, or discard it deliberately with 'var _ = ...')";
+}
+
+void TypeVerifier::VisitValueWrapper(ValueWrapperNode* node) {
+    RecursiveVisitor::VisitValueWrapper(node);
+    report_discarded_result(node->value);
+}
+
+void TypeVerifier::VisitAccessChainNode(AccessChainNode* node) {
+    RecursiveVisitor::VisitAccessChainNode(node);
+    // Only a `chain` used as a statement lands here; the same value nested in an
+    // expression is never the child of an `AccessChainNode`.
+    report_discarded_result(&node->chain);
 }
 
 void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {

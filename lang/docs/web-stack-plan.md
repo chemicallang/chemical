@@ -1355,8 +1355,21 @@ in a render body fails compilation.
    reported at its source location (replaces `MIRPortability`-as-gate). — opcode table landed;
    the per-*symbol* answer lives in the emitter (`callee_expr`: "native symbol 'x' has no
    JavaScript equivalent (declared @extern); a client or shared module must not depend on it",
-   at the call's location). Moving that into the shared table is still open (it is what `--check`
-   and the LSP should ask).
+   at the call's location). **Landed 2026-11-19:** the per-symbol table is in the shared header
+   (`MIRTargetSymbolRule` + `mir_unsupported_symbol_reason`, matched by mangled-name **prefix** —
+   one rule covers the 29 `chx_dom_*` host declarations), and the C emitter refuses a call or
+   function address to a listed symbol with that reason, so `--check`/the LSP can ask the same
+   question. The reason is user-facing: "the 'dom' host API is client-only (JavaScript); call it
+   from a 'client' module, not from server/shared code". The JS side keeps its by-name refusal
+   because it also carries the JS spelling; `MIRTargetKind::JS` symbol rules are where a
+   client-only *Chemical* symbol would go.
+   This exposed a real silent-drop bug: a failure in the **parallel** pre-lowering phase was
+   swallowed, and the symbol name had already been claimed for the job, so the serial retry
+   skipped it and emitted nothing — the function vanished from the object and the caller got a
+   link error instead of a diagnostic. Workers now record failures and `lower_and_emit` reports
+   them (`[MIR] lowering/emission failed (...)` plus the located `MIR lowering failed`
+   diagnostic). Gated by `web-split-test.sh`'s `dom_in_server` fixture: a server module using
+   `dom` fails **during translation** (reason present, no `unresolved reference`).
 3. Minimal `dom` slice (proposal 0008): `Document`, `Element`, `Event`, `fetch`,
    `localStorage`, `URL` — enough for client modules to be useful; full 0008 later.
    **Landed 2026-11-18:** `lang/libs/dom` (`document`, `Document.get_element_by_id`/
@@ -1386,8 +1399,20 @@ in a render body fails compilation.
    implementation was wrong in a way only a decoder catches — the line cursor advanced after writing
    a segment, so every mapping after the first was appended to the first group.
 5. `chemical serve` (reload, no HMR): SSR + chunks from memory + the dev error overlay (§3.15d)
-   and its ingestion endpoint.
-6. Unhandled `Result` in client code is an error that must be reported (no-panic direction).
+   and its ingestion endpoint. — **not started.** `TCCCompiler … --web` already produces the two
+   jobs; what is missing is the CLI command that watches sources, rebuilds, restarts the server,
+   and the library-side dev bits (in-memory assets, reload script, `/__chx/error` ingestion with a
+   source-mapped terminal report).
+6. Unhandled `Result` in client code is an error that must be reported (no-panic direction). —
+   **landed 2026-11-19** in `TypeVerifier` (gated on `TargetData.client`, so server/native code is
+   deliberately unpoliced): a discarded `std::Result` — a bare call/chain statement, a parenthesized
+   expression statement, the value of an expression statement — is `WEB-CLIENT-001` at the value's
+   location. Matched by declaration (the `Result` variant under the `std` namespace), so a user type
+   named `Result` is unaffected. The deliberate-discard escape hatch is the existing idiom
+   `var _ = expr` (no new syntax); `std`'s best-effort `print`/`println`/`eprint`/`eprintln` now use
+   it, and `try_print` remains the checked form. Gated by `web-split-test.sh`'s `client_result`
+   fixture: the client discard fails with `WEB-CLIENT-001`, the same discard in server-only code
+   builds and runs, and rewriting it to `var _ = …` makes both jobs green.
 
 **Exit:** an onboarding example where a route's interaction is written in `client/*.ch`,
 compiled to JS, and works in the browser with source maps and a terminal-reported error path.
@@ -1721,9 +1746,11 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
 5. ~~**Phase 3 module split + `--web` + typed `dom`**~~ — **done 2026-11-18** (items 1–4 of
    Phase 3: real `shared`/`server`/`client` modules and the two-job build, `MIRTargetSupport`,
    source maps, and the minimal `dom` slice, gated by `web-split-test.sh` and
-   `web-dom-test.sh`). What remains from Phase 3 is item 5 (`chemical serve`) and item 6
-   (unhandled `Result` in client code is an error), plus the per-symbol target table under
-   Phase 3 item 2.
+   `web-dom-test.sh`). **Also done 2026-11-19:** Phase 3 item 6 (`WEB-CLIENT-001`: a discarded
+   `Result` in client code is an error) and the per-symbol target table under item 2
+   (`MIRTargetSymbolRule`; native calls to the `dom` host API now fail during translation, and
+   a swallowed parallel-emission failure that produced link errors instead of diagnostics is
+   fixed). What remains from Phase 3 is item 5, `chemical serve`.
 6. **`chemical serve`** (Phase 3 step 5): reload, in-memory chunks, dev error overlay, and the
    error-ingestion endpoint that turns a client exception into a source-mapped terminal report.
 7. **Phase 4 bundle graph + `web::App`** (steps 1–4, 6) — **`web::App` done 2026-11-18**

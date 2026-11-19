@@ -182,6 +182,15 @@ public struct HtmlPage {
     // forged or replaced without `attach_shared`; the owning handle is
     // `SharedAssetsHandle` (see shared_assets.ch).
     private var shared : *mut SharedAssets = null
+
+    // Which route this page is, for the shared sink's unit graph (see
+    // `SharedAssets`): 0 = not part of a site, 1..N = the N-th pre-rendered route,
+    // `unit_owner_dynamic()` = a per-request (live/shell) render. A `StaticSite`
+    // sets it before the page renders; every component use reports the token, so
+    // the build learns each route's real component closure instead of guessing it
+    // from the emitted text.
+    var unit_owner : ubigint = 0
+
     private var local_js_depth : ubigint = 0
     private var local_css_depth : ubigint = 0
 
@@ -282,12 +291,19 @@ public struct HtmlPage {
     // `SharedAssetsHandle`.
     public unsafe func attach_shared(&mut self, s : *mut SharedAssets) {
         shared = s
+        if(s != null) { unsafe { js_hoist_pos = s.hoist_end() } }
     }
 
     // Borrow a shared sink for this render. The caller keeps ownership (via a
     // `SharedAssetsHandle`) and must drop it only after the pages are done.
     public func attach_shared_ref(&mut self, s : &mut SharedAssets) {
         shared = s as *mut SharedAssets
+        unsafe { js_hoist_pos = s.hoist_end() }
+        // The definition hoist writes at `js_hoist_pos` in the *sink's* buffer, and
+        // `js_hoist_pos` is per page. A page therefore starts hoisting where the
+        // sink's already-hoisted prefix ends; starting at 0 would insert its
+        // definitions *before* another page's and shift ranges a previous page
+        // already recorded.
     }
 
     // Stop routing page-independent output into the sink.
@@ -405,7 +421,7 @@ public struct HtmlPage {
     }
 
     func get_html_size(&self) : ubigint {
-        return pageHtml.size();
+        return pageHtml.size();
     }
 
     func truncate_html(&mut self, size : ubigint) {
@@ -487,8 +503,24 @@ public struct HtmlPage {
 
     func require_component(&self, hash : size_t) : bool {
         unsafe {
-            if(shared != null) { return !shared.done_components.contains(&hash) }
+            if(shared != null) {
+                // Record the use even when the sink already holds the definition:
+                // this call runs once per *instance*, so it is exactly how the
+                // build learns which routes need this component.
+                shared.note_usage(hash as ubigint, unit_owner)
+                return !shared.done_components.contains(&hash)
+            }
             return !doneComponents.contains(&hash)
+
+        }
+    }
+
+    // The component emitter calls this once per definition, with the byte range
+    // the definition occupies in the JS buffer after hoisting. With no shared
+    // sink there is no graph to build (a page on its own has one output file).
+    func record_js_unit(&mut self, hash : ubigint, name : std::string_view, start : ubigint, length : ubigint) {
+        unsafe {
+            if(shared != null) { shared.record_unit(hash, name, start, length) }
 
         }
     }

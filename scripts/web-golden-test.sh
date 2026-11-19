@@ -22,6 +22,9 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(dirname "$here")"
 cd "$root"
 
+# Shared chunk-graph verifier (closure + duplicate checks).
+source "$here/web-graph.sh"
+
 update=0
 for arg in "$@"; do
     case "$arg" in
@@ -170,6 +173,19 @@ if build_fixture router; then
     miss_ref=$(grep -o 'src="[^"]*app\.[0-9a-f]*\.js"' "$d/missing/index.html" | head -1 | sed 's/src="//;s/"$//')
     check "router: every page shares one hashed bundle ($home_ref)" \
           "$([ -n "$home_ref" ] && [ "$miss_ref" = "$home_ref" ] && [ "$(basename "$home_ref")" != "$home_ref" ] && echo 1 || echo 0)"
+
+    # Unit graph: `NavLink` renders on the home route only, `RouterApp` on all
+    # three, so the route-only definition must travel in that route's chunk and
+    # the shared one must stay in the bundle.
+    home_chunk_ref=$(grep -o 'src="[^"]*_index\.[0-9a-f]*\.js"' "$d/home/index.html" | head -1 | sed 's/src="//;s/"$//')
+    home_chunk="$d/assets/$(basename "$home_chunk_ref")"
+    bundle_file="$d/assets/$(basename "$home_ref")"
+    check "router: a route-only component ships in that route's chunk" \
+          "$([ -n "$home_chunk_ref" ] && [ "$(has "$home_chunk" 'function router_NavLink(props)')" = 1 ] && [ "$(hasnt "$bundle_file" 'function router_NavLink(props)')" = 1 ] && echo 1 || echo 0)"
+    check "router: a component two routes share stays in the bundle" \
+          "$([ "$(has "$bundle_file" 'function router_fixture_RouterApp(props)')" = 1 ] && [ "$(hasnt "$home_chunk" 'function router_fixture_RouterApp(props)')" = 1 ] && echo 1 || echo 0)"
+    check "router: every dispatched component is reachable from its page" \
+          "$(graph_check "$d" >/tmp/web_golden_router_graph.txt && echo 1 || echo 0)"
     probe_strict "$d" "router"
 fi
 compare_golden router
@@ -186,6 +202,12 @@ if build_fixture shell; then
     grace_ref=$(grep -o 'src="[^"]*app\.[0-9a-f]*\.js"' "$d/grace/index.html" | head -1 | sed 's/src="//;s/"$//')
     check "shell: the two renders share one hashed bundle ($ada_ref)" \
           "$([ -n "$ada_ref" ] && [ "$grace_ref" = "$ada_ref" ] && [ "$(basename "$ada_ref")" != "$ada_ref" ] && echo 1 || echo 0)"
+    # Both renders use both components, so nothing may move out of the bundle:
+    # one copy, shared, is the point of a chunk graph with a shared baseline.
+    check "shell: components both routes use stay in the shared bundle" \
+          "$([ "$(has "$d/assets/$(basename "$ada_ref")" 'function shell_fixture_AppShell(props)')" = 1 ] && [ "$(has "$d/assets/$(basename "$ada_ref")" 'function shell_fixture_Dashboard(props)')" = 1 ] && echo 1 || echo 0)"
+    check "shell: every dispatched component is reachable from its page" \
+          "$(graph_check "$d" >/tmp/web_golden_shell_graph.txt && echo 1 || echo 0)"
     probe_strict "$d" "shell"
 fi
 compare_golden shell

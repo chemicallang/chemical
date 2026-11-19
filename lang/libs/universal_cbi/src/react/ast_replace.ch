@@ -159,6 +159,32 @@ public unsafe func universal_replacementNode(builder : *mut ASTBuilder, diagnose
                 var updatedIndexVar = builder.make_varinit_stmt(false, false, &updatedIndexName, builder.get_u64_type(), updatedIndexVal, AccessSpecifier.Internal, converter.parent, location);
                 converter.vec.push(updatedIndexVar);
 
+                // Record the range this definition will occupy, for a build that
+                // splits a shared bundle into per-route chunks: the hoist moves the
+                // block to the CURRENT js_hoist_pos, so the unit is
+                // [js_hoist_pos, js_hoist_pos + (fromEnd - updated_index)). Recording
+                // it before the move keeps the numbers the caller can observe.
+                //
+                // `require_component` records *who* uses the component; this records
+                // *where its bytes are*. Together they are the unit graph.
+                var unitName = std::string()
+                get_module_scoped_name(funcNode, root.signature.name, &mut unitName)
+                var unitNameView = builder.allocate_view(unitName.to_view())
+
+                var recordUnitId = builder.make_identifier(std::string_view("record_js_unit"), support.recordJsUnitFn, false, location)
+                var recordUnitCall = builder.make_function_call_node(
+                    builder.make_access_chain(&std::span<*mut Value>([ pageId as *mut Value, recordUnitId as *mut Value ]), location),
+                    converter.parent,
+                    location
+                );
+                var recordUnitArgs = recordUnitCall.get_args()
+                recordUnitArgs.push(builder.make_ubigint_value(selfHash as ubigint, location) as *mut Value)
+                recordUnitArgs.push(builder.make_string_value(&unitNameView, location) as *mut Value)
+                recordUnitArgs.push(builder.make_identifier(&prevHoistName, prevHoistVar, false, location) as *mut Value)
+                const unitLenVal = builder.make_expression_value(builder.make_identifier(&fromEndName, fromEndVar, false, location), builder.make_identifier(&updatedIndexName, updatedIndexVar, false, location), Operation.Subtraction, builder.get_u64_type(), location);
+                recordUnitArgs.push(unitLenVal as *mut Value)
+                converter.vec.push(recordUnitCall)
+
                 var moveJsRangeId = builder.make_identifier(std::string_view("move_js_range"), support.moveJsRangeFn, false, location)
 
                 // move_js_range(updated_index, fromEnd, page->js_hoist_pos)

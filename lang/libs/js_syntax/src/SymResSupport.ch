@@ -78,6 +78,10 @@ public struct SymResSupport {
     var moveJsRangeFn : *mut ASTNode = null
     var js_hoist_pos : *mut ASTNode = null
     var renderJsOnlyNode : *mut ASTNode = null
+    // `page.record_js_unit`: reports a component definition's byte range in the
+    // shared JS buffer, so a build can move a route-only definition into that
+    // route's chunk (§3.13 unit graph).
+    var recordJsUnitFn : *mut ASTNode = null
     // universal router: `router::apply_route_url` (optional; only resolved when
     // the app imports the `router` library). Used by the generated router
     // function for server-side URL matching (§6.1).

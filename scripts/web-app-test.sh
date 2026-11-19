@@ -14,6 +14,9 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(dirname "$here")"
 cd "$root"
 
+# Shared chunk-graph verifier (closure + duplicate checks).
+source "$here/web-graph.sh"
+
 compiler="${CHX_COMPILER:-cmake-build-debug/TCCCompiler.exe}"
 [ -x "$compiler" ] || compiler="cmake-build-debug/TCCCompiler"
 
@@ -152,6 +155,22 @@ check "a text fill is escaped (no raw markup can break out)" \
       "$([ "$(contains "$log" 'shell escaped=1 raw=0')" = "1" ] && echo 1 || echo 0)"
 check "a shell route is not exported as a pre-rendered page" \
       "$(lacks "$log" 'artifact dash')"
+
+# ── Unit graph (§3.13) ───────────────────────────────────────────────────
+# `/pricing` is the only route that renders `PricingNote`, so its definition
+# travels in that route's chunk; `DashBody` is rendered by the shell and live
+# routes, so it must stay in the bundle (a per-request page dispatches from the
+# bundle, never from a static route's chunk).
+check "the graph moves a route-only component and keeps a per-request one" \
+      "$([ "$(contains "$log" 'graph chunked=1 retained=1 unbacked=0')" = "1" ] && [ "$(contains "$log" 'note=[]')" = "1" ] && echo 1 || echo 0)"
+check "a per-request route's component stays in the shared bundle" \
+      "$(grep -qF 'function app_test_DashBody(props)' "$out_dir"/assets/app.*.js && echo 1 || echo 0)"
+check "the route-only component is not in the shared bundle" \
+      "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/app.*.js && echo 0 || echo 1)"
+check "the route chunk defines the component it dispatches" \
+      "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/pricing_index.*.js && echo 1 || echo 0)"
+check "every dispatched component is reachable from its page" \
+      "$(graph_check "$out_dir" >/tmp/web_app_graph.txt && echo 1 || echo 0)"
 check "a malformed slot marker is refused at compile, not served" \
       "$([ "$(contains "$log" 'shell malformed=1')" = "1" ] && echo 1 || echo 0)"
 check "emit refuses a wrong fill count instead of serving a hole" \

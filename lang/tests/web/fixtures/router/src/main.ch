@@ -71,6 +71,13 @@ public func main() : int {
         unsafe { printf("router fixture: %s\n", site.error_message().data()) }
         return 1
     }
-    unsafe { printf("router fixture: %llu artifacts\n", site.artifact_count()) }
+    unsafe {
+        printf("router fixture: %llu artifacts chunked_units=%llu retained_units=%llu note=[%s]\n",
+            site.artifact_count(), site.chunked_unit_count(), site.retained_unit_count(),
+            site.split_note().data())
+        var report = site.unit_report()
+        var report_view = report.to_view()
+        printf("router fixture units=[%s]\n", report_view.data())
+    }
     return 0
 }

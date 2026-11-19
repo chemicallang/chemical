@@ -428,6 +428,16 @@ Output: `out/index.html`, `out/about/index.html`, `out/assets/app.<hash>.js`,
 `out/assets/app.<hash>.css`, and one `out/assets/<page>.<hash>.js` per distinct page script. A page
 that emits the same dispatch as another shares its chunk file.
 
+**Route-only components travel in the route's chunk.** The build derives each route's component
+closure (a component definition used by exactly one pre-rendered route moves out of the bundle into
+that route's chunk; anything two routes use, and anything a `live`/`shell` route renders, stays in
+the bundle, because a per-request page dispatches from the bundle). So `/pricing` pays for
+`<PricingNote>` and `/` does not — measured on the three-page router fixture: bundle 141,625 B →
+139,837 B, home chunk 231 B → 2,019 B, and an unchanged route keeps its chunk hash (stays cached).
+Nothing to configure; check it with `site.chunked_unit_count()` / `site.retained_unit_count()` /
+`site.unit_report()` (`name:owners` per definition). The split can only be conservative: a definition
+it cannot prove self-contained stays shared.
+
 Two rules:
 
 - **Attach before rendering.** `site.add(&mut page, path)` attaches the sink; anything page-independent
@@ -774,8 +784,8 @@ of the right-hand column has landed yet** — code written against it will not c
 | capability | today | planned (not available yet) |
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
-| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web_build` unit graph, route-closure chunks, `web::Bundle` |
-| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), `webserve` bridge | per-route chunks, CSS chunks + `modulepreload`, `Vary: Cookie` render hook |
+| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle, route-closure chunks) | `web_build` two-phase build, `vendor` as its own chunk, `web::Bundle` |
+| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, `webserve` bridge | CSS chunks + `modulepreload`, `Vary: Cookie` render hook |
 | sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
 | client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |

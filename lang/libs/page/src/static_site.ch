@@ -73,6 +73,16 @@ public struct StaticSite {
     /// used by `export_sitemap`. Empty means "site-relative only".
     private var site_url : std::string
 
+    // ── Unit graph (§3.13) ───────────────────────────────────────────────
+    // Per page, the component definitions that only this route uses, in
+    // definition order. Prepended to that page's chunk; removed from the bundle.
+    private var chunk_prefixes : std::vector<std::string>
+    private var chunked_units : ubigint
+    private var retained_units : ubigint
+    /// Why the build kept every unit in the bundle (empty when it split). A
+    /// conservative reason is not a failure: the shared bundle is always correct.
+    private var split_note_text : std::string
+
     @make
     public func make(out_dir : std::string_view, base_name : std::string_view = "app", asset_prefix : std::string_view = "assets") : StaticSite {
         var dir_s = std::string()
@@ -97,7 +107,11 @@ public struct StaticSite {
             failed : false,
             failure : std::string(),
             dynamic_error : std::string(),
-            site_url : std::string()
+            site_url : std::string(),
+            chunk_prefixes : std::vector<std::string>(),
+            chunked_units : 0,
+            retained_units : 0,
+            split_note_text : std::string()
         }
     }
 
@@ -118,8 +132,56 @@ public struct StaticSite {
         }
         var shared = assets.get_mut()
         page.attach_shared_ref(shared)
+        // Route token for the unit graph: 1-based, so 0 keeps meaning "this page
+        // is not part of a site". Set before the page renders — that is when its
+        // component uses are recorded.
+        page.unit_owner = pages.size() + 1
         pages.push_back(page as *mut HtmlPage)
         paths.push_back(path)
+    }
+
+    // ── Unit graph queries (build diagnostics) ────────────────────────────
+    /// Component definitions moved out of the shared bundle into a page's own
+    /// chunk. Zero when the build kept the whole bundle shared (see
+    /// `split_note()`), or when every component is used by more than one route.
+    public func chunked_unit_count(&self) : ubigint {
+        return chunked_units
+    }
+
+    /// Component definitions the shared bundle still carries (the runtime, plus
+    /// every component that more than one route — or a per-request route — uses).
+    public func retained_unit_count(&self) : ubigint {
+        return retained_units
+    }
+
+    /// Why the chunk plan was conservative (empty when every unit could be
+    /// classified from its recorded definition). A note is never a failure: a
+    /// unit left in the shared bundle is always served correctly, just larger.
+    public func split_note(&self) : std::string_view {
+        return split_note_text.to_view()
+    }
+
+    /// Components a route used that have no recorded byte range (SSR-only, or an
+    /// inline definition the planner never moves). Zero on a fully-described graph.
+    public func unbacked_unit_count(&self) : ubigint {
+        return assets.get().unbacked_usage_count()
+    }
+
+    /// The recorded unit graph as `name:owners` entries, comma-separated (build
+    /// diagnostics and CI: which route uses which component definition).
+    public func unit_report(&self) : std::string {
+        var out = std::string()
+        var sink = assets.get()
+        var i : ubigint = 0
+        while(i < sink.unit_count()) {
+            if(!out.empty()) { out.append(',') }
+            var name = sink.unit_name(i)
+            out.append_view(&name)
+            out.append(':')
+            out.append_uinteger(sink.owner_count(sink.unit_hash(i)))
+            i = i + 1
+        }
+        return out
     }
 
     public func page_count(&self) : ubigint {
@@ -196,6 +258,17 @@ public struct StaticSite {
         // Freeze before naming anything: the bundle is served from a long-lived
         // cache, so its URL may only be published once every page has rendered.
         var shared = assets.get_mut()
+
+        // Give each route the component definitions only it uses, then hash the
+        // bundle that is left (§3.13). Splitting must happen before `freeze()`: it
+        // changes the bytes, and the published name has to describe them.
+        var warm : ubigint = 0
+        while(warm < pages.size()) {
+            chunk_prefixes.push_back(std::string())
+            warm = warm + 1
+        }
+        plan_chunks(shared)
+
         shared.freeze()
         if(shared.is_stale()) {
             fail_with("the shared bundle changed after it was frozen; render every page before build()")
@@ -271,11 +344,19 @@ public struct StaticSite {
             var url_prefix_s = page_url_prefix(target, prefix_view)
             var url_prefix = url_prefix_s.to_view()
 
-            // The page's own JS (its dispatch statements) becomes its own hashed
-            // chunk: cacheable per route, and the HTML ends up with no inline
-            // <script> at all (the CSP rule).
+            // The page's own JS (its dispatch statements, preceded by any component
+            // definitions only this route uses) becomes its own hashed chunk:
+            // cacheable per route, and the HTML ends up with no inline <script> at
+            // all (the CSP rule). A definition is emitted before the dispatch that
+            // calls it, so the chunk is self-contained.
             var body_src = std::string()
             var page_js = page_ref.getFinalizedPageJs()
+            var chunk_src = std::string()
+            var own_prefix = unsafe(&*chunk_prefixes.get_ptr(i))
+            if(!own_prefix.empty()) {
+                chunk_src.append_string(own_prefix)
+            }
+            chunk_src.append_string(&page_js)
             if(!runtime_checked && !page_js.empty()) {
                 var page_js_probe = page_js.to_view()
                 const dispatch_call = std::string_view("$__uni_c(")
@@ -286,11 +367,11 @@ public struct StaticSite {
                     runtime_checked = true
                 }
             }
-            if(!page_js.empty()) {
+            if(!chunk_src.empty()) {
                 var stem = page_chunk_stem(target)
                 var stem_view = stem.to_view()
-                var page_js_view = page_js.to_view()
-                var page_hash = hex12(fnv1_hash_view(&page_js_view))
+                var chunk_view = chunk_src.to_view()
+                var page_hash = hex12(fnv1_hash_view(&chunk_view))
                 var hash_view = page_hash.to_view()
 
                 // The URL the page uses…
@@ -309,7 +390,7 @@ public struct StaticSite {
                 chunk_path.append_view(&hash_view)
                 chunk_path.append_view(".js")
                 var chunk_bytes = std::string()
-                chunk_bytes.append_view(&page_js_view)
+                chunk_bytes.append_view(&chunk_view)
                 push_artifact(chunk_path, chunk_bytes, std::string_view("text/javascript; charset=utf-8"), true)
             }
 
@@ -514,6 +595,10 @@ public struct StaticSite {
         }
         var shared = assets.get_mut()
         page.attach_shared_ref(shared)
+        // A per-request render dispatches its components from the shared bundle, so
+        // whatever it uses must stay there (never moved into one static route's
+        // chunk). The token says so from the moment the page renders.
+        page.unit_owner = unit_owner_dynamic()
         return true
     }
 
@@ -595,6 +680,78 @@ public struct StaticSite {
     }
 
     // ── Internals ────────────────────────────────────────────────────────
+    /// Move every component definition that exactly one pre-rendered route uses
+    /// out of `shared` and into that route's chunk prefix. Everything else stays:
+    /// the runtime, `#globaljs`, any component two routes share, and any component
+    /// a per-request (live/shell) route renders.
+    ///
+    /// Falls back to one shared bundle — never a broken split — when the recorded
+    /// ranges are not provably disjoint, or when a route uses a component the sink
+    /// has no definition for: either means the graph cannot be trusted.
+    func plan_chunks(&mut self, shared : &mut SharedAssets) {
+        var total = shared.unit_count()
+        if(total == 0) {
+            split_note_text.append_view("no component definitions were recorded")
+            return
+        }
+        if(!shared.ranges_are_safe()) {
+            split_note_text.append_view("component definitions overlap in the shared buffer; kept one bundle")
+            return
+        }
+
+        var ui : ubigint = 0
+        while(ui < total) {
+            if(shared.unit_length(ui) == 0) {
+                ui = ui + 1
+                continue
+            }
+            var hash = shared.unit_hash(ui)
+            var owners = shared.owner_count(hash)
+            var single : ubigint = unit_owner_none()
+            var pinned = false
+            var k : ubigint = 0
+            while(k < owners) {
+                var o = shared.owner_at(hash, k)
+                if(o == unit_owner_dynamic()) {
+                    pinned = true
+                } else if(o != unit_owner_none()) {
+                    if(single == unit_owner_none()) { single = o } else { pinned = true }
+                }
+                k = k + 1
+            }
+
+            if(pinned || single == unit_owner_none() || single > pages.size()) {
+                retained_units = retained_units + 1
+                ui = ui + 1
+                continue
+            }
+            // A range that is not one self-contained definition (something else was
+            // emitted inside it) never moves: the bytes might belong to a different
+            // route.
+            if(!shared.unit_is_self_contained(ui)) {
+                retained_units = retained_units + 1
+                ui = ui + 1
+                continue
+            }
+
+            var target = unsafe(chunk_prefixes.get_ptr(single - 1))
+            if(target == null) {
+                retained_units = retained_units + 1
+                ui = ui + 1
+                continue
+            }
+            var bytes = shared.take_unit(ui)
+            if(bytes.empty()) {
+                retained_units = retained_units + 1
+                ui = ui + 1
+                continue
+            }
+            unsafe { target.append_string(&bytes) }
+            chunked_units = chunked_units + 1
+            ui = ui + 1
+        }
+    }
+
     /// Index of the artifact at `path`, or -1. Content-hashed names make the path
     /// an identity, so this is the whole manifest lookup.
     func artifact_index_of(&self, path : &std::string_view) : int {

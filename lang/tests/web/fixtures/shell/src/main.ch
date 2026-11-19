@@ -46,6 +46,10 @@ public func main() : int {
         unsafe { printf("shell fixture: %s\n", site.error_message().data()) }
         return 1
     }
-    unsafe { printf("shell fixture: %llu artifacts\n", site.artifact_count()) }
+    unsafe {
+        printf("shell fixture: %llu artifacts chunked_units=%llu retained_units=%llu note=[%s]\n",
+            site.artifact_count(), site.chunked_unit_count(), site.retained_unit_count(),
+            site.split_note().data())
+    }
     return 0
 }

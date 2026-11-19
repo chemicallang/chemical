@@ -268,6 +268,23 @@ public struct App {
         return &site
     }
 
+    // ── Unit graph (build diagnostics) ───────────────────────────────────
+    /// Component definitions the bundle kept (the runtime plus everything two
+    /// routes — or any per-request route — use).
+    public func site_retained_units(&self) : ubigint {
+        return site.retained_unit_count()
+    }
+
+    /// Component definitions moved into a single route's chunk.
+    public func site_chunked_units(&self) : ubigint {
+        return site.chunked_unit_count()
+    }
+
+    /// `name:owners` per recorded component definition.
+    public func site_unit_report(&self) : std::string {
+        return site.unit_report()
+    }
+
     /// The route at `index` (the build helper and the dispatcher walk the table
     /// without holding a `&self` borrow on it).
     public func route_at(&self, index : ubigint) : *mut AppRoute {

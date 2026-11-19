@@ -16,11 +16,18 @@ public func Home(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
+// Used by `/pricing` and nowhere else: its definition belongs in that route's
+// chunk, not in the bundle every page downloads (the unit graph).
+#universal PricingNote(props) {
+    return <aside class="note">prices update quarterly</aside>
+}
+
 public func Pricing(page : &mut HtmlPage, req : &http::Request) {
     #html {
         <main>
             <h1>Pricing</h1>
             <p>three plans</p>
+            <PricingNote />
         </main>
     }
 }
@@ -318,6 +325,14 @@ func report_body(label : string_view, res : &http::Response) {
     unsafe { printf("body %.*s = %.*s\n", label.size() as int, label.data(), fv.size() as int, fv.data()) }
 }
 
+func site_split_note(app : &web::App) : std::string {
+    var site = app.static_site()
+    var note = site.split_note()
+    var out = std::string()
+    out.append_view(&note)
+    return out
+}
+
 public func main() : int {
     var app = web::App.make("lang/compiled/app_out", "app", "assets")
     app.page("/", Home)
@@ -405,6 +420,20 @@ public func main() : int {
     unsafe {
         printf("shell malformed=%d arity=%d slots=%zu\n",
             (!bad.is_valid()) as int, refused.empty() as int, one.slot_count())
+    }
+
+    // Unit graph (§3.13): `PricingNote` is used by one pre-rendered route, so its
+    // definition must travel in that route's chunk; `DashBody` is rendered by the
+    // shell and live routes, so it must stay in the bundle (a per-request page
+    // dispatches from the bundle, never from a static route's chunk).
+    unsafe {
+        var graph = app.site_unit_report()
+        var graph_view = graph.to_view()
+        var note = site_split_note(&app)
+        var note_view = note.to_view()
+        printf("graph chunked=%llu retained=%llu unbacked=%llu units=[%s] note=[%.*s]\n",
+            app.site_chunked_units(), app.site_retained_units(), app.static_site().unbacked_unit_count(),
+            graph_view.data(), note_view.size() as int, note_view.data())
     }
 
     var iters = 2000

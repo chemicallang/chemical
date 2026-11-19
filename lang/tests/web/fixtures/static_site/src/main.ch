@@ -10,6 +10,19 @@
 // server does — printing the answers here lets `scripts/static-site-test.sh`
 // check them without a socket.
 
+// Nanoseconds to answer `iterations` requests through the `web.Router` bridge —
+// the path a real server takes, including the `http::Response` construction.
+func time_serve(site : *mut StaticSite, req : &mut http::Request, iterations : int) : i64 {
+    var start = std::chrono::Instant.now()
+    var i : int = 0
+    while(i < iterations) {
+        var res = webserve.serve(site, req)
+        if(res.body.is_empty()) { return -1 }
+        i = i + 1
+    }
+    return start.elapsed().as_nanos()
+}
+
 #universal Counter(props) {
     state n = 0
     return <button class="counter" onClick={() => { n = n + 1 }}>{n}</button>
@@ -118,6 +131,14 @@ public func main() : int {
     report(&site, "/missing")
     report(&site, "/../secret")
 
+    // ── serving cost: bytes are written, not copied ──────────────────────
+    // A bundle asset is the dominant response size (100+ KB) and is immutable, so
+    // per-request work should be the head plus a write of the frozen bytes. Timing
+    // it next to a small page makes a body copy show up as a ratio, not a guess.
+    var page_req = http::Request()
+    var root_path = std::string_view("/")
+    page_req.path.append_view(&root_path)
+
     var bundle = site.bundle_js_url()
     unsafe { printf("bundle=%s\n", bundle.data()) }
     var bundle_req = std::string()
@@ -128,6 +149,21 @@ public func main() : int {
 
     // Conditional request: the same path with the ETag the first response carried
     // is a 304 with no body, so a browser revalidates without re-downloading.
+    var asset_req = http::Request()
+    asset_req.path.append_view(&bundle_req_view)
+    var site_ptr = &raw mut site
+    var asset_ns = time_serve(site_ptr, &mut asset_req, 300)
+    var small_ns = time_serve(site_ptr, &mut page_req, 300)
+    var asset_res = site.respond(bundle_req_view)
+    var page_res = site.respond("/")
+    var served_asset = webserve.serve(site_ptr, &mut asset_req)
+    var served_page = webserve.serve(site_ptr, &mut page_req)
+    unsafe {
+        printf("serve asset=%llu B %lld ns/req view=%d | page=%llu B %lld ns/req view=%d\n",
+            asset_res.body.size(), asset_ns / 300, served_asset.body.is_view() as int,
+            page_res.body.size(), small_ns / 300, served_page.body.is_view() as int)
+    }
+
     var full = site.respond(bundle_req_view)
     unsafe { printf("etag=%s bytes=%llu\n", full.etag.data(), full.body.size()) }
     var cached = site.respond_if_none_match(bundle_req_view, full.etag)

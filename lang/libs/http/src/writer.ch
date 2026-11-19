@@ -34,6 +34,11 @@ public func (b: &mut ResponseBody) write_onto(out : &mut Stream) : Result<Unit, 
             if(w is Result.Err) { return Result.Err(HttpError.Io(std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe()))) }
             return Result.Ok(Unit { })
         }
+        View(v) => {
+            var w = out.write_all_bytes(unsafe(std::span<u8>(v.data() as *u8, v.size())))
+            if(w is Result.Err) { return Result.Err(HttpError.Io(std::io::IoError.Kind(std::io::IoErrorKind::BrokenPipe()))) }
+            return Result.Ok(Unit { })
+        }
         File(f, len) => {
             var chunk : [65536]u8
             var remaining = len

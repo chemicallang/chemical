@@ -23,6 +23,15 @@ public variant ResponseBody {
     Bytes(data : std::vector<u8>)
     Text(text : std::string)
     File(file : fs::File, len : u64)
+    /// Bytes the response does **not** own: a frozen site bundle, a prebuilt
+    /// response, a static table. The encoder writes them straight from the view,
+    /// so answering a 100 KB asset costs no allocation and no `memcpy` — the copy
+    /// used to be the largest per-request cost for immutable assets.
+    ///
+    /// Constructing one is an assertion that the bytes outlive the response being
+    /// written (a process-lifetime build, which is what `StaticSite`/`Bundle` are),
+    /// so it is the `unsafe` path; use `Text`/`Bytes` when in doubt.
+    View(view : std::string_view)
 
     public func size(&self) : u64 {
         switch(self) {
@@ -30,7 +39,16 @@ public variant ResponseBody {
             Bytes(d) => { return d.size() as u64 }
             Text(t) => { return t.size() as u64 }
             File(_, len) => { return len }
+            View(v) => { return v.size() as u64 }
             default => { return 0u }
+        }
+    }
+
+    /// True when the payload is borrowed (`View`): nothing was copied to own it.
+    public func is_view(&self) : bool {
+        switch(self) {
+            View(_) => { return true }
+            default => { return false }
         }
     }
 
@@ -43,6 +61,7 @@ public variant ResponseBody {
         switch(self) {
             Text(t) => { return Option.Some<std::string_view>(t.to_view()) }
             Bytes(d) => { return Option.Some<std::string_view>(unsafe(std::string_view(d.data() as *char, d.size()))) }
+            View(v) => { return Option.Some<std::string_view>(v) }
             default => { return Option.None<std::string_view>() }
         }
     }
@@ -52,6 +71,7 @@ public variant ResponseBody {
         switch(self) {
             Bytes(d) => { return Option.Some<std::span<'self, u8>>(d.as_span()) }
             Text(t) => { return Option.Some<std::span<'self, u8>>(unsafe(std::span<u8>(t.data() as *u8, t.size()))) }
+            View(v) => { return Option.Some<std::span<'self, u8>>(v.as_bytes()) }
             default => { return Option.None<std::span<'self, u8>>() }
         }
     }

@@ -72,6 +72,20 @@ check "in memory, revalidating a page is a 304 that stays no-cache" \
 check "in memory, a stale ETag gets the full page again" \
       "$(grep -qE 'stale etag -> 200 \| [0-9]+ B' "$resp" && echo 1 || echo 0)"
 
+# ── serving cost: the body is written, not copied ───────────────────────────
+# `http::ResponseBody.View` borrows the frozen bytes, so answering a 100+ KB asset
+# costs the head plus one write. Both halves are checked because either alone can
+# be gamed: `view=1` is the structural fact, the ratio is the consequence (a copy
+# put the asset at ~3.5x a small page; without one it is ~1.9x).
+serve_line=$(grep 'serve asset=' "$resp" | head -1)
+check "a served bundle body is borrowed, not copied (view=1)" \
+      "$([ "$(echo "$serve_line" | grep -o 'view=1' | wc -l | tr -d ' ')" = "2" ] && echo 1 || echo 0)"
+asset_ns=$(echo "$serve_line" | sed 's/.*| page=[0-9]* B \([0-9]*\) ns\/req.*/\1/')
+asset_big_ns=$(echo "$serve_line" | sed 's/.*asset=[0-9]* B \([0-9]*\) ns\/req.*/\1/')
+check "a 100 KB asset costs well under 2x a 400 B page (no per-byte work)" \
+      "$([ "${asset_big_ns:-0}" -gt 0 ] && [ "${asset_ns:-0}" -gt 0 ] && [ $((asset_big_ns * 10)) -lt $((asset_ns * 25)) ] && echo 1 || echo 0)"
+echo "serving: $serve_line"
+
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"
 [ -f "$index" ] || { echo "FAIL: $index was not written" >&2; exit 1; }

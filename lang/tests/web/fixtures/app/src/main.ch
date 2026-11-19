@@ -267,13 +267,14 @@ func header(res : &http::Response, name : &str) : string_view {
     return out
 }
 
+// Any in-memory body, owned (`Text`/`Bytes`) or borrowed (`View`): a frozen asset
+// is answered from a view, so matching only `Text` would report it as empty.
 func body_of(res : &http::Response) : string_view {
     var out = string_view("")
-    if(res.body is http::ResponseBody.Text) {
-        unsafe {
-            var Text(text) = res.body else unreachable
-            out = text.to_view()
-        }
+    var got = res.body.text()
+    if(got is Option.Some) {
+        var Some(v) = got else unsafe { unreachable }
+        out = v
     }
     return out
 }

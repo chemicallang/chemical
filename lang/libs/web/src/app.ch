@@ -521,7 +521,11 @@ public struct App {
         }
         var path_view = path.to_view()
         var out = site.respond_if_none_match(path_view, if_none_match)
-        return response_of(&out, std::string_view(""))
+        // The body is an artifact: bytes the site froze at `build()` and never moves,
+        // so the response can borrow instead of copying (a 100 KB asset used to cost
+        // a 100 KB `memcpy` per request). This is the only place in the app that may
+        // borrow, because every other body is a `string` local to the render.
+        return unsafe(response_of_borrowed(&out, std::string_view("")))
     }
 
     /// Render a live route for this request; `status` lets the 404 route reuse the
@@ -964,8 +968,10 @@ func prefix_of(s : string_view, prefix : string_view) : bool {
 }
 
 // ── Responses ─────────────────────────────────────────────────────────────
-/// Map a `SiteResponse` onto an `http::Response` (one body copy: the response
-/// owns its body, the site keeps its buffers).
+/// Map a `SiteResponse` onto an `http::Response`, **copying** the body (the
+/// response owns it, the site keeps its buffers). This is the default: a body from
+/// `render_dynamic`/`shell.emit` is a `string` local to the render and would dangle
+/// if borrowed.
 public func response_of(out : &SiteResponse, vary : string_view) : http::Response {
     var res = http::Response()
     res.status = out.status as u16
@@ -985,6 +991,36 @@ public func response_of(out : &SiteResponse, vary : string_view) : http::Respons
     }
     // `html()` only sets a content type when absent; the site's own type is more
     // specific (JSON, XML, JS), so it is applied afterwards.
+    res.set_header_view("Content-Type", &content_type)
+    return res
+}
+
+/// The same mapping without the body copy: the response borrows the bytes
+/// (`http::ResponseBody.View`). `unsafe` because it asserts something the compiler
+/// cannot see — that the bytes outlive the response being written. True for a
+/// frozen artifact (the site holds it for the process's life); **false** for any
+/// body rendered per request, which lives in a local `string`.
+///
+/// Answering a 100 KB bundle asset this way is ~2.1x faster than copying it and is
+/// the difference between a per-byte serving cost and a per-request one
+/// (`scripts/static-site-test.sh` gates both the `view=1` fact and the ratio).
+public unsafe func response_of_borrowed(out : &SiteResponse, vary : string_view) : http::Response {
+    var res = http::Response()
+    res.status = out.status as u16
+    var content_type = out.content_type
+    var cache_control = out.cache_control
+    var etag = out.etag
+    var body = out.body
+    res.set_header_view("Cache-Control", &cache_control)
+    if(!vary.empty()) {
+        res.set_header_view("Vary", &vary)
+    }
+    if(!etag.empty()) {
+        res.set_header_view("ETag", &etag)
+    }
+    if(!body.empty()) {
+        res.body = http::ResponseBody.View(body)
+    }
     res.set_header_view("Content-Type", &content_type)
     return res
 }

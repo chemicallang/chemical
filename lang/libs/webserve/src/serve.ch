@@ -87,10 +87,10 @@ public func serve(site : *mut StaticSite, req : &http::Request) : http::Response
         res.set_header_view("ETag", &etag)
     }
     if(out.body.size() > 0) {
-        var body = string()
-        var body_view = out.body
-        body.append_view(&body_view)
-        res.body = http::ResponseBody.Text(body)
+        var body = out.body
+        // No copy: the body is a view into the site's frozen buffers, and the site
+        // outlives every response (`install` asserts exactly that).
+        res.body = http::ResponseBody.View(body)
     }
     return res
 }

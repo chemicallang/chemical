@@ -1429,6 +1429,25 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
 4. **`web::Shell` + slots** (§3.12): byte-range slots, per-route frozen buffers, per-variant
    shells, `shell.emit` with no component work. Delivery mode is chosen per route: static,
    shell+slots, or full SSR — one `web::App` can mix them.
+   **Landed 2026-11-19** (`lang/libs/web/src/shell.ch`, `app.shell(...)`): `page.slot("name")`
+   marks a region (an HTML-comment marker, so an uncompiled page is still valid HTML);
+   `App.build()` renders each shell route **after** the bundle is frozen — the same call a live
+   route makes per request — and records one `ShellSegment` per literal range and per marker;
+   `shell.emit(fills)` walks those segments once, appending literals from the frozen buffer and
+   one fill per slot. No component call, no CSS hashing, no hydration-id allocation happens per
+   request, and the ids stay frozen so client and server agree. `web::SlotFills.set` splices HTML
+   verbatim while `set_text` escapes (`&`, `<`, `>`, `"`, `'`), so an untrusted value cannot break
+   out of its region; a fill for a slot the shell does not have is ignored (the shell decides the
+   positions), and an unset slot emits nothing. A route is served `private, no-cache` with no ETag
+   (the same URL returns different bytes per user) and is never exported as a pre-rendered page.
+   A malformed marker or a route the frozen bundle cannot render fails the **build** with the
+   route pattern, not the first visitor.
+   Measured on `fixtures/app` (a header slot around a universal-component body), 2000 requests:
+   **`emit` 8.4 ms vs full SSR 811 ms — ~95x (91–97x across runs)**, and `emit` is byte-identical to the full-SSR twin
+   (`web-app-test.sh`, which also asserts the escape and the cache policy). Per-variant shells are
+   just one `app.shell` per variant pattern — no branch inside a frozen buffer. Still open: CSS
+   chunking per route and `modulepreload` (item 6), and the unit graph that would place a
+   component in `vendor` vs a route chunk (item 1/3).
 5. Runtime extracted from `page.ch` into `lang/libs/page/runtime/*.js`, embedded at build time
    (a LabBuildCompiler asset-embed step — owned here, with a byte budget). Also removes a constant
    compile-time cost from every `page` consumer (§3.16). — **partially landed, by a different route**:
@@ -1759,9 +1778,12 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    captures filled into `req.route_params`, `not_found` and `redirect` classes, `set_base_path`,
    `build()`/`finish()` with the mandatory warm pass (a live route needing an un-bundled component
    is refused with 503, never served), and `install`/`serve_request` for the `http::Server` router.
-   Still open: `web_build`'s unit graph and chunking by route closure, `Bundle`/`Shell` +
-   byte-range slots, CSS chunks and `modulepreload`. Step 5 and 7's static half are satisfied by
-   `page.StaticSite` and the probe script.
+   **Third mode done 2026-11-19:** `app.shell(pattern, handler, fills)` + `web::Shell`/
+   `web::SlotFills` (byte-range slots, `page.slot("name")`, one splice per slot per request,
+   ~95x faster than full SSR and byte-identical to it on the `app` fixture, gated by
+   `web-app-test.sh`). Still open: `web_build`'s unit graph and chunking by route closure,
+   `Bundle` + per-variant shell *picking* helpers, CSS chunks and `modulepreload`. Step 5 and 7's
+   static half are satisfied by `page.StaticSite` and the probe script.
 8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
    `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by
    `web-app-test.sh`). A persistent store and the `Vary: Cookie` render hook remain.

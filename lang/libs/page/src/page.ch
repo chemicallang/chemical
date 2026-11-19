@@ -26,6 +26,34 @@ public func escape_html_view(value : std::string_view) : std::string {
     return out
 }
 
+// ── Slot markers (frozen shells, lang/docs/web-stack-plan.md §3.12) ──────
+// `HtmlPage.slot` writes one of these; `web::Shell.compile` parses it into a byte
+// range. The constants live here, not in `web`, so the writer and the parser
+// cannot drift apart (the dependency runs `web → page`).
+public func slot_marker_prefix() : std::string_view {
+    return std::string_view("<!--chx-slot:")
+}
+
+public func slot_marker_suffix() : std::string_view {
+    return std::string_view("-->")
+}
+
+// A slot name is written verbatim between the marker delimiters, so it is limited
+// to characters that cannot end the comment or be mistaken for markup: 1..64 of
+// `[A-Za-z0-9_-]`. Anything else marks nothing, and `Shell.compile` never sees it.
+public func is_valid_slot_name(name : &std::string_view) : bool {
+    var n = name.size()
+    if(n == 0 || n > 64) { return false }
+    var i : size_t = 0
+    while(i < n) {
+        var c = name.at(i)
+        var ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-'
+        if(!ok) { return false }
+        i = i + 1
+    }
+    return true
+}
+
 // ── Router parameter store (lang/docs/universal-router-design.md §3, §14.5)
 //
 // `PageParameter` lives in `page` (not in the `router` library) because the
@@ -354,10 +382,30 @@ public struct HtmlPage {
 
     func append_html_double(&mut self, value : double) {
         pageHtml.append_double(value, 3)
+    }    // ── Slot markers (frozen shells, §3.12) ───────────────────────────────
+    // Marks a request-varying region of this page's markup. `web::Shell.compile`
+    // replaces the marker with a byte range of the frozen buffer, and `shell.emit`
+    // splices the per-request fill into that range — so the chrome around it is
+    // rendered once and never again.
+    //
+    // The region holds plain text/HTML, **never a component call**: a universal
+    // component's hydration ids are baked into the frozen bytes and cannot be
+    // allocated per request. Structural variation (signed in vs out) is a separate
+    // shell, not a branch inside one.
+    //
+    // The marker is an HTML comment (`<!--chx-slot:name-->`), so a shell that was
+    // never compiled still produces valid, invisible markup instead of corrupt
+    // bytes. A name is validated by `is_valid_slot_name`; an invalid name marks
+    // nothing (a slot that silently disappears is what `Shell.compile` reports).
+    public func slot(&mut self, name : std::string_view) {
+        if(!is_valid_slot_name(&name)) { return }
+        pageHtml.append_view("<!--chx-slot:")
+        pageHtml.append_view(&name)
+        pageHtml.append_view("-->")
     }
 
     func get_html_size(&self) : ubigint {
-        return pageHtml.size();
+        return pageHtml.size();
     }
 
     func truncate_html(&mut self, size : ubigint) {

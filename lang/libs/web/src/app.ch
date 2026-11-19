@@ -5,13 +5,15 @@
 //
 //   * `app.page(path, Home)`      — pre-rendered at build, served from memory with
 //                                   `no-cache` + ETag (304 on revalidation);
+//   * `app.shell(path, Home, Fill)` — chrome rendered once, each request splices
+//                                   its slot values into the frozen bytes (§3.12);
 //   * `app.live(path, Acc, ...)`  — rendered per request against the same frozen
 //                                   bundle, answered `no-store` by default.
 //
-// Both share one bundle: the warm pass in `build()` renders every live route once
-// so its components join the bundle before it is frozen, and a live route that
-// needs a component the bundle does not carry is refused (503 naming the reason)
-// instead of shipped as HTML whose hydration cannot run.
+// All three share one bundle: the warm pass in `build()` renders every live and
+// shell route once so their components join the bundle before it is frozen, and a
+// route that needs a component the bundle does not carry is refused (503 naming the
+// reason) instead of shipped as HTML whose hydration cannot run.
 //
 //   var app = web::App.make("dist", "app", "assets")
 //   app.page("/", Home)
@@ -67,11 +69,37 @@ public struct AppRedirect {
     public var status : u16
 }
 
+/// A route served from a frozen shell (§3.12): the handler's bytes are produced
+/// once and `values` is the only code that runs per request.
+@direct_init
+public struct ShellRoute {
+    public var pattern : string
+    public var handler : PageHandler
+    public var values : SlotValues
+    /// Cache policy for the filled document (`private, no-cache` by default: the
+    /// same URL returns different bytes per user).
+    public var cache_control : string
+    public var vary : string
+    /// The frozen document; empty until `build()` compiles it.
+    var shell : Shell
+    var compiled : bool
+
+    public func is_compiled(&self) : bool {
+        return compiled
+    }
+
+    /// How many regions the frozen document has (0 before `build()`).
+    public func slot_count(&self) : ubigint {
+        return shell.slot_count()
+    }
+}
+
 /// The application: route table + shared bundle + serving.
 @direct_init
 public struct App {
     private var site : StaticSite
     private var routes : vector<AppRoute>
+    private var shells : vector<ShellRoute>
     private var redirects : vector<AppRedirect>
 
     /// Owned by the app because the build holds `*mut HtmlPage` to each one and
@@ -110,6 +138,7 @@ public struct App {
         return App {
             site : StaticSite.make(out_dir, base_name, asset_prefix),
             routes : vector<AppRoute>(),
+            shells : vector<ShellRoute>(),
             redirects : vector<AppRedirect>(),
             pages : vector<HtmlPage>(),
             page_paths : vector<string>(),
@@ -146,6 +175,35 @@ public struct App {
         push_route(pattern, handler, true, cache_control, vary)
     }
 
+    /// Register a **shell** route (§3.12): `handler` renders the whole page once, in
+    /// `build()`, and every request is answered by splicing `values(req)` into the
+    /// frozen bytes. The chrome costs nothing per request — no component walk, no
+    /// CSS hashing, no hydration-id allocation.
+    ///
+    /// The handler marks its varying regions with `page.slot("name")`. `values`
+    /// fills them with plain HTML (`set`) or escaped text (`set_text`); it must not
+    /// call a component, because the hydration ids around it are already frozen.
+    /// The pattern may capture (`/dashboard/{id}`); the handler need not depend on
+    /// the request (a shell is rendered against an empty one).
+    public func shell(&mut self, pattern : string_view, handler : PageHandler, values : SlotValues,
+                      cache_control : string_view = "private, no-cache", vary : string_view = "") {
+        var p = string()
+        p.append_view(&pattern)
+        var cache = string()
+        cache.append_view(&cache_control)
+        var vary_s = string()
+        vary_s.append_view(&vary)
+        shells.push_back(ShellRoute {
+            pattern : p,
+            handler : handler,
+            values : values,
+            cache_control : cache,
+            vary : vary_s,
+            shell : Shell(),
+            compiled : false
+        })
+    }
+
     /// The 404 page. Rendered per request (it is the one route that must always be
     /// available), so it is warmed with the bundle like any live route.
     public func not_found(&mut self, handler : PageHandler) {
@@ -177,6 +235,29 @@ public struct App {
 
     public func route_count(&self) : ubigint {
         return routes.size()
+    }
+
+    public func shell_count(&self) : ubigint {
+        return shells.size()
+    }
+
+    /// Bytes frozen for every shell route: paid once at build, shared by every
+    /// request.
+    public func shell_frozen_bytes(&self) : ubigint {
+        var total : ubigint = 0
+        var i : ubigint = 0
+        while(i < shells.size()) {
+            var r = unsafe(&*shells.get_ptr(i))
+            total = total + r.shell.frozen_bytes()
+            i = i + 1
+        }
+        return total
+    }
+
+    /// The shell route at `index` (a build helper reads `is_compiled()`/slot count
+    /// from it without holding a borrow on the table).
+    public func shell_route_at(&self, index : ubigint) : *mut ShellRoute {
+        return shells.get_ptr(index)
     }
 
     public func error_message(&self) : string_view {
@@ -233,6 +314,7 @@ public struct App {
             fail_with(site.error_message())
             return false
         }
+        if(!compile_shells()) { return false }
         return !failed
     }
 
@@ -310,28 +392,33 @@ public struct App {
             i = i + 1
         }
         if(matched >= 0) {
-            req.route_params.clear()
-            var k : ubigint = 0
-            while(k < params.size()) {
-                var p = params.get_ptr(k)
-                var name_v = string_view("")
-                var value_v = string_view("")
-                unsafe {
-                    name_v = p.first.to_view()
-                    value_v = p.second.to_view()
-                }
-                var name_s = string()
-                name_s.append_view(&name_v)
-                var value_s = string()
-                value_s.append_view(&value_v)
-                req.route_params.push_back(pair<string, string> { first : name_s, second : value_s })
-                k = k + 1
-            }
+            fill_route_params(req, &params)
             var route = unsafe(&*routes.get_ptr(matched as ubigint))
             var handler = route.handler
             var cache = route.cache_control.to_view()
             var vary = route.vary.to_view()
             return self.render_live(handler, cache, vary, 200u, req)
+        }
+
+        // 2b. A shell route. Same pattern matching as a live route, but the body is
+        //     the frozen shell plus one splice per slot: no component work at all.
+        params.clear()
+        var shell_matched : int = -1
+        var si : ubigint = 0
+        while(si < shells.size()) {
+            var r = unsafe(&*shells.get_ptr(si))
+            var pv = r.pattern.to_view()
+            if(match_route_pattern(&pv, &path, &mut params)) {
+                shell_matched = si as int
+                break
+            }
+            si = si + 1
+        }
+        if(shell_matched >= 0) {
+            fill_route_params(req, &params)
+            var route_ptr = shells.get_ptr(shell_matched as ubigint)
+            var route = unsafe(&mut *route_ptr)
+            return self.render_shell(route, req)
         }
 
         // 3. A pre-rendered page or a content-hashed asset: the site's own table.
@@ -381,6 +468,30 @@ public struct App {
         var out = site.dynamic_response(&html, cache_control)
         var res = response_of(&out, vary)
         res.status = status
+        return res
+    }
+
+    /// Fill a shell route for this request: one `emit` over the frozen segments,
+    /// with the values `values(req)` supplies. A missing fill emits nothing (that is
+    /// a legitimate "no banner for this user").
+    func render_shell(&mut self, route : &mut ShellRoute, req : &http::Request) : http::Response {
+        var provider = route.values
+        var fills = provider(req)
+        var values = vector<string_view>()
+        var n = route.shell.slot_count()
+        var i : ubigint = 0
+        while(i < n) {
+            var name = route.shell.slot_name(i)
+            var value = fills.get(name)
+            values.push_back(value)
+            i = i + 1
+        }
+        var html = route.shell.emit(&values)
+        var cache = route.cache_control.to_view()
+        var out = site.dynamic_response(&html, cache)
+        var vary = route.vary.to_view()
+        var res = response_of(&out, vary)
+        res.status = 200u
         return res
     }
 
@@ -467,6 +578,19 @@ public struct App {
             }
             i = i + 1
         }
+        var s : ubigint = 0
+        while(s < shells.size()) {
+            var route = unsafe(&*shells.get_ptr(s))
+            var handler = route.handler
+            var warm = HtmlPage()
+            if(!site.attach_dynamic(&mut warm)) {
+                fail_with(site.dynamic_error_message())
+                return false
+            }
+            warm.defaultUniversalSetup()
+            handler(&mut warm, route_req)
+            s = s + 1
+        }
         if(has_not_found) {
             var nf = HtmlPage()
             if(!site.attach_dynamic(&mut nf)) {
@@ -530,12 +654,81 @@ public struct App {
         return true
     }
 
+    /// Freeze every shell route, **after** the bundle is frozen: render the route
+    /// once against it (the same call a live route makes per request), then record
+    /// its slot ranges. A shell a request could not render must fail the build, not
+    /// the first visitor.
+    func compile_shells(&mut self) : bool {
+        if(shells.size() == 0) { return true }
+        var req = http::Request()
+        var build_req = unsafe(&mut req)
+        var i : ubigint = 0
+        while(i < shells.size()) {
+            var route = unsafe(&mut *shells.get_ptr(i))
+            var handler = route.handler
+            var page = HtmlPage()
+            if(!site.attach_dynamic(&mut page)) {
+                fail_with(site.dynamic_error_message())
+                return false
+            }
+            page.defaultUniversalSetup()
+            handler(&mut page, build_req)
+            var html = site.render_dynamic(&mut page)
+            var pattern_view = route.pattern.to_view()
+            if(html.empty()) {
+                var reason = site.dynamic_error_message()
+                fail_with("shell route ")
+                fail_with(pattern_view)
+                fail_with(" was not compiled: ")
+                fail_with(reason)
+                return false
+            }
+            var html_view = html.to_view()
+            var compiled = Shell.compile(html_view)
+            if(!compiled.is_valid()) {
+                var reason = compiled.error_message()
+                fail_with("shell route ")
+                fail_with(pattern_view)
+                fail_with(" has an invalid slot: ")
+                fail_with(reason)
+                return false
+            }
+            route.shell = compiled
+            route.compiled = true
+            i = i + 1
+        }
+        return true
+    }
+
     func fail_with(&mut self, message : string_view) {
         failed = true
         if(!failure.empty()) {
             failure.append_view("; ")
         }
         failure.append_view(&message)
+    }
+}
+
+// Copy the captures a pattern match produced into the request, so a handler reads
+// `/invoices/{id}` through `req.param("id")`. Used by the live and shell paths
+// alike.
+func fill_route_params(req : &mut http::Request, params : &std::vector<std::pair<string, string>>) {
+    req.route_params.clear()
+    var k : ubigint = 0
+    while(k < params.size()) {
+        var p = params.get_ptr(k)
+        var name_v = string_view("")
+        var value_v = string_view("")
+        unsafe {
+            name_v = p.first.to_view()
+            value_v = p.second.to_view()
+        }
+        var name_s = string()
+        name_s.append_view(&name_v)
+        var value_s = string()
+        value_s.append_view(&value_v)
+        req.route_params.push_back(pair<string, string> { first : name_s, second : value_s })
+        k = k + 1
     }
 }
 

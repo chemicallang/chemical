@@ -54,6 +54,52 @@ public func Missing(page : &mut HtmlPage, req : &http::Request) {
     #html { <main><h1>Nothing here</h1></main> }
 }
 
+// ── Shell + slots (§3.12) ──────────────────────────────────────────────────
+//
+// `DashboardShell` marks its personalised region with `page.slot("account")`; the
+// chrome around it (a header plus a universal-component body) is rendered once and
+// frozen. `DashboardFull` is the full-SSR twin: the identical markup with the same
+// value inlined, so the gate can compare the two documents byte for byte.
+#universal DashBody(props) {
+    return <section class="route dashboard"><h1>Dashboard</h1><p>rows</p></section>
+}
+
+public func DashboardShell(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<div class=\"dash\"><header class=\"bar\">")
+    page.slot("account")
+    page.append_html("</header>")
+    #html { <DashBody /> }
+    page.append_html("</div>")
+}
+
+public func DashboardFull(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<div class=\"dash\"><header class=\"bar\">nobody</header>")
+    #html { <DashBody /> }
+    page.append_html("</div>")
+}
+
+public func DashboardFills(req : &http::Request) : web::SlotFills {
+    var f = web::SlotFills()
+    // Text, so a hostile value cannot break out of the region.
+    f.set_text("account", "nobody")
+    // A slot the shell does not have: the shell decides the positions, so this is
+    // ignored rather than appended somewhere arbitrary.
+    f.set("not_a_slot", "<b>ignored</b>")
+    return f
+}
+
+public func DashboardEscaped(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<div class=\"dash\"><header class=\"bar\">")
+    page.slot("account")
+    page.append_html("</header></div>")
+}
+
+public func EscapedFills(req : &http::Request) : web::SlotFills {
+    var f = web::SlotFills()
+    f.set_text("account", "<script>alert(1)</script>")
+    return f
+}
+
 
 // ── Sessions ────────────────────────────────────────────────────────────────
 func <T> flag(found : Option<T>) : int {
@@ -213,6 +259,31 @@ func request(app : &mut web::App, path : string_view, inm : string_view) : http:
     return app.handle(&mut req)
 }
 
+func bodies_equal(a : &http::Response, b : &http::Response) : bool {
+    var av = body_of(a)
+    var bv = body_of(b)
+    return av.equals(&bv)
+}
+
+func contains_text(body : &string_view, needle : string_view) : bool {
+    return body.contains(&needle)
+}
+
+// Nanoseconds for `iterations` requests to `path`. Each iteration includes the
+// response body copy, so the difference is the render cost alone.
+func time_path(app : &mut web::App, path : string_view, iterations : int) : i64 {
+    var start = std::chrono::Instant.now()
+    var i : int = 0
+    while(i < iterations) {
+        var res = request(app, path, "")
+        var body = body_of(&res)
+        if(body.size() == 0) { return -1 }
+        i = i + 1
+    }
+    var dur = start.elapsed()
+    return dur.as_nanos()
+}
+
 func report(label : string_view, res : &http::Response) {
     var cc = header(res, "Cache-Control")
     var etag = header(res, "ETag")
@@ -253,6 +324,9 @@ public func main() : int {
     app.page("/pricing", Pricing)
     app.live("/account/{id}", Account)
     app.live("/files/{path*}", Files)
+    app.shell("/dash", DashboardShell, DashboardFills)
+    app.shell("/dash-escaped", DashboardEscaped, EscapedFills)
+    app.live("/dash-full", DashboardFull)
     app.redirect("/prices", "/pricing")
     app.not_found(Missing)
     app.export_sitemap("https://example.com", true)
@@ -292,6 +366,55 @@ public func main() : int {
     var files = request(&mut app, "/files/reports/2026/q1.pdf", "")
     report("/files/reports/2026/q1.pdf", &files)
     report_body("files", &files)
+
+    // ── Shell route: frozen chrome, spliced fill ─────────────────────────
+    var shell_route = unsafe(app.shell_route_at(0))
+    var shell_route_ref = unsafe(&*shell_route)
+    unsafe {
+        printf("shell routes=%zu frozen=%zu compiled=%d slots=%zu\n",
+            app.shell_count(), app.shell_frozen_bytes(),
+            shell_route_ref.is_compiled() as int,
+            shell_route_ref.slot_count())
+    }
+    var dash = request(&mut app, "/dash", "")
+    report("/dash", &dash)
+    var dash_body = body_of(&dash)
+    unsafe {
+        printf("shell fill=%d chrome=%d\n",
+            contains_text(&dash_body, "nobody") as int,
+            contains_text(&dash_body, "class=\"route dashboard\"") as int)
+    }
+    var full = request(&mut app, "/dash-full", "")
+    unsafe { printf("shell eq=%d\n", bodies_equal(&dash, &full) as int) }
+
+    var escaped = request(&mut app, "/dash-escaped", "")
+    var escaped_body = body_of(&escaped)
+    unsafe {
+        printf("shell escaped=%d raw=%d\n",
+            contains_text(&escaped_body, "&lt;script&gt;") as int,
+            contains_text(&escaped_body, "<script>alert") as int)
+    }
+
+    // Compile-time contract: a malformed marker is refused, and `emit` refuses to
+    // fill a document with the wrong number of values instead of serving a shell
+    // with a hole in it.
+    var bad = web::Shell.compile("<!DOCTYPE html><html><body><!--chx-slot:oops")
+    var one = web::Shell.compile("<p><!--chx-slot:a--></p>")
+    var no_values = std::vector<std::string_view>()
+    var refused = one.emit(&no_values)
+    unsafe {
+        printf("shell malformed=%d arity=%d slots=%zu\n",
+            (!bad.is_valid()) as int, refused.empty() as int, one.slot_count())
+    }
+
+    var iters = 2000
+    var shell_ns = time_path(&mut app, "/dash", iters)
+    var ssr_ns = time_path(&mut app, "/dash-full", iters)
+    unsafe {
+        var ratio = 0.0
+        if(shell_ns > 0) { ratio = (ssr_ns as double) / (shell_ns as double) }
+        printf("shell ns_shell=%lld ns_ssr=%lld ratio=%.2f\n", shell_ns, ssr_ns, ratio)
+    }
 
     var moved = request(&mut app, "/prices", "")
     report("/prices", &moved)

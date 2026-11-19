@@ -38,9 +38,13 @@ log=/tmp/web_app_test.txt
 exe=lang/compiled/app_test.exe
 
 echo "== building the mixed app =="
-"$compiler" lang/tests/web/fixtures/app/chemical.mod -o "$exe" >/dev/null 2>&1
+# Remove the old binary first: a silent compile failure must not be masked by a
+# stale executable from a previous run.
+rm -f "$exe"
+"$compiler" lang/tests/web/fixtures/app/chemical.mod -o "$exe" >/tmp/web_app_build.txt 2>&1 || true
 if [ ! -x "$exe" ]; then
     echo "FAIL fixture did not compile" >&2
+    tail -20 /tmp/web_app_build.txt >&2
     exit 1
 fi
 "$exe" > "$log" 2>&1
@@ -134,6 +138,27 @@ check "no per-request route is written to disk" \
       "$([ ! -e "$out_dir/account" ] && echo 1 || echo 0)"
 check "a request after the build keeps working" \
       "$([ "$(status_of '/account/42 again')" = "200" ] && echo 1 || echo 0)"
+
+# ── Shell + slots: frozen chrome, spliced fill (§3.12) ────────────────────
+check "shell routes are compiled at build with their slots recorded" \
+      "$([ "$(contains "$log" 'shell routes=2 frozen=')" = "1" ] && [ "$(contains "$log" 'compiled=1 slots=1')" = "1" ] && echo 1 || echo 0)"
+check "a shell route is served with its per-user cache policy" \
+      "$([ "$(status_of /dash)" = "200" ] && [ "$(cc_of /dash)" = "private, no-cache" ] && [ -z "$(etag_of /dash)" ] && echo 1 || echo 0)"
+check "the fill lands in the frozen region and the chrome is intact" \
+      "$([ "$(contains "$log" 'shell fill=1 chrome=1')" = "1" ] && echo 1 || echo 0)"
+check "shell emit is byte-identical to a full SSR of the same route" \
+      "$([ "$(contains "$log" 'shell eq=1')" = "1" ] && echo 1 || echo 0)"
+check "a text fill is escaped (no raw markup can break out)" \
+      "$([ "$(contains "$log" 'shell escaped=1 raw=0')" = "1" ] && echo 1 || echo 0)"
+check "a shell route is not exported as a pre-rendered page" \
+      "$(lacks "$log" 'artifact dash')"
+check "a malformed slot marker is refused at compile, not served" \
+      "$([ "$(contains "$log" 'shell malformed=1')" = "1" ] && echo 1 || echo 0)"
+check "emit refuses a wrong fill count instead of serving a hole" \
+      "$([ "$(contains "$log" 'arity=1 slots=1')" = "1" ] && echo 1 || echo 0)"
+check "a shell route is at least 2x a full SSR of the same page" \
+      "$([ "$(grep -F 'shell ns_shell=' "$log" | sed 's/.*ratio=//' | awk '{print ($1 >= 2.0)}')" = "1" ] && echo 1 || echo 0)"
+echo "     $(grep -F 'shell ns_shell=' "$log" | head -1)"
 
 # ── Sessions, cookies, CSRF ───────────────────────────────────────────────
 check "an anonymous request has no session" \

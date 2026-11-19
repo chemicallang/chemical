@@ -3,11 +3,13 @@ application shell_fixture
 // Phase 0 fixture: the baseline a slot shell must reproduce byte-identically.
 //
 // One layout (`AppShell`) renders the chrome once and takes the route body as
-// `props.children`, so today a personalised page re-renders the whole tree —
-// layout included. Both renders are golden snapshots: when `web::Shell` lands in
-// Phase 4, `shell.emit(fills)` must produce these same bytes while doing no
-// component work for the chrome (`shell.emit(empty)` vs full SSR is the §3.19
-// gate).
+// `props.children`, so this fixture re-renders the whole tree per render — layout
+// included. Both renders are golden snapshots of that full-SSR cost.
+//
+// The shell+slots mode landed 2026-11-19 (`web::Shell`, `app.shell`); its
+// byte-identity and cost gate lives in `scripts/web-app-test.sh` (the `app`
+// fixture compares `shell.emit` against a full-SSR twin), so this golden pair
+// stays the full-SSR baseline rather than moving to `/dashboard`-style routes.
 
 source "src"
 

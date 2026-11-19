@@ -537,6 +537,7 @@ public func Account(page : &mut HtmlPage, req : &http::Request) { … }
 var app = web::App.make("dist", "app", "assets")
 app.page("/", Home)                  // pre-rendered at build: no-cache + ETag + 304
 app.page("/pricing", Pricing)
+app.shell("/dashboard", Dashboard, DashboardFills)  // chrome frozen, slots spliced per request
 app.live("/account/{id}", Account)   // per request: no-store, request data
 app.live("/files/{path*}", Files)
 app.redirect("/prices", "/pricing")  // 308 by default
@@ -558,13 +559,42 @@ srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
 - **`live()` warms automatically.** `build()` renders each live route once into a discarded page, so
   its components join the frozen bundle. A live route that renders a component the bundle does not
   carry is answered **503** with the reason, never HTML that cannot hydrate.
+- **`shell()` is the middle mode** (`lang/libs/web/src/shell.ch`, plan §3.12): the handler renders
+  the whole page **once** in `build()`; the handler marks each personalised region with
+  `page.slot("name")`, and `DashboardFills(req)` returns a `web::SlotFills` with the values. A
+  request is answered by walking the frozen byte ranges — ~95x cheaper than a full SSR of the same
+  page in the `web-app-test.sh` fixture, and byte-identical to it. Rules: a fill is plain
+  HTML/text, **never a component call** (a component's hydration ids are baked into the shell); use
+  `set_text` for user data (it escapes) and `set` for trusted HTML; a slot the fill provider does
+  not set emits nothing; a fill for a slot the route never declared is ignored. Structure that
+  varies (signed in vs out) is **another shell route**, not a branch inside one.
 - **`handle(&mut req)` fills `req.route_params`** for the matched pattern (after which `req.param`
-  works), then dispatches: redirects → live routes → pre-rendered pages/assets → the 404 route.
+  works), then dispatches: redirects → live routes → shell routes → pre-rendered pages/assets →
+  the 404 route.
 - **Cache policy is per route**: pre-rendered is `no-cache` + ETag (304 on `If-None-Match`); a live
   route is `no-store` with no validator unless you pass `cache_control` (and `vary`, e.g.
   `"accept-language"`).
 - **`finish()` writes only the pre-rendered routes** (plus sitemap/robots). A per-request route is not
   an artifact — a static export of an app with live routes is exactly the exportable subset.
+
+A shell route, end to end:
+
+```chemical
+public func Dashboard(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<header class=\"bar\">")
+    page.slot("account")               // filled per request; the rest is frozen
+    page.append_html("</header>")
+    #html { <DashboardBody /> }        // a component is fine *outside* a slot
+}
+
+public func DashboardFills(req : &http::Request) : web::SlotFills {
+    var f = web::SlotFills()
+    f.set_text("account", "ada")       // escaped; `set` splices trusted HTML verbatim
+    return f
+}
+
+app.shell("/dashboard", Dashboard, DashboardFills)   // private, no-cache, no ETag
+```
 
 ### Sessions, cookies and CSRF
 
@@ -744,8 +774,8 @@ of the right-hand column has landed yet** — code written against it will not c
 | capability | today | planned (not available yet) |
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
-| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web::App` (`app.page("/", Home)`), `web::Bundle`, `web::Shell` + slots |
-| serving | **`web::App`** (route table: `page`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `webserve` bridge | per-route chunks, shell+slots (byte-range) delivery, `Vary: Cookie` render hook |
+| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle) | `web_build` unit graph, route-closure chunks, `web::Bundle` |
+| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), `webserve` bridge | per-route chunks, CSS chunks + `modulepreload`, `Vary: Cookie` render hook |
 | sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
 | client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |

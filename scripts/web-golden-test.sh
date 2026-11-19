@@ -182,8 +182,13 @@ if build_fixture router; then
     bundle_file="$d/assets/$(basename "$home_ref")"
     check "router: a route-only component ships in that route's chunk" \
           "$([ -n "$home_chunk_ref" ] && [ "$(has "$home_chunk" 'function router_NavLink(props)')" = 1 ] && [ "$(hasnt "$bundle_file" 'function router_NavLink(props)')" = 1 ] && echo 1 || echo 0)"
-    check "router: a component two routes share stays in the bundle" \
-          "$([ "$(has "$bundle_file" 'function router_fixture_RouterApp(props)')" = 1 ] && [ "$(hasnt "$home_chunk" 'function router_fixture_RouterApp(props)')" = 1 ] && echo 1 || echo 0)"
+    # Shared definitions live in the vendor bundle (one file every page loads and
+    # caches forever), never in a single route's chunk.
+    vendor_file=$(ls "$d"/assets/app.vendor.*.js 2>/dev/null | head -1)
+    check "router: a component two routes share stays in the vendor bundle" \
+          "$([ -n "$vendor_file" ] && [ "$(has "$vendor_file" 'function router_fixture_RouterApp(props)')" = 1 ] && [ "$(hasnt "$home_chunk" 'function router_fixture_RouterApp(props)')" = 1 ] && echo 1 || echo 0)"
+    check "router: the runtime bundle carries no component definition" \
+          "$([ "$(hasnt "$bundle_file" 'function router_fixture_RouterApp(props)')" = 1 ] && [ "$(hasnt "$bundle_file" 'function router_NavLink(props)')" = 1 ] && echo 1 || echo 0)"
     check "router: every dispatched component is reachable from its page" \
           "$(graph_check "$d" >/tmp/web_golden_router_graph.txt && echo 1 || echo 0)"
     probe_strict "$d" "router"
@@ -202,10 +207,12 @@ if build_fixture shell; then
     grace_ref=$(grep -o 'src="[^"]*app\.[0-9a-f]*\.js"' "$d/grace/index.html" | head -1 | sed 's/src="//;s/"$//')
     check "shell: the two renders share one hashed bundle ($ada_ref)" \
           "$([ -n "$ada_ref" ] && [ "$grace_ref" = "$ada_ref" ] && [ "$(basename "$ada_ref")" != "$ada_ref" ] && echo 1 || echo 0)"
-    # Both renders use both components, so nothing may move out of the bundle:
-    # one copy, shared, is the point of a chunk graph with a shared baseline.
-    check "shell: components both routes use stay in the shared bundle" \
-          "$([ "$(has "$d/assets/$(basename "$ada_ref")" 'function shell_fixture_AppShell(props)')" = 1 ] && [ "$(has "$d/assets/$(basename "$ada_ref")" 'function shell_fixture_Dashboard(props)')" = 1 ] && echo 1 || echo 0)"
+    # Both renders use both components, so nothing may move out of the vendor
+    # bundle: one copy, shared, is the point of a chunk graph with a shared
+    # baseline.
+    shell_vendor=$(ls "$d"/assets/app.vendor.*.js 2>/dev/null | head -1)
+    check "shell: components both routes use stay in the vendor bundle" \
+          "$([ -n "$shell_vendor" ] && [ "$(has "$shell_vendor" 'function shell_fixture_AppShell(props)')" = 1 ] && [ "$(has "$shell_vendor" 'function shell_fixture_Dashboard(props)')" = 1 ] && echo 1 || echo 0)"
     check "shell: every dispatched component is reachable from its page" \
           "$(graph_check "$d" >/tmp/web_golden_shell_graph.txt && echo 1 || echo 0)"
     probe_strict "$d" "shell"

@@ -438,6 +438,13 @@ Nothing to configure; check it with `site.chunked_unit_count()` / `site.retained
 `site.unit_report()` (`name:owners` per definition). The split can only be conservative: a definition
 it cannot prove self-contained stays shared.
 
+**Three tiers, each content-hashed.** Definitions that more than one route (or a `live`/`shell`
+route) uses do not sit in the runtime bundle either: they go to `assets/app.vendor.<hash>.js`, which
+every page loads before the runtime bundle and caches forever. So a page loads runtime + `vendor` +
+its own chunk, and changing one page invalidates that page's chunk and nothing else. The vendor URL
+is on the site (`site.bundle_vendor_url()`), and `vendor_unit_count()` reports what it holds. The
+route chunks change only when a route's own components change.
+
 Two rules:
 
 - **Attach before rendering.** `site.add(&mut page, path)` attaches the sink; anything page-independent
@@ -474,6 +481,46 @@ if(again.not_modified()) { /* 304: no body, same ETag + cache policy */ }
 `..` traversal is refused. The bundle's ETag is the same hash that is in its file name, so an immutable
 asset revalidates without re-hashing. `artifact_count()` / `artifact_path(i)` / `artifact_bytes(i)`
 expose the build's manifest (pages, bundle, chunks).
+
+### Embedding the site in the binary (two-phase build)
+
+A deployed server often should not ship a directory of files that can drift from the code. The
+build can write its own artifacts as Chemical source instead of (or in addition to) files:
+
+```chemical
+// Phase 1 — the site builder.
+if(!site.build()) { /* error_message() */ }
+site.finish()                                    // write the tree (optional)
+if(!site.write_assets_module("build/assets_gen.ch", "assets_gen")) { /* error_message() */ }
+```
+
+The generated module is plain Chemical — `embedded_asset_count()`, `embedded_asset_path(i)`,
+`embedded_asset_content_type(i)`, `embedded_asset_immutable(i)`, `embedded_asset_bytes(i)` — so a
+second program can serve exactly those bytes with no site, no page and no component in it:
+
+```chemical
+// Phase 2 — the server. Imports the generated module; nothing else knows the site.
+var bundle = Bundle.make()
+var i : ubigint = 0
+while(i < embedded_asset_count()) {
+    if(!bundle.add_owned(embedded_asset_path(i), embedded_asset_bytes(i),
+                         embedded_asset_content_type(i), embedded_asset_immutable(i))) {
+        unsafe { printf("%s\n", bundle.error_message().data()) }
+    }
+    i = i + 1
+}
+
+var res = bundle.respond(string_view("/about/"))          // SiteResponse, same contract as the site
+if(bundle.respond_if_none_match(string_view("/about/"), res.etag).not_modified()) { /* 304 */ }
+```
+
+`page.Bundle` (`lang/libs/page/src/bundle.ch`) is the container: `respond`/`respond_if_none_match`
+behave exactly like `StaticSite`'s (directory forms, `no-cache` + ETag for HTML, immutable for hashed
+assets, 404), and `add_owned` takes ownership of the bytes so the generated literals are not copied.
+It is `page.Bundle`, not `web::Bundle`, because `web` already imports `page` — one spelling per
+operation. The rule this enforces: **a byte the server answers with must have existed in the build
+that produced it**, which is why `scripts/web-embedded-test.sh` compiles the server against the
+generated module and compares its bodies with the files phase 1 wrote.
 
 ### Mixed sites: pre-rendered pages and per-request routes
 
@@ -577,7 +624,12 @@ srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
   HTML/text, **never a component call** (a component's hydration ids are baked into the shell); use
   `set_text` for user data (it escapes) and `set` for trusted HTML; a slot the fill provider does
   not set emits nothing; a fill for a slot the route never declared is ignored. Structure that
-  varies (signed in vs out) is **another shell route**, not a branch inside one.
+  varies (signed in vs out) is **another shell route** (`app.shell_variant`), not a branch inside one.
+- **`shell_variant(pattern, handler, fills, when)` is one pattern, several frozen documents.** Each
+  variant is rendered and frozen separately at build; dispatch picks the first variant whose
+  `(req) => bool` predicate accepts the request and falls back to the plain `app.shell` registered
+  for that pattern. Use it to vary *chrome* without branching inside a frozen buffer; the cost per
+  request is one predicate call.
 - **`handle(&mut req)` fills `req.route_params`** for the matched pattern (after which `req.param`
   works), then dispatches: redirects → live routes → shell routes → pre-rendered pages/assets →
   the 404 route.
@@ -784,8 +836,8 @@ of the right-hand column has landed yet** — code written against it will not c
 | capability | today | planned (not available yet) |
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
-| assembling pages | `HtmlPage` + `StaticSite` (one shared, hashed bundle, route-closure chunks) | `web_build` two-phase build, `vendor` as its own chunk, `web::Bundle` |
-| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, `webserve` bridge | CSS chunks + `modulepreload`, `Vary: Cookie` render hook |
+| assembling pages | `HtmlPage` + `StaticSite` (runtime bundle + `vendor` bundle + route chunks, all content-hashed) | a `web_build` command that drives the two-phase build |
+| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, `webserve` bridge, `page.Bundle` (embedded artifact set + `StaticSite.write_assets_module`) | CSS chunks + `modulepreload`, `Vary: Cookie` render hook, loading a `Bundle` from disk |
 | sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
 | client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |

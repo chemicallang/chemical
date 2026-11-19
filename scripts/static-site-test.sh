@@ -53,8 +53,8 @@ build_and_run static_site_baseline lang/compiled/static_site_baseline.exe
 "./lang/compiled/static_site.exe" > /tmp/static_site_respond.txt 2>&1
 resp=/tmp/static_site_respond.txt
 status_of() { grep -F "respond $1 ->" "$resp" | head -1 | sed 's/.* -> \([0-9]*\) .*/\1/'; }
-check "the site builds 6 artifacts (2 pages, bundle, CSS, 2 chunks)" \
-      "$([ "$(grep -o 'artifacts=[0-9]*' "$resp" | head -1)" = "artifacts=6" ] && echo 1 || echo 0)"
+check "the site builds 7 artifacts (2 pages, bundle, vendor, CSS, 2 chunks)" \
+      "$([ "$(grep -o 'artifacts=[0-9]*' "$resp" | head -1)" = "artifacts=7" ] && echo 1 || echo 0)"
 check "in memory, / serves a 200 HTML page" \
       "$([ "$(status_of /)" = "200" ] && grep -qF 'respond / -> 200 | text/html' "$resp" && echo 1 || echo 0)"
 check "in memory, a nested route serves 200 at /about/ and /about" \
@@ -70,7 +70,7 @@ check "in memory, revalidating the bundle is a 304 with no body" \
 check "in memory, revalidating a page is a 304 that stays no-cache" \
       "$(grep -qF 'conditional page -> 304 | 0 B | no-cache' "$resp" && echo 1 || echo 0)"
 check "in memory, a stale ETag gets the full page again" \
-      "$(grep -qF 'stale etag -> 200 | 409 B' "$resp" && echo 1 || echo 0)"
+      "$(grep -qE 'stale etag -> 200 \| [0-9]+ B' "$resp" && echo 1 || echo 0)"
 
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"
@@ -109,8 +109,8 @@ check "the dynamic page references the shared bundle the static pages use" \
       "$(printf '%s' "$dyn_ada" | grep -qF "$index_ref" && echo 1 || echo 0)"
 check "the dynamic page does not repeat the hydration runtime" \
       "$(printf '%s' "$dyn_ada" | grep -qF '$__uni_hydration_queue' && echo 0 || echo 1)"
-check "the dynamic page has exactly one external script (the bundle)" \
-      "$([ "$(printf '%s' "$dyn_ada" | grep -o '<script src=' | wc -l)" = "1" ] && echo 1 || echo 0)"
+check "the dynamic page has exactly the shared scripts (vendor + bundle)" \
+      "$([ "$(printf '%s' "$dyn_ada" | grep -o '<script src=' | wc -l)" = "2" ] && printf '%s' "$dyn_ada" | grep -qF 'app.vendor.' && echo 1 || echo 0)"
 check "the dynamic page carries its own request-scoped dispatch inline" \
       "$(printf '%s' "$dyn_ada" | grep -qF 'window.$__uni_c(' && echo 1 || echo 0)"
 check "a dynamic render sees the request's data, not the warm-pass data" \

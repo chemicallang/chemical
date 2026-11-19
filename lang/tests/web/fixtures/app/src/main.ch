@@ -95,6 +95,31 @@ public func DashboardFills(req : &http::Request) : web::SlotFills {
     return f
 }
 
+// ── Shell variants (§3.12, Phase 4) ──────────────────────────────────────
+// Two shapes of one route, each frozen separately, chosen per request by a
+// predicate — the alternative to branching inside a frozen buffer.
+public func VariantAdmin(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<div class=\"variant\"><h1>admin</h1></div>")
+}
+
+public func VariantGuest(page : &mut HtmlPage, req : &http::Request) {
+    page.append_html("<div class=\"variant\"><h1>guest</h1></div>")
+}
+
+func wants_admin(req : &http::Request) : bool {
+    var v = req.headers.get("X-Role")
+    if(v is Option.Some) {
+        var Some(role) = v else unsafe { unreachable }
+        return role.equals(&std::string_view("admin"))
+    }
+    return false
+}
+
+func no_fills(req : &http::Request) : web::SlotFills {
+    var _ = req
+    return web::SlotFills()
+}
+
 public func DashboardEscaped(page : &mut HtmlPage, req : &http::Request) {
     page.append_html("<div class=\"dash\"><header class=\"bar\">")
     page.slot("account")
@@ -253,6 +278,17 @@ func body_of(res : &http::Response) : string_view {
     return out
 }
 
+func request_role(app : &mut web::App, path : string_view, role : string_view) : http::Response {
+    var req = http::Request()
+    req.path.append_view(&path)
+    var k = string()
+    k.append_view("X-Role")
+    var v = string()
+    v.append_view(&role)
+    req.headers.insert(k, v)
+    return app.handle(&mut req)
+}
+
 func request(app : &mut web::App, path : string_view, inm : string_view) : http::Response {
     var req = http::Request()
     req.path.append_view(&path)
@@ -342,6 +378,8 @@ public func main() : int {
     app.shell("/dash", DashboardShell, DashboardFills)
     app.shell("/dash-escaped", DashboardEscaped, EscapedFills)
     app.live("/dash-full", DashboardFull)
+    app.shell_variant("/variant", VariantAdmin, no_fills, wants_admin)
+    app.shell("/variant", VariantGuest, no_fills)
     app.redirect("/prices", "/pricing")
     app.not_found(Missing)
     app.export_sitemap("https://example.com", true)
@@ -434,6 +472,17 @@ public func main() : int {
         printf("graph chunked=%llu retained=%llu unbacked=%llu units=[%s] note=[%.*s]\n",
             app.site_chunked_units(), app.site_retained_units(), app.static_site().unbacked_unit_count(),
             graph_view.data(), note_view.size() as int, note_view.data())
+    }
+
+    // ── Shell variants: same pattern, different frozen document ────────────
+    var as_admin = request_role(&mut app, "/variant", "admin")
+    var as_guest = request_role(&mut app, "/variant", "viewer")
+    var admin_body = body_of(&as_admin)
+    var guest_body = body_of(&as_guest)
+    unsafe {
+        printf("variant admin=%d guest=%d\n",
+            contains_text(&admin_body, ">admin<") as int,
+            contains_text(&guest_body, ">guest<") as int)
     }
 
     var iters = 2000

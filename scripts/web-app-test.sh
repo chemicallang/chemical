@@ -63,8 +63,10 @@ body_of() { grep -F "body $1 = " "$log" | head -1 | sed "s/.*body $1 = //"; }
 # ── Build ────────────────────────────────────────────────────────────────
 check "the app builds (no error message)" \
       "$([ "$(contains "$log" 'build=1 msg=')" = "1" ] && echo 1 || echo 0)"
-check "the app builds 8 artifacts: 2 pages, bundle, CSS, 2 chunks, sitemap, robots" \
-      "$([ "$(contains "$log" 'artifacts=8 pages=2')" = "1" ] && echo 1 || echo 0)"
+check "the app builds 9 artifacts: 2 pages, bundle, vendor, CSS, 2 chunks, sitemap, robots" \
+      "$([ "$(contains "$log" 'artifacts=9 pages=2')" = "1" ] && echo 1 || echo 0)"
+check "the shared component definitions ship in one vendor bundle" \
+      "$([ "$(contains "$log" 'artifact assets/app.vendor.')" = "1" ] && echo 1 || echo 0)"
 check "a pre-rendered route is exported as <route>/index.html" \
       "$([ "$(contains "$log" 'artifact index.html')" = "1" ] && [ "$(contains "$log" 'artifact pricing/index.html')" = "1" ] && echo 1 || echo 0)"
 check "a per-request route is not exported (no account artifact)" \
@@ -144,7 +146,7 @@ check "a request after the build keeps working" \
 
 # ── Shell + slots: frozen chrome, spliced fill (§3.12) ────────────────────
 check "shell routes are compiled at build with their slots recorded" \
-      "$([ "$(contains "$log" 'shell routes=2 frozen=')" = "1" ] && [ "$(contains "$log" 'compiled=1 slots=1')" = "1" ] && echo 1 || echo 0)"
+      "$([ "$(contains "$log" 'shell routes=4 frozen=')" = "1" ] && [ "$(contains "$log" 'compiled=1 slots=1')" = "1" ] && echo 1 || echo 0)"
 check "a shell route is served with its per-user cache policy" \
       "$([ "$(status_of /dash)" = "200" ] && [ "$(cc_of /dash)" = "private, no-cache" ] && [ -z "$(etag_of /dash)" ] && echo 1 || echo 0)"
 check "the fill lands in the frozen region and the chrome is intact" \
@@ -155,6 +157,8 @@ check "a text fill is escaped (no raw markup can break out)" \
       "$([ "$(contains "$log" 'shell escaped=1 raw=0')" = "1" ] && echo 1 || echo 0)"
 check "a shell route is not exported as a pre-rendered page" \
       "$(lacks "$log" 'artifact dash')"
+check "a shell variant serves its own frozen document per request" \
+      "$([ "$(contains "$log" 'variant admin=1 guest=1')" = "1" ] && echo 1 || echo 0)"
 
 # ── Unit graph (§3.13) ───────────────────────────────────────────────────
 # `/pricing` is the only route that renders `PricingNote`, so its definition

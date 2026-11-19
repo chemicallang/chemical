@@ -281,6 +281,18 @@ public struct SlotFills {
 /// This is the only code that runs per request for a shell route.
 public type SlotValues = (req : &http::Request) => SlotFills
 
+/// Picks between the variants of one shell route (`App.shell_variant`). Each
+/// variant is a separately frozen document, so choosing one per request costs one
+/// predicate call — the chrome it serves is still byte-range splices.
+public type ShellPredicate = (req : &http::Request) => bool
+
+/// The predicate a plain `shell` route carries: never consulted (`has_when` is
+/// false), so it only has to exist to keep the route struct uniform.
+public func default_shell_predicate(req : &http::Request) : bool {
+    var _ = req
+    return true
+}
+
 // Index of `needle` in `hay` at or after `from`, or -1. A byte scan rather than a
 // `string` search so a shell's markup is never copied to look for a marker.
 func find_bytes(hay : &std::string_view, needle : &std::string_view, from : ubigint) : int {

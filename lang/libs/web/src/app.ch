@@ -83,6 +83,12 @@ public struct ShellRoute {
     /// The frozen document; empty until `build()` compiles it.
     var shell : Shell
     var compiled : bool
+    /// Variant selection: when `has_when`, this route answers only if the
+    /// predicate accepts the request; otherwise it is the route's fallback. All
+    /// variants of a pattern share the pattern, so dispatch is
+    /// "first matching predicate, else the fallback".
+    var when : ShellPredicate
+    var has_when : bool
 
     public func is_compiled(&self) : bool {
         return compiled
@@ -200,7 +206,42 @@ public struct App {
             cache_control : cache,
             vary : vary_s,
             shell : Shell(),
-            compiled : false
+            compiled : false,
+            when : default_shell_predicate,
+            has_when : false
+        })
+    }
+
+    /// A **variant** of a shell route (Phase 4 §3.12): the same pattern, a different
+    /// frozen document, chosen per request by `when`.
+    ///
+    /// This is how "signed in vs signed out" chrome is done without branching
+    /// inside a frozen buffer (which would defeat the byte-range serving): register
+    /// one variant per shape, each with its own handler and fill provider, and the
+    /// app picks the first whose predicate accepts the request. A variant registered
+    /// with `shell` (no predicate) is the fallback when no predicate matches.
+    ///
+    /// Every variant is warmed and compiled at build, so each one's components are
+    /// in the bundle and a request is still one splice per slot.
+    public func shell_variant(&mut self, pattern : string_view, handler : PageHandler, values : SlotValues,
+                              when : ShellPredicate,
+                              cache_control : string_view = "private, no-cache", vary : string_view = "") {
+        var p = string()
+        p.append_view(&pattern)
+        var cache = string()
+        cache.append_view(&cache_control)
+        var vary_s = string()
+        vary_s.append_view(&vary)
+        shells.push_back(ShellRoute {
+            pattern : p,
+            handler : handler,
+            values : values,
+            cache_control : cache,
+            vary : vary_s,
+            shell : Shell(),
+            compiled : false,
+            when : when,
+            has_when : true
         })
     }
 
@@ -419,17 +460,36 @@ public struct App {
 
         // 2b. A shell route. Same pattern matching as a live route, but the body is
         //     the frozen shell plus one splice per slot: no component work at all.
+        //     A pattern may have several variants (`shell_variant`): the first one
+        //     whose predicate accepts the request wins, and a plain `shell` route with
+        //     the same pattern is the fallback.
         params.clear()
         var shell_matched : int = -1
+        var fallback : int = -1
+        var fallback_params = vector<pair<string, string>>()
         var si : ubigint = 0
         while(si < shells.size()) {
             var r = unsafe(&*shells.get_ptr(si))
             var pv = r.pattern.to_view()
-            if(match_route_pattern(&pv, &path, &mut params)) {
-                shell_matched = si as int
-                break
+            var trial = vector<pair<string, string>>()
+            if(match_route_pattern(&pv, &path, &mut trial)) {
+                if(r.has_when) {
+                    var pred = r.when
+                    if(pred(req)) {
+                        shell_matched = si as int
+                        params = trial
+                        break
+                    }
+                } else if(fallback < 0) {
+                    fallback = si as int
+                    fallback_params = trial
+                }
             }
             si = si + 1
+        }
+        if(shell_matched < 0 && fallback >= 0) {
+            shell_matched = fallback
+            params = fallback_params
         }
         if(shell_matched >= 0) {
             fill_route_params(req, &params)

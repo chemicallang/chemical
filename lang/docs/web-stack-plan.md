@@ -1425,11 +1425,26 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    library: the graph is a property of the sink that already owns the bytes, so `SharedAssets`
    records it (`SharedUnit`: the component's encoded location, its name, the byte range it occupies
    after hoisting) and `StaticSite.build()` turns it into chunks before freezing the bundle
-   (items 3 and 7 below). Still open: the standalone `web_build` library and the two-phase
-   client/server orchestration.
+   (items 3 and 7 below). Shared definitions go to their own **`vendor`** bundle
+   (`<base>.vendor.<hash>.js`, one file every page loads and caches forever), so the runtime bundle
+   is now only the runtime. **The two-phase mechanism landed too**: `StaticSite.write_assets_module`
+   writes the built bytes as Chemical source (one escaped literal per 3 KB) and `page.Bundle`
+   (`lang/libs/page/src/bundle.ch`) serves them, so a deployed program carries its site inside the
+   binary. `scripts/web-embedded-test.sh` runs the whole loop — build → generate → compile a
+   second program that contains no site, page or component → compare its responses with the files
+   the first phase wrote — and it is byte-identical (12 checks). Still open: a `web_build` *command*
+   that owns that orchestration (today a gate script does), and CSS chunks (item 6).
 2. `web` module: `App` / `Bundle` — route table, in-memory render, `/assets/*` with ETag,
    embedded-or-disk loading. Requires making `Server.dispatch` public (or a listener-free `App`)
    and adding an in-memory asset map (none exists today).
+   **Landed 2026-11-19**: `App` serves from memory, and the asset map is `page.Bundle` — every
+   artifact with its bytes, `Content-Type`, strong ETag and immutable flag, serving `/`, directory
+   forms (`/about` and `/about/`), 304 from `If-None-Match` and 404, with exactly `StaticSite`'s
+   contract. It is `page.Bundle` rather than `web::Bundle` because the container is a built page
+   site, and `web` imports `page` (a `web::Bundle` would be a second spelling of the same object).
+   Still open: **disk** loading. `fs::read_dir` exists but `DirEntry.path()`/`file_name()`/`is_dir()`
+   are internal to `fs`, so a loader would have to widen that public surface; deferred rather than
+   half-done.
 3. **Closure derivation**: render each route once at build/first start to collect `require_*` ids,
    map ids → units, assign shared units to `vendor`, freeze the graph.
    **Landed 2026-11-19** — derived at emission time instead of by scraping the rendered output, so
@@ -1462,8 +1477,16 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `fixtures/app` shows both directions at once (`chunked=1 retained=1`): `PricingNote` moves into
    `/pricing`'s chunk, `DashBody` (rendered by the shell and live routes) stays in the bundle.
    `unit_report()`/`chunked_unit_count()`/`retained_unit_count()`/`split_note()` expose the graph
-   for the gates. Still open: `vendor` as a *separate* chunk (today shared units stay in the
-   runtime bundle), CSS units, and lazy chunking.
+   for the gates.
+   * **`vendor` landed (2026-11-19)**: `plan_vendor` takes every definition that more than one
+     pre-rendered route uses (or that a per-request route uses) out of the runtime bundle into
+     `<base>.vendor.<hash>.js`, which every page loads *before* the runtime bundle. So the runtime
+     bundle now holds only the runtime, `vendor` holds the shared component definitions, and each
+     route chunk holds what only that route uses — three tiers, each content-hashed, so a change to
+     one page invalidates that page's chunk and nothing else. `vendor_unit_count()` and
+     `bundle_vendor_url()` expose it; `web-graph.sh` accepts a definition in the runtime bundle or
+     in `vendor`, and `web-golden-test.sh` asserts the runtime bundle carries **no** component
+     definition at all. Still open: CSS units and lazy chunking.
 4. **`web::Shell` + slots** (§3.12): byte-range slots, per-route frozen buffers, per-variant
    shells, `shell.emit` with no component work. Delivery mode is chosen per route: static,
    shell+slots, or full SSR — one `web::App` can mix them.
@@ -1483,9 +1506,14 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    Measured on `fixtures/app` (a header slot around a universal-component body), 2000 requests:
    **`emit` 8.4 ms vs full SSR 811 ms — ~95x (91–97x across runs)**, and `emit` is byte-identical to the full-SSR twin
    (`web-app-test.sh`, which also asserts the escape and the cache policy). Per-variant shells are
-   just one `app.shell` per variant pattern — no branch inside a frozen buffer. Still open: CSS
-   chunking per route and `modulepreload` (item 6), and the unit graph that would place a
-   component in `vendor` vs a route chunk (item 1/3).
+   just one `app.shell` per variant pattern — no branch inside a frozen buffer.
+   **Variants are first-class now (2026-11-19)**: `app.shell_variant(pattern, handler, fills, when)`
+   registers the same pattern with a `(req) => bool` predicate; dispatch picks the first variant
+   whose predicate accepts the request and falls back to a plain `app.shell` with that pattern. Each
+   variant is warmed and frozen separately, so a request is still one splice per slot and the
+   choice costs one predicate call (`fixtures/app` serves an admin and a guest document from one
+   `/variant` pattern, gated by `web-app-test.sh`). Still open: CSS chunking per route and
+   `modulepreload` (item 6).
 5. Runtime extracted from `page.ch` into `lang/libs/page/runtime/*.js`, embedded at build time
    (a LabBuildCompiler asset-embed step — owned here, with a byte budget). Also removes a constant
    compile-time cost from every `page` consumer (§3.16). — **partially landed, by a different route**:
@@ -1542,14 +1570,22 @@ runtime + vendor; each route loads only its chunk; a personalised route is serve
 byte-identically to full SSR; no inline `<script>`.
 
 Status against that exit (2026-11-19): **served by `web::App`** from the in-memory artifact set —
-landed; **two pages share the runtime** — landed (`StaticSite`, one content-hashed bundle);
-**each route loads only its chunk** — route-only *components* now travel in the route's chunk
-(item 3), while `vendor` is still the runtime bundle rather than a second chunk; **a personalised
-route is a slot shell** — landed, ~95x cheaper than full SSR and byte-identical (`web-app-test.sh`);
-**no inline `<script>`** — true for pre-rendered pages, while a per-request/shell page still inlines
-its own dispatch tail (there is no per-request chunk name to cache, and that tail carries this
-request's values). Still open: `assets.ch` embedding, the `web_build` two-phase build, CSS chunks,
-`modulepreload`, and the runtime extraction (item 5).
+landed, and a program can now be compiled *without* the site at all: `StaticSite.write_assets_module`
+emits the bytes as Chemical source and `page.Bundle` serves them, byte-identically
+(`web-embedded-test.sh`, 12 checks, runs the two builds back to back); **two pages share the
+runtime** — landed (`StaticSite`, one content-hashed bundle); **each route loads only its chunk, and
+shared definitions are their own `vendor` bundle** — landed (item 3); **a personalised route is a
+slot shell** — landed, ~95x cheaper than full SSR and byte-identical (`web-app-test.sh`), with
+per-request **variants** selected by predicate; **no inline `<script>`** — true for pre-rendered pages,
+while a per-request/shell page still inlines its own dispatch tail (there is no per-request chunk
+name to cache, and that tail carries this request's values).
+
+Still open, in the order they should be taken: **(a)** a `web_build` command that owns the two-phase
+orchestration the gate script performs today (build → `write_assets_module` → build the server);
+**(b)** CSS chunks + `@layer` + `modulepreload` (item 6 — needs its own cascade-semantics pass);
+**(c)** the runtime extraction (item 5's compile-time half); **(d)** `Bundle` loading a prebuilt tree
+from disk, which needs `fs` to publish `DirEntry` accessors; **(e)** lazy chunking. None of these
+block the exit contract above; each is recorded with the reason it was not taken now.
 
 ### Phase 5 — Production output, static sites, sessions, and the skills kit  *(M)* — **last v1 phase**
 
@@ -1842,10 +1878,13 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    `web-app-test.sh`). **Unit graph + route-closure chunking done 2026-11-19** (Phase 4 items 1/3/7
    as recorded there: ranges + per-route usage recorded in `SharedAssets`, `plan_chunks` moves a
    route-only definition into that route's chunk, `scripts/web-graph.sh` asserts closure and no
-   duplicates; `fixtures/router` bundle 141,625 B → 139,837 B and `fixtures/app` shows
-   `chunked=1 retained=1`, i.e. a per-request component stays shared). Still open: the standalone
-   `web_build` two-phase build and `assets.ch` embedding, `Bundle` + per-variant shell *picking*
-   helpers, `vendor` as its own chunk, CSS chunks and `modulepreload`. Step 5 and 7's static half
+   duplicates;   `fixtures/router` bundle 141,625 B → 139,837 B and `fixtures/app` shows
+   `chunked=1 retained=1`, i.e. a per-request component stays shared). **Phase 4 is now complete
+   apart from CSS:** `vendor` is its own chunk, `page.Bundle` serves an embedded artifact set,
+   `StaticSite.write_assets_module` emits it as source (two-phase build proven end-to-end by
+   `web-embedded-test.sh`), and `app.shell_variant(..., when)` picks between frozen shells per
+   request. Still open: a `web_build` *command* for that orchestration, CSS chunks +
+   `modulepreload`, `Bundle` loading from disk, lazy chunking, and item 5's runtime extraction. Step 5 and 7's static half
    are satisfied by `page.StaticSite` and the probe script.
 8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
    `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by

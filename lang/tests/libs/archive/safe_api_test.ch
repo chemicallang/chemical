@@ -280,8 +280,8 @@ public func archive_safe_rejects_symlink_escape(env : &mut TestEnv) {
 
         var dest = archive_safe_temp_pathbuf("p24_symlink_dest")
         var ds = dest.as_string()
-        fs::raw::remove_dir_all_recursive(ds.c_str())
-        fs::raw::create_dir_all(ds.c_str())
+        unsafe(fs::raw::remove_dir_all_recursive(ds.c_str()))
+        unsafe(fs::raw::create_dir_all(ds.c_str()))
 
         var target = std::string("/tmp")
         var link = ds.copy()
@@ -293,7 +293,7 @@ public func archive_safe_rejects_symlink_escape(env : &mut TestEnv) {
         var Err(err) = extracted else unsafe { unreachable }
         if(err !is archive::ArchiveError.UnsafePath) { env.error("expected UnsafePath for symlink escape") }
 
-        fs::raw::remove_dir_all_recursive(ds.c_str())
+        unsafe(fs::raw::remove_dir_all_recursive(ds.c_str()))
     }
 }
 

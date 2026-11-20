@@ -127,6 +127,9 @@ public struct App {
     private var site_url : string
     private var want_sitemap : bool
     private var want_robots : bool
+    /// Replayed in `build()`: it rebuilds the sink from the final configuration, so
+    /// a flag set before that must be stored here, not on the old sink.
+    private var want_minify : bool
 
     private var built : bool
     private var failed : bool
@@ -157,6 +160,7 @@ public struct App {
             site_url : string(),
             want_sitemap : false,
             want_robots : false,
+            want_minify : false,
             built : false,
             failed : false,
             failure : string()
@@ -274,6 +278,17 @@ public struct App {
         base_path.append_view(&base)
     }
 
+    /// Minify the frozen bundle's JS/CSS (`page.StaticSite.set_minify`). Call before
+    /// `build()`; it is a build-time cost only, and never changes the served HTML.
+    public func set_minify(&mut self, on : bool) {
+        want_minify = on
+        site.set_minify(on)
+    }
+
+    public func is_minify_enabled(&self) : bool {
+        return want_minify
+    }
+
     public func route_count(&self) : ubigint {
         return routes.size()
     }
@@ -348,6 +363,7 @@ public struct App {
         var out_view = out_dir.to_view()
         var name_view = base_name.to_view()
         site = StaticSite.make(out_view, name_view, prefix_view)
+        if(want_minify) { site.set_minify(true) }
 
         if(!warm_artifacts()) { return false }
 

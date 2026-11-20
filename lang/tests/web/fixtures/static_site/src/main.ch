@@ -97,9 +97,10 @@ func report(site : &StaticSite, path : std::string_view) {
     }
 }
 
-public func main() : int {
-    var site = StaticSite.make("lang/compiled/static_site_out", "app", "assets")
-
+// Two pages, one per-request route and one warm pass: everything `build()` needs to
+// freeze a bundle. Shared by the raw build and its minified twin so the two outputs
+// differ in exactly one thing (the site's `set_minify` flag).
+func build_site(site : &mut StaticSite) : bool {
     var index = HtmlPage()
     site.add(&mut index, "index.html")
     index.defaultUniversalSetup()
@@ -118,12 +119,18 @@ public func main() : int {
     warm.defaultUniversalSetup()
     render_account(&mut warm, std::string_view("warm"))
 
-    // In-memory build + serving, before anything touches the filesystem.
+    // In-memory build: freeze the bundle and plan the per-route chunks.
     if(!site.build()) {
         unsafe { printf("site error: %s\n", site.error_message().data()) }
-        return 1
+        return false
     }
     unsafe { printf("artifacts=%llu\n", site.artifact_count()) }
+    return true
+}
+
+public func main() : int {
+    var site = StaticSite.make("lang/compiled/static_site_out", "app", "assets")
+    if(!build_site(&mut site)) { return 1 }
     report(&site, "/")
     report(&site, "/index.html")
     report(&site, "/about/")
@@ -230,5 +237,38 @@ public func main() : int {
         return 1
     }
     unsafe { printf("pages=%llu\n", site.page_count()) }
+
+    // ── minification (Phase 5 item 1) ────────────────────────────────────
+    // The same site, frozen with `set_minify(true)`. Nothing else differs, so the
+    // sizes below are the minifier's whole effect, and the graph checks that run on
+    // this build prove the unit ranges survived it (a chunk is cut *after*
+    // minification, from a range that minification recomputed).
+    var mini = StaticSite.make("lang/compiled/static_site_min_out", "app", "assets")
+    mini.set_minify(true)
+    if(!build_site(&mut mini)) { return 1 }
+    var mini_js = mini.bundle_js_url()
+    var mini_css = mini.bundle_css_url()
+    var raw_js = site.bundle_js_url()
+    var raw_css = site.bundle_css_url()
+    // Both builds must chunk the same way: minification rewrites the bytes a unit
+    // range points at, so a recomputed range that is off by one would move the
+    // wrong code into a route's chunk (or none at all).
+    unsafe {
+        printf("minify js=%llu->%llu css=%llu->%llu chunked=%llu/%llu min_js_path=%s\n",
+            site.respond(raw_js).body.size(), mini.respond(mini_js).body.size(),
+            site.respond(raw_css).body.size(), mini.respond(mini_css).body.size(),
+            site.chunked_unit_count(), mini.chunked_unit_count(), mini_js.data())
+    }
+    // The page of the minified build references that build's hashed bundle (the
+    // content hash changed with the bytes) and the bundle is served from it.
+    var mini_page = mini.respond("/")
+    unsafe {
+        printf("minify page=%llu B refs_own=%d\n", mini_page.body.size(),
+            mini_page.body.contains(&mini_js) as int)
+    }
+    if(!mini.finish()) {
+        unsafe { printf("site error: %s\n", mini.error_message().data()) }
+        return 1
+    }
     return 0
 }

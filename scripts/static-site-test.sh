@@ -17,7 +17,9 @@ compiler="${CHX_COMPILER:-cmake-build-debug/TCCCompiler.exe}"
 
 shared_dir="lang/compiled/static_site_out"
 baseline_dir="lang/compiled/static_site_baseline_out"
+min_dir="lang/compiled/static_site_min_out"
 rm -rf "$shared_dir" "$baseline_dir" \
+       lang/compiled/static_site_min_out \
        lang/compiled/webserve_out \
        lang/tests/web/fixtures/static_site/build \
        lang/tests/web/fixtures/static_site_baseline/build \
@@ -85,6 +87,38 @@ asset_big_ns=$(echo "$serve_line" | sed 's/.*asset=[0-9]* B \([0-9]*\) ns\/req.*
 check "a 100 KB asset costs well under 2x a 400 B page (no per-byte work)" \
       "$([ "${asset_big_ns:-0}" -gt 0 ] && [ "${asset_ns:-0}" -gt 0 ] && [ $((asset_big_ns * 10)) -lt $((asset_ns * 25)) ] && echo 1 || echo 0)"
 echo "serving: $serve_line"
+
+# ── minification: same graph, smaller bytes ────────────────────────────────
+# The fixture builds the site twice, raw and with `set_minify(true)`. Same pages,
+# same per-route plan, so the difference is the minifier's whole effect.
+min_line=$(grep 'minify js=' "$resp" | head -1)
+min_js_raw=$(echo "$min_line" | sed 's/.*js=\([0-9]*\)->.*/\1/')
+min_js_out=$(echo "$min_line" | sed 's/.*js=[0-9]*->\([0-9]*\).*/\1/')
+min_css_raw=$(echo "$min_line" | sed 's/.*css=\([0-9]*\)->.*/\1/')
+min_css_out=$(echo "$min_line" | sed 's/.*css=[0-9]*->\([0-9]*\).*/\1/')
+# `chunked=<raw>/<minified>`: the plan must be the same on both sides, because a
+# unit range is recomputed from minified bytes before a chunk is cut out of it.
+min_chunked_raw=$(echo "$min_line" | sed 's/.*chunked=\([0-9]*\)\/[0-9]*.*/\1/')
+min_chunked_out=$(echo "$min_line" | sed 's/.*chunked=[0-9]*\/\([0-9]*\).*/\1/')
+check "the minified bundle keeps the raw build's chunk plan ($min_chunked_raw/$min_chunked_out)" \
+      "$([ "$min_chunked_raw" = "$min_chunked_out" ] && echo 1 || echo 0)"
+check "minification cuts the JS bundle by at least 40% ($min_js_raw -> $min_js_out B)" \
+      "$([ "${min_js_out:-0}" -gt 0 ] && [ $((min_js_out * 10)) -lt $((min_js_raw * 6)) ] && echo 1 || echo 0)"
+check "minification never grows the CSS ($min_css_raw -> $min_css_out B)" \
+      "$([ "${min_css_out:-1}" -le "${min_css_raw:-0}" ] && echo 1 || echo 0)"
+check "the minified build's page references its own hashed bundle" \
+      "$(grep -qF 'minify page=' "$resp" && grep -qF 'refs_own=1' "$resp" && echo 1 || echo 0)"
+# The written bytes, not a print: a parser is the only thing that can say the
+# minified bundle is still JavaScript. Skipped (not passed) when node is absent.
+min_bundle=$(grep 'min_js_path=' "$resp" | head -1 | sed 's/.*min_js_path=\([^ ]*\).*/\1/')
+if command -v node >/dev/null 2>&1; then
+    check "node parses the minified bundle" \
+          "$(node --check "$min_dir/$min_bundle" >/dev/null 2>&1 && echo 1 || echo 0)"
+else
+    echo "skip node --check: node is not installed"
+fi
+
+echo "minify: $min_line"
 
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"

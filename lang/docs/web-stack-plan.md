@@ -68,7 +68,7 @@ the emitter changed*:
 | `import` / `export` / `import()` | 0 / 0 / 0 | 0 / 0 | one concatenated script |
 | source maps | none | none | |
 | asset names | `components.js` (unhashed) | `try.js` (unhashed) | 3 unhashed assets per page |
-| minify headroom (comments + whitespace, exact) | **8.0%** raw | **14.2%** raw | no minifier exists; identifier mangling is on top |
+| minify headroom (comments + whitespace, exact) | **8.0%** raw | **14.2%** raw | superseded: the landed minifier takes a generated bundle to ~45% of its bytes (2026-11-20); identifier mangling is on top |
 | inline `<script>` | 1 (author `#js`) | 1 (author `#js`) | violates the CSP rule in §3.19 |
 
 Corrections this measurement forced on the plan: the runtime is **57,145 B** in the page
@@ -1592,6 +1592,9 @@ block the exit contract above; each is recorded with the reason it was not taken
 1. Minifier (whitespace + emitter identifier mangling), CSS minifier, tree-shaking, gzip
    precompression or CDN delegation, budgets from Phase 0 enforced on minified bytes, `--profile`
    (per-route bytes, chunk composition, navigation cost).
+   **Whitespace/comment minifier for JS and CSS landed 2026-11-20** (see §9.1 item 10):
+   `page.minify_js`/`minify_css`, applied by `SharedAssets.freeze()` when `set_minify(true)` is
+   set, unit ranges recomputed and self-checked. Measured −55% on the `app` runtime bundle.
 2. **`--static` MPA build** (§3.14): shared chunks across all pages, zero-JS pages stay zero-JS,
    `base_path`, `sitemap.xml`/`robots.txt`, optional hover prefetch, `web::Static.build` replacing
    `writeToDirectory` (deprecated shim for one release).
@@ -1903,8 +1906,21 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    (`body.is_view()`), the ratio (asset < 2.5x a small page; the copy measured 3.4x), and that a
    borrowed body is written whole (`Content-Length` == bytes received). Next on this line: a
    cached response head, then precompressed (`gzip`) immutable assets with `Vary: Accept-Encoding`.
-10. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
-    conformance` in CI.
+10. **Minifier** (Phase 5 item 1) — **JS + CSS whitespace/comments done 2026-11-20**:
+    `lang/libs/page/src/minify.ch` (`minify_js`/`minify_css`, deterministic, no
+    dependencies), wired through `SharedAssets.set_minify`, `StaticSite.set_minify` and
+    `web::App.set_minify` (opt-in). The bundle graph is why this is more than a string pass:
+    `freeze()` minifies the buffer **in pieces** — each unit's bytes and the gaps between them
+    — and recomputes every range as it writes, carrying whitespace state across the seams; it
+    then self-checks that each range still holds exactly one definition and restores the raw
+    bytes if not. A regular-expression literal, an unterminated string or comment makes that
+    piece (and therefore the bundle) keep its original bytes instead of guessing. Measured on
+    the `app` fixture's runtime bundle: **108,520 → 48,283 B (−55%)**, `node --check` clean,
+    chunk plan identical (`graph chunked=1` still passes on minified bytes). Unit tests live in
+    `lang/tests/libs/page/src/minify.ch` (13 tests: ASI newlines, token-separating spaces,
+    strings/templates, regex fallback, division, comments, CSS last-`;`). **Still open from item
+    1:** emitter identifier mangling, tree-shaking, gzip precompression, numeric budgets in the
+    gate, `--profile`. Then the **skills kit** (item 4) and `skill conformance` in CI.
 
 **Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
 needs `web_build`'s route-closure chunk graph; Phase 7 (the rest of `dom`: canvas, uploads,

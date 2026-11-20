@@ -372,6 +372,10 @@ func site_split_note(app : &web::App) : std::string {
 
 public func main() : int {
     var app = web::App.make("lang/compiled/app_out", "app", "assets")
+    // Minified output: this fixture is the one with a chunked graph (`chunked=1`),
+    // so it is what proves a unit range survives minification well enough for
+    // `plan_chunks` to cut a route chunk out of it.
+    app.set_minify(true)
     app.page("/", Home)
     app.page("/pricing", Pricing)
     app.live("/account/{id}", Account)

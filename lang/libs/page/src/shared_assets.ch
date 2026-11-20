@@ -80,6 +80,8 @@ public struct SharedAssets {
     // *stale*, and a stale sink refuses to hand out a name — so a build can never
     // publish a file whose name disagrees with its content.
     private var frozen : bool = false
+    // Whether `freeze()` shrinks the bytes (see `set_minify`).
+    private var minify_output : bool = false
     private var frozen_js_hash : size_t = 0
     private var frozen_css_hash : size_t = 0
 
@@ -295,7 +297,161 @@ public struct SharedAssets {
         return -1
     }
 
+    // ── Minification (build-time) ────────────────────────────────────────
+    /// Minify this bundle's JS and CSS when it is frozen. Off by default: generated
+    /// bytes are easier to read while developing, and a bundle is only worth
+    /// shrinking when it is going to a browser over a network.
+    public func set_minify(&mut self, on : bool) {
+        if(frozen) { return }
+        minify_output = on
+    }
+
+    public func is_minify_enabled(&self) : bool {
+        return minify_output
+    }
+
+    /// Rewrite `js_data`/`css_data` in place with `page.minify_js`/`minify_css`.
+    ///
+    /// The unit graph makes this more than one call: a component definition is a
+    /// byte range that a later `take_unit` moves out into its own chunk, so the
+    /// bytes are processed **in pieces** — the gaps between definitions and each
+    /// definition — and every range is recomputed as it is written. A single pass
+    /// over the whole buffer would leave every range pointing at the wrong bytes
+    /// and quietly relocate the wrong code into a route's chunk.
+    ///
+    /// Whitespace state carries across pieces (`pin.MinState`), and if any piece is
+    /// one the minifier will not rewrite (a regular-expression literal, an unterminated
+    /// string) the whole buffer keeps its original bytes — a seam between minified and
+    /// untouched bytes is exactly where a token can merge.
+    public func minify_buffers(&mut self) {
+        if(frozen) { return }
+        if(js_data.size() > 0 && units.size() > 0 && ranges_are_safe()) {
+            if(js_pieces_are_minifiable()) { minify_js_pieces() }
+        } else if(js_data.size() > 0) {
+            var whole = js_data.to_view()
+            if(js_is_minifiable(whole)) {
+                var out = std::string()
+                var state = MinState()
+                js_emit_minified(whole, &mut out, &mut state)
+                if(out.size() > 0) { js_data = out }
+            }
+        }
+        if(css_data.size() > 0) {
+            var css = css_data.to_view()
+            var out = minify_css(css)
+            if(out.size() > 0) { css_data = out }
+        }
+    }
+
+    func js_pieces_are_minifiable(&self) : bool {
+        var cursor : ubigint = 0
+        var i : ubigint = 0
+        while(i < units.size()) {
+            var u = unsafe(&*units.get_ptr(i))
+            if(u.length > 0) {
+                var gap = js_slice(cursor, u.start - cursor)
+                if(!js_is_minifiable(gap)) { return false }
+                var piece = js_slice(u.start, u.length)
+                if(!js_is_minifiable(piece)) { return false }
+                cursor = u.start + u.length
+            }
+            i = i + 1
+        }
+        var tail = js_slice(cursor, js_data.size() - cursor)
+        return js_is_minifiable(tail)
+    }
+
+    func minify_js_pieces(&mut self) {
+        var data = js_data.data()
+        if(data == null) { return }
+        // Kept for the self-check below: if the rebuilt ranges do not describe the
+        // same definitions, the raw bytes are restored. A build that ships code is
+        // worth more than a build that ships smaller code.
+        var original = std::string()
+        var original_view = js_data.to_view()
+        original.append_view(&original_view)
+        var saved_starts = std::vector<ubigint>()
+        var saved_lengths = std::vector<ubigint>()
+        var save_i : ubigint = 0
+        while(save_i < units.size()) {
+            var s = unsafe(&*units.get_ptr(save_i))
+            unsafe { saved_starts.push_back(s.start) }
+            unsafe { saved_lengths.push_back(s.length) }
+            save_i = save_i + 1
+        }
+        const saved_hoist = hoist_boundary
+
+        var rebuilt = std::string()
+        var state = MinState()
+        var cursor : ubigint = 0
+        var i : ubigint = 0
+        while(i < units.size()) {
+            var u = unsafe(&mut *units.get_ptr(i))
+            if(u.length > 0) {
+                if(u.start > cursor) {
+                    var gap = unsafe(std::string_view(data + cursor, u.start - cursor))
+                    js_emit_minified(gap, &mut rebuilt, &mut state)
+                }
+                var piece = unsafe(std::string_view(data + u.start, u.length))
+                var start = rebuilt.size()
+                js_emit_minified(piece, &mut rebuilt, &mut state)
+                var old_end = u.start + u.length
+                u.start = start
+                u.length = rebuilt.size() - start
+                cursor = old_end
+            }
+            i = i + 1
+        }
+        if(cursor < js_data.size()) {
+            var tail = unsafe(std::string_view(data + cursor, js_data.size() - cursor))
+            js_emit_minified(tail, &mut rebuilt, &mut state)
+        }
+        if(rebuilt.size() == 0) { return }
+        js_data = rebuilt
+        // Every definition sits in the hoisted prefix; the boundary is the end of the
+        // last one, which is where a page attached later starts hoisting.
+        hoist_boundary = 0
+        var j : ubigint = 0
+        while(j < units.size()) {
+            var k = unsafe(&*units.get_ptr(j))
+            if(k.length > 0 && k.start + k.length > hoist_boundary) {
+                hoist_boundary = k.start + k.length
+            }
+            j = j + 1
+        }
+
+        // Self-check: every recomputed range must still hold exactly one definition.
+        // This is the invariant `plan_chunks` relies on to move a unit out, and it is
+        // cheap to confirm here instead of discovering it in a browser.
+        var intact = ranges_are_safe()
+        var c : ubigint = 0
+        while(intact && c < units.size()) {
+            var u = unsafe(&*units.get_ptr(c))
+            if(u.length > 0 && !unit_is_self_contained(c)) { intact = false }
+            c = c + 1
+        }
+        if(!intact) {
+            js_data = original
+            hoist_boundary = saved_hoist
+            var r : ubigint = 0
+            while(r < units.size() && r < saved_starts.size()) {
+                var u = unsafe(&mut *units.get_ptr(r))
+                u.start = saved_starts.at(r)
+                u.length = saved_lengths.at(r)
+                r = r + 1
+            }
+        }
+    }
+
+    func js_slice(&self, start : ubigint, length : ubigint) : std::string_view {
+        if(length == 0) { return std::string_view("") }
+        var data = js_data.data()
+        if(data == null) { return std::string_view("") }
+        return unsafe(std::string_view(data + start, length))
+    }
+
     public func freeze(&mut self) {
+        if(minify_output) { self.minify_buffers() }
         frozen = true
         var js_view = js_data.to_view()
         var css_view = css_data.to_view()

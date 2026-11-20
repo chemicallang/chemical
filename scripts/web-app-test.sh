@@ -175,6 +175,22 @@ check "the route chunk defines the component it dispatches" \
       "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/pricing_index.*.js && echo 1 || echo 0)"
 check "every dispatched component is reachable from its page" \
       "$(graph_check "$out_dir" >/tmp/web_app_graph.txt && echo 1 || echo 0)"
+
+# This fixture builds minified (`app.set_minify(true)`), which is the only place a
+# *chunked* graph meets the minifier: a unit range is recomputed from minified
+# bytes, then `plan_chunks` cuts a route's chunk out of it. Everything above this
+# line runs on those bytes, so the graph checks double as the minifier's graph
+# check; here we add the shape of the output itself.
+check "the app bundle is minified (no indented lines left)" \
+      "$(grep -qE '^[[:space:]]{2,}' "$out_dir"/assets/app.*.js && echo 0 || echo 1)"
+check "the app bundle carries no comment lines" \
+      "$(grep -qE '^[[:space:]]*//' "$out_dir"/assets/app.*.js && echo 0 || echo 1)"
+if command -v node >/dev/null 2>&1; then
+    check "node parses the minified app bundle and its routes' chunks" \
+          "$(for f in "$out_dir"/assets/*.js; do node --check "$f" >/dev/null 2>&1 || exit 1; done; echo 1)"
+else
+    echo "skip node --check: node is not installed"
+fi
 check "a malformed slot marker is refused at compile, not served" \
       "$([ "$(contains "$log" 'shell malformed=1')" = "1" ] && echo 1 || echo 0)"
 check "emit refuses a wrong fill count instead of serving a hole" \

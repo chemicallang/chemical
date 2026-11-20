@@ -1889,8 +1889,22 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
 8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
    `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by
    `web-app-test.sh`). A persistent store and the `Vary: Cookie` render hook remain.
-9. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
-   conformance` in CI.
+9. **Per-request serving cost** — **zero-copy bodies done 2026-11-20**: `http::ResponseBody.View`
+   holds a borrowed payload and the encoder writes it straight from the view, so an immutable
+   asset no longer costs a `memcpy` of its own size on every request. `webserve.serve` and
+   `web::App.serve_artifact` use it via `response_of_borrowed` (`public unsafe func`: it asserts
+   the bytes outlive the response — true for a frozen artifact, false for a rendered body).
+   `response_of` stays the copying default for exactly that reason. Measured A/B on the
+   `static_site` fixture (300 requests per path, one process, three runs each, same binary
+   and fixture, only that one call site changed): a 108,520 B bundle asset **4,417 → 2,389
+   ns/req (1.85x)** while the 466 B page stayed 1,307 → 1,316 ns — serving is now per request,
+   not per byte (the copy cost 3,110 ns for 108,520 B, i.e. ~35 GB/s of `memcpy`; nothing is left
+   that scales with body size). `static-site-test.sh` gates the structural fact
+   (`body.is_view()`), the ratio (asset < 2.5x a small page; the copy measured 3.4x), and that a
+   borrowed body is written whole (`Content-Length` == bytes received). Next on this line: a
+   cached response head, then precompressed (`gzip`) immutable assets with `Vary: Accept-Encoding`.
+10. **Minifier + budgets** (Phase 5 item 1), then the **skills kit** (item 4) and `skill
+    conformance` in CI.
 
 **Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
 needs `web_build`'s route-closure chunk graph; Phase 7 (the rest of `dom`: canvas, uploads,

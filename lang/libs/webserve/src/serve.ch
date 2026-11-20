@@ -48,9 +48,11 @@ public func is_installed() : bool {
 
 /// Map one request onto `site`'s artifacts, honouring `If-None-Match`.
 ///
-/// The body is copied into the response because `http::Response` owns it; the
-/// site keeps its buffers. That is one copy per request — the alternative, a
-/// borrowed body variant in `http`, is not worth the API change yet.
+/// The body is **borrowed**, not copied (`http::ResponseBody.View`): the bytes are
+/// the site's frozen artifacts and the site outlives every response, so the encoder
+/// writes them straight to the socket. Copying a 100 KB asset per request was the
+/// largest serving cost; `scripts/static-site-test.sh` gates the fact (`is_view()`)
+/// and the ratio.
 ///
 /// `site` may be null: the answer is a 503, never a crash.
 public func serve(site : *mut StaticSite, req : &http::Request) : http::Response {

@@ -777,8 +777,13 @@ Two `web::Router` details that bite every author once: the catch-all pattern is 
 
 `respond_to_request` maps the `SiteResponse` onto an `http::Response`: status, `Content-Type`,
 `Cache-Control`, `ETag`, `If-None-Match` → 304, and the body. A request before a site is installed is
-a 503, not a crash. The body is copied into the response (one copy per request) because
-`http::Response` owns its body; keep that in mind for very large bundles.
+a 503, not a crash. Artifact bodies are **borrowed** (`http::ResponseBody.View`), so a 100 KB bundle
+is written straight from the frozen build — no per-request allocation or `memcpy` (measured 2–3x on
+a bundle asset). Two rules follow from that: use `res.body.text()`/`data()` (they work for `Text`,
+`Bytes` *and* `View`), and only construct a `View` from bytes you know outlive the response — a body
+rendered per request is a local `string` and must go through the owning `Response.text()`/
+`html()` (which is why `web::App` keeps `response_of` as the copying default and uses
+`response_of_borrowed` only for frozen artifacts).
 
 ### `SharedAssets` — the low-level primitive
 

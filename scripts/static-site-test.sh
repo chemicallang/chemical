@@ -214,6 +214,15 @@ check "the shared bundle is served immutably over the wire" \
       "$(grep -qF 'GET bundle -> HTTP/1.1 200 OK' "$sock" && \
          grep -qF 'Content-Type: text/javascript; charset=utf-8' "$sock" && \
          grep -qF 'Cache-Control: public, max-age=31536000, immutable' "$sock" && echo 1 || echo 0)"
+
+# The bundle body is borrowed, not owned: the encoder reads it straight from the
+# frozen artifact, so the two things that could go wrong are a truncated write or a
+# Content-Length computed from something else. Both are one comparison. (The probe
+# escapes CRLF as literal text, so take the length by matching digits.)
+bundle_cl=$(awk '/^GET bundle ->/{f=1} f && /^Content-Length:/ && match($0,/[0-9]+/){print substr($0,RSTART,RLENGTH); exit}' "$sock")
+bundle_sent=$(awk '/^GET bundle ->/{f=1} f && / B body$/{n=$0; sub(/.*\| /,"",n); sub(/ B body$/,"",n); print n; exit}' "$sock")
+check "a borrowed body is written whole (Content-Length == bytes on the wire)" \
+      "$([ -n "$bundle_cl" ] && [ "$bundle_cl" = "$bundle_sent" ] && echo 1 || echo 0)"
 check "an unknown route is a 404 over the wire" \
       "$(grep -qF 'GET /nope -> HTTP/1.1 404 Not Found' "$sock" && echo 1 || echo 0)"
 check "If-None-Match is a 304 with no body over the wire" \

@@ -132,6 +132,21 @@ public:
     bool def_assertions_on = false;
 
     /**
+     * `--profile`: expose the `profile` build definition, so a build script can
+     * emit its per-route byte profile (`web::App.set_profile`). It is a
+     * definition rather than a compiler behaviour because only the script knows
+     * what "a route" is.
+     */
+    bool def_profile_on = false;
+
+    /**
+     * `--static`: expose the `static` build definition. An export is a property of
+     * the build script (which routes exist, what the output directory is), so the
+     * compiler only tells it that a static export was asked for.
+     */
+    bool def_static_on = false;
+
+    /**
      * Emit JavaScript (the JS backend) instead of a native executable. The
      * modules are still parsed, resolved and type-checked, then lowered to MIR
      * and printed as ES modules into `emit_js_dir`; nothing is linked.

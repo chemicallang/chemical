@@ -1595,6 +1595,22 @@ block the exit contract above; each is recorded with the reason it was not taken
    **Whitespace/comment minifier for JS and CSS landed 2026-11-20** (see §9.1 item 10):
    `page.minify_js`/`minify_css`, applied by `SharedAssets.freeze()` when `set_minify(true)` is
    set, unit ranges recomputed and self-checked. Measured −55% on the `app` runtime bundle.
+   **gzip + budgets + `--profile` landed 2026-11-20:** `compression::gzip`/`gunzip` are a
+   pure-Chemical fixed-Huffman + greedy-LZ77 deflate (no new native dependency); opt-in
+   `StaticSite.set_gzip(true)` adds `<path>.gz` sidecars in `finish()` (they are extras, not
+   artifacts), keeps a variant only when it is smaller, gives each representation its own ETag,
+   and `respond_negotiated(path, if_none_match, accept_encoding)` picks by `Accept-Encoding`
+   (`q=0`, `identity`, `*` handled) while sending `Vary: Accept-Encoding`. `webserve` and
+   `web::App` pass the header through. Measured on the gate fixture: minified bundle 108,520 →
+   48,283 B, gzipped 13,122 B (node's `gzip -9` on the same bytes: 10,981 B — fixed-Huffman is
+   ~20% larger, so dynamic-Huffman is not yet worth it); a page 466 → 311 B gzipped. Budgets are
+   now asserted by `static-site-test.sh` (`BUDGET_BUNDLE_MIN=60000`, `BUDGET_BUNDLE_GZ=20000`,
+   `BUDGET_PAGE=2048`, `BUDGET_CHUNK=8192`). `StaticSite.profile_report()` and
+   `export_profile()` (`profile.json`) report per-route html/chunk bytes, unit counts and
+   first-load vs navigation cost, enabled either by `set_profile(true)` or the new
+   `--profile` build flag (`intrinsics::defined("profile")`). Still open in this item:
+   **emitter identifier mangling** and **tree-shaking** — both change every emitted name or
+   drop units, so they need their own verification pass rather than riding this one.
 2. **`--static` MPA build** (§3.14): shared chunks across all pages, zero-JS pages stay zero-JS,
    `base_path`, `sitemap.xml`/`robots.txt`, optional hover prefetch, `web::Static.build` replacing
    `writeToDirectory` (deprecated shim for one release).
@@ -1602,9 +1618,17 @@ block the exit contract above; each is recorded with the reason it was not taken
    `export_sitemap()`/`export_robots()` emit the sitemap for the **pre-rendered** routes only
    (never a per-request route), and an absolute `asset_prefix` (`/app/assets`) is used as-is by
    every page, so `web::App.set_base_path("/app")` serves the same build under a mount path
-   (`web-app-test.sh` checks the mounted page keeps `/app/assets/...`). Still open: the
-   `--static` MPA command itself (`export_sitemap` is the API it will call), hover prefetch,
-   and `web::Static.build` replacing `writeToDirectory`.
+   (`web-app-test.sh` checks the mounted page keeps `/app/assets/...`). **`--static` landed
+   2026-11-20:** `lang/libs/web/src/static.ch` (`web::Static` — `add`/`set_minify`/`set_gzip`/
+   `set_profile`/`build`/`finish`/`export_sitemap`/`respond`/`respond_negotiated`) is a thin
+   MPA wrapper over `page.StaticSite`, so one bundle is shared by every page; a page whose own
+   chunk is empty emits **no `<script>` tag at all** (CSS link kept), so an `#html`-only page is
+   really zero-JS; the CLI flag `--static` sets the `static` build definition. Gate: the MPA
+   fixture exports two pages, `plain_scripts=0 plain_runtime=0 rich_scripts=2 bundle=1`, and the
+   nested page reaches the bundle through `../assets/`. `HtmlPage.writeToDirectory` is
+   `@deprecated` with `web::Static.build` as the replacement. Still open here: **hover
+   prefetch** (needs a browser to verify the hover→fetch→cache path, which this environment
+   cannot do).
 3. **Sessions** (pulled forward from Phase 7): cookie jar, `Set-Cookie` parsing, `web::Session`
    with a server-side store interface, CSRF tokens for state-changing endpoints, same-origin
    default. No real app ships without these, so they gate v1.
@@ -1615,8 +1639,15 @@ block the exit contract above; each is recorded with the reason it was not taken
    `web::SessionStore` (`load`/`create`/`get`/`set`/`remove`/`csrf_token`/`verify_csrf`/
    `rotate_csrf`/`attach`/`destroy`), an in-memory record store, 48-hex random ids from
    `osrand`, `HttpOnly` + `SameSite=Lax` + `Path=/` on the session cookie, and constant-time
-   CSRF comparison. `web-app-test.sh` covers the flow (13 session/cookie checks). Still open:
-   a persistent store implementation and the `Vary: Cookie` render hook.
+   CSRF comparison. `web-app-test.sh` covers the flow (13 session/cookie checks).
+   **`Vary: Cookie` guard landed 2026-11-20:** `App.push_route` refuses a pre-rendered route
+   whose `vary` contains `Cookie` (a shared cache would serve one user's render to another) and
+   names `live()` as the fix. Still open: **a persistent store.** A snapshot
+   (`save_to`/`load_from`) was written and then reverted: restoring a record whose value is a
+   map moved into the store comes back with a corrupted key/value because of the known
+   struct-with-container move bug, and shipping a silently lossy durable store is worse than
+   none. It needs that ownership bug fixed first (or a store backed by a real database behind
+   the existing `load`/`get`/`set` interface, which is the documented extension point).
 4. **Skills + migration kit** (§3.21): `web_app` (rewrite), `web_migration`, `web_client` (new),
    updates to `universal`/`components_e2e`/`testing`/`AGENTS.md`, the reference app inside
    `web_app`, and the one-sentence bootstrap prompt. Wire `skill conformance` into CI so every

@@ -18,14 +18,28 @@ compiler="${CHX_COMPILER:-cmake-build-debug/TCCCompiler.exe}"
 shared_dir="lang/compiled/static_site_out"
 baseline_dir="lang/compiled/static_site_baseline_out"
 min_dir="lang/compiled/static_site_min_out"
+gz_dir="lang/compiled/static_site_gz_out"
 rm -rf "$shared_dir" "$baseline_dir" \
        lang/compiled/static_site_min_out \
+       lang/compiled/static_site_gz_out \
+       lang/compiled/static_site_profile_out \
+       lang/compiled/static_site_mpa_out \
        lang/compiled/webserve_out \
        lang/tests/web/fixtures/static_site/build \
        lang/tests/web/fixtures/static_site_baseline/build \
        lang/tests/web/fixtures/webserve/build \
        lang/compiled/webserve_socket_out \
        lang/tests/web/fixtures/webserve_socket/build
+
+# `python3` is not always on PATH in a Windows Git Bash shell; fall back to `python`.
+# Discovered once, up here, because more than the probe uses it now.
+py=""
+for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
+        py="$candidate"
+        break
+    fi
+done
 
 fail=0
 check() {
@@ -120,6 +134,145 @@ fi
 
 echo "minify: $min_line"
 
+# ── gzip precompression: two representations of one URL ────────────────────
+# A third build of the same site, differing only by `set_gzip(true)`. The fixture
+# reports both representations, the negotiation for four different
+# `Accept-Encoding` values, and whether the ETags can be confused.
+gz_line=$(grep 'gzip js=' "$resp" | head -1)
+gz_in=$(echo "$gz_line" | sed 's/.*js=\([0-9]*\)->.*/\1/')
+gz_out=$(echo "$gz_line" | sed 's/.*js=[0-9]*->\([0-9]*\).*/\1/')
+check "a request without Accept-Encoding gets the identity body" \
+      "$(echo "$gz_line" | grep -q 'plain_enc=0' && echo 1 || echo 0)"
+check "Accept-Encoding: gzip gets a gzip body with Content-Encoding and Vary" \
+      "$(echo "$gz_line" | grep -q 'enc=1 vary=1' && echo 1 || echo 0)"
+check "Accept-Encoding: identity gets the identity body back" \
+      "$(echo "$gz_line" | grep -q 'refused=1' && echo 1 || echo 0)"
+check "gzip;q=0 is a refusal, not a preference" \
+      "$(echo "$gz_line" | grep -q 'q0=1' && echo 1 || echo 0)"
+check "gzip cuts the bundle by at least 60% ($gz_in -> $gz_out B)" \
+      "$([ "${gz_out:-0}" -gt 0 ] && [ $((gz_out * 10)) -lt $((gz_in * 4)) ] && echo 1 || echo 0)"
+page_line=$(grep 'gzip page=' "$resp" | head -1)
+page_in=$(echo "$page_line" | sed 's/.*page=\([0-9]*\)->.*/\1/')
+page_out=$(echo "$page_line" | sed 's/.*page=[0-9]*->\([0-9]*\).*/\1/')
+check "the HTML page is compressed too and does not grow ($page_in -> $page_out B)" \
+      "$([ "${page_out:-0}" -gt 0 ] && [ "$page_out" -lt "$page_in" ] && echo 1 || echo 0)"
+etag_line=$(grep 'gzip etag_distinct=' "$resp" | head -1)
+check "the two representations carry different ETags" \
+      "$(echo "$etag_line" | grep -q 'etag_distinct=1' && echo 1 || echo 0)"
+check "a gzip ETag revalidates to a 304 for gzip" \
+      "$(echo "$etag_line" | grep -q 'not_modified=1' && echo 1 || echo 0)"
+check "the same ETag does not 304 the identity representation" \
+      "$(echo "$etag_line" | grep -q "cross=$min_js_out" && echo 1 || echo 0)"
+
+# `finish()` writes `<path>.gz` beside each artifact so a static host's
+# `gzip_static` can use them without recompressing. Node is the outside check
+# that the bytes are a real gzip stream: skipped (not passed) when it is absent.
+if command -v node >/dev/null 2>&1; then
+    gz_ok=1
+    gz_count=0
+    while IFS= read -r gzfile; do
+        identity="${gzfile%.gz}"
+        gz_count=$((gz_count + 1))
+        node -e 'const z=require("zlib"),f=require("fs");process.exit(z.gunzipSync(f.readFileSync(process.argv[1])).equals(f.readFileSync(process.argv[2]))?0:1)' \
+            "$gzfile" "$identity" >/dev/null 2>&1 || gz_ok=0
+    done < <(find "$gz_dir" -name '*.gz' | sort)
+    check "node gunzips every written .gz sidecar back to its artifact ($gz_count files)" \
+          "$([ "$gz_count" -gt 0 ] && [ "$gz_ok" = "1" ] && echo 1 || echo 0)"
+else
+    echo "skip node gunzip: node is not installed"
+fi
+
+# ── byte budgets ───────────────────────────────────────────────────────────
+# Numeric ceilings on the minified and compressed bytes. A budget that only
+# compares two builds cannot notice both of them growing; these are absolute.
+BUDGET_BUNDLE_MIN=60000     # minified shared runtime bundle
+BUDGET_BUNDLE_GZ=20000      # the same bundle, gzipped
+BUDGET_PAGE=2048            # one HTML page (its own SSR bytes)
+BUDGET_CHUNK=8192           # one per-route script chunk
+budget() {
+    local name="$1" value="$2" limit="$3"
+    check "budget: $name is $value B (limit $limit B)" \
+          "$([ "${value:-0}" -gt 0 ] && [ "$value" -le "$limit" ] && echo 1 || echo 0)"
+}
+budget "minified bundle" "$min_js_out" "$BUDGET_BUNDLE_MIN"
+budget "gzipped bundle" "$gz_out" "$BUDGET_BUNDLE_GZ"
+budget "page HTML" "$page_in" "$BUDGET_PAGE"
+# The shared bundle and the vendor bundle are budgeted above; a per-route chunk is
+# everything else (`index.<hash>.js`, `about_index.<hash>.js`).
+gz_bundle=$(grep 'gzip written=' "$resp" | head -1 | sed 's/.*gzip written=//')
+largest_chunk=0
+for chunk in "$gz_dir"/assets/*.js; do
+    [ -f "$chunk" ] || continue
+    rel="assets/$(basename "$chunk")"
+    [ "$rel" = "$gz_bundle" ] && continue
+    case "$rel" in *".vendor."*) continue ;; esac
+    n=$(wc -c < "$chunk")
+    [ "$n" -gt "$largest_chunk" ] && largest_chunk="$n"
+done
+budget "largest route chunk (not the bundle)" "$largest_chunk" "$BUDGET_CHUNK"
+
+# ── profile: per-route bytes, chunk composition, navigation cost ───────────
+# The report is printed between `---profile---` markers; every number in it is
+# recomputed from the artifact table, so a route line that does not add up is a
+# profile bug, not a rounding difference.
+profile_txt=$(awk '/^---profile---$/{f=1;next}/^---end---$/{f=0}f' "$resp")
+shared_txt=$(printf '%s\n' "$profile_txt" | grep '^shared ')
+total_txt=$(printf '%s\n' "$profile_txt" | grep '^total ')
+prof_bundle=$(echo "$shared_txt" | sed 's/.*bundle=\([0-9]*\).*/\1/')
+prof_gzip=$(echo "$shared_txt" | sed 's/^shared bundle=[0-9]* gzip=\([0-9]*\).*/\1/')
+prof_css=$(echo "$shared_txt" | sed 's/.* css=\([0-9]*\).*/\1/')
+prof_vendor=$(echo "$shared_txt" | sed 's/.* vendor=\([0-9]*\).*/\1/')
+prof_shared=$((prof_bundle + prof_vendor + prof_css))
+check "the profile reports the shared bytes it actually serves ($prof_shared B)" \
+      "$([ "$prof_bundle" = "$min_js_out" ] && [ "$prof_gzip" = "$gz_out" ] && echo 1 || echo 0)"
+check "the profile has one route line per pre-rendered page" \
+      "$([ "$(printf '%s\n' "$profile_txt" | grep -c '^route ')" = "2" ] && echo 1 || echo 0)"
+prof_ok=1
+while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    html=$(echo "$line" | sed 's/.*html=\([0-9]*\).*/\1/')
+    chunk=$(echo "$line" | sed 's/.*chunk=\([0-9]*\).*/\1/')
+    first=$(echo "$line" | sed 's/.*first_load=\([0-9]*\).*/\1/')
+    nav=$(echo "$line" | sed 's/.*navigation=\([0-9]*\).*/\1/')
+    [ "$first" = "$((html + chunk + prof_shared))" ] || prof_ok=0
+    [ "$nav" = "$((html + chunk))" ] || prof_ok=0
+done < <(printf '%s\n' "$profile_txt" | grep '^route ')
+check "first_load and navigation add up on every route line" \
+      "$([ "$prof_ok" = "1" ] && echo 1 || echo 0)"
+check "the profile totals the route count" \
+      "$(echo "$total_txt" | grep -q 'routes=2' && echo 1 || echo 0)"
+if [ -n "$py" ]; then
+    check "profile.json is valid JSON with the same route count" \
+          "$("$py" -c 'import json,sys;d=json.load(open(sys.argv[1]));sys.exit(0 if len(d["routes"])==2 and d["shared"]["bundle"]>0 else 1)' \
+              "$gz_dir/../static_site_profile_out/profile.json" >/dev/null 2>&1 && echo 1 || echo 0)"
+else
+    echo "skip profile.json: no usable python found"
+fi
+echo "profile: $(echo "$total_txt")"
+
+# ── web::Static: the `--static` multi-page export ──────────────────────────
+# A two-page export where the first page is `#html` only. It must ship no
+# JavaScript at all — an already-shared bundle is still a download a page with no
+# client behaviour does not need.
+mpa_line=$(grep '^mpa ' "$resp" | head -1)
+mpa_dir="lang/compiled/static_site_mpa_out"
+check "web::Static exports both pages and their shared bundle" \
+      "$(echo "$mpa_line" | grep -q 'pages=2' && echo 1 || echo 0)"
+check "a page with no components ships zero <script> tags" \
+      "$(echo "$mpa_line" | grep -q 'plain_scripts=0' && echo 1 || echo 0)"
+check "a page with no components carries no hydration runtime" \
+      "$(echo "$mpa_line" | grep -q 'plain_runtime=0' && echo 1 || echo 0)"
+check "the component page still loads the shared scripts (2 tags)" \
+      "$(echo "$mpa_line" | grep -q 'rich_scripts=2' && echo 1 || echo 0)"
+check "the component page references the export's own bundle" \
+      "$(echo "$mpa_line" | grep -q 'bundle=1' && echo 1 || echo 0)"
+check "the export wrote both pages to disk" \
+      "$([ -f "$mpa_dir/index.html" ] && [ -f "$mpa_dir/rich/index.html" ] && echo 1 || echo 0)"
+check "the zero-JS page on disk has no <script>" \
+      "$(grep -q '<script' "$mpa_dir/index.html" && echo 0 || echo 1)"
+check "the nested page reaches the bundle with a ../ path" \
+      "$(grep -qE 'src="\.\./assets/app\.[0-9a-f]+\.js"' "$mpa_dir/rich/index.html" && echo 1 || echo 0)"
+
 index="$shared_dir/index.html"
 about="$shared_dir/about/index.html"
 [ -f "$index" ] || { echo "FAIL: $index was not written" >&2; exit 1; }
@@ -175,14 +328,6 @@ check "the shared bundle carries the hydration runtime" \
       "$(contains "$bundle" '$__uni_dispatch')"
 
 # ── the probe agrees: no violations, both assets counted as shared ─────────
-# `python3` is not always on PATH in a Windows Git Bash shell; fall back to `python`.
-py=""
-for candidate in python3 python; do
-    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sys' >/dev/null 2>&1; then
-        py="$candidate"
-        break
-    fi
-done
 if [ -z "$py" ]; then
     echo "skip web_probe: no usable python found" >&2
     check "web_probe --strict passes on the shared site" 1

@@ -73,6 +73,8 @@ void print_help() {
                  "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
+                 "--profile           -[empty]      define `profile` for build scripts (per-route byte profile)\n"
+                 "--static            -[empty]      define `static` for build scripts (export a static site)\n"
                  "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--ignore-errors     -[empty]      ignore any errors that happen and compile any way\n"
                  "--safety-report     -[empty]      read-only safety audit (raw pointers, unsafe ops, FFI, panics, allocators)\n"
@@ -399,6 +401,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("ignore-errors", "ignore-errors", CmdOptionType::NoValue),
             CmdOption("lto", CmdOptionType::NoValue),
             CmdOption("assertions", CmdOptionType::NoValue),
+            CmdOption("profile", CmdOptionType::NoValue),
+            CmdOption("static", CmdOptionType::NoValue),
             CmdOption("tsan", CmdOptionType::NoValue),
             CmdOption("sanitize", "fsanitize", CmdOptionType::SingleValue),
             CmdOption("no-pie", "no-pie", CmdOptionType::NoValue),
@@ -596,6 +600,17 @@ int compiler_main(int argc, char *argv[]) {
         }
         if(options.has_value("assertions")) {
             opts->def_assertions_on = true;
+        }
+        // `--profile`: define `profile` for the build script (`intrinsics::defined`),
+        // so `chemical build --web --profile` can emit the byte profile without a
+        // second, divergent code path in the compiler.
+        if(options.has_value("profile", "profile")) {
+            opts->def_profile_on = true;
+        }
+        // `--static`: define `static` for the build script, so one `build.lab` can
+        // both serve and export (lang/docs/web-stack-plan.md 3.14).
+        if(options.has_value("static", "static")) {
+            opts->def_static_on = true;
         }
 #ifdef COMPILER_BUILD
         // Parse sanitizer options

@@ -10,3 +10,4 @@ import css_cbi
 import universal_cbi
 import webserve
 import http
+import web

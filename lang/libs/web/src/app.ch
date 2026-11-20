@@ -130,6 +130,10 @@ public struct App {
     /// Replayed in `build()`: it rebuilds the sink from the final configuration, so
     /// a flag set before that must be stored here, not on the old sink.
     private var want_minify : bool
+    /// Precompress the artifact set and negotiate it per request (`set_gzip`).
+    private var want_gzip : bool
+    /// Add `profile.json` to the export (`set_profile`).
+    private var want_profile : bool
 
     private var built : bool
     private var failed : bool
@@ -161,6 +165,8 @@ public struct App {
             want_sitemap : false,
             want_robots : false,
             want_minify : false,
+            want_gzip : false,
+            want_profile : false,
             built : false,
             failed : false,
             failure : string()
@@ -285,6 +291,37 @@ public struct App {
         site.set_minify(on)
     }
 
+    /// Precompress every text artifact and serve the compressed representation to
+    /// clients that send `Accept-Encoding: gzip` (`StaticSite.set_gzip`). Call
+    /// before `build()`; the flag is re-applied to the sink `build()` creates.
+    public func set_gzip(&mut self, on : bool) {
+        want_gzip = on
+        site.set_gzip(on)
+    }
+
+    public func is_gzip_enabled(&self) : bool {
+        return want_gzip
+    }
+
+    /// Write `profile.json` into the artifact set: per-route HTML/chunk bytes,
+    /// chunk composition, and the first-load vs navigation cost of every route
+    /// (`StaticSite.export_profile`). The build script decides — `build.lab` turns
+    /// `chemical build --web --profile` into this call through
+    /// `intrinsics::defined("profile")`.
+    public func set_profile(&mut self, on : bool) {
+        want_profile = on
+    }
+
+    public func is_profile_enabled(&self) : bool {
+        return want_profile
+    }
+
+    /// The profile report as text (empty until `build()`), for a build script that
+    /// wants to print it.
+    public func profile_report(&self) : std::string {
+        return site.profile_report()
+    }
+
     public func is_minify_enabled(&self) : bool {
         return want_minify
     }
@@ -364,6 +401,7 @@ public struct App {
         var name_view = base_name.to_view()
         site = StaticSite.make(out_view, name_view, prefix_view)
         if(want_minify) { site.set_minify(true) }
+        if(want_gzip) { site.set_gzip(true) }
 
         if(!warm_artifacts()) { return false }
 
@@ -387,6 +425,12 @@ public struct App {
         if(!site.build()) {
             fail_with(site.error_message())
             return false
+        }
+        if(want_profile) {
+            if(!site.export_profile()) {
+                fail_with(site.error_message())
+                return false
+            }
         }
         if(!compile_shells()) { return false }
         return !failed
@@ -535,13 +579,20 @@ public struct App {
             var Some(value) = inm else unsafe { unreachable }
             if_none_match = value
         }
+        var accept_encoding = string_view("")
+        var enc = req.headers.get("Accept-Encoding")
+        if(enc is Option.Some) {
+            var Some(value) = enc else unsafe { unreachable }
+            accept_encoding = value
+        }
         var path_view = path.to_view()
-        var out = site.respond_if_none_match(path_view, if_none_match)
+        var out = site.respond_negotiated(path_view, if_none_match, accept_encoding)
         // The body is an artifact: bytes the site froze at `build()` and never moves,
         // so the response can borrow instead of copying (a 100 KB asset used to cost
         // a 100 KB `memcpy` per request). This is the only place in the app that may
         // borrow, because every other body is a `string` local to the render.
-        return unsafe(response_of_borrowed(&out, std::string_view("")))
+        var vary = out.vary
+        return unsafe(response_of_borrowed(&out, vary))
     }
 
     /// Render a live route for this request; `status` lets the 404 route reuse the
@@ -633,6 +684,16 @@ public struct App {
             // A pre-rendered route must name one concrete URL: `{id}` has no value
             // until a request arrives.
             fail_with("a pre-rendered route cannot have a {param} pattern; register it with live()")
+            return
+        }
+        const cookie_vary = string_view("Cookie")
+        if(!per_request && vary.contains(&cookie_vary)) {
+            // The render hook for sessions: a page whose bytes depend on the session
+            // cookie cannot be pre-rendered, because one frozen artifact would be
+            // served to every user (and a shared cache would mix them). Refusing here
+            // is the alternative to a cache-poisoning bug that only shows up behind a
+            // CDN.
+            fail_with("a pre-rendered route cannot vary by Cookie; register it with live() and vary=\"Cookie\"")
             return
         }
         var cache_s = string()
@@ -1002,6 +1063,10 @@ public func response_of(out : &SiteResponse, vary : string_view) : http::Respons
     if(!etag.empty()) {
         res.set_header_view("ETag", &etag)
     }
+    var encoding = out.content_encoding
+    if(!encoding.empty()) {
+        res.set_header_view("Content-Encoding", &encoding)
+    }
     if(!body.empty()) {
         res.html(&body)
     }
@@ -1033,6 +1098,10 @@ public unsafe func response_of_borrowed(out : &SiteResponse, vary : string_view)
     }
     if(!etag.empty()) {
         res.set_header_view("ETag", &etag)
+    }
+    var encoding = out.content_encoding
+    if(!encoding.empty()) {
+        res.set_header_view("Content-Encoding", &encoding)
     }
     if(!body.empty()) {
         res.body = http::ResponseBody.View(body)

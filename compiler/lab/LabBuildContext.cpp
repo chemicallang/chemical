@@ -72,6 +72,15 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     // we should allow changing this
     job->target_data.test = options->is_testing_env;
 
+    // `--profile`: one build definition every job sees, so a build script can
+    // branch on it with `intrinsics::defined("profile")`.
+    if (options->def_profile_on) {
+        job->definitions.emplace("profile", true);
+    }
+    if (options->def_static_on) {
+        job->definitions.emplace("static", true);
+    }
+
 }
 
 void LabBuildContext::initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::string& target_triple) {

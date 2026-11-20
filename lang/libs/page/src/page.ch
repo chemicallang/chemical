@@ -3533,6 +3533,12 @@ public struct HtmlPage {
         unsafe(fs::raw::write_text_file(path.data(), completePage.data() as *u8, completePage.size()))
     }
 
+    /// Deprecated: writing one page on its own duplicates the hydration runtime and
+    /// every shared component in every file. Build the pages through
+    /// `page.StaticSite` (or `web::Static` / `web::App`) instead: they render first,
+    /// freeze one content-hashed bundle, and then write HTML that points at it.
+    /// Kept as a shim for one release.
+    @deprecated("use page.StaticSite or web::Static: per-page output duplicates the shared bundle")
     // given name -> {name}.css, {name}_head.js, {name}.js assets maybe generated
     func writeToDirectory(&self, path : &std::string_view, name : &std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") {
 

@@ -45,6 +45,38 @@ func time_serve(site : *mut StaticSite, req : &mut http::Request, iterations : i
     return <span class="late">{props.children}</span>
 }
 
+// How many times `needle` occurs in `hay` (a page must not carry a script tag it
+// does not need).
+func count_of(hay : std::string_view, needle : std::string_view) : ubigint {
+    if(needle.size() == 0 || hay.size() < needle.size()) { return 0 }
+    var count : ubigint = 0
+    var i : size_t = 0
+    var last = hay.size() - needle.size()
+    while(i <= last) {
+        var k : size_t = 0
+        var matched = true
+        while(k < needle.size()) {
+            if(hay.at(i + k) != needle.at(k)) { matched = false; break }
+            k = k + 1
+        }
+        if(matched) {
+            count = count + 1
+            i = i + needle.size()
+        } else {
+            i = i + 1
+        }
+    }
+    return count
+}
+
+// A page with no components and no client behaviour: `#html` only.
+func render_plain(page : &mut HtmlPage) {
+    page.appendTitle("Plain")
+    #html {
+        <div class="page plain"><h1>Plain</h1><p>No JavaScript at all.</p></div>
+    }
+}
+
 func render_index(page : &mut HtmlPage) {
     page.appendTitle("Index")
     #html {
@@ -269,6 +301,107 @@ public func main() : int {
     if(!mini.finish()) {
         unsafe { printf("site error: %s\n", mini.error_message().data()) }
         return 1
+    }
+
+    // ── gzip precompression (Phase 5 item 1) ─────────────────────────────
+    // A third build, differing only by `set_gzip(true)`. It reports the size of
+    // each representation and what a request with and without `Accept-Encoding`
+    // gets back, so the gate can check the negotiation as well as the bytes.
+    var zipped = StaticSite.make("lang/compiled/static_site_gz_out", "app", "assets")
+    zipped.set_minify(true)
+    zipped.set_gzip(true)
+    if(!build_site(&mut zipped)) { return 1 }
+    var gz_js = zipped.bundle_js_url()
+    var gz_js_view = gz_js
+    const gzip_lit = std::string_view("gzip")
+    const accept_lit = std::string_view("Accept-Encoding")
+    var plain_res = zipped.respond(gz_js_view)
+    var gz_res = zipped.respond_negotiated(gz_js_view, std::string_view(""), std::string_view("gzip, deflate, br"))
+    var refused_res = zipped.respond_negotiated(gz_js_view, std::string_view(""), std::string_view("identity"))
+    var q0_res = zipped.respond_negotiated(gz_js_view, std::string_view(""), std::string_view("gzip;q=0"))
+    unsafe {
+        printf("gzip js=%llu->%llu enc=%d vary=%d plain_enc=%d refused=%d q0=%d\n",
+            plain_res.body.size(), gz_res.body.size(),
+            gz_res.content_encoding.equals(&gzip_lit) as int,
+            gz_res.vary.equals(&accept_lit) as int,
+            plain_res.content_encoding.size(),
+            refused_res.body.size() == plain_res.body.size(),
+            q0_res.body.size() == plain_res.body.size())
+    }
+    // The page is compressed too, and the compressed bytes are actually smaller
+    // than the HTML (a page this small would otherwise grow).
+    var gz_page_plain = zipped.respond("/")
+    var gz_page = zipped.respond_negotiated("/", std::string_view(""), std::string_view("gzip"))
+    unsafe {
+        printf("gzip page=%llu->%llu has_variants=%d\n",
+            gz_page_plain.body.size(), gz_page.body.size(),
+            zipped.has_gzip_variants() as int)
+    }
+    // A 304 for one representation must not answer the other: the ETags differ.
+    var in_same = std::string_view("")
+    var etag_gz = gz_res.etag
+    var not_modified = zipped.respond_negotiated(gz_js_view, etag_gz, std::string_view("gzip"))
+    var cross_rep = zipped.respond_negotiated(gz_js_view, etag_gz, std::string_view(""))
+    unsafe {
+        printf("gzip etag_distinct=%d not_modified=%d cross=%llu\n",
+            (gz_res.etag.equals(&plain_res.etag) == false) as int,
+            not_modified.not_modified() as int,
+            cross_rep.body.size())
+    }
+    var _ = in_same
+    if(!zipped.finish()) {
+        unsafe { printf("site error: %s\n", zipped.error_message().data()) }
+        return 1
+    }
+    unsafe { printf("gzip written=%s\n", gz_js.data()) }
+
+    // ── profile (Phase 5 item 1) ─────────────────────────────────────────
+    // `--profile` is a build definition; without it `set_profile` is simply not
+    // called. The fixture always asks, so the gate can check the numbers.
+    var profiled = StaticSite.make("lang/compiled/static_site_profile_out", "app", "assets")
+    profiled.set_minify(true)
+    profiled.set_gzip(true)
+    if(!build_site(&mut profiled)) { return 1 }
+    if(!profiled.export_profile()) {
+        unsafe { printf("profile error: %s\n", profiled.error_message().data()) }
+        return 1
+    }
+    if(!profiled.finish()) {
+        unsafe { printf("profile error: %s\n", profiled.error_message().data()) }
+        return 1
+    }
+    var report = profiled.profile_report()
+    var report_view = report.to_view()
+    unsafe { printf("---profile---\n%s---end---\n", report_view.data()) }
+
+    // ── web::Static: the `--static` multi-page export ────────────────────
+    // Two pages, one bundle. The first is `#html` only, so it must ship **no**
+    // JavaScript: the "a static page without components has no script" invariant is
+    // the reason a marketing page is not forced to download the runtime.
+    var mpa = web::Static.make("lang/compiled/static_site_mpa_out", "app", "assets")
+    mpa.set_minify(true)
+    mpa.set_gzip(true)
+    var plain_page = HtmlPage()
+    var rich_page = HtmlPage()
+    mpa.add(&mut plain_page, "index.html")
+    mpa.add(&mut rich_page, "rich/index.html")
+    render_plain(&mut plain_page)
+    rich_page.defaultUniversalSetup()
+    render_index(&mut rich_page)
+    if(!mpa.finish()) {
+        unsafe { printf("mpa error: %s\n", mpa.error_message().data()) }
+        return 1
+    }
+    var mpa_plain = mpa.respond("/")
+    var mpa_rich = mpa.respond("/rich/")
+    const script_tag = std::string_view("<script")
+    const runtime_marker = std::string_view("$__uni")
+    unsafe {
+        printf("mpa pages=%llu artifacts=%llu plain_scripts=%llu plain_runtime=%d rich_scripts=%llu bundle=%d\n",
+            mpa.page_count(), mpa.artifact_count(),
+            count_of(mpa_plain.body, script_tag), count_of(mpa_plain.body, runtime_marker) as int,
+            count_of(mpa_rich.body, script_tag),
+            (mpa_rich.body.contains(&mpa.bundle_js_url()) as int))
     }
     return 0
 }

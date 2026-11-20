@@ -832,6 +832,65 @@ minifier works **in pieces** (each definition and the gaps between them) and rec
 range as it writes, then verifies each range still holds one definition. That is why chunked sites
 can be minified safely; if the check ever fails, the raw bytes are kept.
 
+### gzip, budgets, and the profile report
+
+Three more calls, all opt-in and all before `build()`:
+
+```chemical
+var site = StaticSite.make("out", "app", "assets")
+site.set_minify(true)
+site.set_gzip(true)          // also writes <path>.gz next to every compressible artifact
+site.set_profile(true)       // per-route byte report; also --profile at the CLI
+```
+
+`set_gzip(true)` compresses every text artifact at build time (`compression::gzip`, a pure-Chemical
+deflate — **no** new native dependency) and keeps a variant **only when it is smaller**. `.gz` files
+are extras, not artifacts: they never appear in `artifact_count()` or the sitemap. Serving is opt-in
+per request, because it depends on the client's header:
+
+```chemical
+var res = site.respond_negotiated(path, if_none_match, accept_encoding)   // or app.respond(...)
+```
+
+That picks gzip vs identity from `Accept-Encoding` (`q=0`, `identity`, `*` and multiple encodings are
+handled), gives **each representation its own ETag** (a gzip 304 must not be revalidated against the
+identity bytes), and sends `Vary: Accept-Encoding`. `web::App` and `webserve` already pass the header
+through, so `app.set_gzip(true)` is enough for the served case. Measured on the gate fixture: the
+minified 48,283 B bundle gzips to 13,122 B; `gzip -9` on the same bytes gives 10,981 B (fixed-Huffman
+is ~20% larger than zlib's dynamic Huffman, which is not worth the encoder yet). A 466 B page becomes
+311 B.
+
+Budgets are asserted in `scripts/static-site-test.sh` (bundle ≤ 60,000 B minified, ≤ 20,000 B gzipped,
+page ≤ 2,048 B, chunk ≤ 8,192 B), so a regression fails the gate rather than being noticed later.
+
+`set_profile(true)` (or `--profile` on the CLI, which sets the `profile` build definition) records
+per-route HTML/chunk bytes, component-unit counts and first-load vs navigation cost.
+`site.profile_report()` returns a text report; `site.export_profile()` writes `profile.json`.
+Enable it for a release build and read the `total` line; it is how you find the route that is 40 KB
+heavier than the rest.
+
+### Multi-page exports: `web::Static`
+
+For a site whose pages are already known (a docs site, a marketing site, a blog), use the MPA
+wrapper instead of `web::App`:
+
+```chemical
+var site = web::Static.make("out", "app", "assets")
+site.add("/",     &mut home)        // home : HtmlPage
+site.add("/docs", &mut docs)
+site.set_minify(true)
+site.set_gzip(true)
+site.finish()                        // or build() when you want respond() to keep working
+```
+
+Every page shares **one** content-hashed bundle, plus its own route chunk. A page whose chunk is
+empty (pure `#html`, no components) emits **no `<script>` tag at all** — the zero-JS promise is
+per page, not per build — and keeps only its CSS link. `--static` at the CLI sets the `static`
+build definition for code that wants to know which side it is on.
+
+`HtmlPage.writeToDirectory` is `@deprecated`; `web::Static.build()` (or `StaticSite.build()`) is the
+replacement and does the same work plus hashing, chunking and the extras above.
+
 `attach_shared` is opt-in and low level: it does not manage routes, hashed names or serving. A page
 that never calls it behaves exactly as before. App-wide CSS/JS written with `#globalcss { ... }` /
 `#globaljs { ... }` goes into the shared bundle when a sink is attached (falling back to the page
@@ -868,8 +927,8 @@ of the right-hand column has landed yet** — code written against it will not c
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
 | assembling pages | `HtmlPage` + `StaticSite` (runtime bundle + `vendor` bundle + route chunks, all content-hashed) | a `web_build` command that drives the two-phase build |
-| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, `webserve` bridge, `page.Bundle` (embedded artifact set + `StaticSite.write_assets_module`) | CSS chunks + `modulepreload`, `Vary: Cookie` render hook, loading a `Bundle` from disk |
-| sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store) | persistent stores, rotating session ids on privilege change, signed cookies |
+| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`, `set_gzip`/`set_profile`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` / `respond_negotiated(path, inm, accept_encoding)` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, **`web::Static` MPA export (`add`/`build`/`finish`/`export_sitemap`)**, `webserve` bridge, `page.Bundle` (embedded artifact set + `StaticSite.write_assets_module`), **gzip variants + `Vary: Accept-Encoding`**, **`profile_report()`/`export_profile()` (+ `--profile`)** | CSS chunks + `modulepreload`, loading a `Bundle` from disk |
+| sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF** (in-memory store; a `Vary: Cookie` pre-rendered route is a build error) | persistent stores (blocked on a struct-with-container move bug), signed cookies |
 | client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |
 | JS output | inlined page script, or one shared bundle + per-page chunk | browser-target `--emit-js`, an ESM chunk graph, `--static` |
@@ -892,6 +951,8 @@ The probe (`./scripts/web-probe.sh analyze <out-dir> --strict`) measures each of
 - The bundle minifier (`set_minify(true)`) is worth ~45% of raw generated JS (108,520 → 48,283 B on
   the `app` fixture), so enable it for anything served over a network. Do not hand-minify pages;
   it is a build step.
+- gzip on top of that is another ~73% (48,283 → 13,122 B). Enable `set_gzip(true)` and serve with
+  `respond_negotiated`; a text artifact served identity-only wastes the client's bandwidth.
 
 ### Bootstrap prompt for an app agent
 

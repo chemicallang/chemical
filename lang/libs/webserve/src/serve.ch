@@ -76,8 +76,17 @@ public func serve(site : *mut StaticSite, req : &http::Request) : http::Response
         if_none_match = value
     }
 
+    // Content negotiation: a gzipped representation is served to a client that
+    // accepts it, and `Vary` says so (see `respond_negotiated`).
+    var accept_encoding = std::string_view("")
+    var enc = req.headers.get("Accept-Encoding")
+    if(enc is Option.Some) {
+        var Some(value) = enc else unsafe { unreachable }
+        accept_encoding = value
+    }
+
     var path_view = req.path.to_view()
-    var out = target.respond_if_none_match(path_view, if_none_match)
+    var out = target.respond_negotiated(path_view, if_none_match, accept_encoding)
 
     res.status = out.status as u16
     var content_type = out.content_type
@@ -87,6 +96,14 @@ public func serve(site : *mut StaticSite, req : &http::Request) : http::Response
     if(!out.etag.empty()) {
         var etag = out.etag
         res.set_header_view("ETag", &etag)
+    }
+    if(!out.content_encoding.empty()) {
+        var encoding = out.content_encoding
+        res.set_header_view("Content-Encoding", &encoding)
+    }
+    if(!out.vary.empty()) {
+        var vary = out.vary
+        res.set_header_view("Vary", &vary)
     }
     if(out.body.size() > 0) {
         var body = out.body

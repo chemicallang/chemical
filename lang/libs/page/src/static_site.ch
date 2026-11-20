@@ -69,6 +69,10 @@ public struct StaticSite {
     /// render must not poison the build, so it reports here instead of `failure`.
     private var dynamic_error : std::string
 
+    /// Precompress text artifacts (`set_gzip`). Off by default; a compressed
+    /// variant only costs build time and a second buffer in RAM.
+    private var want_gzip : bool
+
     /// Absolute origin this build is published under (`https://example.com`),
     /// used by `export_sitemap`. Empty means "site-relative only".
     private var site_url : std::string
@@ -88,6 +92,13 @@ public struct StaticSite {
     /// Why the build kept every unit in the bundle (empty when it split). A
     /// conservative reason is not a failure: the shared bundle is always correct.
     private var split_note_text : std::string
+
+    // ── Profile (per-route bytes, §Phase 5) ──────────────────────────────
+    // Recorded while building, because that is when a page's HTML and chunk bytes
+    // are in hand; `profile_report()` and `export_profile()` read them back.
+    private var page_html_sizes : std::vector<ubigint>
+    private var page_chunk_sizes : std::vector<ubigint>
+    private var page_chunk_units : std::vector<ubigint>
 
     @make
     public func make(out_dir : std::string_view, base_name : std::string_view = "app", asset_prefix : std::string_view = "assets") : StaticSite {
@@ -113,6 +124,7 @@ public struct StaticSite {
             failed : false,
             failure : std::string(),
             dynamic_error : std::string(),
+            want_gzip : false,
             site_url : std::string(),
             chunk_prefixes : std::vector<std::string>(),
             chunked_units : 0,
@@ -120,7 +132,10 @@ public struct StaticSite {
             vendor_bytes : std::string(),
             vendor_js_path : std::string(),
             vendor_units : 0,
-            split_note_text : std::string()
+            split_note_text : std::string(),
+            page_html_sizes : std::vector<ubigint>(),
+            page_chunk_sizes : std::vector<ubigint>(),
+            page_chunk_units : std::vector<ubigint>()
         }
     }
 
@@ -145,6 +160,33 @@ public struct StaticSite {
     public func is_minify_enabled(&self) : bool {
         if(!assets.is_valid()) { return false }
         return assets.get().is_minify_enabled()
+    }
+
+    /// Precompress every text artifact with gzip and negotiate it per request
+    /// (`Accept-Encoding`). Call before `build()`; a built site ignores it.
+    ///
+    /// A compressed variant is only kept when it is smaller than the original, so
+    /// an already-compressed asset (an image) never grows. `<path>.gz` sidecars are
+    /// written by `finish()`, which is what a static host's `gzip_static` wants.
+    public func set_gzip(&mut self, on : bool) {
+        if(built) { return }
+        want_gzip = on
+    }
+
+    public func is_gzip_enabled(&self) : bool {
+        return want_gzip
+    }
+
+    /// True when some artifact carries a compressed variant, so a server knows the
+    /// response's bytes depend on `Accept-Encoding` (`Vary`).
+    public func has_gzip_variants(&self) : bool {
+        var i : ubigint = 0
+        while(i < artifacts.size()) {
+            var a = unsafe(&*artifacts.get_ptr(i))
+            if(!a.gzipped.empty()) { return true }
+            i = i + 1
+        }
+        return false
     }
 
     /// Attach the shared sink to `page` and record it at `path` (relative to the
@@ -219,6 +261,161 @@ public struct StaticSite {
             i = i + 1
         }
         return out
+    }
+
+    // ── Profile: per-route bytes, chunk composition, navigation cost ─────
+    /// Bytes of the artifact at `path` (0 when there is none).
+    func artifact_size_of(&self, path : &std::string_view) : ubigint {
+        var index = artifact_index_of(path)
+        if(index < 0) { return 0 }
+        var a = unsafe(&*artifacts.get_ptr(index as ubigint))
+        return a.bytes.size()
+    }
+
+    /// Bytes of the compressed representation of the artifact at `path` (0 when
+    /// there is none: `set_gzip(false)`, a non-text type, or no win).
+    func artifact_gzip_size_of(&self, path : &std::string_view) : ubigint {
+        var index = artifact_index_of(path)
+        if(index < 0) { return 0 }
+        var a = unsafe(&*artifacts.get_ptr(index as ubigint))
+        return a.gzipped.size()
+    }
+
+    /// Per-route byte accounting for a built site, one line per fact:
+    ///
+    ///   shared bundle=<B> gzip=<B> vendor=<B> vendor_gzip=<B> css=<B>
+    ///   route path=<route> html=<B> chunk=<B> units=<N> first_load=<B> navigation=<B>
+    ///   total routes=<N> first_load_max=<B> navigation_max=<B>
+    ///
+    /// `first_load` is what a cold client fetches for that route (its HTML, its
+    /// chunk, and the shared bundle/vendor/CSS once); `navigation` is what an
+    /// already-warm client fetches to move to it (its HTML plus its chunk — the
+    /// shared assets are cache hits). `units` is how many component definitions the
+    /// chunk carries, which is the chunk's composition in one number.
+    ///
+    /// Deterministic: routes are in registration order, so two builds can be
+    /// diffed. Empty before `build()` (a profile of nothing is not a profile).
+    public func profile_report(&self) : std::string {
+        var out = std::string()
+        if(!built || build_failed) {
+            out.append_view("profile unavailable: site not built")
+            return out
+        }
+        var bundle_view = bundle_js_path.to_view()
+        var vendor_view = vendor_js_path.to_view()
+        var css_view = bundle_css_path.to_view()
+        var bundle_bytes = artifact_size_of(&bundle_view)
+        var vendor_bytes = artifact_size_of(&vendor_view)
+        var css_bytes = artifact_size_of(&css_view)
+        var shared_bytes = bundle_bytes + vendor_bytes + css_bytes
+
+        out.append_view("shared bundle=")
+        out.append_uinteger(bundle_bytes)
+        out.append_view(" gzip=")
+        out.append_uinteger(artifact_gzip_size_of(&bundle_view))
+        out.append_view(" vendor=")
+        out.append_uinteger(vendor_bytes)
+        out.append_view(" vendor_gzip=")
+        out.append_uinteger(artifact_gzip_size_of(&vendor_view))
+        out.append_view(" css=")
+        out.append_uinteger(css_bytes)
+        out.append_view("\n")
+
+        var first_load_max : ubigint = 0
+        var navigation_max : ubigint = 0
+        var i : ubigint = 0
+        while(i < page_html_sizes.size()) {
+            var html = page_html_sizes.at(i)
+            var chunk : ubigint = 0
+            if(i < page_chunk_sizes.size()) { chunk = page_chunk_sizes.at(i) }
+            var units : ubigint = 0
+            if(i < page_chunk_units.size()) { units = page_chunk_units.at(i) }
+            var first_load = html + chunk + shared_bytes
+            var navigation = html + chunk
+            if(first_load > first_load_max) { first_load_max = first_load }
+            if(navigation > navigation_max) { navigation_max = navigation }
+            var target = paths.at(i)
+            out.append_view("route path=")
+            out.append_view(&target)
+            out.append_view(" html=")
+            out.append_uinteger(html)
+            out.append_view(" chunk=")
+            out.append_uinteger(chunk)
+            out.append_view(" units=")
+            out.append_uinteger(units)
+            out.append_view(" first_load=")
+            out.append_uinteger(first_load)
+            out.append_view(" navigation=")
+            out.append_uinteger(navigation)
+            out.append_view("\n")
+            i = i + 1
+        }
+
+        out.append_view("total routes=")
+        out.append_uinteger(page_html_sizes.size())
+        out.append_view(" first_load_max=")
+        out.append_uinteger(first_load_max)
+        out.append_view(" navigation_max=")
+        out.append_uinteger(navigation_max)
+        out.append_view("\n")
+        return out
+    }
+
+    /// Add `profile.json` to the artifact set, so a deploy carries the same
+    /// per-route accounting `profile_report()` prints. Call after `build()` and
+    /// before `finish()`.
+    ///
+    /// The numbers are the build's, computed from the bytes that are actually
+    /// served; nothing here is measured at request time.
+    public func export_profile(&mut self) : bool {
+        if(!built || build_failed) {
+            fail_with("export_profile needs a built site")
+            return false
+        }
+        var bundle_view = bundle_js_path.to_view()
+        var vendor_view = vendor_js_path.to_view()
+        var css_view = bundle_css_path.to_view()
+        var shared_bytes = artifact_size_of(&bundle_view) + artifact_size_of(&vendor_view) + artifact_size_of(&css_view)
+
+        var json = std::string()
+        json.append_view("{\n  \"shared\": {\"bundle\": ")
+        json.append_uinteger(artifact_size_of(&bundle_view))
+        json.append_view(", \"bundle_gzip\": ")
+        json.append_uinteger(artifact_gzip_size_of(&bundle_view))
+        json.append_view(", \"vendor\": ")
+        json.append_uinteger(artifact_size_of(&vendor_view))
+        json.append_view(", \"css\": ")
+        json.append_uinteger(artifact_size_of(&css_view))
+        json.append_view("},\n  \"routes\": [")
+        var i : ubigint = 0
+        while(i < page_html_sizes.size()) {
+            if(i > 0) { json.append_view(", ") }
+            var html = page_html_sizes.at(i)
+            var chunk : ubigint = 0
+            if(i < page_chunk_sizes.size()) { chunk = page_chunk_sizes.at(i) }
+            var units : ubigint = 0
+            if(i < page_chunk_units.size()) { units = page_chunk_units.at(i) }
+            var target = paths.at(i)
+            json.append_view("{\"path\": \"")
+            append_chemical_json_string(&mut json, target)
+            json.append_view("\", \"html\": ")
+            json.append_uinteger(html)
+            json.append_view(", \"chunk\": ")
+            json.append_uinteger(chunk)
+            json.append_view(", \"units\": ")
+            json.append_uinteger(units)
+            json.append_view(", \"first_load\": ")
+            json.append_uinteger(html + chunk + shared_bytes)
+            json.append_view(", \"navigation\": ")
+            json.append_uinteger(html + chunk)
+            json.append_view("}")
+            i = i + 1
+        }
+        json.append_view("]\n}\n")
+        var path = std::string()
+        path.append_view("profile.json")
+        push_artifact(path, json, std::string_view("application/json; charset=utf-8"), false)
+        return true
     }
 
     public func page_count(&self) : ubigint {
@@ -608,13 +805,36 @@ public struct StaticSite {
                 push_artifact(chunk_path, chunk_bytes, std::string_view("text/javascript; charset=utf-8"), true)
             }
 
+            // A page that emits no client JS of its own needs neither the runtime
+            // bundle nor the vendor bundle: linking them would make an `#html`-only
+            // marketing page download the hydration runtime it never runs. The
+            // stylesheet stays — a page may use classes the shared CSS defines.
             var page_tags = head_tags_for(&url_prefix, &css_name_view, &vendor_name_view, &js_name_view)
+            if(chunk_src.empty()) {
+                var no_asset = std::string_view("")
+                page_tags = head_tags_for(&url_prefix, &css_name_view, &no_asset, &no_asset)
+            }
             var page_tags_view = page_tags.to_view()
             var body_src_view = body_src.to_view()
             var html = page_ref.toStringWithAssets(page_tags_view, body_src_view)
 
             var page_path = std::string()
             page_path.append_view(&target)
+            var html_view = html.to_view()
+            page_html_sizes.push_back(html_view.size())
+            var chunk_size : ubigint = 0
+            if(!chunk_src.empty()) {
+                var chunk_size_view = chunk_src.to_view()
+                chunk_size = chunk_size_view.size() as ubigint
+            }
+            page_chunk_sizes.push_back(chunk_size)
+            var unit_count : ubigint = 0
+            if(!own_prefix.empty()) {
+                const unit_marker = std::string_view("function ")
+                var own_prefix_view = own_prefix.to_view()
+                unit_count = occurrences(&own_prefix_view, &unit_marker)
+            }
+            page_chunk_units.push_back(unit_count)
             push_artifact(page_path, html, std::string_view("text/html; charset=utf-8"), false)
             i = i + 1
         }
@@ -661,6 +881,31 @@ public struct StaticSite {
             i = i + 1
         }
 
+        // Compressed sidecars for a static host (`gzip_static`): `<path>.gz` next to
+        // every artifact that has one. They are deliberately *not* artifacts, so the
+        // manifest keeps describing the URLs a browser requests rather than the
+        // files a server may pick from.
+        var g : ubigint = 0
+        while(g < artifacts.size()) {
+            var ga = unsafe(&*artifacts.get_ptr(g))
+            if(!ga.gzipped.empty()) {
+                var gz_rel = ga.path.to_view()
+                var gz_file = std::string()
+                gz_file.append_view(&out_view)
+                gz_file.append('/')
+                gz_file.append_view(&gz_rel)
+                gz_file.append_view(".gz")
+                var gz_file_view = gz_file.to_view()
+                var gz_result = unsafe(fs::raw::write_text_file(gz_file_view.data(), ga.gzipped.data() as *u8, ga.gzipped.size()))
+                if(gz_result is std::Result.Err) {
+                    fail_with("could not write")
+                    fail_with(gz_file_view)
+                    return false
+                }
+            }
+            g = g + 1
+        }
+
         if(artifacts.size() > 0) {
             var first = unsafe(&*artifacts.get_ptr(0))
             if(!artifact_exists(out_view, &first.path.to_view())) {
@@ -692,6 +937,18 @@ public struct StaticSite {
     /// answers revalidation without re-reading or re-hashing anything. 404/503
     /// responses carry no ETag.
     public func respond_if_none_match(&self, request_path : std::string_view, if_none_match : std::string_view) : SiteResponse {
+        return respond_negotiated(request_path, if_none_match, std::string_view(""))
+    }
+
+    /// `respond_if_none_match`, plus content negotiation: when the artifact has a
+    /// gzip variant (`set_gzip(true)`) and `accept_encoding` accepts gzip, the body
+    /// is the compressed bytes with `Content-Encoding: gzip` and its own ETag, and
+    /// the response carries `Vary: Accept-Encoding` so a cache never mixes the two
+    /// representations of one URL.
+    ///
+    /// Pass the request's `Accept-Encoding` header here (empty means "identity").
+    public func respond_negotiated(&self, request_path : std::string_view, if_none_match : std::string_view,
+                                   accept_encoding : std::string_view) : SiteResponse {
         if(!built || build_failed) {
             return site_response(503, std::string_view("text/plain; charset=utf-8"),
                 std::string_view("no-store"), std::string_view("site not built"), std::string_view(""))
@@ -716,15 +973,27 @@ public struct StaticSite {
         }
 
         var a = unsafe(&*artifacts.get_ptr(index as ubigint))
-        var etag = a.etag.to_view()
         var cache = std::string_view("no-cache")
         if(a.immutable) {
             cache = std::string_view("public, max-age=31536000, immutable")
         }
-        if(!if_none_match.empty() && if_none_match.equals(&etag)) {
-            return site_response(304, a.content_type, cache, std::string_view(""), etag)
+        var use_gzip = false
+        if(!a.gzipped.empty() && accepts_gzip(accept_encoding)) { use_gzip = true }
+        var etag = a.etag.to_view()
+        var body = a.bytes.to_view()
+        var encoding = std::string_view("")
+        if(use_gzip) {
+            var gz_etag_view = a.gz_etag.to_view()
+            etag = gz_etag_view
+            body = a.gzipped.to_view()
+            encoding = std::string_view("gzip")
         }
-        return site_response(200, a.content_type, cache, a.bytes.to_view(), etag)
+        var vary = std::string_view("")
+        if(!a.gzipped.empty()) { vary = std::string_view("Accept-Encoding") }
+        if(!if_none_match.empty() && if_none_match.equals(&etag)) {
+            return site_response_encoded(304, a.content_type, cache, std::string_view(""), etag, encoding, vary)
+        }
+        return site_response_encoded(200, a.content_type, cache, body, etag, encoding, vary)
     }
 
     // ── Export extras (static hosting) ───────────────────────────────────
@@ -1022,12 +1291,23 @@ public struct StaticSite {
             }
             return
         }
+        var gzipped = std::string()
+        var gz_etag = std::string()
+        if(want_gzip && is_compressible_type(content_type)) {
+            var gz = compress_artifact(&bytes)
+            if(gz.size() > 0 && gz.size() < bytes.size()) {
+                gz_etag = quoted_etag_of(&gz)
+                gzipped = gz
+            }
+        }
         artifacts.push_back(SiteArtifact {
             path : path,
             bytes : bytes,
             content_type : content_type,
             immutable : immutable,
-            etag : quoted_etag_of(&bytes)
+            etag : quoted_etag_of(&bytes),
+            gzipped : gzipped,
+            gz_etag : gz_etag
         })
     }
 
@@ -1052,6 +1332,13 @@ public struct SiteArtifact {
     /// Strong validator for `If-None-Match`, quoted for the header
     /// (`"3f2a91c0d4e5"`). Derived from the bytes once, at build time.
     public var etag : std::string
+    /// gzip-compressed copy of `bytes`, empty when there is none (not a text
+    /// artifact, compression disabled, or the result was not smaller).
+    public var gzipped : std::string
+    /// Validator for `gzipped`. Deliberately **not** `etag`: one URL has two
+    /// representations now, and a client that cached the identity body must not be
+    /// told "not modified" for the compressed one.
+    public var gz_etag : std::string
 }
 
 /// A static response. `body` borrows the site's buffer (no copy per request), so
@@ -1064,6 +1351,12 @@ public struct SiteResponse {
     public var body : std::string_view
     /// The `ETag` header value; empty for 404/503.
     public var etag : std::string_view
+    /// `Content-Encoding` for `body` (`gzip`), empty when the body is the identity
+    /// representation.
+    public var content_encoding : std::string_view
+    /// `Vary` value this response needs because a compressed variant exists
+    /// (`Accept-Encoding`), empty when there is nothing to negotiate.
+    public var vary : std::string_view
 
     public func ok(&self) : bool {
         return status == 200
@@ -1085,7 +1378,24 @@ func site_response(status : int, content_type : std::string_view, cache_control 
         content_type : content_type,
         cache_control : cache_control,
         body : body,
-        etag : etag
+        etag : etag,
+        content_encoding : std::string_view(""),
+        vary : std::string_view("")
+    }
+}
+
+// The compressed representation of an artifact, with the headers that describe it.
+func site_response_encoded(status : int, content_type : std::string_view, cache_control : std::string_view,
+                           body : std::string_view, etag : std::string_view,
+                           content_encoding : std::string_view, vary : std::string_view) : SiteResponse {
+    return SiteResponse {
+        status : status,
+        content_type : content_type,
+        cache_control : cache_control,
+        body : body,
+        etag : etag,
+        content_encoding : content_encoding,
+        vary : vary
     }
 }
 
@@ -1112,6 +1422,106 @@ func quoted_etag_of(bytes : &std::string) : std::string {
     out.append_view(&hash_view)
     out.append('"')
     return out
+}
+
+// True when `content_type` is worth compressing. Text is where gzip wins; an
+// image or a font is already compressed and would only grow.
+//
+// Parameter matching is a prefix/suffix test on the type, not a full media-type
+// parser: the build controls every content type it emits.
+func is_compressible_type(content_type : std::string_view) : bool {
+    var t = content_type
+    if(t.starts_with(&std::string_view("text/"))) { return true }
+    if(t.starts_with(&std::string_view("application/javascript"))) { return true }
+    if(t.starts_with(&std::string_view("application/json"))) { return true }
+    if(t.starts_with(&std::string_view("application/xml"))) { return true }
+    if(t.starts_with(&std::string_view("image/svg+xml"))) { return true }
+    return false
+}
+
+/// gzip `bytes`, or an empty string when the codec refuses. The caller keeps the
+/// result only when it is smaller.
+func compress_artifact(bytes : &std::string) : std::string {
+    var view = bytes.to_view()
+    var result = compression::gzip(view.as_bytes())
+    if(result is std::Result.Err) { return std::string() }
+    var Ok(packed) = result else unsafe { unreachable }
+    var out = std::string()
+    unsafe { out.append_with_len(packed.data() as *char, packed.size()) }
+    return out
+}
+
+// True when `header[start..end]` is exactly `lit`.
+func accept_token_is(header : std::string_view, start : size_t, end : size_t, lit : std::string_view) : bool {
+    if(end < start) { return false }
+    if(end - start != lit.size()) { return false }
+    var i : size_t = 0
+    while(i < lit.size()) {
+        if(header.at(start + i) != lit.at(i)) { return false }
+        i = i + 1
+    }
+    return true
+}
+
+// The `q=` value in `header[start..end]` is zero (`q=0`, `q=0.0`, `q=0.00`).
+// A missing `q` is not zero: it means 1.
+func accept_q_is_zero(header : std::string_view, start : size_t, end : size_t) : bool {
+    var i = start
+    var eq : size_t = end
+    while(i < end) {
+        if(header.at(i) == '=') { eq = i + 1; break }
+        i = i + 1
+    }
+    if(eq >= end) { return false }
+    var saw_digit = false
+    var non_zero = false
+    var k = eq
+    while(k < end) {
+        var c = header.at(k)
+        if(c == '.') {
+            k = k + 1
+            continue
+        }
+        if(c < '0' || c > '9') { return false }
+        saw_digit = true
+        if(c != '0') { non_zero = true }
+        k = k + 1
+    }
+    if(!saw_digit) { return false }
+    return !non_zero
+}
+
+// An `Accept-Encoding` header accepts gzip when it names `gzip` with a non-zero
+// quality, or names `*` with a non-zero quality and does not exclude gzip.
+// `gzip;q=0` is an explicit refusal, which outranks a `*` wildcard.
+func accepts_gzip(header : std::string_view) : bool {
+    if(header.size() == 0) { return false }
+    var i : size_t = 0
+    var wildcard_ok = false
+    var gzip_seen = false
+    while(i < header.size()) {
+        // One comma-separated token, trimmed of surrounding spaces.
+        var start = i
+        while(i < header.size() && header.at(i) != ',') { i = i + 1 }
+        var end = i
+        while(start < end && header.at(start) == ' ') { start = start + 1 }
+        while(end > start && header.at(end - 1) == ' ') { end = end - 1 }
+        // `name` runs to the first `;`, the parameters follow it.
+        var name_end = start
+        while(name_end < end && header.at(name_end) != ';') { name_end = name_end + 1 }
+        var params_start = name_end
+        if(params_start < end && header.at(params_start) == ';') { params_start = params_start + 1 }
+        var q_is_zero = accept_q_is_zero(header, params_start, end)
+        if(accept_token_is(header, start, name_end, std::string_view("gzip"))) {
+            gzip_seen = true
+            if(!q_is_zero) { return true }
+        } else if(accept_token_is(header, start, name_end, std::string_view("*"))) {
+            if(!q_is_zero) { wildcard_ok = true }
+        }
+        i = i + 1
+    }
+    if(gzip_seen) { return false }
+    return wildcard_ok
 }
 
 // `<link>`/`<script src>` tags for a page whose asset URLs start with
@@ -1141,6 +1551,26 @@ func head_tags_for(url_prefix : &std::string_view, css_name : &std::string_view,
         out.append_view("\"></script>")
     }
     return out
+}
+
+// Append `value` as a JSON string body (no surrounding quotes). Route paths are
+// built from segment names, so this only has to handle the characters that would
+// break the document.
+func append_chemical_json_string(out : &mut std::string, value : std::string_view) {
+    var i : ubigint = 0
+    while(i < value.size()) {
+        const c = value.at(i)
+        if(c == '"') {
+            out.append_view("\\\"")
+        } else if(c == '\\') {
+            out.append_view("\\\\")
+        } else if(c == '\n') {
+            out.append_view("\\n")
+        } else {
+            out.append(c)
+        }
+        i = i + 1
+    }
 }
 
 // Append `value` to `out` as a Chemical string literal, escaped. A build emits

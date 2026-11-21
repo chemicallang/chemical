@@ -232,6 +232,12 @@ var count = items.size()
 **Key rules:**
 - You CANNOT split a `#html` block across multiple blocks with Chemical code in between
 - Always use `@{}` to write Chemical logic inside `#html` blocks
+- **One statement per `@{}` block.** A `while`/`for`/`if` *is* one statement, so the loop body can be
+  as long as you like — but do not put a `var` and a loop side by side in the same escape; use two
+  blocks (or declare the variable in the enclosing scope).
+- `@{}` may span lines (a newline is allowed after `@{` and before `}`). This was broken until
+  2026-11; if you see a parse error at a `@{`, check you are on a build with the `skip_newlines` fix
+  in `lang/libs/html_parser/src/parser/htmlchild.ch`.
 - The index variable (`idx`) must be incremented BEFORE the nested `#html { }` block
 - The loop variable extraction happens inside the `@{}` block, before the `#html { }`
 - Each `@{}` block must be self-contained (all variables declared or accessible within it)
@@ -610,7 +616,8 @@ srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
 
 - **Route handlers are `(page : &mut HtmlPage, req : &http::Request) => void`** — the same shape for a
   pre-rendered and a per-request route. `page` must be named `page` for `#html`; `req` gives you
-  `req.param("id")`, `req.query`, headers.
+  `req.param("id")`, `req.query`, headers. The handler cannot answer a status code, a header or
+  JSON, and `handle` ignores `req.method` — see *What an app still writes by hand* below.
 - **`page()` patterns must be concrete.** `{param}` in a pre-rendered route is a build error (there is
   no value at build time); use `live()`.
 - **`live()` warms automatically.** `build()` renders each live route once into a discarded page, so
@@ -657,6 +664,52 @@ public func DashboardFills(req : &http::Request) : web::SlotFills {
 
 app.shell("/dashboard", Dashboard, DashboardFills)   // private, no-cache, no ETag
 ```
+
+### What an app still writes by hand (measured, 2026-11)
+
+The three probe apps in `lang/tests/web/probes/` (`shop`, `blog`, `spa`) were written against this
+published API only. `scripts/web-probes-test.sh` builds and runs them. Their findings, and the shape
+you should copy from them, are in `lang/docs/web-stack-gaps.md`; the short version:
+
+- **`web::App` routes by path, not method, and a handler cannot return a status.** There is no
+  POST, no redirect and no JSON answer from `app.handle`. A mutating app puts a hand-written
+dispatch in front of `App.handle`, as `shop/src/main.ch` (`handle_request`) does:
+
+  ```chemical
+  public func handle_request(app : &mut web::App, req : &mut http::Request, body : string_view) : http::Response {
+      var path = req.path.to_view()
+      if(path.equals(&string_view("/cart/add"))) {
+          if(!req.method.to_view().equals(&string_view("POST"))) { return http::response_text(405u, "method not allowed") }
+          // ... read the form, mutate, then redirect (PRG) ...
+          return http::response_redirect(303u, "/cart")
+      }
+      if(path.equals(&string_view("/api/products"))) { return http::response_json_text(200u, &json) }
+      return app.handle(req)
+  }
+  ```
+
+  Pass the body as a parameter: a `Request` cannot be built with a body (`RequestBody`'s fields are
+  internal), so a probe/test cannot hand `app.handle` one.
+- **No form parser exists.** `application/x-www-form-urlencoded` decoding is per-app code today
+  (`form_value`/`url_decode` in the shop probe). Do not assume `http`/`web` will do it for you.
+- **`{value}` interpolation is NOT escaped** — in element text *or* in an attribute. Every value that
+  came from a user must go through `page.escape_html_view(&view)` (or `append_html` with an escaped
+  string). A forgotten escape is an XSS bug; `#html { <a href={url}>…` is an attribute injection.
+- **A page handler receives only `(page, req)`.** The session, the user, the CSRF token and the
+  locale are not passed, and a mutable top-level global is `SAFE-GLOBAL-001`, so the shop probe keeps
+  its session behind one pointer to a request-local and touches it through `unsafe`. Budget for that
+  until `RequestContext` lands.
+- **`web::App` always emits the hydration runtime** (~48 KB, 11 KB gzip) even on pages that use no
+  component — `web::Static` does not. Component-free pages still pay it.
+- **`Static.add(page, path)` stores the `string_view` without copying** (`web::Static` and
+  `StaticSite.add`). Keep every path alive until `build()` — a view into a loop-local string silently
+  becomes a wrong path. The blog probe parks them in a `page_paths : vector<string>` and hands `add`
+  a view into that vector (reserved up front, so entries never move).
+- **`defaultUniversalSetup()` is per page**, even for a page with no component (without it the build
+  fails late: "a page hydrates components but the shared bundle has no hydration runtime").
+- **A top-level container cannot be constructed in its initializer** (`call to unsupported parent
+  value at top level`), and every access to a mutable global needs an `unsafe` boundary. For client
+  state, use one `@never_destructed` struct global plus a `state() : &mut Board { return unsafe(&mut board) }` helper, as `spa/client/main.ch` does.
 
 ### Sessions, cookies and CSRF
 
@@ -743,6 +796,14 @@ public func main() : int {
   `stop_propagation`/`target`/`key`, `fetch_text`, `storage_get`/`storage_set`/
   `storage_remove`, `url_origin`/`url_pathname`/`url_search_param`. Raw host bindings
   live under `dom::raw`; canvas, uploads, pointer/rAF and `WebSocket` are later work.
+  **Not yet in v1:** `query_selector_all`, `child_count`/`child_at`, `remove_child`,
+  `location`/hash, history, a `fetch` with headers/body, and JSON. An SPA that navigates from a
+  hash or renders a list of unknown length needs workarounds today (see `spa/client/main.ch`).
+- **The client bundle is not wired into the served page yet.** `--web` writes
+  `<build-dir>/web-client/assets/web-client.mjs`, but `web::App` emits only the universal hydration
+  bundle, so a `client` module's JS is compiled and never referenced. Until that lands, treat
+  `client/*.ch` as code you test under Node (`scripts/web-dom-test.sh`), not as something the served
+  page loads.
 - **`set_html` is trusted-markup only** — it parses HTML and never escapes; use
   `set_text` for anything that came from a user.
 - Debugging: the client job always emits a source map (`web-client.mjs.map`), so a
@@ -862,6 +923,13 @@ is ~20% larger than zlib's dynamic Huffman, which is not worth the encoder yet).
 
 Budgets are asserted in `scripts/static-site-test.sh` (bundle ≤ 60,000 B minified, ≤ 20,000 B gzipped,
 page ≤ 2,048 B, chunk ≤ 8,192 B), so a regression fails the gate rather than being noticed later.
+
+Real shapes, measured with the probes (TCC, `--mode debug_quick`, one thread; full tables in
+`lang/docs/web-stack-gaps.md`): a storefront answers a per-request product page in **~0.36 ms** of
+SSR (5,500 renders in 2.03 s) at 7.5 MB RSS; a 47-page content site builds and writes in **0.16 s**
+at 3.8 MB RSS with 1.8 KB average HTML; the pages that use no component can serve **0 bytes of JS**
+under `web::Static` but not under `web::App`. Use these as the calibration point for a budget, and
+re-measure with `./scripts/web-probes-test.sh` before quoting a number.
 
 `set_profile(true)` (or `--profile` on the CLI, which sets the `profile` build definition) records
 per-route HTML/chunk bytes, component-unit counts and first-load vs navigation cost.

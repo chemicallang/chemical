@@ -35,6 +35,7 @@ lang/tests/web/fixtures/*/*.exe
 lang/tests/web/fixtures/*/*.def
 
 lang/tests/web/fixtures/*/build/
+lang/tests/web/probes/*/build/
 lang/tests/web/fixtures/*/*.exe
 lang/tests/web/fixtures/*/*.def
 

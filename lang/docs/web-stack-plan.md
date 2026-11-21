@@ -1972,6 +1972,41 @@ is worse than a feature shipping a release late.
 
 ---
 
+### 9.2 Survey: three probe apps against the published API (2026-11-21)
+
+Before freezing v1 we wrote three apps using **only** the public API and measured them
+(`lang/tests/web/probes/`, gate `scripts/web-probes-test.sh`, full findings incl. numbers in
+[`web-stack-gaps.md`](web-stack-gaps.md)):
+
+| probe | shape | result |
+|---|---|---|
+| `shop` | storefront: frozen pages + per-request renders + shell, sessions, CSRF, POST, PRG, JSON, user input in HTML | 22 checks green; ~0.36 ms/SSR render (5,500 in 2.03 s, 7.5 MB RSS); 48 KB bundle on pages with no component |
+| `blog` | content site: 47 pre-rendered pages, tag pages, one shared island | 0.16 s build+write, 3.8 MB RSS, 1.8 KB avg HTML, 0 `<script>` on component-free pages, 40 identical chunks → 40 URLs |
+| `spa` | single-page app: `--web` split, shell, JSON endpoint, typed client | 7 checks green; the emitted `web-client.mjs` (217 KB / 27.9 KB gz) is **not referenced by the served page** |
+
+The survey also found a real parser bug, fixed here: `@{ ... }` could not span lines.
+
+**What it changes in this plan.** The v1 surface is missing four things an app cannot work around
+(ordered; each is additive plus one deliberate break):
+
+1. **`App.endpoint(method, pattern, (req) => Response)`** and public `web::json`/`web::redirect`. No
+   route can answer a status, a header or JSON today, and `handle` ignores `req.method`, so every
+   mutating app hand-writes dispatch in front of `App.handle` (the `shop` probe's ~120 lines).
+2. **Form parsing** (`application/x-www-form-urlencoded`, then `multipart`) and `web::Form`, which
+   the frozen list already promises.
+3. **Emit the hydration runtime only when a component was used** and content-address per-route
+   chunks, so a component-free page serves 0 B of JS and the blog's 40 identical chunks become one
+   artifact. Both are measurable wins on the common shape.
+4. **Connect the client job to the page bundle** (`App.client_bundle(...)` or a module marker) —
+   without it Phase 3's typed client work cannot ship in a page.
+
+Then one design decision that must be taken with them: **escape `{}` by default** with an explicit
+raw marker for markup (item 4 in `web-stack-gaps.md` §P0-5). It is the only finding that is a
+security bug rather than friction, and it is cheap now, expensive after apps exist.
+The next tier (a `RequestContext` instead of handler-side globals + `unsafe`, a `Session` handle,
+`Static.add` taking ownership of its path, `Request.make`/`now_ms` for tests, and the missing `dom`
+members for an SPA) is listed as P1 there.
+
 ## 10. How we will know it worked
 
 **v1 — the release bar:**

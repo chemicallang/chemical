@@ -30,6 +30,27 @@ func skip_leading_whitespace_text(parser : *mut Parser) {
         }
     }
 
+/**
+ * Inside "@{ ... }" the chemical lexer emits NewLine tokens (they separate
+ * statements in ordinary code). A statement parser never sees one at the point
+ * where a statement or its closing '}' must appear, which is why a multi-line
+ * escape -- the documented style:
+ *
+ *     @{
+ *         while(i < n) { ... }
+ *     }
+ *
+ * -- failed to parse while the same code on one line worked. Skipping them here
+ * keeps the newline a statement separator instead of a syntax error.
+ */
+func skip_newlines(parser : *mut Parser) {
+    unsafe {
+        while(parser.getToken().type == ChemicalTokenType.NewLine) {
+            parser.increment();
+        }
+    }
+}
+
 func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild { unsafe {
 
     const current = parser.getToken();
@@ -53,6 +74,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
     } else if(current.type == TokenType.ChemicalNodeStart) {
 
         parser.increment();
+        skip_newlines(parser);
 
         var value_child = builder.allocate<HtmlChemNodeChild>();
         new (value_child) HtmlChemNodeChild {
@@ -70,6 +92,8 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             parser.error("expected a chemical node for html child");
         }
 
+        // the statement ends on a newline of its own before the closing '}'
+        skip_newlines(parser);
         const next = parser.getToken();
         if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();
@@ -82,6 +106,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
     } else if(current.type == TokenType.LBrace) {
 
         parser.increment();
+        skip_newlines(parser);
 
         var value_child = builder.allocate<HtmlChemValueChild>();
         new (value_child) HtmlChemValueChild {
@@ -99,6 +124,7 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             parser.error("expected a value for html child");
         }
 
+        skip_newlines(parser);
         const next = parser.getToken();
         if(next.type == ChemicalTokenType.RBrace) {
             parser.increment();

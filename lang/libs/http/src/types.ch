@@ -332,6 +332,89 @@ public struct Request {
     public func query_param(&self, name : &str) : Option<string_view> {
         return self.query.get(name)
     }
+
+    /// The request body as text, without consuming it. Empty when the request has
+    /// no body. This is what a form POST or a JSON body is read through: the
+    /// framework has already buffered the payload (bounded by
+    /// `ServerConfig.max_body_bytes`), so a handler never touches the socket.
+    public func body_text(&self) : std::string_view {
+        return self.body.text()
+    }
+
+    /// The request body as bytes, without consuming it.
+    public func body_view(&self) : std::span<'self, u8> {
+        return self.body.view()
+    }
+
+    /// Replace the body with `text` (copied). For a test, a fixture or an
+    /// embedder that already holds the payload; a server fills it from the socket.
+    /// Set `Content-Type` yourself so a handler can tell a form from JSON.
+    public func set_body_text(&mut self, text : std::string_view) {
+        self.body.set_text(text)
+    }
+
+    /// Replace the body with raw bytes (copied).
+    public func set_body_bytes(&mut self, data : &[u8]) {
+        self.body.set_bytes(data)
+    }
+
+    /// `Content-Type` without its parameters (`application/json` for
+    /// `application/json; charset=utf-8`), or empty when the header is absent.
+    public func content_type(&self) : string {
+        var ct = self.headers.get("Content-Type")
+        if(ct is Option.Some) {
+            var Some(value) = ct else unsafe { unreachable }
+            var n = value.size()
+            var i : ubigint = 0
+            while(i < n) {
+                if(value.at(i) == ';') {
+                    n = i
+                    break
+                }
+                i = i + 1
+            }
+            var head = unsafe(std::string_view(value.data(), n))
+            var trimmed = head.trim()
+            var out = string()
+            out.append_view(&trimmed)
+            return out
+        }
+        return string()
+    }
+
+    /// True when the request's media type is `want`, ignoring parameters
+    /// (`is_content_type("application/json")` accepts `application/json;
+    /// charset=utf-8`) and case.
+    public func is_content_type(&self, want : &str) : bool {
+        var ct = self.headers.get("Content-Type")
+        if(ct is Option.Some) {
+            var Some(value) = ct else unsafe { unreachable }
+            var n = value.size()
+            var i : ubigint = 0
+            while(i < n) {
+                if(value.at(i) == ';') {
+                    n = i
+                    break
+                }
+                i = i + 1
+            }
+            var head = unsafe(std::string_view(value.data(), n))
+            var media = head.trim()
+            var wanted = want.to_view()
+            if(media.size() != wanted.size()) { return false }
+            var k : ubigint = 0
+            while(k < wanted.size()) {
+                var a = media.at(k)
+                if(a >= 'A' && a <= 'Z') { a = (a + 32) as char }
+                var b = wanted.at(k)
+                if(b >= 'A' && b <= 'Z') { b = (b + 32) as char }
+                if(a != b) { return false }
+                k = k + 1
+            }
+            return true
+        }
+        return false
+    }
 }
 
 /// The peer's response. A handler builds one and returns it; the framework owns

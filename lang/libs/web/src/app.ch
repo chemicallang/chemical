@@ -42,6 +42,24 @@ using std::vector;
 /// is a property of the route, not of the function.
 public type PageHandler = (page : &mut HtmlPage, req : &http::Request) => void
 
+/// A non-page route: it owns its response, so it can answer any status, set any
+/// header, and return JSON, a redirect or an empty body. This is what a form POST,
+/// a JSON API and a webhook need; a `PageHandler` cannot express them because it
+/// can only write HTML into a 200 page.
+public type EndpointHandler = (req : &http::Request) => http::Response
+
+/// One method-aware route (`app.endpoint("POST", "/cart/add", AddToCart)`).
+@direct_init
+public struct AppEndpoint {
+    /// `GET`, `POST`, ... or `*` for any method.
+    public var method : string
+    public var pattern : string
+    public var handler : EndpointHandler
+    /// Applied only when the handler did not set `Cache-Control` itself.
+    public var cache_control : string
+    public var vary : string
+}
+
 /// A route: a path pattern plus how its HTML is produced.
 @direct_init
 public struct AppRoute {
@@ -106,6 +124,7 @@ public struct App {
     private var site : StaticSite
     private var routes : vector<AppRoute>
     private var shells : vector<ShellRoute>
+    private var endpoints : vector<AppEndpoint>
     private var redirects : vector<AppRedirect>
 
     /// Owned by the app because the build holds `*mut HtmlPage` to each one and
@@ -152,6 +171,7 @@ public struct App {
             site : StaticSite.make(out_dir, base_name, asset_prefix),
             routes : vector<AppRoute>(),
             shells : vector<ShellRoute>(),
+            endpoints : vector<AppEndpoint>(),
             redirects : vector<AppRedirect>(),
             pages : vector<HtmlPage>(),
             page_paths : vector<string>(),
@@ -189,6 +209,48 @@ public struct App {
     public func live(&mut self, pattern : string_view, handler : PageHandler,
                      cache_control : string_view = "no-store", vary : string_view = "") {
         push_route(pattern, handler, true, cache_control, vary)
+    }
+
+    /// Register a **method-aware endpoint**: `handler` runs per request and returns
+    /// the whole response, so it can answer 201/303/409, set headers, and return
+    /// JSON. This is the route kind for a form POST, an API and a webhook.
+    ///
+    /// ```chemical
+    /// app.endpoint("POST", "/cart/add", AddToCart)
+    /// app.endpoint("GET", "/api/products", ProductsJson)
+    /// app.endpoint("*", "/hooks/{id}", Hook)
+    /// ```
+    ///
+    /// `method` is matched case-insensitively; `*` accepts any method. A request
+    /// whose path matches an endpoint registered only for another method is answered
+    /// **405** with an `Allow` header, not 404. Endpoints are tried before live and
+    /// pre-rendered routes, so an endpoint can claim `/api/...` next to a page.
+    ///
+    /// `cache_control` (default `no-store`) is applied only when the handler left the
+    /// header unset: a handler that decides its own caching wins.
+    public func endpoint(&mut self, method : string_view, pattern : string_view,
+                         handler : EndpointHandler, cache_control : string_view = "no-store",
+                         vary : string_view = "") {
+        var m = string()
+        m.append_view(&method)
+        var p = string()
+        p.append_view(&pattern)
+        var c = string()
+        c.append_view(&cache_control)
+        var v = string()
+        v.append_view(&vary)
+        endpoints.push_back(AppEndpoint {
+            method : m,
+            pattern : p,
+            handler : handler,
+            cache_control : c,
+            vary : v
+        })
+    }
+
+    /// How many method-aware endpoints the app has.
+    public func endpoint_count(&self) : ubigint {
+        return endpoints.size()
     }
 
     /// Register a **shell** route (§3.12): `handler` renders the whole page once, in
@@ -494,7 +556,40 @@ public struct App {
             ri = ri + 1
         }
 
-        // 2. A live route.
+        // 2. A method-aware endpoint: it owns its response, so it can answer any
+        //    status or content type. Tried first because an API route may share a
+        //    path with a page (a GET page, a POST handler) — and because a request
+        //    for a path that exists for another method must be 405, not 404.
+        var wildcard = string_view("*")
+        var endpoint_hit : int = -1
+        var endpoint_params = vector<pair<string, string>>()
+        var ei : ubigint = 0
+        while(ei < endpoints.size()) {
+            var e = unsafe(&*endpoints.get_ptr(ei))
+            var mv = e.method.to_view()
+            var pv = e.pattern.to_view()
+            var trial = vector<pair<string, string>>()
+            if(method_matches(&mv, &wildcard, req) && match_route_pattern(&pv, &path, &mut trial)) {
+                endpoint_hit = ei as int
+                endpoint_params = trial
+                break
+            }
+            ei = ei + 1
+        }
+        if(endpoint_hit >= 0) {
+            fill_route_params(req, &endpoint_params)
+            var route = unsafe(&*endpoints.get_ptr(endpoint_hit as ubigint))
+            var handler = route.handler
+            var res = handler(unsafe(&*req))
+            apply_endpoint_policy(&mut res, route)
+            return res
+        }
+        var allow = self.allowed_methods(&path)
+        if(!allow.empty()) {
+            return method_not_allowed(&allow)
+        }
+
+        // 3. A live route.
         var matched : int = -1
         var params = vector<pair<string, string>>()
         var i : ubigint = 0
@@ -518,7 +613,7 @@ public struct App {
             return self.render_live(handler, cache, vary, 200u, req)
         }
 
-        // 2b. A shell route. Same pattern matching as a live route, but the body is
+        // 3b. A shell route. Same pattern matching as a live route, but the body is
         //     the frozen shell plus one splice per slot: no component work at all.
         //     A pattern may have several variants (`shell_variant`): the first one
         //     whose predicate accepts the request wins, and a plain `shell` route with
@@ -558,14 +653,14 @@ public struct App {
             return self.render_shell(route, req)
         }
 
-        // 3. A pre-rendered page or a content-hashed asset: the site's own table.
+        // 4. A pre-rendered page or a content-hashed asset: the site's own table.
         //    A path claimed by a pre-rendered route is an exact artifact lookup.
         var asset = self.serve_artifact(&path_s, req)
         if(asset.status != 404u) {
             return asset
         }
 
-        // 4. The 404 route.
+        // 5. The 404 route.
         return self.not_found_response(req)
     }
 
@@ -672,6 +767,27 @@ public struct App {
         }
         var prefix = asset_prefix.to_view()
         out.append_view(&prefix)
+        return out
+    }
+
+    /// The methods an endpoint registered for `path` answers, as an `Allow` header
+    /// value (`"GET, POST"`); empty when no endpoint claims the path.
+    func allowed_methods(&self, path : &string_view) : string {
+        var out = string()
+        var i : ubigint = 0
+        while(i < endpoints.size()) {
+            var e = unsafe(&*endpoints.get_ptr(i))
+            var pv = e.pattern.to_view()
+            var trial = vector<pair<string, string>>()
+            if(match_route_pattern(&pv, path, &mut trial)) {
+                var mv = e.method.to_view()
+                if(!mv.empty()) {
+                    if(!out.empty()) { out.append_view(", ") }
+                    out.append_view(&mv)
+                }
+            }
+            i = i + 1
+        }
         return out
     }
 
@@ -913,6 +1029,52 @@ func artifact_path_for(pattern : &string_view) : string {
     return out
 }
 
+// True when `route_method` accepts this request: `*` accepts anything, otherwise the
+// two are compared case-insensitively (`get` and `GET` are the same method).
+func method_matches(route_method : &string_view, wildcard : &string_view, req : &http::Request) : bool {
+    if(route_method.equals(wildcard)) { return true }
+    var want = req.method.to_view()
+    if(route_method.size() != want.size()) { return false }
+    var i : ubigint = 0
+    while(i < want.size()) {
+        if(lower_ascii(route_method.at(i)) != lower_ascii(want.at(i))) { return false }
+        i = i + 1
+    }
+    return true
+}
+
+func lower_ascii(c : char) : char {
+    if(c >= 'A' && c <= 'Z') { return (c + 32) as char }
+    return c
+}
+
+// An endpoint's default cache policy, applied only when the handler did not choose
+// one. A handler that sets `Cache-Control` (or `Vary`) wins.
+func apply_endpoint_policy(res : &mut http::Response, route : &AppEndpoint) {
+    var cache = route.cache_control.to_view()
+    if(!cache.empty() && !res.headers.contains("Cache-Control")) {
+        res.set_header_view("Cache-Control", &cache)
+    }
+    var vary = route.vary.to_view()
+    if(!vary.empty()) {
+        res.set_header_view("Vary", &vary)
+    }
+}
+
+// The path exists for other methods: answer 405 with `Allow` instead of a 404 that
+// tells the client nothing.
+func method_not_allowed(allow : &string) : http::Response {
+    var res = http::Response()
+    res.status = 405u
+    var allow_view = allow.to_view()
+    res.set_header_view("Allow", &allow_view)
+    var no_store = string_view("no-store")
+    res.set_header_view("Cache-Control", &no_store)
+    var body = string_view("405 Method Not Allowed\n")
+    res.text(&body)
+    return res
+}
+
 // True when the pattern contains a `{param}` segment.
 func has_params(pattern : &string_view) : bool {
     var i : ubigint = 0
@@ -1108,6 +1270,32 @@ public unsafe func response_of_borrowed(out : &SiteResponse, vary : string_view)
     }
     res.set_header_view("Content-Type", &content_type)
     return res
+}
+
+/// A JSON response for an already-serialized body (`json::stringify(…)`), with
+/// `Content-Type: application/json` and `no-store`.
+public func json(status : u16, serialized : &string_view) : http::Response {
+    var res = http::response_json_text(status, serialized)
+    var no_store = string_view("no-store")
+    res.set_header_view("Cache-Control", &no_store)
+    return res
+}
+
+/// A plain-text response (`text/plain; charset=utf-8`) with `no-store`, the right
+/// answer for a rejected form POST (400/403/409). Use `http::response_html` for a
+/// 200 page.
+public func text(status : u16, body : &string_view) : http::Response {
+    var res = http::response_text(status, body)
+    var no_store = string_view("no-store")
+    res.set_header_view("Cache-Control", &no_store)
+    return res
+}
+
+/// A redirect with `Location`, `no-store` and no body. `303` is the
+/// post/redirect/get answer to a form POST; the route table's `app.redirect` uses
+/// `308` to keep the method.
+public func redirect(status : u16, location : string_view) : http::Response {
+    return redirect_response(status, location)
 }
 
 func redirect_response(status : u16, location : string_view) : http::Response {

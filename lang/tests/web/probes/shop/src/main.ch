@@ -181,16 +181,54 @@ func clear_cart() {
     unsafe(store.remove(unsafe(&mut *session), string_view("cart")))
 }
 
-func redirect_to(status : u16, location : string_view) : http::Response {
-    var res = http::response_empty(status)
-    var name = string_view("Location")
-    var value = string_of(location)
-    var value_view = value.to_view()
-    res.set_header_view(&name, &value_view)
-    return res
+// ── Method-aware endpoints ────────────────────────────────────────────────
+// Registered with `app.endpoint("POST", …)`, so the route table itself answers a
+// mutating request; the app no longer hand-dispatches in front of `app.handle`.
+
+// CSRF first: every mutation must present the token bound to this session.
+func csrf_ok(form : &http::Form) : bool {
+    var session = current_session()
+    if(session == null) { return false }
+    var token = form.get("csrf")
+    if(token is Option.None) { return false }
+    var Some(t) = token else unsafe { unreachable }
+    return unsafe(store.verify_csrf(unsafe(&*session), t))
 }
 
-func json_cart() : http::Response {
+public func CartAdd(req : &http::Request) : http::Response {
+    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
+    var form = web::form(req)
+    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
+    var slug = form.get("slug")
+    if(slug is Option.None) {
+        var from_query = query_of(req, string_view("slug"))
+        var qv = from_query.to_view()
+        if(qv.empty()) { return web::text(400u, &string_view("slug required")) }
+        add_to_cart(qv)
+        return web::redirect(303u, string_view("/cart"))
+    }
+    var Some(value) = slug else unsafe { unreachable }
+    add_to_cart(value)
+    return web::redirect(303u, string_view("/cart"))
+}
+
+public func CartClear(req : &http::Request) : http::Response {
+    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
+    var form = web::form(req)
+    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
+    clear_cart()
+    return web::redirect(303u, string_view("/cart"))
+}
+
+public func Checkout(req : &http::Request) : http::Response {
+    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
+    var form = web::form(req)
+    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
+    clear_cart()
+    return web::redirect(303u, string_view("/thanks"))
+}
+
+public func CartJson(req : &http::Request) : http::Response {
     var out = string("{\"cart\":\"")
     var items = current_value(string_view("cart"))
     if(items is Option.Some) {
@@ -199,83 +237,24 @@ func json_cart() : http::Response {
     }
     out.append_view("\"}")
     var view = out.to_view()
-    return http::response_json_text(200u, &view)
+    return web::json(200u, &view)
 }
 
-func path_only(req : &http::Request) : string_view {
-    var path = req.path.to_view()
-    var qmark = path.find(&string_view("?"))
-    if(qmark.is_some()) {
-        var Some(pos) = qmark else unsafe { unreachable }
-        return path.subview(0, pos)
-    }
-    return path
-}
-
-func handle_post(req : &http::Request, body : &string_view) : http::Response {
-    var session = current_session()
-    if(session == null) { return http::response_text(403u, &string_view("no session")) }
-
-    // CSRF first: every mutation must present the token bound to this session.
-    var token = form_value(body, string_view("csrf"))
-    var verified = false
-    if(token is Option.Some) {
-        var Some(t) = token else unsafe { unreachable }
-        var t_view = t.to_view()
-        verified = unsafe(store.verify_csrf(unsafe(&*session), t_view))
-    }
-    if(!verified) { return http::response_text(403u, &string_view("bad csrf")) }
-
-    var path = path_only(req)
-    if(path.equals(&string_view("/cart/add"))) {
-        var slug_text = query_of(req, string_view("slug"))
-        var slug = slug_text.to_view()
-        if(slug.empty()) {
-            var field = form_value(body, string_view("slug"))
-            if(field is Option.Some) {
-                var Some(f) = field else unsafe { unreachable }
-                var f_view = f.to_view()
-                add_to_cart(f_view)
-                return redirect_to(303u, string_view("/cart"))
-            }
-            return http::response_text(400u, &string_view("slug required"))
-        }
-        add_to_cart(slug)
-        return redirect_to(303u, string_view("/cart"))
-    }
-    if(path.equals(&string_view("/cart/clear"))) {
-        clear_cart()
-        return redirect_to(303u, string_view("/cart"))
-    }
-    if(path.equals(&string_view("/checkout"))) {
-        clear_cart()
-        return redirect_to(303u, string_view("/thanks"))
-    }
-    return http::response_text(405u, &string_view("method not allowed"))
-}
-
-// The one entry point a server (or the suite) calls. `http::Server` would pass
-// `req.body.text()`; a test passes the bytes it wants to send.
-public func handle_request(app : &mut web::App, req : &mut http::Request, body : string_view) : http::Response {
+// The one entry point a server (or the suite) calls. Session setup is still this
+// app's own wiring — a page handler gets `(page, req)` and nothing else
+// (`web-stack-gaps.md` P1-6) — but dispatch, method matching, redirects, JSON and
+// the 405 are the route table's job now.
+public func handle_request(app : &mut web::App, req : &mut http::Request) : http::Response {
     var session = begin_session(req)
     unsafe { session_ptr = &raw mut session }
-    var res : http::Response
-    var method = req.method.to_view()
-    if(method.equals(&string_view("POST"))) {
-        res = handle_post(req, &body)
-    } else if(req.path.to_view().equals(&string_view("/api/cart"))) {
-        res = json_cart()
-    } else {
-        res = app.handle(req)
-    }
+    var res = app.handle(req)
     finish_session(&mut res, &session)
     unsafe { session_ptr = null }
     return res
 }
 
 public func handle(app : &mut web::App, req : &mut http::Request) : http::Response {
-    var body = req.body.text()
-    return handle_request(app, req, body)
+    return handle_request(app, req)
 }
 
 // A search page: the only place user input reaches the HTML. `#html` does NOT
@@ -315,9 +294,9 @@ func request_with(app : &mut web::App, method : string_view, path : string_view,
         var k = string_view("Content-Type")
         var v = string_view("application/x-www-form-urlencoded")
         req.headers.insert_view(&k, &v)
+        req.set_body_text(body)
     }
-    var body_view = body
-    return handle_request(app, &mut req, body_view)
+    return handle_request(app, &mut req)
 }
 
 func report(label : string_view, res : &http::Response) {
@@ -383,6 +362,10 @@ public func main() : int {
     app.live("/cart", CartPage)
     app.live("/thanks", Thanks)
     app.live("/search", Search)
+    app.endpoint("POST", "/cart/add", CartAdd)
+    app.endpoint("POST", "/cart/clear", CartClear)
+    app.endpoint("POST", "/checkout", Checkout)
+    app.endpoint("GET", "/api/cart", CartJson)
     app.redirect("/store", "/products")
     app.not_found(Missing)
     app.export_sitemap("https://shop.example", true)
@@ -484,6 +467,28 @@ public func main() : int {
     var api_body = body_text(&api)
     check(string_view("the JSON endpoint answers the cart"),
         api.status == 200u && has_text(&api_body, string_view("lamp:2")))
+    var api_type = header_text(&api, &string_view("Content-Type"))
+    check(string_view("the JSON endpoint sets application/json"),
+        api_type.to_view().equals(&string_view("application/json")))
+
+    // 9b. A method the path does not answer is 405 with `Allow`, not 404 — the
+    //     route table owns the method now, so the app does not fake it.
+    var wrong_method = request_with(&mut app, string_view("GET"), string_view("/cart/add"), pair, string_view(""))
+    report(string_view("GET /cart/add"), &wrong_method)
+    var allow = header_text(&wrong_method, &string_view("Allow"))
+    check(string_view("a wrong method answers 405 with Allow"),
+        wrong_method.status == 405u && has_text(&allow, string_view("POST")))
+
+    // 9c. Form decoding: `+` is a space and `%XX` is a byte, in the shared parser.
+    var form_probe = http::parse_form(string_view("q=a+b%2Bc&flag"))
+    var q_opt = form_probe.get("q")
+    var q_text = string()
+    if(q_opt is Option.Some) {
+        var Some(qv) = q_opt else unsafe { unreachable }
+        q_text = string_of(qv)
+    }
+    check(string_view("a form decodes + and %XX"),
+        q_text.to_view().equals(&string_view("a b+c")) && form_probe.has("flag"))
 
     // 10. Checkout clears the cart.
     var checkout = request_with(&mut app, string_view("POST"), string_view("/checkout"), pair, first_view)

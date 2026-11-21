@@ -265,9 +265,9 @@ public struct SessionStore {
         var p = path::Path.new(std::str.make_view(file))
         var read = fs::read_to_string(&p)
         if(read is std::Result.Err) { return false }
-        var Ok(text) = read else unsafe { unreachable }
+        var Ok(snapshot) = read else unsafe { unreachable }
         self.records.clear()
-        var text_view = text.to_view()
+        var text_view = snapshot.to_view()
         var i : size_t = 0
         while(i < text_view.size()) {
             var line_end = i

@@ -69,9 +69,13 @@ enables it. They are the baseline the plan's budgets should be written against.
 `303`, `403`, `405`, `409`, or JSON. A shop cannot accept a POST at all. Both probes had to put a
 hand-written table in front of `app.handle` and re-implement redirect/JSON/error responses; the
 helpers that would do it (`redirect_response`, `error_response`) are private to `web`.
-*Fix:* add `App.endpoint(method, pattern, handler: (req) => Response)` (or a `Handler` union) and
-public `web::json`/`web::redirect` helpers. This is the single change that unblocks forms, auth
-flows, JSON APIs and webhooks.
+*Landed (2026-11-21).* `App.endpoint(method, pattern, handler)` takes a
+`(req: &http::Request) => http::Response` handler; dispatch runs **before** the live/shell/page
+routes (so an API route may share a path with a page), and a path that exists for other methods
+answers `405` with `Allow` instead of `404`. Public helpers are `web::json`, `web::redirect` and
+`web::text`; `AppEndpoint.cache_control` (default `no-store`) is applied only when the handler left
+`Cache-Control` unset, and `App.endpoint_count()` reports the size of the table. The storefront probe
+registers its four mutating/JSON routes and its hand-written dispatch is gone.
 
 **2. The typed client job is not connected to the served page.**
 `--web` compiles `client/*.ch` to `web-client.mjs`, and `web::App` emits `assets/spa.<hash>.js`
@@ -85,8 +89,13 @@ HTML references it.
 `application/x-www-form-urlencoded` has no parser in `http` or `web`; every app writes percent
 decoding by hand (the storefront probe carries ~60 lines of it). The plan lists "forms with
 progressive enhancement" as v1 and `web::Form` in the frozen API; neither exists.
-*Fix:* `http::Form.parse(body, content_type)` (urlencoded + a `multipart` follow-up), `web::Form`
-with typed field lookup, required-field errors, and CSRF integration on `SessionStore`.
+*Landed (2026-11-21), urlencoded only.* `http::Form` (`get`/`text`/`has`/`size`/`name_at`/
+`value_at`) over `parse_query`, so `+`/`%XX` decoding is shared with query strings, plus
+`http::parse_form(body)` and `web::form(req)` (which returns an empty form for another media type, so
+a JSON handler is not fed a mis-parse). One type, not two: a separate `web::Form` would have been the
+same struct, so the request-shaped accessor is the whole web-side addition. `multipart/form-data`
+(file uploads) remains open; CSRF is still `SessionStore.verify_csrf` called by the handler rather
+than something the form does, because that is a policy decision per route.
 
 **4. A page with no components still ships the 48 KB hydration runtime.**
 `web::App` calls `defaultUniversalSetup()` on every page unconditionally, so the storefront — no
@@ -137,7 +146,8 @@ should have set it up. *Fix:* have the sink emit the runtime on the first `requi
 already sees every instance), leaving `defaultUniversalSetup` as an explicit override.
 
 **11. Testing a request is hard.** `RequestBody`'s fields are internal and its constructor is empty,
-so a test cannot give a handler a body; `Request.query` likewise cannot be filled, and
+so a test cannot give a handler a body (`Request.set_body_text`/`set_body_bytes` landed with P0-3,
+which is enough for the probes but still not a one-call `Request.make`); `Request.query` likewise cannot be filled, and
 `App.handle` takes `&mut Request` (fine) while `StaticSite.add` wants the page *and* keeps pointers.
 There is also no clock in `std` (`time` exists as a module — check it — but no monotonic `now_ms`),
 so a probe cannot time its own renders. Both probes solved this by passing the body as a parameter
@@ -171,8 +181,8 @@ where noted, and none is a rewrite.
 
 | # | item | why first | done when |
 |---|---|---|---|
-| 1 | `App.endpoint` + public `web::json`/`web::redirect` | unblocks every mutating app (P0-1) | `shop`'s POST routes are registered through the app; its hand-written dispatch disappears; gate green |
-| 2 | Form parsing + `web::Form` | forms are claimed v1 (P0-3) | `shop`'s `form_value`/`url_decode` are deleted and replaced by `web::Form` |
+| 1 | ~~`App.endpoint` + public `web::json`/`web::redirect`~~ **done** | unblocks every mutating app (P0-1) | `shop`'s POST routes are registered through the app; its hand-written dispatch disappears; gate green |
+| 2 | ~~Form parsing + `web::Form`~~ **done** (urlencoded) | forms are claimed v1 (P0-3) | `shop`'s `form_value`/`url_decode` are deleted and replaced by `web::form` + `http::Form` |
 | 3 | Emit the hydration runtime only when a component was used (P0-4) and content-address chunks (P1-9) | immediate, measurable win for the common case | `shop` `/` and `/products` carry no bundle; blog emits one `chunk.<hash>.js` for the 40 identical chunks |
 | 4 | Connect the client job to the page bundle (P0-2) | without it typed client code cannot ship | `spa`'s shell references the client module; a Node harness runs it against the served shell |
 | 5 | Escape-by-default `{}` + explicit raw marker (P0-5) | the only finding that is a security bug; must be decided before apps exist | `shop`'s search page needs no `escape_html_view`; universal `children` still render raw; plugin suite + components e2e green |

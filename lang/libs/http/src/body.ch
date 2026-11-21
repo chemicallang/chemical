@@ -162,6 +162,22 @@ public struct RequestBody {
         return Result.Ok(out)
     }
 
+    /// Replace the buffered body with `text`. Public because a test, a fixture or
+    /// an embedder that already holds the bytes must be able to hand them to a
+    /// handler; a server fills the body through `append` below.
+    public func set_text(&mut self, text : std::string_view) {
+        self.buf = net::Buffer()
+        self.buf.append(text.as_bytes())
+        self.total = text.size()
+    }
+
+    /// Replace the buffered body with `data`.
+    public func set_bytes(&mut self, data : &[u8]) {
+        self.buf = net::Buffer()
+        self.buf.append(data)
+        self.total = data.size()
+    }
+
     /// Framework-side append. Not part of the handler-facing API.
     func append(&mut self, data : &[u8]) {
         self.buf.append(data)

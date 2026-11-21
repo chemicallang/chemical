@@ -1980,7 +1980,7 @@ Before freezing v1 we wrote three apps using **only** the public API and measure
 
 | probe | shape | result |
 |---|---|---|
-| `shop` | storefront: frozen pages + per-request renders + shell, sessions, CSRF, POST, PRG, JSON, user input in HTML | 22 checks green; ~0.36 ms/SSR render (5,500 in 2.03 s, 7.5 MB RSS); 48 KB bundle on pages with no component |
+| `shop` | storefront: frozen pages + per-request renders + shell, sessions, CSRF, POST, PRG, JSON, user input in HTML | 22 checks green; ~0.36 ms/SSR render (5,500 in 2.03 s, 7.5 MB RSS); 48 KB bundle on pages with no component (**now 25 checks, no bundle**) |
 | `blog` | content site: 47 pre-rendered pages, tag pages, one shared island | 0.16 s build+write, 3.8 MB RSS, 1.8 KB avg HTML, 0 `<script>` on component-free pages, 40 identical chunks → 40 URLs |
 | `spa` | single-page app: `--web` split, shell, JSON endpoint, typed client | 7 checks green; the emitted `web-client.mjs` (217 KB / 27.9 KB gz) is **not referenced by the served page** |
 
@@ -2003,6 +2003,11 @@ The survey also found a real parser bug, fixed here: `@{ ... }` could not span l
 Then one design decision that must be taken with them: **escape `{}` by default** with an explicit
 raw marker for markup (item 4 in `web-stack-gaps.md` §P0-5). It is the only finding that is a
 security bug rather than friction, and it is cheap now, expensive after apps exist.
+
+**Progress (2026-11-21):** items 1–3 are implemented and green (`web-stack-gaps.md` carries the
+measured deltas: `shop` 22 → 25 checks, `/` 432 B → 270 B with no `<script>`, `blog` 100 → 57
+artifacts). Item 4 (`App.client_bundle`) and the `{}` escape-by-default decision are the remaining
+P0 work.
 The next tier (a `RequestContext` instead of handler-side globals + `unsafe`, a `Session` handle,
 `Static.add` taking ownership of its path, `Request.make`/`now_ms` for tests, and the missing `dom`
 members for an SPA) is listed as P1 there.

@@ -278,6 +278,15 @@ func render_about(page : &mut HtmlPage) {
     }
 }
 
+func check(name : string_view, ok : bool) {
+    var n = name
+    if(ok) {
+        unsafe { printf("ok   %.*s\n", n.size() as int, n.data()) }
+    } else {
+        unsafe { printf("FAIL %.*s\n", n.size() as int, n.data()) }
+    }
+}
+
 public func main() : int {
     var site = web::Static.make("lang/compiled/blog_probe", "blog", "assets")
     site.set_minify(true)
@@ -289,39 +298,30 @@ public func main() : int {
 
     var all = posts()
 
-    // `Static.add` stores the *view* of each path, so every path has to stay alive
-    // until the build. One reserved vector does that (reserve first: a reallocation
-    // would move short strings and invalidate the views already handed over).
-    var page_paths = vector<string>()
-    page_paths.reserve(80)
-
-    var index = HtmlPage()
-    site.add(&mut index, "index.html")
+    // Every page is owned by the site (`Static.page`): the loop below is the
+    // natural shape, and with `add` (which keeps a pointer to a caller-owned page)
+    // it silently wrote freed memory into the HTML.
+    var index = site.page("index.html")
     index.defaultUniversalSetup()
-    render_index(&mut index)
+    render_index(index)
 
-    var archive = HtmlPage()
-    site.add(&mut archive, "archive/index.html")
+    var archive = site.page("archive/index.html")
     archive.defaultUniversalSetup()
-    render_archive(&mut archive, &all)
+    render_archive(archive, &all)
 
-    var about = HtmlPage()
-    site.add(&mut about, "about/index.html")
+    var about = site.page("about/index.html")
     about.defaultUniversalSetup()
-    render_about(&mut about)
+    render_about(about)
 
     var post_index : ubigint = 0
     while(post_index < all.size()) {
         var post = unsafe(&*(all.get_ptr(post_index)))
-        var page = HtmlPage()
         var path = string(post.slug.to_view())
         path.append_view("/index.html")
-        page_paths.push_back(path)
-        var stored = unsafe(&*page_paths.get_ptr(page_paths.size() - 1u))
-        var path_view = stored.to_view()
-        site.add(&mut page, path_view)
+        var path_view = path.to_view()
+        var page = site.page(path_view)
         page.defaultUniversalSetup()
-        render_post(&mut page, post)
+        render_post(page, post)
         post_index = post_index + 1
     }
 
@@ -343,16 +343,13 @@ public func main() : int {
             }
             i = i + 1
         }
-        var page = HtmlPage()
         var path = string("tags/")
         path.append_string(tag)
         path.append_view("/index.html")
-        page_paths.push_back(path)
-        var stored = unsafe(&*page_paths.get_ptr(page_paths.size() - 1u))
-        var path_view = stored.to_view()
-        site.add(&mut page, path_view)
+        var path_view = path.to_view()
+        var page = site.page(path_view)
         page.defaultUniversalSetup()
-        render_tag(&mut page, tag.to_view(), &all, &matches)
+        render_tag(page, tag.to_view(), &all, &matches)
         tag_index = tag_index + 1
     }
 
@@ -373,11 +370,23 @@ public func main() : int {
     }
 
     // Answer one pre-rendered route in memory: the static half of the serving
-    // contract (`respond` costs a map lookup plus a memcpy).
-    var answered = site.respond(string_view("/post-07/"))
+    // contract (`respond` costs a map lookup plus a memcpy). The body is checked,
+    // not just counted: a page that renders into freed memory still has a size.
+    var answered = site.respond_negotiated(string_view("/post-07/"),
+        string_view(""), string_view(""))
     unsafe {
         printf("respond status=%d bytes=%zu\n", answered.status as int, answered.body.size())
     }
+    var post_body = answered.body
+    check(string_view("a post is served"), answered.status == 200)
+    check(string_view("a post keeps its title"), post_body.contains(&string_view("Notes on building things, part 7")))
+    check(string_view("a post renders its markdown heading"), post_body.contains(&string_view("<h1>")))
+    check(string_view("a post links its tag"), post_body.contains(&string_view("href=\"/tags/")))
+    var home = site.respond_negotiated(string_view("/"), string_view(""), string_view(""))
+    check(string_view("the index is served"), home.status == 200)
+    check(string_view("the index lists the first posts"),
+        home.body.contains(&string_view("post-01")) && home.body.contains(&string_view("post-05")))
+    check(string_view("the index ships the island"), home.body.contains(&string_view("<script")))
 
     var finished = site.finish()
     unsafe { printf("finish=%d\n", finished as int) }

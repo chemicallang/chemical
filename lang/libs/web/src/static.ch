@@ -28,6 +28,11 @@ using std::string;
 using std::string_view;
 using std::vector;
 
+/// How many pages a `Static` can hold. `StaticSite` keeps a pointer to every page
+/// and a view of every path, so the backing vectors are reserved up front and may
+/// never move; exceeding the capacity is a build error, not a reallocation.
+public const PAGE_CAPACITY : ubigint = 512u
+
 @direct_init
 public struct Static {
 
@@ -41,12 +46,22 @@ public struct Static {
     private var want_robots : bool
     private var site_url : string
     private var want_profile : bool
+    /// Pages the site owns (see `page`). Reserved up front so `add`'s pointers and
+    /// path views stay valid.
+    private var pages : vector<HtmlPage>
+    private var page_paths : vector<string>
 
     @make
     public func make(out_dir : string_view, base_name : string_view = "app",
                      asset_prefix : string_view = "assets") : Static {
+        var owned_pages = vector<HtmlPage>()
+        owned_pages.reserve(PAGE_CAPACITY as size_t)
+        var owned_paths = vector<string>()
+        owned_paths.reserve(PAGE_CAPACITY as size_t)
         return Static {
             site : StaticSite.make(out_dir, base_name, asset_prefix),
+            pages : owned_pages,
+            page_paths : owned_paths,
             built : false,
             failed : false,
             failure : string(),
@@ -55,6 +70,45 @@ public struct Static {
             site_url : string(),
             want_profile : false
         }
+    }
+
+    /// Export a non-HTML artifact (`search-index.json`, `rss.xml`, a web manifest).
+    /// Call before `build()`; `finish()` writes it and `respond` answers it.
+    public func add_artifact(&mut self, path : string_view, bytes : string_view,
+                             content_type : string_view, immutable : bool = false) : bool {
+        return site.add_artifact(path, bytes, content_type, immutable)
+    }
+
+    /// Start a page at `path` and return the page **the site owns**; render into it
+    /// before the next call.
+    ///
+    /// This is the safe form of `add`. `add` takes a page the caller owns and keeps
+    /// a pointer to it until `build()`, which is a use-after-free waiting for the
+    /// natural loop:
+    ///
+    ///     var page = HtmlPage()          // inside the loop
+    ///     site.add(&mut page, path)      // the site keeps the pointer
+    ///     // loop ends, `page` is destroyed, build() reads freed memory
+    ///
+    /// With `page`, the site owns every page and nothing can outlive it:
+    ///
+    ///     var page = site.page("about/index.html")
+    ///     render_about(page)
+    public func page(&mut self, path : string_view) : &mut HtmlPage {
+        if(pages.size() >= PAGE_CAPACITY) {
+            fail_with("Static.page: more pages than PAGE_CAPACITY; raise the capacity")
+        }
+        var p = string()
+        p.append_view(&path)
+        page_paths.push_back(p)
+        pages.push_back(HtmlPage())
+        var slot = pages.size() - 1u
+        var stored = unsafe(&*page_paths.get_ptr(slot))
+        var path_view = stored.to_view()
+        var page_ptr = pages.get_ptr(slot)
+        var page_mut = unsafe(&mut *page_ptr)
+        site.add(page_mut, path_view)
+        return page_mut
     }
 
     /// Register `page` at `path` (site-relative, e.g. `about/index.html`). Call
@@ -179,6 +233,17 @@ public struct Static {
 
     public func artifact_path(&self, i : ubigint) : string_view {
         return site.artifact_path(i)
+    }
+
+    /// The bytes the build froze for artifact `i` (empty before `build()`, or for
+    /// an out-of-range index). Reading them is how a build script reports its own
+    /// output size without touching the filesystem.
+    public func artifact_bytes(&self, i : ubigint) : string_view {
+        return site.artifact_bytes(i)
+    }
+
+    public func has_gzip_variants(&self) : bool {
+        return site.has_gzip_variants()
     }
 
     /// The per-route byte report (`StaticSite.profile_report`), empty before

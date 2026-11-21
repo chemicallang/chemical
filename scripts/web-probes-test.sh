@@ -8,8 +8,10 @@
 #   shop   storefront: frozen pages + per-request renders + shell, sessions, POST
 #   blog   content site: 47 pre-rendered pages, one shared island, per-route chunks
 #   spa    single-page app: `--web` split, shell page, JSON endpoint, client job
+#   tasks  authenticated multi-user app: sign-in/sign-up, per-user state, PRG, flash
+#   docs   documentation site: 43 pages, sectioned layout, prev/next, zero JS
 #
-#   ./scripts/web-probes-test.sh            # build + run all three
+#   ./scripts/web-probes-test.sh            # build + run all five
 #   ./scripts/web-probes-test.sh shop       # only one
 set -eu
 
@@ -95,9 +97,9 @@ if want blog; then
     echo "== blog (content site) =="
     rm -rf lang/tests/web/probes/blog/build
     if build_probe blog; then
-        # The blog probe reports rather than asserting, so its page/artifact
-        # counts are the checks here.
-        "$out/blog.exe" >"$out/blog.log" 2>&1 || true
+        # The blog asserts its served bytes as well as reporting counts: a page
+        # rendered into freed memory used to keep its size and lose its content.
+        run_probe blog "$out/blog.log" || true
         pages=$(grep -o 'pages=[0-9]*' "$out/blog.log" | head -1 | cut -d= -f2 || true)
         if [ -n "${pages:-}" ] && [ "$pages" -ge 40 ]; then
             pass_note "blog: $pages pages rendered"
@@ -109,6 +111,9 @@ if want blog; then
         else
             fail_note "blog: no served page in the log"
         fi
+        grep -q '^ok   a post keeps its title' "$out/blog.log" \
+            && pass_note "blog: a served page keeps its content" \
+            || fail_note "blog: served page content is missing (corrupt render?)"
         if grep -q '^bundle=assets/blog\.' "$out/blog.log"; then
             pass_note "blog: shared bundle emitted"
         else
@@ -142,6 +147,37 @@ if want spa; then
         grep -q 'fetch_text' "$bundle" 2>/dev/null \
             && pass_note "spa: client bundle carries the fetch path" \
             || fail_note "spa: client bundle lacks the fetch path"
+    fi
+fi
+
+# ---------------------------------------------------------------- tasks
+if want tasks; then
+    echo "== tasks (authenticated app) =="
+    rm -rf lang/tests/web/probes/tasks/build
+    if build_probe tasks; then
+        run_probe tasks "$out/tasks.log" || true
+        # An app with no component and no client module must ship no JS at all.
+        grep -q '^site artifacts=.*bundle=$' "$out/tasks.log" \
+            && pass_note "tasks: no JS bundle for a component-free app" \
+            || fail_note "tasks: unexpected bundle (see $out/tasks.log)"
+        grep -q '^bench renders=' "$out/tasks.log" \
+            && pass_note "tasks: per-request render timing printed" \
+            || fail_note "tasks: no render timing"
+    fi
+fi
+
+# ---------------------------------------------------------------- docs
+if want docs; then
+    echo "== docs (documentation site) =="
+    rm -rf lang/tests/web/probes/docs/build
+    if build_probe docs; then
+        run_probe docs "$out/docs.log" || true
+        grep -q '^measured pages=43 ' "$out/docs.log" \
+            && pass_note "docs: 43 pages measured" \
+            || fail_note "docs: page count missing (see $out/docs.log)"
+        grep -q '^bundle= gzip=1' "$out/docs.log" \
+            && pass_note "docs: zero JS bundle, gzip on" \
+            || fail_note "docs: expected an empty bundle"
     fi
 fi
 

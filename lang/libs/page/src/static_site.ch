@@ -13,8 +13,7 @@
 //   *disk* — `finish()` writes every artifact under `out_dir` (static hosting):
 //
 //     var site = StaticSite.make("out", "app", "assets")
-//     var index = HtmlPage()
-//     site.add(&mut index, "index.html")   // attaches the sink: render AFTER
+//     var index = site.page("index.html")  // the site owns it: render AFTER
 //     index.defaultUniversalSetup()
 //     #html { ... }
 //     if(!site.finish()) { /* site.error_message() */ }
@@ -29,11 +28,12 @@
 // The artifact list is the build's manifest: `artifact_count()` / `artifact_path()`
 // / `artifact_bytes()` enumerate exactly what would be written.
 //
-// Lifetime contract (a build, so it is simple): pages passed to `add` and paths
-// passed to `add` must outlive `build()`. The site holds a pointer to each page
-// and a view of each path, never a copy — so the pages are read from their own
-// buffers, at the moment the shared bundle's hash is known. A `SiteResponse`'s
-// body borrows the site's buffers, so it is valid until the site is changed.
+// Lifetime contract (a build, so it is simple): prefer `page(path)`, which makes
+// the site own the page and copy the path, so a page built in a loop is safe.
+// `add(&mut page, path)` is the low-level form: it holds a pointer to a caller's
+// page and a view of its path, and both must outlive `build()` — a page created
+// in a loop and added that way reads freed memory. A `SiteResponse`'s body
+// borrows the site's buffers, so it is valid until the site is changed.
 @direct_init
 public struct StaticSite {
 
@@ -1004,6 +1004,27 @@ public struct StaticSite {
     }
 
     // ── Export extras (static hosting) ───────────────────────────────────
+    /// Add a non-HTML artifact (a search index, an RSS feed, a web manifest, a
+    /// `llms.txt`) to the set: `respond` answers it, `finish()` writes it, and the
+    /// gzip pass covers it when its content type is compressible.
+    ///
+    /// Call before `build()`: the artifact list is what the build freezes, and adding
+    /// to it afterwards would publish a set that disagrees with the manifest. `bytes`
+    /// is copied, so the caller keeps ownership of its buffer.
+    public func add_artifact(&mut self, path : std::string_view, bytes : std::string_view,
+                             content_type : std::string_view, immutable : bool = false) : bool {
+        if(built) {
+            fail_with("add_artifact must be called before build()")
+            return false
+        }
+        var p = std::string()
+        p.append_view(&path)
+        var b = std::string()
+        b.append_view(&bytes)
+        push_artifact(p, b, content_type, immutable)
+        return !failed
+    }
+
     /// Add `sitemap.xml` for every **exported page** to the artifact set: one
     /// `<url>` per pre-rendered route, absolutised against `set_site_url`. A
     /// per-request route is not in it (it was never pre-rendered), so the sitemap

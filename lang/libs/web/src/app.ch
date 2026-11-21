@@ -607,8 +607,11 @@ public struct App {
             apply_endpoint_policy(&mut res, route)
             return res
         }
+        // A path answered by an endpoint for some methods, or by a page for GET.
+        // A request for a method the path does not answer is 405 (never a 404, and
+        // never a page render: a POST to a GET page is a route error, not a page).
         var allow = self.allowed_methods(&path)
-        if(!allow.empty()) {
+        if(!allow.empty() && !method_listed(&allow, req)) {
             return method_not_allowed(&allow)
         }
 
@@ -797,6 +800,9 @@ public struct App {
 
     /// The methods an endpoint registered for `path` answers, as an `Allow` header
     /// value (`"GET, POST"`); empty when no endpoint claims the path.
+    /// Every method this path answers: the endpoints registered for it, plus `GET`
+    /// (and therefore `HEAD`) when a `page`/`live`/`shell` route matches. Empty
+    /// when the path is unknown to the table.
     func allowed_methods(&self, path : &string_view) : string {
         var out = string()
         var i : ubigint = 0
@@ -813,7 +819,33 @@ public struct App {
             }
             i = i + 1
         }
+        if(self.page_route_matches(path)) {
+            if(!out.empty()) { out.append_view(", ") }
+            out.append_view("GET")
+        }
         return out
+    }
+
+    /// True when a page, live or shell route matches this path (so the path is a
+    /// page for `GET`, and a non-GET request to it is a method error).
+    func page_route_matches(&self, path : &string_view) : bool {
+        var i : ubigint = 0
+        while(i < routes.size()) {
+            var r = unsafe(&*routes.get_ptr(i))
+            var pv = r.pattern.to_view()
+            var trial = vector<pair<string, string>>()
+            if(match_route_pattern(&pv, path, &mut trial)) { return true }
+            i = i + 1
+        }
+        var si : ubigint = 0
+        while(si < shells.size()) {
+            var s = unsafe(&*shells.get_ptr(si))
+            var sv = s.pattern.to_view()
+            var trial2 = vector<pair<string, string>>()
+            if(match_route_pattern(&sv, path, &mut trial2)) { return true }
+            si = si + 1
+        }
+        return false
     }
 
     func push_route(&mut self, pattern : string_view, handler : PageHandler, per_request : bool,
@@ -1094,6 +1126,37 @@ func apply_endpoint_policy(res : &mut http::Response, route : &AppEndpoint) {
 
 // The path exists for other methods: answer 405 with `Allow` instead of a 404 that
 // tells the client nothing.
+/// True when `req`'s method appears in an `Allow` list (`GET, POST`).
+func method_listed(allow : &string, req : &http::Request) : bool {
+    var allow_view = allow.to_view()
+    var want = req.method.to_view()
+    // A request built by hand (a test, a router adapter) may carry no method; HTTP
+    // treats that as GET. `HEAD` is answered by the `GET` route.
+    if(want.size() == 0) { want = string_view("GET") }
+    var head_token = string_view("HEAD")
+    if(want.equals(&head_token)) { want = string_view("GET") }
+    var i : ubigint = 0
+    while(i < allow_view.size()) {
+        // Skip separators and padding.
+        while(i < allow_view.size() && (allow_view.at(i) == ',' || allow_view.at(i) == ' ')) { i = i + 1 }
+        var start = i
+        while(i < allow_view.size() && allow_view.at(i) != ',') { i = i + 1 }
+        var end = i
+        while(end > start && allow_view.at(end - 1u) == ' ') { end = end - 1u }
+        var token = allow_view.subview(start, end)
+        if(token.size() == want.size()) {
+            var same = true
+            var j : ubigint = 0
+            while(j < want.size()) {
+                if(lower_ascii(token.at(j)) != lower_ascii(want.at(j))) { same = false }
+                j = j + 1
+            }
+            if(same) { return true }
+        }
+    }
+    return false
+}
+
 func method_not_allowed(allow : &string) : http::Response {
     var res = http::Response()
     res.status = 405u

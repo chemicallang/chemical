@@ -737,20 +737,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const PlaceId src = static_cast<PlaceId>(r.id);
                     builder_->field_store_place(temp, fc, src);
                     // a destructible local moved into the struct must not be
-                    // destroyed again at scope exit (unwraps the single-element
-                    // AccessChain the parser usually produces)
-                    Value* v0 = init.value;
-                    if (v0 && v0->val_kind() == ValueKind::AccessChain) {
-                        auto* ch = v0->as_access_chain_unsafe();
-                        if (ch->values.size() == 1) v0 = ch->values[0];
-                    }
-                    if (v0 && v0->val_kind() == ValueKind::Identifier) {
-                        BaseType* at = v0->getType();
-                        BaseType* canon = at ? at->canonical() : nullptr;
-                        if (!(canon && canon->kind() == BaseTypeKind::Array)) {
-                            mark_moved(src);
-                        }
-                    }
+                    // destroyed again at scope exit (a pattern-bound payload
+                    // clears its owning variant's flag, not its own)
+                    mark_init_moved(init.value);
                     ++it;
                     continue;
                 }
@@ -761,7 +750,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->field_store(
                         temp, fc,
                         builder_->load_indirect(static_cast<ValueId>(r.id), ft));
-                    if (!mark_field_moved(init.value, r, error)) {
+                    if (is_pattern_bound_value(init.value)) {
+                        // A destructured payload is an alias into its variant, not
+                        // a field of a tracked value: mark_field_moved has no place
+                        // to clear and silently leaves the variant's drop flag set.
+                        mark_init_moved(init.value);
+                    } else if (!mark_field_moved(init.value, r, error)) {
                         return MIRExprResult::error();
                     }
                     ++it;
@@ -784,11 +778,18 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         builder_->field_store(
                             temp, fc,
                             builder_->load_indirect(r.id, types_.map(member_type)));
+                        // the pointee's bytes were copied into the field, so the
+                        // value they came from owns them no longer: a
+                        // pattern-bound payload must clear its variant's flag
+                        mark_init_moved(init.value);
                         ++it;
                         continue;
                     }
                 }
                 builder_->field_store(temp, fc, r.id);
+                // the initializer was loaded into the field: a destructible moved
+                // in this way must not be dropped by its old owner too
+                mark_init_moved(init.value);
                 ++it;
             }
             // initialize members that were not explicitly set with their default

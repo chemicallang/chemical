@@ -26,6 +26,7 @@ func run_executable_tests() {
 
 
     test_variant_native();
+    test_destructure_move();
     test_static_external();
     // -------------------------------------------
     // Extended Syntax

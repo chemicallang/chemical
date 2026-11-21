@@ -718,6 +718,18 @@ private:
     // Clear the drop flag of the local/param a value is moved *out of*. For a
     // pattern-bound payload this resolves to the owning variant.
     void mark_moved_value(Value* value);
+
+    // An aggregate initializer that moves a destructible into a field: clear the
+    // source's drop flag (unwrapping the single-element AccessChain / UnsafeValue
+    // the parser produces). Array initializers are left alone: they decay or copy
+    // bytes rather than taking ownership.
+    void mark_init_moved(Value* init_value);
+
+    // True when the value (unwrapping a single-element AccessChain / UnsafeValue)
+    // is an identifier bound by a destructuring pattern. Such a binding is an
+    // alias into its source variant, so moving it must clear *that* variant's
+    // drop flag, which `mark_moved_value` does and a plain place lookup cannot.
+    bool is_pattern_bound_value(Value* value);
     PlaceId resolve_place(Value* v, std::string& error);
     /**
      * `resolve_place` for a caller that only needs the yes/no answer and

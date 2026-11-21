@@ -658,6 +658,48 @@ void MIRLowerer::mark_moved_value(Value* value) {
     if (src != MIR_INVALID_ID) mark_moved(src);
 }
 
+bool MIRLowerer::is_pattern_bound_value(Value* value) {
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            return false;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            return false;
+        }
+        break;
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) return false;
+    auto* id = t->as_identifier_unsafe();
+    return id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId;
+}
+
+void MIRLowerer::mark_init_moved(Value* init_value) {
+    Value* t = init_value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            return;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            return;
+        }
+        break;
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) return;
+    BaseType* at = t->getType();
+    BaseType* canon = at ? at->canonical() : nullptr;
+    if (canon && canon->kind() == BaseTypeKind::Array) return;
+    mark_moved_value(t);
+}
+
 void MIRLowerer::emit_drops() {
     // local/parameter scope destruction is reverse order of initialization
     // (mir-design.md §7.4); emit_drops_from already iterates innermost-first

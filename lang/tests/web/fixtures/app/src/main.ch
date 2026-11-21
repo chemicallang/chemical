@@ -4,6 +4,7 @@
 // The executable prints one line per check so `scripts/web-app-test.sh` can assert
 // the serving contract against the real bytes.
 using std::Option;
+using std::Result;
 using std::string;
 using std::string_view;
 
@@ -370,7 +371,123 @@ func site_split_note(app : &web::App) : std::string {
     return out
 }
 
+// ── Session persistence ─────────────────────────────────────────────────────
+// A snapshot is a file, so the save run and the restore run are *different
+// processes*: that is the only way to prove a session survives a restart.
+// `scripts/web-app-test.sh` runs this binary twice, passing the id and CSRF token
+// from the first run through the environment.
+func session_snapshot_path() : string_view {
+    return string_view("lang/compiled/app_out/sessions.snapshot")
+}
+
+func persist_value_is(store : &web::SessionStore, session : &web::Session, name : string_view, want : string_view) : int {
+    var found = store.get(session, name)
+    if(found is Option.None) { return 0 }
+    var Some(got) = found else unsafe { unreachable }
+    if(got.equals(&want)) { return 1 }
+    return 0
+}
+
+func persist_save() {
+    var store = web::SessionStore.make()
+    var session = store.create()
+    store.set(&session, "user", "ada")
+    // Values with the characters an escaping scheme usually gets wrong: a space,
+    // an `=`, a quote, non-ASCII, the empty string, and something long enough to
+    // leave the inline-storage path.
+    store.set(&session, "note", "hello world = it's \"quoted\"")
+    store.set(&session, "utf8", "h\xc3\xa9llo \xc3\xbcn\xc3\xafcode \xe2\x9c\x93")
+    store.set(&session, "empty", "")
+    var long_value = string()
+    var i : int = 0
+    while(i < 40) {
+        long_value.append_view("0123456789")
+        i = i + 1
+    }
+    store.set(&session, "long", long_value.to_view())
+    var token = string()
+    token.append_view(&store.csrf_token(&mut session))
+
+    var snap = session_snapshot_path()
+    var saved = store.save_to(snap)
+    var id = session.id.to_view()
+    var tok = token.to_view()
+    unsafe {
+        printf("persist saved=%d count=%zu user=1 note=1 utf8=1 empty=1 long=%zu id=%.*s csrf=%.*s\n",
+            saved as int, store.count(), long_value.size(),
+            id.size() as int, id.data(), tok.size() as int, tok.data())
+    }
+
+    // A snapshot whose tail is damaged must still load the line before it: a
+    // half-written file is a truncated file, not a corrupt store.
+    var snapshot_path = path::Path.new(std::str.make_view(snap))
+    var damaged = string()
+    var snapshot_read = fs::read_to_string(&snapshot_path)
+    if(snapshot_read is Result.Err) {
+        unsafe { printf("persist damaged read=failed\n") }
+    } else {
+        var Ok(text) = snapshot_read else unsafe { unreachable }
+        damaged.append_view(&text.to_view())
+        damaged.append_view("not a record at all\n")
+        damaged.append_view("truncated-csrf-line")
+    }
+    var damaged_path_text = string()
+    damaged_path_text.append_view(&snap)
+    damaged_path_text.append_view(".damaged")
+    var damaged_path = path::Path.new(std::str.make_view(damaged_path_text.to_view()))
+    var wrote = fs::write(&damaged_path, damaged.as_bytes())
+    var fresh = web::SessionStore.make()
+    var loaded_damaged = fresh.load_from(damaged_path_text.to_view())
+    var kept_value = persist_value_is(&fresh, &session, "user", "ada")
+    unsafe {
+        printf("persist damaged wrote=%d loaded=%d count=%zu value=%d\n",
+            (wrote is Result.Ok) as int, loaded_damaged as int, fresh.count(), kept_value)
+    }
+
+    // A store with no snapshot file yet is empty, not an error.
+    var missing = web::SessionStore.make()
+    var missing_path = string_view("lang/compiled/app_out/no-such.snapshot")
+    var missing_loaded = missing.load_from(missing_path)
+    unsafe { printf("persist missing loaded=%d count=%zu\n", missing_loaded as int, missing.count()) }
+}
+
+func persist_restore() {
+    var id_name = string_view("CHX_SESSION_ID")
+    var csrf_name = string_view("CHX_SESSION_CSRF")
+    var id_env = std::get_env(&id_name)
+    var csrf_env = std::get_env(&csrf_name)
+    if(id_env is Option.None || csrf_env is Option.None) {
+        unsafe { printf("persist restored=skipped\n") }
+        return
+    }
+    var Some(id) = id_env else unsafe { unreachable }
+    var Some(csrf) = csrf_env else unsafe { unreachable }
+
+    var store = web::SessionStore.make()
+    var snap = session_snapshot_path()
+    var loaded = store.load_from(snap)
+    var session = web::Session { id : id }
+    var user = persist_value_is(&store, &session, "user", "ada")
+    var note = persist_value_is(&store, &session, "note", "hello world = it's \"quoted\"")
+    var utf8 = persist_value_is(&store, &session, "utf8", "h\xc3\xa9llo \xc3\xbcn\xc3\xafcode \xe2\x9c\x93")
+    var empty = persist_value_is(&store, &session, "empty", "")
+    var csrf_ok = store.verify_csrf(&session, csrf.to_view())
+    unsafe {
+        printf("persist restored loaded=%d count=%zu user=%d note=%d utf8=%d empty=%d csrf=%d\n",
+            loaded as int, store.count(), user, note, utf8, empty, csrf_ok as int)
+    }
+}
+
 public func main() : int {
+    // Restore mode touches nothing but the snapshot: this process is the
+    // "after a restart" half of the persistence check.
+    var restore_name = string_view("CHX_SESSION_RESTORE")
+    var restore = std::get_env(&restore_name)
+    if(restore is Option.Some) {
+        persist_restore()
+        return 0
+    }
+
     var app = web::App.make("lang/compiled/app_out", "app", "assets")
     // Minified output: this fixture is the one with a chunked graph (`chunked=1`),
     // so it is what proves a unit range survives minification well enough for
@@ -546,6 +663,8 @@ public func main() : int {
     if(!finished) { return 1 }
 
     run_session_flow()
+    // Writes the snapshot the gate's second (restore) run reads back.
+    persist_save()
 
     // A second build of the same app is a no-op, not a re-render.
     var again = request(&mut app, "/account/42", "")

@@ -401,7 +401,8 @@ public func main() : int {
     var home_cc_view = home_cc.to_view()
     check(string_view("home is no-cache"), home_cc_view.contains(&string_view("no-cache")))
     check(string_view("home renders the hero"), has_text(&home_body, string_view("Objects for small rooms")))
-    check(string_view("a pre-rendered page carries the bundle script"), has_text(&home_body, string_view("assets/shop.")))
+    check(string_view("a component-free page carries no script at all"),
+        !has_text(&home_body, string_view("<script")) && !has_text(&home_body, string_view("assets/shop.")))
 
     // 2. Pre-rendered list.
     var products = request_with(&mut app, string_view("GET"), string_view("/products"), string_view(""), string_view(""))

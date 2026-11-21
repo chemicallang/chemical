@@ -63,7 +63,12 @@ public func main() : int {
     var body = body_text(&res)
     unsafe { printf("shell status=%d bytes=%zu\n", res.status as int, body.to_view().size()) }
     check(string_view("the shell renders"), res.status == 200u && has_text(&body, string_view("Task board")))
-    check(string_view("the shell carries the client bundle"), has_text(&body, string_view("assets/spa.")))
+    // The shell renders no universal component, so it must not ship the hydration
+    // runtime it never runs. What it *should* carry is the typed client module
+    // (`client/*.ch` -> `web-client.mjs`), which nothing connects to the page yet
+    // (`web-stack-gaps.md` P0-2).
+    check(string_view("a client-only shell carries no hydration runtime"),
+        !has_text(&body, string_view("assets/spa.")))
     check(string_view("the shell ships a bootstrap payload"), has_text(&body, string_view("id=\"bootstrap\"")))
     check(string_view("the client mounts into #tasks"), has_text(&body, string_view("id=\"tasks\"")))
 

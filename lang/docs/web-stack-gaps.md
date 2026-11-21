@@ -101,9 +101,23 @@ than something the form does, because that is a policy decision per route.
 `web::App` calls `defaultUniversalSetup()` on every page unconditionally, so the storefront — no
 `#universal` anywhere — serves a 48 KB bundle on `/`. `web::Static` does not (a post page has zero
 `<script>` tags), so the behaviour is also inconsistent between the two entry points.
-*Fix:* emit the runtime only when the sink actually recorded a component use (the graph already
-knows), and drop the bundle `<script>` from pages that have none. Expected: `/` and `/products`
-lose 48 KB each; a component-free app serves 0 B of JS.
+*Landed (2026-11-21), measured.* `web::App` renders the handler first and calls
+`defaultUniversalSetup()` only when `page.used_universal()` (set by the first `require_component`,
+i.e. by the generated guard of a component actually rendered). A component-free page therefore ends
+up with an empty `pageJs`/`pageJsEnd`, and `StaticSite` gives it no chunk, no bundle `<script>` and
+no `js`/`css` artifact at all (`build()` also stops naming a zero-byte bundle). Per-route chunks are
+now named `chunk.<hash>.js` by content only, so identical chunks collapse into one artifact.
+
+Measured on the probes (same host, `--mode debug_quick`, `-bm-modules`):
+
+| probe | before | after |
+|---|---|---|
+| `shop` `/` (no components) | 432 B, `assets/shop.24adc1dc6e45.js` (48,283 B; 11,051 B gz) | 270 B, **no script** |
+| `shop` artifact set | 8 | 4 |
+| `blog` 47 pages | 100 artifacts (47 route-named chunks) | 57 artifacts (4 `chunk.<hash>.js`) |
+
+The universal plugin suite (`--tcc --plugins`, 1,315) and the component-bearing `blog` page still
+hydrate: a page that does render a component gets the runtime, its definition and its chunk.
 
 **5. Interpolation never escapes, and there is no way to say "this is HTML".**
 `page.ch` documents it: "The #html macro does NOT auto-escape interpolated values". `{userInput}`
@@ -183,7 +197,7 @@ where noted, and none is a rewrite.
 |---|---|---|---|
 | 1 | ~~`App.endpoint` + public `web::json`/`web::redirect`~~ **done** | unblocks every mutating app (P0-1) | `shop`'s POST routes are registered through the app; its hand-written dispatch disappears; gate green |
 | 2 | ~~Form parsing + `web::Form`~~ **done** (urlencoded) | forms are claimed v1 (P0-3) | `shop`'s `form_value`/`url_decode` are deleted and replaced by `web::form` + `http::Form` |
-| 3 | Emit the hydration runtime only when a component was used (P0-4) and content-address chunks (P1-9) | immediate, measurable win for the common case | `shop` `/` and `/products` carry no bundle; blog emits one `chunk.<hash>.js` for the 40 identical chunks |
+| 3 | ~~Emit the hydration runtime only when a component was used (P0-4)~~ **done**, content-address chunks (P1-9) **done** | immediate, measurable win for the common case | `shop` `/` and `/products` carry no bundle (432 B → 270 B); blog artifacts 100 → 57 with 4 `chunk.<hash>.js` |
 | 4 | Connect the client job to the page bundle (P0-2) | without it typed client code cannot ship | `spa`'s shell references the client module; a Node harness runs it against the served shell |
 | 5 | Escape-by-default `{}` + explicit raw marker (P0-5) | the only finding that is a security bug; must be decided before apps exist | `shop`'s search page needs no `escape_html_view`; universal `children` still render raw; plugin suite + components e2e green |
 | 6 | `RequestContext` (P1-6) + `Session` handle (P1-7) | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |

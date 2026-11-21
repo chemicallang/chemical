@@ -658,6 +658,10 @@ public struct StaticSite {
         var prefix_view = asset_prefix.to_view()
         var js_name = shared.js_name()
         var css_name = shared.css_name()
+        // An empty bundle has nothing to serve: naming it would still publish a
+        // zero-byte artifact and offer it to every page as a `<script>`/`<link>`.
+        if(shared.js_size() == 0u) { js_name = std::string() }
+        if(shared.css_size() == 0u) { css_name = std::string() }
 
         // The bundle is an artifact like any other, so `respond()` needs no special
         // case and `finish()` writes everything from one list.
@@ -779,8 +783,11 @@ public struct StaticSite {
                 }
             }
             if(!chunk_src.empty()) {
-                var stem = page_chunk_stem(target)
-                var stem_view = stem.to_view()
+                // Named by content only, not by route: 40 routes whose chunk bytes
+                // are identical are one file and one request (`push_artifact`
+                // dedupes the identical path), instead of 40 copies of 28 bytes.
+                const stem = std::string_view("chunk")
+                var stem_view = stem
                 var chunk_view = chunk_src.to_view()
                 var page_hash = hex12(fnv1_hash_view(&chunk_view))
                 var hash_view = page_hash.to_view()
@@ -1717,28 +1724,6 @@ func sitemap_loc(site_url : &std::string, target : &std::string_view) : std::str
 }
 
 // `about/index.html` -> `about_index`: the per-page script's file stem.
-func page_chunk_stem(path : std::string_view) : std::string {
-    var n = path.size()
-    const html_ext = std::string_view(".html")
-    if(path.ends_with(&html_ext) && n > html_ext.size()) {
-        n = n - html_ext.size()
-    }
-    var out = std::string()
-    var i : ubigint = 0
-    while(i < n) {
-        const c = path.at(i)
-        if(c == '/') {
-            out.append('_')
-        } else {
-            out.append(c)
-        }
-        i = i + 1
-    }
-    if(out.empty()) {
-        out.append_view("page")
-    }
-    return out
-}
 
 // True when `<dir>/<name>` exists.
 func artifact_exists(dir : std::string_view, name : &std::string_view) : bool {

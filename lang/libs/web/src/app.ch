@@ -699,8 +699,10 @@ public struct App {
             var reason = site.dynamic_error_message()
             return error_response(500u, &reason)
         }
-        page.defaultUniversalSetup()
         handler(&mut page, req)
+        // A page that rendered no component needs no hydration runtime, so it gets
+        // none: no runtime bytes, no per-route chunk, no bundle `<script>`.
+        if(page.used_universal()) { page.defaultUniversalSetup() }
         var html = site.render_dynamic(&mut page)
         if(html.empty()) {
             // The bundle lacks a component this route renders. Serving the page
@@ -847,8 +849,10 @@ public struct App {
                     fail_with(site.dynamic_error_message())
                     return false
                 }
-                warm.defaultUniversalSetup()
                 handler(&mut warm, route_req)
+                // Only a route that actually rendered a component needs its
+                // definition (and the runtime) in the frozen bundle.
+                if(warm.used_universal()) { warm.defaultUniversalSetup() }
             }
             i = i + 1
         }
@@ -861,8 +865,8 @@ public struct App {
                 fail_with(site.dynamic_error_message())
                 return false
             }
-            warm.defaultUniversalSetup()
             handler(&mut warm, route_req)
+            if(warm.used_universal()) { warm.defaultUniversalSetup() }
             s = s + 1
         }
         if(has_not_found) {
@@ -871,9 +875,9 @@ public struct App {
                 fail_with(site.dynamic_error_message())
                 return false
             }
-            nf.defaultUniversalSetup()
             var handler = not_found_handler
             handler(&mut nf, route_req)
+            if(nf.used_universal()) { nf.defaultUniversalSetup() }
         }
 
         // 2. Pre-rendered pages: reserve first, because the site holds a pointer to
@@ -919,8 +923,8 @@ public struct App {
                 var path_ptr = page_paths.get_ptr(slot)
                 var artifact_view = unsafe(path_ptr.to_view())
                 site.add(page_mut, artifact_view)
-                page_mut.defaultUniversalSetup()
                 handler(page_mut, route_req)
+                if(page_mut.used_universal()) { page_mut.defaultUniversalSetup() }
                 slot = slot + 1
             }
             k = k + 1
@@ -945,8 +949,8 @@ public struct App {
                 fail_with(site.dynamic_error_message())
                 return false
             }
-            page.defaultUniversalSetup()
             handler(&mut page, build_req)
+            if(page.used_universal()) { page.defaultUniversalSetup() }
             var html = site.render_dynamic(&mut page)
             var pattern_view = route.pattern.to_view()
             if(html.empty()) {

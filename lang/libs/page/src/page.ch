@@ -211,6 +211,13 @@ public struct HtmlPage {
 
     private var doneComponents : std::unordered_map<ubigint, bool>
 
+    // Set by the first `require_component` on this page (i.e. by the generated
+    // guard of a universal component's server function). `used_universal()` is how
+    // a caller decides whether the page needs the hydration runtime at all: a
+    // component-free page that skips `defaultUniversalSetup` writes no JS, so
+    // `StaticSite` gives it no chunk and no bundle `<script>`.
+    private var universal_used : bool = false
+
     // Global JS blocks emitted via `#globaljs`, keyed by source location.
     private var doneJs : std::unordered_map<ubigint, bool>
 
@@ -501,8 +508,15 @@ public struct HtmlPage {
         }
     }
 
-    func require_component(&self, hash : size_t) : bool {
+    /// Whether anything on this page asked for a universal component, and so for
+    /// the hydration runtime. False for a plain `#html` page.
+    public func used_universal(&self) : bool {
+        return universal_used
+    }
+
+    func require_component(&mut self, hash : size_t) : bool {
         unsafe {
+            universal_used = true
             if(shared != null) {
                 // Record the use even when the sink already holds the definition:
                 // this call runs once per *instance*, so it is exactly how the

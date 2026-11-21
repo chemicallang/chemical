@@ -12,6 +12,18 @@ and the glue that holds everything together is small, predictable and reliable.
 First you must ask yourself, whether the app is a static app (static pages website like a blog), a SPA (single page application) or 
 a server served app (where server serves pages, modifying the actual content based on each user)
 
+| shape | API | page source | JS on a page | example probe |
+|---|---|---|---|---|
+| one page, written to disk | `HtmlPage` + `writeToDirectory` | inline | only if the page mounts a component | `lang/tests/web/fixtures/static_site` |
+| many pages, known at build (marketing, blog, docs) | `web::Static` + `site.page(path)` | a loop over data | **0 B** on pages with no component | `probes/docs`, `probes/blog` |
+| an app: sessions, POST, per-user routes | `web::App` (`page`/`live`/`shell`/`endpoint`) | handlers + `RequestContext` | always ~11 KB gzip (hydration runtime) | `probes/tasks`, `probes/shop` |
+| a SPA | `--web` client job + a shell route | typed `client/*.ch` | the client bundle | `probes/spa` |
+
+The rule of thumb: **if every URL's HTML is the same for every user, it is `web::Static`** (cheapest:
+no runtime, nothing per request). Reach for `web::App` only when a route must read the request or the
+session. A site can mix: `web::Static` has `attach_dynamic`/`render_dynamic` for the few routes that
+vary.
+
 Everything happens with the `page` library, which you should import in the `chemical.mod`
 
 #### Writing a single static page with styles
@@ -412,15 +424,14 @@ public func main() : int {
     // out dir, bundle base name, URL prefix the bundle is served under
     var site = StaticSite.make("out", "app", "assets")
 
-    var index = HtmlPage()
-    site.add(&mut index, "index.html")   // attaches the sink: render AFTER this
+    // The site owns the page: render AFTER page() attaches the sink.
+    var index = site.page("index.html")
     index.defaultUniversalSetup()
-    render_index(&mut index)
+    render_index(index)
 
-    var about = HtmlPage()
-    site.add(&mut about, "about/index.html")   // nested routes get ../assets/…
+    var about = site.page("about/index.html")   // nested routes get ../assets/…
     about.defaultUniversalSetup()
-    render_about(&mut about)
+    render_about(about)
 
     if(!site.finish()) {                  // build + write; false => site.error_message()
         unsafe { printf("%s\n", site.error_message().data()) }
@@ -453,11 +464,16 @@ route chunks change only when a route's own components change.
 
 Two rules:
 
-- **Attach before rendering.** `site.add(&mut page, path)` attaches the sink; anything page-independent
-  the page emits afterwards lands in the bundle. A page rendered *after* the build would change the
-  bundle's bytes after its name was fixed — `finish()` reports that instead of publishing it.
-- **Pages and paths must outlive the build.** The site holds a pointer to each page and a view of
-  each path (it never copies a page); pass `&mut page` on a local you keep alive until `finish()`.
+- **Attach before rendering.** `site.page(path)` attaches the sink and hands back the page; anything
+  page-independent it emits afterwards lands in the bundle. A page rendered *after* the build would
+  change the bundle's bytes after its name was fixed — `finish()` reports that instead of publishing it.
+- **Always create page routes with `site.page(path)`.** The site owns those pages (in vectors reserved
+  to `PAGE_CAPACITY = 512`), so a page created in a loop or in a helper function is safe. The older
+  `site.add(&mut page, path)` stores a raw pointer and a `string_view`; a page built in a loop and
+  added that way silently produced corrupt HTML (a use-after-free nobody notices until the bytes are
+  wrong), which is why it is not the API to reach for.
+- **Over `PAGE_CAPACITY` fails loudly**, not silently: `error_message()` reads
+  `Static.page: more pages than PAGE_CAPACITY; raise the capacity` when `finish()` returns false.
 
 And one guard worth knowing about: a page that renders components must have called
 `defaultUniversalSetup()` first, because that is what writes the hydration runtime into the bundle.
@@ -705,16 +721,20 @@ dispatch in front of `App.handle`, as `shop/src/main.ch` (`handle_request`) does
 - **`{value}` interpolation is NOT escaped** — in element text *or* in an attribute. Every value that
   came from a user must go through `page.escape_html_view(&view)` (or `append_html` with an escaped
   string). A forgotten escape is an XSS bug; `#html { <a href={url}>…` is an attribute injection.
-- **A page handler receives only `(page, req)`.** The session, the user, the CSRF token and the
-  locale are not passed, and a mutable top-level global is `SAFE-GLOBAL-001`, so the shop probe keeps
-  its session behind one pointer to a request-local and touches it through `unsafe`. Budget for that
-  until `RequestContext` lands.
+- **A shell's fill callback is `(req : &Request) => FillSet` — it does not get the
+  `RequestContext`**, so it cannot read the session (`values(req)` is called with the raw request).
+  A shell page whose chrome varies per user (sign-in name, cart count) can only see cookies, not the
+  resolved session. Use `live`/`page` for those, or read the cookie yourself in the fill.
+- **An endpoint cannot render a page.** `endpoint()` handlers return an `http::Response`; rendering
+  HTML from one means building the bytes by hand. A form post that wants the browser to show a page
+  must redirect (PRG) to a `live`/`page` route.
 - **`web::App` always emits the hydration runtime** (~48 KB, 11 KB gzip) even on pages that use no
   component — `web::Static` does not. Component-free pages still pay it.
 - **`Static.add(page, path)` stores the `string_view` without copying** (`web::Static` and
-  `StaticSite.add`). Keep every path alive until `build()` — a view into a loop-local string silently
-  becomes a wrong path. The blog probe parks them in a `page_paths : vector<string>` and hands `add`
-  a view into that vector (reserved up front, so entries never move).
+  `StaticSite.add`). Use `site.page(path)` instead — it copies the path and the site owns the page, so
+  loop-built pages and helper-built pages are safe. `add` still exists for a page a caller already
+  owns; it keeps a raw pointer, so it must outlive `build()`, and its `string_view` path must stay
+  alive too (the blog probe used to park those in a `page_paths : vector<string>`).
 - **`defaultUniversalSetup()` is per page**, even for a page with no component (without it the build
   fails late: "a page hydrates components but the shared bundle has no hydration runtime").
 - **A top-level container cannot be constructed in its initializer** (`call to unsupported parent
@@ -934,12 +954,19 @@ is ~20% larger than zlib's dynamic Huffman, which is not worth the encoder yet).
 Budgets are asserted in `scripts/static-site-test.sh` (bundle ≤ 60,000 B minified, ≤ 20,000 B gzipped,
 page ≤ 2,048 B, chunk ≤ 8,192 B), so a regression fails the gate rather than being noticed later.
 
-Real shapes, measured with the probes (TCC, `--mode debug_quick`, one thread; full tables in
-`lang/docs/web-stack-gaps.md`): a storefront answers a per-request product page in **~0.36 ms** of
-SSR (5,500 renders in 2.03 s) at 7.5 MB RSS; a 47-page content site builds and writes in **0.16 s**
-at 3.8 MB RSS with 1.8 KB average HTML; the pages that use no component can serve **0 bytes of JS**
-under `web::Static` but not under `web::App`. Use these as the calibration point for a budget, and
-re-measure with `./scripts/web-probes-test.sh` before quoting a number.
+Real shapes, measured by the probes (TCC, `--mode debug_quick`, one thread; full tables in
+`lang/docs/web-stack-gaps.md`) — use these as the calibration point for a budget, and re-measure with
+`./scripts/web-probes-test.sh` before quoting a number:
+
+| shape | probe | measured |
+|---|---|---|
+| storefront, per-request product page | `shop` | ~0.36 ms SSR (5,500 renders in 2.03 s), 7.5 MB RSS |
+| 47-page blog, build + write | `blog` | 0.16 s, 3.8 MB RSS, 1.8 KB average HTML |
+| authenticated multi-user app, session + form post | `tasks` | **~15 µs/render** (400 renders), shell 337 B, **0 B JS** (component-free), 3 artifacts |
+| 43-page docs site with sidebar/prev-next/search index | `docs` | build **~50 ms**, 136,565 B HTML, biggest page 3,688 B, **0 scripts / 0 B JS**, gzip on |
+
+A component-free page can serve **0 bytes of JS** under `web::Static` but not under `web::App`
+(`App` always emits the hydration runtime).
 
 `set_profile(true)` (or `--profile` on the CLI, which sets the `profile` build definition) records
 per-route HTML/chunk bytes, component-unit counts and first-load vs navigation cost.
@@ -954,12 +981,43 @@ wrapper instead of `web::App`:
 
 ```chemical
 var site = web::Static.make("out", "app", "assets")
-site.add("/",     &mut home)        // home : HtmlPage
-site.add("/docs", &mut docs)
+var home = site.page("/")             // : &mut HtmlPage — the site owns it
+home.defaultUniversalSetup()
+render_home(home)
+var docs = site.page("/docs")
+docs.defaultUniversalSetup()
+render_docs(docs)
 site.set_minify(true)
 site.set_gzip(true)
 site.finish()                        // or build() when you want respond() to keep working
 ```
+
+Routes with many pages are a loop, not a list of locals:
+
+```chemical
+for(var i = 0u; i < docs.size(); i++) {
+    var doc = docs.get_ptr(i)
+    var page = site.page(doc.slug)   // path is copied into the site; no lifetime trap
+    page.defaultUniversalSetup()
+    render_doc(page, doc)
+}
+```
+
+**Non-HTML artifacts.** A search index, RSS feed, web manifest or JSON API dump is part of the
+artifact set, not a page: `site.add_artifact(path, bytes, content_type)`. It is copied, so the bytes
+may be a view into a temporary, and it is served by `respond()`/`respond_negotiated` with its own
+`Content-Type` (HTML artifacts are still served from the page routes):
+
+```chemical
+var index = search_index(&docs)                 // : string
+var index_type = string_view("application/json; charset=utf-8")
+site.add_artifact("search-index.json", index.to_view(), index_type)
+// served: site.respond_negotiated("/search-index.json", etag, if_none_match)
+// -> 200, content_type "application/json; charset=utf-8", cache-control "no-cache"
+// site.artifact_bytes(path) / site.has_gzip_variants() report the set
+```
+
+Artifacts are pre-build only, like pages: `finish()` freezes the set.
 
 Every page shares **one** content-hashed bundle, plus its own route chunk. A page whose chunk is
 empty (pure `#html`, no components) emits **no `<script>` tag at all** — the zero-JS promise is
@@ -1005,7 +1063,7 @@ of the right-hand column has landed yet** — code written against it will not c
 |---|---|---|
 | app shape | one module: `chemical.mod` + `#html` / `#css` / `#js` / `#universal` | `shared` / `server` / `client` modules, `--web`, `chemical serve` + a dev overlay |
 | assembling pages | `HtmlPage` + `StaticSite` (runtime bundle + `vendor` bundle + route chunks, all content-hashed) | a `web_build` command that drives the two-phase build |
-| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`, `set_gzip`/`set_profile`), `StaticSite.build()` + `respond(path)` / `respond_if_none_match` / `respond_negotiated(path, inm, accept_encoding)` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, **`web::Static` MPA export (`add`/`build`/`finish`/`export_sitemap`)**, `webserve` bridge, `page.Bundle` (embedded artifact set + `StaticSite.write_assets_module`), **gzip variants + `Vary: Accept-Encoding`**, **`profile_report()`/`export_profile()` (+ `--profile`)** | CSS chunks + `modulepreload`, loading a `Bundle` from disk |
+| serving | **`web::App`** (route table: `page`/`shell`/`live`/`redirect`/`not_found`, `{id}`/`{path*}`, per-route cache policy, mount path, `install` + `serve_request`, `set_gzip`/`set_profile`), `StaticSite.page(path)` / `add` / `add_artifact` / `artifact_bytes` / `has_gzip_variants`, `StaticSite.build()` + `respond(path)` / `respond_if_none_match` / `respond_negotiated(path, inm, accept_encoding)` for pre-rendered routes, per-request routes (`attach_dynamic` + `render_dynamic` + `dynamic_response`, sharing the same bundle), `web::Shell` + `web::SlotFills` (frozen chrome + byte-range slots), per-route component chunks, **`web::Static` MPA export (`page`/`add`/`add_artifact`/`build`/`finish`/`export_sitemap`)**, `webserve` bridge, `page.Bundle` (embedded artifact set + `StaticSite.write_assets_module`), **gzip variants + `Vary: Accept-Encoding`**, **`profile_report()`/`export_profile()` (+ `--profile`)** | CSS chunks + `modulepreload`, loading a `Bundle` from disk |
 | sessions | **`http.CookieJar` / `CookieOptions` / `Response.cookie`, `web::SessionStore` + constant-time CSRF, durable snapshots (`save_to`/`load_from`)** (a `Vary: Cookie` pre-rendered route is a build error) | database-backed stores, signed cookies |
 | client / `dom` | **`--web` two-job build (`shared`/`server`/`client`), typed `dom` slice** (document, element, event, `fetch`, `localStorage`, `URL`) run headlessly by `web-dom-test.sh`; source maps; native-symbol-in-client diagnostic | canvas, uploads, pointer/rAF, `WebSocket`, `chemical serve` + dev overlay, browser E2E of `dom` |
 | client JS | `#js` (raw), `#universal` (hydration, `state`, event handlers) | typed `dom`, `web::Client` completion handlers |

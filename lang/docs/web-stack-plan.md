@@ -1972,9 +1972,9 @@ is worse than a feature shipping a release late.
 
 ---
 
-### 9.2 Survey: three probe apps against the published API (2026-11-21)
+### 9.2 Survey: five probe apps against the published API (2026-11-21)
 
-Before freezing v1 we wrote three apps using **only** the public API and measured them
+Before freezing v1 we wrote five apps using **only** the public API and measured them
 (`lang/tests/web/probes/`, gate `scripts/web-probes-test.sh`, full findings incl. numbers in
 [`web-stack-gaps.md`](web-stack-gaps.md)):
 
@@ -1983,8 +1983,12 @@ Before freezing v1 we wrote three apps using **only** the public API and measure
 | `shop` | storefront: frozen pages + per-request renders + shell, sessions, CSRF, POST, PRG, JSON, user input in HTML | 22 checks green; ~0.36 ms/SSR render (5,500 in 2.03 s, 7.5 MB RSS); 48 KB bundle on pages with no component (**now 25 checks, no bundle**) |
 | `blog` | content site: 47 pre-rendered pages, tag pages, one shared island | 0.16 s build+write, 3.8 MB RSS, 1.8 KB avg HTML, 0 `<script>` on component-free pages, 40 identical chunks → 40 URLs |
 | `spa` | single-page app: `--web` split, shell, JSON endpoint, typed client | 7 checks green; the emitted `web-client.mjs` (217 KB / 27.9 KB gz) is **not referenced by the served page** |
+| `tasks` | authenticated multi-user app: `page`+`live`+`shell`+`endpoint` on shared paths, sessions, form POST→303, per-user lists, CSRF | 31 checks green; **~15 µs/render**, 337 B shell, **0 B JS** on a component-free page, 3 artifacts |
+| `docs` | documentation site: 43 generated pages, sidebar, prev/next, sitemap/robots, JSON search index, gzip | 11 checks green; build **~50 ms**, 136,565 B HTML, biggest page 3,688 B, **0 scripts / 0 B JS** |
 
-The survey also found a real parser bug, fixed here: `@{ ... }` could not span lines.
+The survey also found a real parser bug, fixed here: `@{ ... }` could not span lines — and, in the
+second round, a **silent use-after-free in `Static.add`** (pages registered from a loop produced wrong
+HTML with no error), fixed by making the site own its pages: `Static.page(path) : &mut HtmlPage`.
 
 **What it changes in this plan.** The v1 surface is missing four things an app cannot work around
 (ordered; each is additive plus one deliberate break):
@@ -2012,6 +2016,30 @@ request and the session the app resolved, instead of recovering both from global
 The next tier (a `RequestContext` instead of handler-side globals + `unsafe`, a `Session` handle,
 `Static.add` taking ownership of its path, `Request.make`/`now_ms` for tests, and the missing `dom`
 members for an SPA) is listed as P1 there.
+
+**Second round (2026-11-21), after `tasks` and `docs`:** the two shapes the first three could not
+cover (per-user mutable state over a session; ~50 similar routes) changed the API in four places,
+all landed and gated by the probes:
+
+- **`web::Static.page(path) : &mut HtmlPage`** replaces `add(&mut page, path)` as the way to create a
+  route. The site owns the pages (vectors reserved to `PAGE_CAPACITY = 512`) and copies the path, so
+  loop-built routes are safe; `add` remains for a page the caller already owns. This closes P1-8 and
+  fixes a silent use-after-free that had already corrupted the `blog` probe's output.
+- **`add_artifact(path, bytes, content_type)`** on `StaticSite`/`web::Static`, plus `artifact_bytes`
+  and `has_gzip_variants`, so a search index / feed / manifest is part of the set (this was a P2 item
+  "not expressible" and is now three lines).
+- **Endpoint/page dispatch on a shared path** answers GET from the page route and 405 only for methods
+  no route lists (a real bug: `app.live("/todos")` + `app.endpoint("POST", "/todos")` returned 405
+  to GET).
+- **`RequestContext` reaches every route shape except a shell fill** — `SlotValues` is still
+  `(req : &Request) => FillSet`, so a shell cannot render the signed-in user from the session. That,
+  `App.state<T>` (app-owned state instead of a global behind `unsafe`), `http::Request.make`, the
+  client-bundle wiring (P0-2) and the `{}` escape decision are the six items in the next-round table at
+  the end of `web-stack-gaps.md`.
+
+Measured on the two new shapes, the plan's two headline claims hold: a precomputed app answers a
+per-user render in **~15 µs** with a 337 B frozen shell, and a 43-page content site ships **0 bytes of
+JS** while building in **~50 ms**.
 
 ## 10. How we will know it worked
 

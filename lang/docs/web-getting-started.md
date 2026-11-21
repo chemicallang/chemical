@@ -104,7 +104,9 @@ creates only the directory it is given, so pass a flat path — nested routes ar
 
 Most sites are **not** entirely static: you pre-render the pages that never
 change and render the rest per request, from one build and one bundle.
-`StaticSite.add` registers a pre-rendered page; `StaticSite.attach_dynamic` +
+`StaticSite.page(path)` creates a pre-rendered page the site owns (use this
+rather than `add` when the page is built in a loop or a helper);
+`StaticSite.attach_dynamic` +
 `render_dynamic` render a route at request time against that same frozen bundle
 (the detail: `design_web_app`, "Mixed sites"). A route the export can serve keeps
 its `no-cache` + ETag 304 path; a per-request route is answered `no-store` with no

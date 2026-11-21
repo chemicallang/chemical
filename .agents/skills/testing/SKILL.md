@@ -711,6 +711,17 @@ independently. These are wired in `lang/tests/build.lab` and gated behind dedica
 > **All suites are green on `mir`:** main 2263, `--interpret` 1875, `--libs` 719,
 > `--plugins` 1296, `--async` 53, `--process` 127, `--server` 9, `MIRTests` 1049.
 
+### Web-stack probes
+
+The web stack is gated by real apps, not unit tests: `scripts/web-probes-test.sh` builds and runs
+five probes in `lang/tests/web/probes/` (a storefront, a 47-page blog, an SPA via `--web`, an
+authenticated multi-user app, and a 43-page docs site) and fails if any check or measured budget
+regresses. Run it after touching `lang/libs/web`, `lang/libs/page`, `html_parser`, or any component
+runtime code; `scripts/web-app-test.sh` covers the app/static/server path and
+`./scripts/test.sh --tcc --plugins` covers the macros. The probes are ordinary Chemical modules —
+copy one as the starting point for a new shape rather than writing a fixture from scratch, and add
+the shape's own checks to it.
+
 ### Where to write the tests
 
 Each suite is a standalone `application` module under `lang/tests/`:

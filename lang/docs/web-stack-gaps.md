@@ -1,4 +1,4 @@
-# Web stack: what three probe apps found (2026-11-21)
+# Web stack: what five probe apps found (2026-11-21)
 
 This is the survey the plan (`web-stack-plan.md`) asks for before the v1 API freeze: build real
 shapes, measure them, and record what the **public** API makes an app author write by hand. Every
@@ -12,6 +12,8 @@ The probes live in `lang/tests/web/probes/` and are built/run by `scripts/web-pr
 | `shop` | storefront | frozen pages + per-request renders + shell, sessions, CSRF, POST mutations, PRG redirects, a JSON endpoint, a search page (user input in HTML) |
 | `blog` | content site | 47 pre-rendered pages from markdown, tag pages, one shared interactive island, per-route chunks |
 | `spa` | single-page app | `--web` two-job split, a shell page, a JSON endpoint, client-side rendering and navigation in typed `client/*.ch` |
+| `tasks` | authenticated multi-user app | `web::App` with `page`/`live`/`shell`/`endpoint` on shared paths, per-user sessions, a form POST + 303, per-user lists, `ctx.form`, CSRF |
+| `docs` | documentation site | 43 generated pages with a sidebar and prev/next, sections, sitemap/robots, a JSON search index, gzip |
 
 ## Measured
 
@@ -162,7 +164,9 @@ every path alive until `build()`; a view into a loop-local string produced
 `two different artifacts at the same path` (a dangling view read back as a different path). There is
 no diagnostic and no documentation of the lifetime. *Fix:* copy the path inside `add` (one
 allocation per page, negligible next to the HTML) — or take `&str` so the compiler enforces
-ownership.
+ownership. **Landed as `Static.page(path)`**, which does both and also owns the page: the raw pointer
+to a loop-local page was the same bug, and it produced wrong bytes with no error (see the second
+survey below).
 
 **9. Per-route chunks are not content-addressed.** 40 identical 28-byte chunks became 40 URLs with
 the same content hash in the name. *Fix:* name a chunk by its content hash only (`chunk.<hash>.js`)
@@ -176,11 +180,10 @@ already sees every instance), leaving `defaultUniversalSetup` as an explicit ove
 **11. Testing a request is hard.** `RequestBody`'s fields are internal and its constructor is empty,
 so a test cannot give a handler a body (`Request.set_body_text`/`set_body_bytes` landed with P0-3,
 which is enough for the probes but still not a one-call `Request.make`); `Request.query` likewise cannot be filled, and
-`App.handle` takes `&mut Request` (fine) while `StaticSite.add` wants the page *and* keeps pointers.
-There is also no clock in `std` (`time` exists as a module — check it — but no monotonic `now_ms`),
-so a probe cannot time its own renders. Both probes solved this by passing the body as a parameter
-to their own `handle_request`. *Fix:* `http::Request.make(method, path, headers, body)` and a
-monotonic `std::time.now_ms()`.
+`App.handle` takes `&mut Request` (fine) while `StaticSite.add` wants the page *and* keeps pointers
+(now solved by `Static.page(path)`). A probe can time its own renders after all —
+`std::time.Instant::now()` / `.elapsed()` is a monotonic clock and both new probes use it; this item
+is down to `http::Request.make(method, path, headers, body)` with fillable query and headers.
 
 **12. The client-side primitive set is too small for an SPA.** `dom` has `get_element_by_id`,
 `query_selector`, `create_element`, `set_text`, `set_html`, attributes, `append_child`, `remove`,
@@ -215,9 +218,98 @@ where noted, and none is a rewrite.
 | 4 | Connect the client job to the page bundle (P0-2) | without it typed client code cannot ship | `spa`'s shell references the client module; a Node harness runs it against the served shell |
 | 5 | Escape-by-default `{}` + explicit raw marker (P0-5) | the only finding that is a security bug; must be decided before apps exist | `shop`'s search page needs no `escape_html_view`; universal `children` still render raw; plugin suite + components e2e green |
 | 6 | ~~`RequestContext` (P1-6) + `Session` handle (P1-7)~~ **done** | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |
-| 7 | Copy the path in `Static.add` (P1-8), `Request.make` + `now_ms` (P1-11) | probe/gate ergonomics; one-line-ish each | `blog` drops `page_paths`; probes time their own renders |
+| 7 | ~~Copy the path and own the page in `Static.add` (P1-8)~~ **done as `Static.page(path)`**; `Request.make` + `now_ms` (P1-11) | probe/gate ergonomics; one-line-ish each | `blog` drops `page_paths`; probes time their own renders |
 | 8 | `dom` additions + `web::Client` (P1-12) | makes an SPA expressible without the `#js` escape hatch | `spa`'s client uses `location.hash`, `query_selector_all`, and typed `fetch` |
 
 Items 1–4 are the difference between "the stack can render pages" and "the stack can run an app".
 Item 5 is a design decision that should be taken in the same release as 1, because both change what
 an app author writes in every route.
+
+---
+
+## Second survey: `tasks` and `docs` (2026-11-21)
+
+Two more shapes were built the same way — documented API only — because the first three did not
+cover the two axes that decide whether the public API is final: **per-user mutable state over a
+session** (a real app) and **hundreds of similar routes** (a real content site).
+
+| probe | shape | what it exercises |
+|---|---|---|
+| `tasks` | authenticated multi-user app | `app.page` + `app.live` + `app.shell` + `app.endpoint` on **shared paths**, per-user sessions, form POST → 303, per-user lists, `ctx.form`, CSRF token in a form, 405 vs 200 on one path |
+| `docs` | documentation site | 43 pages generated from one table with sections, a sidebar marking the active page, prev/next, sitemap/robots, a JSON search index artifact, gzip |
+
+### Measured
+
+| measurement | `tasks` | `docs` |
+|---|---|---|
+| checks green | 31 | 11 (the search index replaced one 404 assertion with three positive ones) |
+| build | — | **~50 ms** |
+| artifacts | 3 (1 page, 1 shell, 1 chunk) | 46 (43 HTML + sitemap + robots + search index) |
+| total bytes | shell 337 B | 143,128 B (136,565 B HTML, biggest page 3,688 B) |
+| JS sent to a component-free page | **0 B** (no bundle, no `<script>`) | **0 B**, 0 script tags on every page |
+| per-request render | **~15 µs** (400 renders in 6.2 ms) | n/a (all pre-rendered) |
+| gzip | — | on; HTML has gzip variants |
+
+Two numbers matter for the goals. `tasks` shows the *precompute* claim holding for an app: the chrome
+is a frozen shell (337 B, spliced), and the only per-request work is the list itself at ~15 µs. `docs`
+shows the *zero-JS* claim holding at scale: 43 pages with a sidebar and pagination ship no JavaScript
+at all, because every page is HTML and no page mounts a component.
+
+### Bugs found and fixed here
+
+1. **`Static.add` in a loop was a silent use-after-free.** Pages created in a loop and registered
+   with `site.add(&mut page, path)` stored a raw pointer into a scope that no longer existed, plus a
+   `string_view` into a loop-local path. The result was **wrong HTML bytes, no error** — the `blog`
+   probe's post pages had been corrupt and its earlier measurements invalid. This is the worst class
+   of bug for this project (nothing crashes, the output is just wrong), so the API changed rather
+   than the docs: **`web::Static.page(path) : &mut HtmlPage`** — the site owns pages in vectors
+   reserved to `PAGE_CAPACITY = 512`, reserves them up front, and copies the path. `blog` and `docs`
+   both use it; over capacity fails loudly in `error_message()`.
+2. **A page route sharing a path with an endpoint answered 405 to GET.** `app.live("/todos")` plus
+   `app.endpoint("POST", "/todos")` made `GET /todos` return 405, because dispatch asked "which
+   methods are registered for this path" and did not consider that a page route answers GET/HEAD.
+   Fixed with `page_route_matches` + `method_listed` (a hand-built request with an empty method counts
+   as GET; HEAD is served by GET). The `tasks` probe locks this down.
+3. **A non-HTML artifact had nowhere to go.** A search index, RSS feed or web manifest was not
+   expressible: the artifact set was HTML routes plus sitemap/robots/profile, so `docs` could only
+   assert a 404. Added `StaticSite.add_artifact(path, bytes, content_type)` (copied, pre-build only)
+   and delegated `web::Static.add_artifact`; `docs` now serves `search-index.json` with
+   `application/json; charset=utf-8` and its own ETag. Also exposed `artifact_bytes(path)` and
+   `has_gzip_variants()` on `web::Static`.
+
+### What the second survey adds to the gap list
+
+* **Shell fills never see the session** (new, P1). `app.shell(path, handler, values)` types `values`
+  as `(req : &Request) => FillSet`, but the session was resolved by the app *before* the fill runs and
+  lives on `RequestContext`. So the one route shape built for "chrome frozen, one region per user"
+  cannot render the signed-in user's name or cart count from the session — it can only parse cookies
+  itself. `tasks` works around it by rendering the greeting from a cookie. *Fix:* `SlotValues` should
+  take `&mut RequestContext` (the fill runs inside `render_shell`, which already has it).
+* **An endpoint cannot render a page** (confirmed, P1). `endpoint()` returns `http::Response`; a form
+  post that should show a page must redirect (PRG) to a page route. That is the right default, but
+  there is no `web::render_page(handler, ctx) : http::Response` escape hatch, so an endpoint that
+  wants to re-render a form with errors has to build HTML by hand (the `tasks` probe avoids it by
+  redirecting). *Fix:* expose the live-render path as a helper.
+* **App state has no home** (confirmed, P1). `tasks` needs one `SessionStore` and one list of todos
+  shared by every route. There is no `App`-owned store, so the probe keeps them behind one pointer in
+  a request-local and touches it through `unsafe` — exactly the pattern `RequestContext` was added to
+  remove, one level up. *Fix:* `App.state<T>(init) : &mut T` (or `app.set_state(&mut T)`), read back
+  from a handler through `ctx.state()`.
+* **`respond()` is identity-only and that is the right split** (checked while writing `docs`). With
+  `set_gzip(true)` an artifact has two representations and two ETags; `respond(path)` always returns
+  the identity bytes, and `respond_negotiated(path, etag, accept_encoding)` returns the gzip body +
+  `Content-Encoding: gzip` + its own ETag only when the header allows it. A server must call the
+  negotiated form to get `Vary: Accept-Encoding` right, so the probes do; no API change.
+* **P1-11 is stale on the clock.** `std::time.Instant::now()`/`.elapsed()` exists and both new probes
+  time themselves with it; only `http::Request.make` is still missing from that item.
+
+### Next round, in order
+
+| # | item | why | done when |
+|---|---|---|---|
+| 1 | `SlotValues` takes `&mut RequestContext` | a shell is the shape for per-user chrome; today it cannot read the session | `tasks` renders the signed-in user from `ctx.session_text` in a fill, no cookie parsing |
+| 2 | `App.state<T>` + `ctx.state()` | every app has process state; today it is a global behind `unsafe` | `tasks` drops its request-local pointer |
+| 3 | `http::Request.make` with fillable query/headers | request-level testing is hand-rolled in every probe | probes/tests build a request in one call |
+| 4 | Point `spa`'s shell at the client bundle (P0-2, still open) | typed client code exists but nothing loads it | a Node harness runs the served shell's script |
+| 5 | Escape-by-default `{}` (P0-5, still open) | the only security bug in the list | `shop` search needs no `escape_html_view` |
+| 6 | `web::render_page` escape hatch for endpoints | form re-render with errors | an endpoint returns a rendered page |

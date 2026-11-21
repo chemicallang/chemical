@@ -227,6 +227,28 @@ check "two new sessions never share an id" \
 check "destroying a session drops the server record" \
       "$([ "$(contains "$log" 'session destroyed loaded=0 count=0')" = "1" ] && echo 1 || echo 0)"
 
+# ── Durable snapshots ─────────────────────────────────────────────────────
+# `SessionStore.save_to`/`load_from` write and read a whole store, so a session
+# survives the process that created it (a worker restart, a redeploy).
+check "a session store writes a snapshot and reads it back" \
+      "$([ "$(contains "$log" 'persist saved=1 count=1')" = "1" ] && echo 1 || echo 0)"
+check "a snapshot round-trips every value shape (note, utf8, empty, 400-byte)" \
+      "$([ "$(contains "$log" 'user=1 note=1 utf8=1 empty=1 long=400')" = "1" ] && echo 1 || echo 0)"
+check "a truncated snapshot keeps the complete records before it" \
+      "$([ "$(contains "$log" 'persist damaged wrote=1 loaded=1 count=1 value=1')" = "1" ] && echo 1 || echo 0)"
+check "a missing snapshot loads an empty store instead of erroring" \
+      "$([ "$(contains "$log" 'persist missing loaded=0 count=0')" = "1" ] && echo 1 || echo 0)"
+saved_line="$(grep -F 'persist saved=' "$log" | head -1)"
+snap_id="$(echo "$saved_line" | sed -n 's/.* id=\([0-9a-f]*\).*/\1/p')"
+snap_csrf="$(echo "$saved_line" | sed -n 's/.* csrf=\([0-9a-f]*\).*/\1/p')"
+restore_log=/tmp/web_app_restore.txt
+CHX_SESSION_RESTORE=1 CHX_SESSION_ID="$snap_id" CHX_SESSION_CSRF="$snap_csrf" \
+    "$exe" > "$restore_log" 2>&1 || true
+check "a snapshot restores in a process that never saw the session" \
+      "$([ "$(contains "$restore_log" 'persist restored loaded=1 count=1 user=1 note=1')" = "1" ] && echo 1 || echo 0)"
+check "a restored session keeps every value and its CSRF token" \
+      "$([ "$(contains "$restore_log" 'utf8=1 empty=1 csrf=1')" = "1" ] && echo 1 || echo 0)"
+
 if [ "$fail" -ne 0 ]; then
     echo "web-app-test: FAILED" >&2
     exit 1

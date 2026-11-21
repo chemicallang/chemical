@@ -1642,12 +1642,19 @@ block the exit contract above; each is recorded with the reason it was not taken
    CSRF comparison. `web-app-test.sh` covers the flow (13 session/cookie checks).
    **`Vary: Cookie` guard landed 2026-11-20:** `App.push_route` refuses a pre-rendered route
    whose `vary` contains `Cookie` (a shared cache would serve one user's render to another) and
-   names `live()` as the fix. Still open: **a persistent store.** A snapshot
-   (`save_to`/`load_from`) was written and then reverted: restoring a record whose value is a
-   map moved into the store comes back with a corrupted key/value because of the known
-   struct-with-container move bug, and shipping a silently lossy durable store is worse than
-   none. It needs that ownership bug fixed first (or a store backed by a real database behind
-   the existing `load`/`get`/`set` interface, which is the documented extension point).
+   names `live()` as the fix.
+   **Persistent store landed 2026-11-21:** `SessionStore.save_to(path)` writes the whole store
+   (id, CSRF token and every key/value as hex) and `load_from(path)` reads it back, so a session
+   survives the process that created it. It was blocked until then by a compiler bug, not by the
+   store: a pattern-bound variant payload (`var Some(v) = o`) is an alias into the variant, and
+   moving it into an aggregate field copied the bytes without clearing the variant's drop flag,
+   which freed the container twice. `MIRLowerer` now clears the owning variant from aggregate
+   initializers too (`mark_init_moved`/`is_pattern_bound_value`; regression test
+   `lang/tests/src/basic/variants/destructure_move.ch`). A truncated snapshot (a half-written
+   file) keeps the complete records before it and a missing file loads an empty store;
+   `web-app-test.sh` gates the round-trip, the damaged/missing cases, and the restore in a
+   second process. A store backed by a real database is still the documented extension point
+   behind the existing `load`/`get`/`set` interface.
 4. **Skills + migration kit** (§3.21): `web_app` (rewrite), `web_migration`, `web_client` (new),
    updates to `universal`/`components_e2e`/`testing`/`AGENTS.md`, the reference app inside
    `web_app`, and the one-sentence bootstrap prompt. Wire `skill conformance` into CI so every
@@ -1922,7 +1929,8 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    are satisfied by `page.StaticSite` and the probe script.
 8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
    `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by
-   `web-app-test.sh`). A persistent store and the `Vary: Cookie` render hook remain.
+   `web-app-test.sh`). The durable store landed 2026-11-21 (see Phase 5 item 3 above); the
+   `Vary: Cookie` render hook remains.
 9. **Per-request serving cost** — **zero-copy bodies done 2026-11-20**: `http::ResponseBody.View`
    holds a borrowed payload and the encoder writes it straight from the view, so an immutable
    asset no longer costs a `memcpy` of its own size on every request. `webserve.serve` and

@@ -594,8 +594,9 @@ model redirects/404. That is `web::App` (below).
 Each route declares **when** its HTML is made; the app builds one bundle for all of them.
 
 ```chemical
-public func Home(page : &mut HtmlPage, req : &http::Request) { … }
-public func Account(page : &mut HtmlPage, req : &http::Request) { … }
+public func Home(ctx : &mut web::RequestContext, page : &mut HtmlPage) { … }
+public func Account(ctx : &mut web::RequestContext, page : &mut HtmlPage) { … }
+public func AddToCart(ctx : &mut web::RequestContext) : http::Response { … }   // an endpoint
 
 var app = web::App.make("dist", "app", "assets")
 app.page("/", Home)                  // pre-rendered at build: no-cache + ETag + 304
@@ -614,10 +615,19 @@ unsafe { web::install(&raw mut app) }
 srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
 ```
 
-- **Route handlers are `(page : &mut HtmlPage, req : &http::Request) => void`** — the same shape for a
-  pre-rendered and a per-request route. `page` must be named `page` for `#html`; `req` gives you
-  `req.param("id")`, `req.query`, headers. The handler cannot answer a status code, a header or
-  JSON, and `handle` ignores `req.method` — see *What an app still writes by hand* below.
+- **Route handlers are `(ctx : &mut web::RequestContext, page : &mut HtmlPage) => void`** — the same
+  shape for a pre-rendered and a per-request route. `page` must be named `page` for `#html`;
+  `ctx` gives you the request (`ctx.param("id")`, `ctx.query("q")`, `ctx.header("…")`,
+  `ctx.path()`) and the session the app resolved for the request:
+  `ctx.session_text("cart")`, `ctx.set_session("cart", v)`, `ctx.csrf_token()`,
+  `ctx.verify_csrf(submitted)`, `ctx.form()`. The app owns the `SessionStore` (loads the session
+  once per request, attaches `Set-Cookie` when a route started one; `app.session_store()` for
+  config), so a route never reaches for a global.
+- **`endpoint(method, pattern, ctx => Response)`** answers a method with its own response:
+  `app.endpoint("POST", "/cart/add", AddToCart)`. Dispatch runs before the page routes (an API
+  route may share a path with a page); a path registered for another method answers **405** with
+  `Allow`. Helpers: `web::json(status, serialized)`, `web::redirect(status, location)`,
+  `web::text(status, body)`.
 - **`page()` patterns must be concrete.** `{param}` in a pre-rendered route is a build error (there is
   no value at build time); use `live()`.
 - **`live()` warms automatically.** `build()` renders each live route once into a discarded page, so
@@ -649,7 +659,7 @@ srv.router.add("GET", "/:path*", ||(req) => web::serve_request(req))
 A shell route, end to end:
 
 ```chemical
-public func Dashboard(page : &mut HtmlPage, req : &http::Request) {
+public func Dashboard(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<header class=\"bar\">")
     page.slot("account")               // filled per request; the rest is frozen
     page.append_html("</header>")

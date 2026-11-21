@@ -63,8 +63,11 @@ body_of() { grep -F "body $1 = " "$log" | head -1 | sed "s/.*body $1 = //"; }
 # ── Build ────────────────────────────────────────────────────────────────
 check "the app builds (no error message)" \
       "$([ "$(contains "$log" 'build=1 msg=')" = "1" ] && echo 1 || echo 0)"
-check "the app builds 9 artifacts: 2 pages, bundle, vendor, CSS, 2 chunks, sitemap, robots" \
-      "$([ "$(contains "$log" 'artifacts=9 pages=2')" = "1" ] && echo 1 || echo 0)"
+# Two pages, the runtime bundle, the vendor bundle, CSS, one content-addressed
+# chunk (both routes' dispatches are identical, so they share the file),
+# sitemap and robots.
+check "the app builds 8 artifacts: 2 pages, bundle, vendor, CSS, 1 chunk, sitemap, robots" \
+      "$([ "$(contains "$log" 'artifacts=8 pages=2')" = "1" ] && echo 1 || echo 0)"
 check "the shared component definitions ship in one vendor bundle" \
       "$([ "$(contains "$log" 'artifact assets/app.vendor.')" = "1" ] && echo 1 || echo 0)"
 check "a pre-rendered route is exported as <route>/index.html" \
@@ -123,8 +126,10 @@ check "robots.txt points at the sitemap" \
 # ── Mount path ───────────────────────────────────────────────────────────
 check "the mounted app answers /app/ (200)" \
       "$([ "$(status_of '/app/ mounted')" = "200" ] && echo 1 || echo 0)"
-check "the mounted page references the bundle under the mount" \
-      "$([ "$(body_of mount | grep -c '/app/assets/app.')" -ge 1 ] && [ "$(body_of mount | grep -c 'href="assets/')" = "0" ] && echo 1 || echo 0)"
+# A component-free page mounts no runtime, so the mount's correctness shows up as
+# the *absence* of any root-relative asset URL: nothing may point outside `/app/`.
+check "the mounted page references no root-relative asset" \
+      "$([ "$(body_of mount | grep -c 'href="assets/')" = "0" ] && [ "$(body_of mount | grep -c 'src="assets/')" = "0" ] && echo 1 || echo 0)"
 check "the mounted app does not answer the bare root (404)" \
       "$([ "$(status_of '/ mounted')" = "404" ] && echo 1 || echo 0)"
 
@@ -171,8 +176,10 @@ check "a per-request route's component stays in the shared bundle" \
       "$(grep -qF 'function app_test_DashBody(props)' "$out_dir"/assets/app.*.js && echo 1 || echo 0)"
 check "the route-only component is not in the shared bundle" \
       "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/app.*.js && echo 0 || echo 1)"
+# Chunks are content-addressed, so the definition lives in whichever `chunk.*.js`
+# carries those dispatch bytes.
 check "the route chunk defines the component it dispatches" \
-      "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/pricing_index.*.js && echo 1 || echo 0)"
+      "$(grep -qF 'function app_test_PricingNote(props)' "$out_dir"/assets/chunk.*.js && echo 1 || echo 0)"
 check "every dispatched component is reachable from its page" \
       "$(graph_check "$out_dir" >/tmp/web_app_graph.txt && echo 1 || echo 0)"
 

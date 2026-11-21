@@ -16,45 +16,11 @@ using std::string;
 using std::string_view;
 using std::vector;
 
-@never_destructed
-private var store : web::SessionStore
-private var session_ptr : *mut web::Session = null
-private var session_created : bool = false
-
 // ── Small helpers ─────────────────────────────────────────────────────────
 func string_of(v : string_view) : string {
     var out = string()
     out.append_view(&v)
     return out
-}
-
-func current_session() : *mut web::Session {
-    return unsafe(session_ptr)
-}
-
-func current_csrf() : string {
-    var session = current_session()
-    if(session == null) { return string() }
-    var token = unsafe(store.csrf_token(unsafe(&*session)))
-    return string_of(token)
-}
-
-func current_value(name : string_view) : Option<string> {
-    var session = current_session()
-    if(session == null) { return Option.None<string>() }
-    var got = unsafe(store.get(unsafe(&*session), name))
-    if(got is Option.None) { return Option.None<string>() }
-    var Some(v) = got else unsafe { unreachable }
-    return Option.Some<string>(string_of(v))
-}
-
-// The shims `pages.ch` reads the session through.
-func session_csrf(req : &http::Request) : string {
-    return current_csrf()
-}
-
-func session_value(req : &http::Request, name : string_view) : Option<string> {
-    return current_value(name)
 }
 
 func header_text(res : &http::Response, name : &string_view) : string {
@@ -84,13 +50,13 @@ func has_text(haystack : &string, needle : string_view) : bool {
 
 // The parser fills `req.query`, but a `Request` built by a test has only a path.
 // Returns an owned string: a view into a parsed pair would dangle.
-func query_of(req : &http::Request, name : string_view) : string {
-    var got = req.query.get(name)
+func query_of(ctx : &web::RequestContext, name : string_view) : string {
+    var got = ctx.query(name)
     if(got is Option.Some) {
         var Some(v) = got else unsafe { unreachable }
         return string_of(v)
     }
-    var path = req.path.to_view()
+    var path = ctx.path()
     var qmark = path.find(&string_view("?"))
     if(qmark is Option.None) { return string() }
     var Some(pos) = qmark else unsafe { unreachable }
@@ -105,7 +71,8 @@ func query_of(req : &http::Request, name : string_view) : string {
             if(key.to_view().equals(&name)) {
                 // the parser percent-decodes; this fallback must too
                 var value = unsafe(&*parts.get_ptr(1))
-                return url_decode(value.to_view())
+                var value_view = value.to_view()
+                return http::url_decode(&value_view)
             }
         }
         i = i + 1
@@ -113,32 +80,15 @@ func query_of(req : &http::Request, name : string_view) : string {
     return string()
 }
 
-// ── Session ───────────────────────────────────────────────────────────────
-func begin_session(req : &http::Request) : web::Session {
-    var loaded = unsafe(store.load(req))
-    if(loaded is Option.Some) {
-        var Some(s) = loaded else unsafe { unreachable }
-        return s
-    }
-    unsafe { session_created = true }
-    return unsafe(store.create())
-}
-
-func finish_session(res : &mut http::Response, session : &web::Session) {
-    if(unsafe(session_created)) {
-        unsafe(store.attach(res, session))
-        unsafe { session_created = false }
-    }
-}
-
 // ── Mutations ─────────────────────────────────────────────────────────────
-func add_to_cart(slug : string_view) {
-    var existing = current_value(string_view("cart"))
+// The cart lives in the session; the handler's `ctx` is the only session
+// dependency, so nothing here touches a store or a global.
+func add_to_cart(ctx : &mut web::RequestContext, slug : string_view) {
+    var existing = ctx.session_text("cart")
     var next = string()
     var added = false
-    if(existing is Option.Some) {
-        var Some(cart) = existing else unsafe { unreachable }
-        var items = cart.to_view().split(',')
+    if(!existing.empty()) {
+        var items = existing.to_view().split(',')
         var i : ubigint = 0
         while(i < items.size()) {
             var item = unsafe(&*(items.get_ptr(i)))
@@ -169,100 +119,69 @@ func add_to_cart(slug : string_view) {
         next.append_view(&slug)
         next.append_view(":1")
     }
-    var session = current_session()
-    if(session == null) { return }
     var next_view = next.to_view()
-    unsafe(store.set(unsafe(&mut *session), string_view("cart"), next_view))
+    ctx.set_session("cart", next_view)
 }
 
-func clear_cart() {
-    var session = current_session()
-    if(session == null) { return }
-    unsafe(store.remove(unsafe(&mut *session), string_view("cart")))
+func clear_cart(ctx : &mut web::RequestContext) {
+    ctx.remove_session("cart")
 }
 
 // ── Method-aware endpoints ────────────────────────────────────────────────
-// Registered with `app.endpoint("POST", …)`, so the route table itself answers a
-// mutating request; the app no longer hand-dispatches in front of `app.handle`.
-
-// CSRF first: every mutation must present the token bound to this session.
-func csrf_ok(form : &http::Form) : bool {
-    var session = current_session()
-    if(session == null) { return false }
+// Registered with `app.endpoint("POST", …)`, so the route table answers the
+// method. The handler gets the context, which is where CSRF lives.
+func csrf_ok(ctx : &web::RequestContext, form : &http::Form) : bool {
     var token = form.get("csrf")
     if(token is Option.None) { return false }
     var Some(t) = token else unsafe { unreachable }
-    return unsafe(store.verify_csrf(unsafe(&*session), t))
+    return ctx.verify_csrf(t)
 }
 
-public func CartAdd(req : &http::Request) : http::Response {
-    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
-    var form = web::form(req)
-    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
+public func CartAdd(ctx : &mut web::RequestContext) : http::Response {
+    var form = ctx.form()
+    if(!csrf_ok(ctx, &form)) { return web::text(403u, &string_view("bad csrf")) }
     var slug = form.get("slug")
     if(slug is Option.None) {
-        var from_query = query_of(req, string_view("slug"))
+        var from_query = query_of(ctx, string_view("slug"))
         var qv = from_query.to_view()
         if(qv.empty()) { return web::text(400u, &string_view("slug required")) }
-        add_to_cart(qv)
+        add_to_cart(ctx, qv)
         return web::redirect(303u, string_view("/cart"))
     }
     var Some(value) = slug else unsafe { unreachable }
-    add_to_cart(value)
+    add_to_cart(ctx, value)
     return web::redirect(303u, string_view("/cart"))
 }
 
-public func CartClear(req : &http::Request) : http::Response {
-    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
-    var form = web::form(req)
-    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
-    clear_cart()
+public func CartClear(ctx : &mut web::RequestContext) : http::Response {
+    var form = ctx.form()
+    if(!csrf_ok(ctx, &form)) { return web::text(403u, &string_view("bad csrf")) }
+    clear_cart(ctx)
     return web::redirect(303u, string_view("/cart"))
 }
 
-public func Checkout(req : &http::Request) : http::Response {
-    if(current_session() == null) { return web::text(403u, &string_view("no session")) }
-    var form = web::form(req)
-    if(!csrf_ok(&form)) { return web::text(403u, &string_view("bad csrf")) }
-    clear_cart()
+public func Checkout(ctx : &mut web::RequestContext) : http::Response {
+    var form = ctx.form()
+    if(!csrf_ok(ctx, &form)) { return web::text(403u, &string_view("bad csrf")) }
+    clear_cart(ctx)
     return web::redirect(303u, string_view("/thanks"))
 }
 
-public func CartJson(req : &http::Request) : http::Response {
+public func CartJson(ctx : &mut web::RequestContext) : http::Response {
     var out = string("{\"cart\":\"")
-    var items = current_value(string_view("cart"))
-    if(items is Option.Some) {
-        var Some(v) = items else unsafe { unreachable }
-        out.append_view(v.to_view())
-    }
+    var cart = ctx.session_text("cart")
+    out.append_view(cart.to_view())
     out.append_view("\"}")
     var view = out.to_view()
     return web::json(200u, &view)
-}
-
-// The one entry point a server (or the suite) calls. Session setup is still this
-// app's own wiring — a page handler gets `(page, req)` and nothing else
-// (`web-stack-gaps.md` P1-6) — but dispatch, method matching, redirects, JSON and
-// the 405 are the route table's job now.
-public func handle_request(app : &mut web::App, req : &mut http::Request) : http::Response {
-    var session = begin_session(req)
-    unsafe { session_ptr = &raw mut session }
-    var res = app.handle(req)
-    finish_session(&mut res, &session)
-    unsafe { session_ptr = null }
-    return res
-}
-
-public func handle(app : &mut web::App, req : &mut http::Request) : http::Response {
-    return handle_request(app, req)
 }
 
 // A search page: the only place user input reaches the HTML. `#html` does NOT
 // auto-escape `{value}` (page.ch documents the choice), so every untrusted value
 // must go through `escape_html_view` first. This is the escaping contract an app
 // author has to know, and the reason `web` needs a safe-by-default story.
-public func Search(page : &mut HtmlPage, req : &http::Request) {
-    var q_text = query_of(req, string_view("q"))
+public func Search(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
+    var q_text = query_of(ctx, string_view("q"))
     var escaped = escape_html_view(q_text.to_view())
     var q = escaped.to_view()
     page.appendTitle("Probe Supply — search")
@@ -296,7 +215,7 @@ func request_with(app : &mut web::App, method : string_view, path : string_view,
         req.headers.insert_view(&k, &v)
         req.set_body_text(body)
     }
-    return handle_request(app, &mut req)
+    return app.handle(&raw mut req)
 }
 
 func report(label : string_view, res : &http::Response) {
@@ -351,8 +270,6 @@ func cookie_pair(cookie : &string) : string_view {
 }
 
 public func main() : int {
-    unsafe { store = web::SessionStore.make() }
-
     var app = web::App.make("lang/compiled/shop_probe", "shop", "assets")
     app.set_minify(true)
     app.set_gzip(true)

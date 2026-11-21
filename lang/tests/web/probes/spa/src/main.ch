@@ -1,9 +1,8 @@
 // Probe 3 driver: build the SPA shell, then answer the two requests the browser
 // makes (the shell, and the JSON it fetches). Prints machine-checkable lines.
 //
-// `web::App` cannot host a JSON endpoint (path-only routing, page-only handlers),
-// so the shell render and the endpoint are dispatched by hand — the same
-// workaround the storefront probe needed. See `lang/docs/web-stack-gaps.md`.
+// The shell is a pre-rendered route and the JSON the client fetches is an
+// `app.endpoint`, so the app answers both: nothing here dispatches by hand.
 using std::Option;
 using std::string;
 using std::string_view;
@@ -14,14 +13,10 @@ func string_of(v : string_view) : string {
     return out
 }
 
-public func handle(app : &mut web::App, req : &mut http::Request) : http::Response {
-    var path = req.path.to_view()
-    if(path.equals(&string_view("/api/tasks"))) {
-        var body = tasks_json()
-        var body_view = body.to_view()
-        return http::response_json_text(200u, &body_view)
-    }
-    return app.handle(req)
+public func Tasks(ctx : &mut web::RequestContext) : http::Response {
+    var body = tasks_json()
+    var body_view = body.to_view()
+    return web::json(200u, &body_view)
 }
 
 func body_text(res : &http::Response) : string {
@@ -50,6 +45,7 @@ public func main() : int {
     var app = web::App.make("lang/compiled/spa_probe", "spa", "assets")
     app.set_minify(true)
     app.page("/", Shell)
+    app.endpoint("GET", "/api/tasks", Tasks)
 
     var built = app.build()
     var msg = app.error_message()
@@ -59,7 +55,7 @@ public func main() : int {
     var shell = http::Request()
     shell.method = string_of(string_view("GET"))
     shell.path = string_of(string_view("/"))
-    var res = handle(&mut app, &mut shell)
+    var res = app.handle(&raw mut shell)
     var body = body_text(&res)
     unsafe { printf("shell status=%d bytes=%zu\n", res.status as int, body.to_view().size()) }
     check(string_view("the shell renders"), res.status == 200u && has_text(&body, string_view("Task board")))
@@ -75,7 +71,7 @@ public func main() : int {
     var api_req = http::Request()
     api_req.method = string_of(string_view("GET"))
     api_req.path = string_of(string_view("/api/tasks"))
-    var api = handle(&mut app, &mut api_req)
+    var api = app.handle(&raw mut api_req)
     var api_body = body_text(&api)
     unsafe { printf("api status=%d bytes=%zu\n", api.status as int, api_body.to_view().size()) }
     check(string_view("the JSON endpoint answers"), api.status == 200u && has_text(&api_body, string_view("\"open\":3")))

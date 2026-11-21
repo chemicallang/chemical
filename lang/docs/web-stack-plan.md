@@ -2006,8 +2006,9 @@ security bug rather than friction, and it is cheap now, expensive after apps exi
 
 **Progress (2026-11-21):** items 1–3 are implemented and green (`web-stack-gaps.md` carries the
 measured deltas: `shop` 22 → 25 checks, `/` 432 B → 270 B with no `<script>`, `blog` 100 → 57
-artifacts). Item 4 (`App.client_bundle`) and the `{}` escape-by-default decision are the remaining
-P0 work.
+artifacts), and so is P1-6/P1-7 — routes now receive a `web::RequestContext` that carries the
+request and the session the app resolved, instead of recovering both from globals. Item 4
+(`App.client_bundle`) and the `{}` escape-by-default decision are the remaining P0 work.
 The next tier (a `RequestContext` instead of handler-side globals + `unsafe`, a `Session` handle,
 `Static.add` taking ownership of its path, `Request.make`/`now_ms` for tests, and the missing `dom`
 members for an SPA) is listed as P1 there.

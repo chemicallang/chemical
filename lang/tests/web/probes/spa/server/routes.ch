@@ -5,7 +5,7 @@ using std::vector;
 
 // The shell: one page, no server-side view logic. Everything below `#app` is
 // produced in the browser, so the shell is a constant string plus the bundle.
-public func Shell(page : &mut HtmlPage, req : &http::Request) {
+public func Shell(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Task board")
     page.append_head("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
     var initial = initial_payload()

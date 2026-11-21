@@ -8,7 +8,7 @@ using std::Result;
 using std::string;
 using std::string_view;
 
-public func Home(page : &mut HtmlPage, req : &http::Request) {
+public func Home(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     #html {
         <main>
             <h1>Home</h1>
@@ -23,7 +23,7 @@ public func Home(page : &mut HtmlPage, req : &http::Request) {
     return <aside class="note">prices update quarterly</aside>
 }
 
-public func Pricing(page : &mut HtmlPage, req : &http::Request) {
+public func Pricing(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     #html {
         <main>
             <h1>Pricing</h1>
@@ -33,8 +33,8 @@ public func Pricing(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func Account(page : &mut HtmlPage, req : &http::Request) {
-    var who = req.param("id")
+public func Account(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
+    var who = ctx.param("id")
     var id = string_view("?")
     if(who is Option.Some) {
         var Some(v) = who else unsafe { unreachable }
@@ -48,8 +48,8 @@ public func Account(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func Files(page : &mut HtmlPage, req : &http::Request) {
-    var rest = req.param("path")
+public func Files(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
+    var rest = ctx.param("path")
     var path = string_view("?")
     if(rest is Option.Some) {
         var Some(v) = rest else unsafe { unreachable }
@@ -58,7 +58,7 @@ public func Files(page : &mut HtmlPage, req : &http::Request) {
     #html { <main><h1>File</h1><p>path={path}</p></main> }
 }
 
-public func Missing(page : &mut HtmlPage, req : &http::Request) {
+public func Missing(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     #html { <main><h1>Nothing here</h1></main> }
 }
 
@@ -72,7 +72,7 @@ public func Missing(page : &mut HtmlPage, req : &http::Request) {
     return <section class="route dashboard"><h1>Dashboard</h1><p>rows</p></section>
 }
 
-public func DashboardShell(page : &mut HtmlPage, req : &http::Request) {
+public func DashboardShell(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"dash\"><header class=\"bar\">")
     page.slot("account")
     page.append_html("</header>")
@@ -80,7 +80,7 @@ public func DashboardShell(page : &mut HtmlPage, req : &http::Request) {
     page.append_html("</div>")
 }
 
-public func DashboardFull(page : &mut HtmlPage, req : &http::Request) {
+public func DashboardFull(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"dash\"><header class=\"bar\">nobody</header>")
     #html { <DashBody /> }
     page.append_html("</div>")
@@ -99,11 +99,11 @@ public func DashboardFills(req : &http::Request) : web::SlotFills {
 // ── Shell variants (§3.12, Phase 4) ──────────────────────────────────────
 // Two shapes of one route, each frozen separately, chosen per request by a
 // predicate — the alternative to branching inside a frozen buffer.
-public func VariantAdmin(page : &mut HtmlPage, req : &http::Request) {
+public func VariantAdmin(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"variant\"><h1>admin</h1></div>")
 }
 
-public func VariantGuest(page : &mut HtmlPage, req : &http::Request) {
+public func VariantGuest(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"variant\"><h1>guest</h1></div>")
 }
 
@@ -121,7 +121,7 @@ func no_fills(req : &http::Request) : web::SlotFills {
     return web::SlotFills()
 }
 
-public func DashboardEscaped(page : &mut HtmlPage, req : &http::Request) {
+public func DashboardEscaped(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"dash\"><header class=\"bar\">")
     page.slot("account")
     page.append_html("</header></div>")
@@ -288,7 +288,7 @@ func request_role(app : &mut web::App, path : string_view, role : string_view) :
     var v = string()
     v.append_view(&role)
     req.headers.insert(k, v)
-    return app.handle(&mut req)
+    return app.handle(&raw mut req)
 }
 
 func request(app : &mut web::App, path : string_view, inm : string_view) : http::Response {
@@ -301,7 +301,7 @@ func request(app : &mut web::App, path : string_view, inm : string_view) : http:
         v.append_view(&inm)
         req.headers.insert(k, v)
     }
-    return app.handle(&mut req)
+    return app.handle(&raw mut req)
 }
 
 func bodies_equal(a : &http::Response, b : &http::Response) : bool {

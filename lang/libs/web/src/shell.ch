@@ -4,7 +4,7 @@
 // byte ranges of that frozen buffer, and a request splices fills into those ranges
 // instead of walking the component tree again:
 //
-//   public func Dashboard(page : &mut HtmlPage, req : &http::Request) {
+//   public func Dashboard(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
 //       #html {
 //           <header>@{page.slot("account")}</header>
 //           <main><h1>Dashboard</h1></main>

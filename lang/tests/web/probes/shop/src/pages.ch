@@ -57,60 +57,6 @@ func money(cents : int) : string {
     return out
 }
 
-// ── Forms ────────────────────────────────────────────────────────────────
-// `application/x-www-form-urlencoded` parsing. There is no library function for
-// this, so every app with a form writes it: one of the gaps this probe records.
-func form_value(body : &string_view, name : string_view) : Option<string> {
-    var pairs = body.split('&')
-    var i : ubigint = 0
-    while(i < pairs.size()) {
-        var pair = unsafe(&*(pairs.get_ptr(i)))
-        var parts = pair.split('=')
-        if(parts.size() >= 2) {
-            var key = unsafe(&*parts.get_ptr(0))
-            var value = unsafe(&*parts.get_ptr(1))
-            if(key.to_view().equals(&name)) {
-                return Option.Some<string>(url_decode(value.to_view()))
-            }
-        }
-        i = i + 1
-    }
-    return Option.None<string>()
-}
-
-func url_decode(raw : string_view) : string {
-    var out = string()
-    var i : size_t = 0
-    while(i < raw.size()) {
-        var c = raw.at(i)
-        if(c == '+') {
-            out.append(' ')
-            i = i + 1
-        } else if(c == '%' && i + 2 < raw.size()) {
-            var hi = hex_digit(raw.at(i + 1))
-            var lo = hex_digit(raw.at(i + 2))
-            if(hi >= 0 && lo >= 0) {
-                out.append(((hi * 16 + lo) as char))
-                i = i + 3
-            } else {
-                out.append(c)
-                i = i + 1
-            }
-        } else {
-            out.append(c)
-            i = i + 1
-        }
-    }
-    return out
-}
-
-func hex_digit(c : char) : int {
-    if(c >= '0' && c <= '9') { return (c as int) - 48 }
-    if(c >= 'a' && c <= 'f') { return (c as int) - 87 }
-    if(c >= 'A' && c <= 'F') { return (c as int) - 55 }
-    return -1
-}
-
 // ── Cart model (session-backed) ──────────────────────────────────────────
 @direct_init
 struct CartLine {
@@ -122,11 +68,10 @@ struct CartLine {
 
 // The session holds `slug:qty,slug:qty`. A real app wants a typed session value
 // and a `web::Form`; both are gaps.
-func cart_lines(req : &http::Request) : vector<CartLine> {
+func cart_lines(ctx : &web::RequestContext) : vector<CartLine> {
     var out = vector<CartLine>()
-    var raw = session_value(req, string_view("cart"))
-    if(raw is Option.None) { return out }
-    var Some(text) = raw else unsafe { unreachable }
+    var text = ctx.session_text("cart")
+    if(text.empty()) { return out }
     var items = text.to_view().split(',')
     var i : ubigint = 0
     while(i < items.size()) {
@@ -164,7 +109,7 @@ func cart_total(lines : &vector<CartLine>) : int {
 }
 
 // ── Pages ────────────────────────────────────────────────────────────────
-public func Home(page : &mut HtmlPage, req : &http::Request) {
+public func Home(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Probe Supply — home")
     #html {
         <main class="home">
@@ -175,7 +120,7 @@ public func Home(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func Products(page : &mut HtmlPage, req : &http::Request) {
+public func Products(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Probe Supply — products")
     var all = catalog()
     // `@{ ... }` holds exactly one statement, so the loop counter lives here.
@@ -207,9 +152,9 @@ public func Products(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func ProductPage(page : &mut HtmlPage, req : &http::Request) {
+public func ProductPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     var slug = string_view("")
-    var got = req.param("slug")
+    var got = ctx.param("slug")
     if(got is Option.Some) {
         var Some(v) = got else unsafe { unreachable }
         slug = v
@@ -229,8 +174,7 @@ public func ProductPage(page : &mut HtmlPage, req : &http::Request) {
     var stock_text = string("In stock: ")
     stock_text.append_integer(product.stock as bigint)
     var stock_view = stock_text.to_view()
-    var token = session_csrf(req)
-    var token_view = token.to_view()
+    var token_view = ctx.csrf_token()
     var action = string("/cart/add?slug=")
     action.append_view(&slug)
     var action_view = action.to_view()
@@ -256,14 +200,13 @@ public func ProductPage(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func CartPage(page : &mut HtmlPage, req : &http::Request) {
+public func CartPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Probe Supply — cart")
-    var lines = cart_lines(req)
+    var lines = cart_lines(ctx)
     var total = cart_total(&lines)
     var total_text = money(total)
     var total_view = total_text.to_view()
-    var token = session_csrf(req)
-    var token_view = token.to_view()
+    var token_view = ctx.csrf_token()
     var line_index : ubigint = 0
     #html {
         <main class="cart">
@@ -307,12 +250,12 @@ public func CartPage(page : &mut HtmlPage, req : &http::Request) {
     }
 }
 
-public func Thanks(page : &mut HtmlPage, req : &http::Request) {
+public func Thanks(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Probe Supply — thanks")
     #html { <main class="thanks"><h1>Thank you</h1><p>Your order is on its way.</p></main> }
 }
 
-public func Missing(page : &mut HtmlPage, req : &http::Request) {
+public func Missing(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Probe Supply — not found")
     #html { <main class="missing"><h1>Not found</h1><a href="/">Home</a></main> }
 }

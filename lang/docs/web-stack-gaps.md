@@ -130,18 +130,32 @@ v1 break to take **now**, before apps exist (see §3.17 of the plan).
 
 ### P1 — the API works but makes every app duplicate machinery
 
-**6. A page handler gets only `(page, req)`.** The session, the authenticated user, the locale and
-the CSRF token all have to be recovered inside every handler. Because a mutable top-level global is
-`SAFE-GLOBAL-001`, the storefront probe publishes the session through a pointer to a request-local
-and every access is `unsafe`. *Fix:* `PageHandler = (ctx: &mut RequestContext, page: &mut HtmlPage)`
-where the app provides a `resolve(req)` hook once (session, user, params), or a `Ctx` passed by
-`App.handle`.
+*Landed (2026-11-21).* `PageHandler = (ctx: &mut RequestContext, page: &mut HtmlPage)` and
+`EndpointHandler = (ctx: &mut RequestContext) => http::Response`; `web::RequestContext` carries the
+request (`ctx.param`, `ctx.query`, `ctx.header`, `ctx.path`, `ctx.body_text`, `ctx.form`) and the
+session (`ctx.session_text`, `ctx.set_session`, `ctx.csrf_token`, `ctx.verify_csrf`,
+`ctx.destroy_session`, `ctx.ensure_session`). `web::App` owns the `SessionStore`, loads the session
+once per request, creates one only when a route asks, and attaches `Set-Cookie` when it did
+(`app.session_store()` for config). The storefront probe's globals, pointer-to-request-local and
+`handle_request` wrapper are gone; its CSRF check is `ctx.verify_csrf(t)` and its cart is
+`ctx.session_text("cart")`.
 
-**7. `Session` is an owned value with no handle.** `SessionStore.load(&req) -> Option<Session>`
-returns a struct owning its id `string`; there is no cheap `&Session`/id form, so an app cannot
-keep "the current session" without either re-loading per handler (used here) or fighting the
-borrow checker. *Fix:* `Session` as an id-only handle (`{ id: string_view }` into store-owned
-storage) plus `store.with(id, |s| ...)`.
+One shape note for whoever extends this: `App.handle` takes `*mut http::Request`, not
+`&mut`. A `RequestContext` holds the request for the route's lifetime, and the language refuses to
+turn `&mut Request` into `*mut Request` for a destructible struct, while a reference — carrying a
+lifetime — drags the whole generic machinery (and `@retained` restrictions) into every context
+method. Callers write `app.handle(&raw mut req)`.
+
+**6. (original finding, for reference)** A page handler got only `(page, req)`: the session, the
+authenticated user, the locale and the CSRF token all had to be recovered inside every handler.
+Because a mutable top-level global is `SAFE-GLOBAL-001`, the storefront probe published the session
+through a pointer to a request-local and every access was `unsafe`.
+
+*Resolved (2026-11-21).* `Session` was already an id-only handle (`{ id: string }`); the friction was
+that nothing resolved it for a handler. `RequestContext.session` is that handle, loaded once per
+request by `App.handle`, and every value is read through the store (`ctx.session_value` /
+`ctx.session_text`), so there is no snapshot to keep fresh. The remaining cost is one 48-char id
+allocation per request that has a session — not worth a borrowed form.
 
 **8. `Static.add(page, path)` stores the `string_view` and never copies it.** The caller must keep
 every path alive until `build()`; a view into a loop-local string produced
@@ -200,7 +214,7 @@ where noted, and none is a rewrite.
 | 3 | ~~Emit the hydration runtime only when a component was used (P0-4)~~ **done**, content-address chunks (P1-9) **done** | immediate, measurable win for the common case | `shop` `/` and `/products` carry no bundle (432 B → 270 B); blog artifacts 100 → 57 with 4 `chunk.<hash>.js` |
 | 4 | Connect the client job to the page bundle (P0-2) | without it typed client code cannot ship | `spa`'s shell references the client module; a Node harness runs it against the served shell |
 | 5 | Escape-by-default `{}` + explicit raw marker (P0-5) | the only finding that is a security bug; must be decided before apps exist | `shop`'s search page needs no `escape_html_view`; universal `children` still render raw; plugin suite + components e2e green |
-| 6 | `RequestContext` (P1-6) + `Session` handle (P1-7) | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |
+| 6 | ~~`RequestContext` (P1-6) + `Session` handle (P1-7)~~ **done** | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |
 | 7 | Copy the path in `Static.add` (P1-8), `Request.make` + `now_ms` (P1-11) | probe/gate ergonomics; one-line-ish each | `blog` drops `page_paths`; probes time their own renders |
 | 8 | `dom` additions + `web::Client` (P1-12) | makes an SPA expressible without the `#js` escape hatch | `spa`'s client uses `location.hash`, `query_selector_all`, and typed `fetch` |
 

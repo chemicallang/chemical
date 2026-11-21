@@ -24,6 +24,13 @@ using std::string_view;
 /// `Content-Type` is parsed too (some clients omit it); any other media type is an
 /// empty form rather than a parse of binary bytes.
 public func form(req : &http::Request) : http::Form {
+    return parse_request_form(req)
+}
+
+/// The same decision, for a caller that already holds the request
+/// (`RequestContext.form`): a non-urlencoded body is an empty form, never a
+/// mis-parse of binary bytes.
+func parse_request_form(req : &http::Request) : http::Form {
     var ct = req.content_type()
     var ct_view = ct.to_view()
     if(!ct_view.empty()) {

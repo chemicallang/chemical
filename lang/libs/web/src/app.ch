@@ -40,13 +40,13 @@ using std::vector;
 /// A route render function: it writes the page's markup and reads the request.
 /// One shape serves a pre-rendered route and a per-request one; the delivery mode
 /// is a property of the route, not of the function.
-public type PageHandler = (page : &mut HtmlPage, req : &http::Request) => void
+public type PageHandler = (ctx : &mut RequestContext, page : &mut HtmlPage) => void
 
 /// A non-page route: it owns its response, so it can answer any status, set any
 /// header, and return JSON, a redirect or an empty body. This is what a form POST,
 /// a JSON API and a webhook need; a `PageHandler` cannot express them because it
 /// can only write HTML into a 200 page.
-public type EndpointHandler = (req : &http::Request) => http::Response
+public type EndpointHandler = (ctx : &mut RequestContext) => http::Response
 
 /// One method-aware route (`app.endpoint("POST", "/cart/add", AddToCart)`).
 @direct_init
@@ -137,6 +137,11 @@ public struct App {
     private var not_found_handler : PageHandler
     private var has_not_found : bool
 
+    /// Sessions live on the app, so a route no longer has to publish "the current
+    /// session" through a global: `App.handle` loads it into the `RequestContext`
+    /// once per request and attaches the cookie when a route started one.
+    private var sessions : SessionStore
+
     /// Build outputs, replayed in `build()` (a rebuild of the sink must not lose
     /// them).
     private var out_dir : string
@@ -177,6 +182,7 @@ public struct App {
             page_paths : vector<string>(),
             not_found_handler : empty_page,
             has_not_found : false,
+            sessions : SessionStore.make(),
             out_dir : o,
             base_name : n,
             asset_prefix : p,
@@ -529,17 +535,34 @@ public struct App {
     ///
     /// `req.route_params` is filled for a matched pattern, so a handler reads
     /// `/invoices/{id}` through `req.param("id")`.
-    public func handle(&mut self, req : &mut http::Request) : http::Response {
+    public func handle(&mut self, req : *mut http::Request) : http::Response {
         if(!built) {
             var not_built = string_view("app not built")
             return error_response(503u, &not_built)
         }
+        // One context per request: the session is loaded here (and only created if
+        // a route asks for one), and the cookie is attached to whatever this
+        // returns. Routes never touch the store directly.
+        var ctx = RequestContext.make(req, unsafe(&raw mut self.sessions))
+        var res = self.dispatch(unsafe(&mut *req), &mut ctx)
+        ctx.finish(&mut res)
+        return res
+    }
+
+    /// The session store, for config (`app.session_store().set_secure(true)`) and
+    /// for a route that needs the store itself. The `RequestContext` covers the
+    /// common case.
+    public func session_store(&mut self) : &mut SessionStore {
+        return &mut sessions
+    }
+
+    func dispatch(&mut self, req : &mut http::Request, ctx : &mut RequestContext) : http::Response {
 
         // The path as the app sees it: query and fragment dropped, mount prefix
         // stripped. Matching and artifact lookup both use it.
-        var path_s = request_path_without_base(&base_path, req.path.to_view())
+        var path_s = request_path_without_base(&base_path, unsafe(req.path.to_view()))
         if(path_s.empty()) {
-            return self.not_found_response(req)
+            return self.not_found_response(ctx)
         }
         var path = path_s.to_view()
 
@@ -580,7 +603,7 @@ public struct App {
             fill_route_params(req, &endpoint_params)
             var route = unsafe(&*endpoints.get_ptr(endpoint_hit as ubigint))
             var handler = route.handler
-            var res = handler(unsafe(&*req))
+            var res = handler(ctx)
             apply_endpoint_policy(&mut res, route)
             return res
         }
@@ -610,7 +633,7 @@ public struct App {
             var handler = route.handler
             var cache = route.cache_control.to_view()
             var vary = route.vary.to_view()
-            return self.render_live(handler, cache, vary, 200u, req)
+            return self.render_live(handler, cache, vary, 200u, ctx)
         }
 
         // 3b. A shell route. Same pattern matching as a live route, but the body is
@@ -650,7 +673,7 @@ public struct App {
             fill_route_params(req, &params)
             var route_ptr = shells.get_ptr(shell_matched as ubigint)
             var route = unsafe(&mut *route_ptr)
-            return self.render_shell(route, req)
+            return self.render_shell(route, ctx)
         }
 
         // 4. A pre-rendered page or a content-hashed asset: the site's own table.
@@ -661,7 +684,7 @@ public struct App {
         }
 
         // 5. The 404 route.
-        return self.not_found_response(req)
+        return self.not_found_response(ctx)
     }
 
     /// Serve `path` from the frozen artifacts (`no-cache` + ETag for HTML,
@@ -693,13 +716,13 @@ public struct App {
     /// Render a live route for this request; `status` lets the 404 route reuse the
     /// same path.
     func render_live(&mut self, handler : PageHandler, cache_control : string_view,
-                     vary : string_view, status : u16, req : &http::Request) : http::Response {
+                     vary : string_view, status : u16, ctx : &mut RequestContext) : http::Response {
         var page = HtmlPage()
         if(!site.attach_dynamic(&mut page)) {
             var reason = site.dynamic_error_message()
             return error_response(500u, &reason)
         }
-        handler(&mut page, req)
+        handler(ctx, &mut page)
         // A page that rendered no component needs no hydration runtime, so it gets
         // none: no runtime bytes, no per-route chunk, no bundle `<script>`.
         if(page.used_universal()) { page.defaultUniversalSetup() }
@@ -719,9 +742,9 @@ public struct App {
     /// Fill a shell route for this request: one `emit` over the frozen segments,
     /// with the values `values(req)` supplies. A missing fill emits nothing (that is
     /// a legitimate "no banner for this user").
-    func render_shell(&mut self, route : &mut ShellRoute, req : &http::Request) : http::Response {
+    func render_shell(&mut self, route : &mut ShellRoute, ctx : &mut RequestContext) : http::Response {
         var provider = route.values
-        var fills = provider(req)
+        var fills = provider(unsafe(&*ctx.req()))
         var values = vector<string_view>()
         var n = route.shell.slot_count()
         var i : ubigint = 0
@@ -740,12 +763,12 @@ public struct App {
         return res
     }
 
-    func not_found_response(&mut self, req : &http::Request) : http::Response {
+    func not_found_response(&mut self, ctx : &mut RequestContext) : http::Response {
         if(has_not_found) {
             var handler = not_found_handler
             var cache = string_view("no-store")
             var vary = string_view("")
-            return render_live(handler, cache, vary, 404u, req)
+            return render_live(handler, cache, vary, 404u, ctx)
         }
         var res = http::Response()
         res.status = 404u
@@ -834,7 +857,10 @@ public struct App {
         // on request data to collect its components; a live route that does can
         // miss a component in the bundle, which the render-time refusal reports.
         var req = http::Request()
-        var route_req = unsafe(&mut req)
+        var route_req = unsafe(&raw mut req)
+        // A build-time render has no session: `RequestContext` with a null store, so
+        // a handler that asks for one gets an invalid session instead of a crash.
+        var build_ctx = RequestContext.make(route_req, null)
 
         // 1. Warm pass: a live route renders once into a discarded page so its
         //    components and runtime land in the bundle before it is frozen.
@@ -849,7 +875,7 @@ public struct App {
                     fail_with(site.dynamic_error_message())
                     return false
                 }
-                handler(&mut warm, route_req)
+                handler(&mut build_ctx, &mut warm)
                 // Only a route that actually rendered a component needs its
                 // definition (and the runtime) in the frozen bundle.
                 if(warm.used_universal()) { warm.defaultUniversalSetup() }
@@ -865,7 +891,7 @@ public struct App {
                 fail_with(site.dynamic_error_message())
                 return false
             }
-            handler(&mut warm, route_req)
+            handler(&mut build_ctx, &mut warm)
             if(warm.used_universal()) { warm.defaultUniversalSetup() }
             s = s + 1
         }
@@ -876,7 +902,7 @@ public struct App {
                 return false
             }
             var handler = not_found_handler
-            handler(&mut nf, route_req)
+            handler(&mut build_ctx, &mut nf)
             if(nf.used_universal()) { nf.defaultUniversalSetup() }
         }
 
@@ -923,7 +949,7 @@ public struct App {
                 var path_ptr = page_paths.get_ptr(slot)
                 var artifact_view = unsafe(path_ptr.to_view())
                 site.add(page_mut, artifact_view)
-                handler(page_mut, route_req)
+                handler(&mut build_ctx, page_mut)
                 if(page_mut.used_universal()) { page_mut.defaultUniversalSetup() }
                 slot = slot + 1
             }
@@ -939,7 +965,8 @@ public struct App {
     func compile_shells(&mut self) : bool {
         if(shells.size() == 0) { return true }
         var req = http::Request()
-        var build_req = unsafe(&mut req)
+        var build_req = unsafe(&raw mut req)
+        var build_ctx = RequestContext.make(build_req, null)
         var i : ubigint = 0
         while(i < shells.size()) {
             var route = unsafe(&mut *shells.get_ptr(i))
@@ -949,7 +976,7 @@ public struct App {
                 fail_with(site.dynamic_error_message())
                 return false
             }
-            handler(&mut page, build_req)
+            handler(&mut build_ctx, &mut page)
             if(page.used_universal()) { page.defaultUniversalSetup() }
             var html = site.render_dynamic(&mut page)
             var pattern_view = route.pattern.to_view()
@@ -1013,7 +1040,7 @@ func fill_route_params(req : &mut http::Request, params : &std::vector<std::pair
 // ---------------------------------------------------------------------------
 // A no-op handler: the default for "no 404 route registered".
 // ---------------------------------------------------------------------------
-func empty_page(page : &mut HtmlPage, req : &http::Request) {
+func empty_page(ctx : &mut RequestContext, page : &mut HtmlPage) {
 }
 
 // A pre-rendered route's artifact path: `/` -> `index.html`, `/about` ->
@@ -1356,7 +1383,7 @@ public func serve_request(req : http.Request) : http::Response {
         return error_response(503u, &not_ready)
     }
     var app_mut = unsafe(&mut *app)
-    return app_mut.handle(&mut request)
+    return app_mut.handle(&raw mut request)
 }
 
 } // namespace web

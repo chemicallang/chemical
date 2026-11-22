@@ -11,9 +11,9 @@
 //       }
 //   }
 //
-//   public func DashboardFills(req : &http::Request) : web::SlotFills {
+//   public func DashboardFills(ctx : &mut web::RequestContext) : web::SlotFills {
 //       var f = web::SlotFills()
-//       f.set("account", account_bar(req))       // plain HTML, no component calls
+//       f.set("account", account_bar(ctx.session_text("user")))   // plain HTML
 //       return f
 //   }
 //
@@ -277,19 +277,27 @@ public struct SlotFills {
     }
 }
 
-/// The per-request half of a shell route: given the request, produce its fills.
-/// This is the only code that runs per request for a shell route.
-public type SlotValues = (req : &http::Request) => SlotFills
+/// The per-request half of a shell route: given the request context, produce its
+/// fills. This is the only code that runs per request for a shell route.
+///
+/// It gets the whole `RequestContext`, not the bare request, so a fill can read the
+/// session (`ctx.session_text("user")`) — the reason a signed-in header bar is a
+/// fill and not a separate shell per user. Reading the session never starts one, and
+/// a fill cannot create one: the response is spliced from the frozen bytes, so
+/// anything a fill changed about the session would have no cookie to travel on the
+/// first request. Use `live`/`endpoint` for routes that mutate the session.
+public type SlotValues = (ctx : &mut web::RequestContext) => SlotFills
 
 /// Picks between the variants of one shell route (`App.shell_variant`). Each
 /// variant is a separately frozen document, so choosing one per request costs one
-/// predicate call — the chrome it serves is still byte-range splices.
-public type ShellPredicate = (req : &http::Request) => bool
+/// predicate call — the chrome it serves is still byte-range splices. It sees the
+/// session too, which is what "signed in gets the admin chrome" usually means.
+public type ShellPredicate = (ctx : &mut web::RequestContext) => bool
 
 /// The predicate a plain `shell` route carries: never consulted (`has_when` is
 /// false), so it only has to exist to keep the route struct uniform.
-public func default_shell_predicate(req : &http::Request) : bool {
-    var _ = req
+public func default_shell_predicate(ctx : &mut web::RequestContext) : bool {
+    var _ = ctx
     return true
 }
 

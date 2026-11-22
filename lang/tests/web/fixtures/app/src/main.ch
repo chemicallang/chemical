@@ -86,8 +86,11 @@ public func DashboardFull(ctx : &mut web::RequestContext, page : &mut HtmlPage) 
     page.append_html("</div>")
 }
 
-public func DashboardFills(req : &http::Request) : web::SlotFills {
+public func DashboardFills(ctx : &mut web::RequestContext) : web::SlotFills {
     var f = web::SlotFills()
+    // The context carries the session, so a fill can greet the signed-in user without
+    // the app publishing a request-local through a global.
+    var _ = ctx
     // Text, so a hostile value cannot break out of the region.
     f.set_text("account", "nobody")
     // A slot the shell does not have: the shell decides the positions, so this is
@@ -107,8 +110,8 @@ public func VariantGuest(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.append_html("<div class=\"variant\"><h1>guest</h1></div>")
 }
 
-func wants_admin(req : &http::Request) : bool {
-    var v = req.headers.get("X-Role")
+func wants_admin(ctx : &mut web::RequestContext) : bool {
+    var v = ctx.header("X-Role")
     if(v is Option.Some) {
         var Some(role) = v else unsafe { unreachable }
         return role.equals(&std::string_view("admin"))
@@ -116,8 +119,8 @@ func wants_admin(req : &http::Request) : bool {
     return false
 }
 
-func no_fills(req : &http::Request) : web::SlotFills {
-    var _ = req
+func no_fills(ctx : &mut web::RequestContext) : web::SlotFills {
+    var _ = ctx
     return web::SlotFills()
 }
 
@@ -127,8 +130,9 @@ public func DashboardEscaped(ctx : &mut web::RequestContext, page : &mut HtmlPag
     page.append_html("</header></div>")
 }
 
-public func EscapedFills(req : &http::Request) : web::SlotFills {
+public func EscapedFills(ctx : &mut web::RequestContext) : web::SlotFills {
     var f = web::SlotFills()
+    var _ = ctx
     f.set_text("account", "<script>alert(1)</script>")
     return f
 }

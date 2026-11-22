@@ -52,9 +52,7 @@ public func main() : int {
     unsafe { printf("build=%d msg=%.*s\n", built as int, msg.size() as int, msg.data()) }
     if(!built) { return 1 }
 
-    var shell = http::Request()
-    shell.method = string_of(string_view("GET"))
-    shell.path = string_of(string_view("/"))
+    var shell = http::request(string_view("GET"), string_view("/"))
     var res = app.handle(&raw mut shell)
     var body = body_text(&res)
     unsafe { printf("shell status=%d bytes=%zu\n", res.status as int, body.to_view().size()) }
@@ -68,9 +66,7 @@ public func main() : int {
     check(string_view("the shell ships a bootstrap payload"), has_text(&body, string_view("id=\"bootstrap\"")))
     check(string_view("the client mounts into #tasks"), has_text(&body, string_view("id=\"tasks\"")))
 
-    var api_req = http::Request()
-    api_req.method = string_of(string_view("GET"))
-    api_req.path = string_of(string_view("/api/tasks"))
+    var api_req = http::request(string_view("GET"), string_view("/api/tasks"))
     var api = app.handle(&raw mut api_req)
     var api_body = body_text(&api)
     unsafe { printf("api status=%d bytes=%zu\n", api.status as int, api_body.to_view().size()) }

@@ -358,6 +358,60 @@ public struct Request {
         self.body.set_bytes(data)
     }
 
+    // ── Building one by hand ─────────────────────────────────────────────
+    // The server fills a request from the socket; a test, a fixture, an embedder or
+    // a router probe fills one itself. `http::request(method, path)` makes the empty
+    // request and parses any `?query` off the path, so the chain below is the whole
+    // recipe and nothing has to know that `query` is a separate map:
+    //
+    //     var req = http::request("POST", "/login?next=/todos")
+    //     req.with_cookie("sid=abc")
+    //     req.with_form("email=ada%40example.com&password=x")
+    //     var res = app.handle(&raw mut req)
+
+    /// Add a header (replacing one with the same name).
+    public func with_header(&mut self, name : std::string_view, value : std::string_view) : &mut Request {
+        self.headers.insert_view(&name, &value)
+        return self
+    }
+
+    /// Add a `Cookie` header carrying one `name=value` pair.
+    public func with_cookie_pair(&mut self, name : std::string_view, value : std::string_view) : &mut Request {
+        var line = string()
+        line.append_view(&name)
+        line.append('=')
+        line.append_view(&value)
+        var cookie = std::string_view("Cookie")
+        var text = line.to_view()
+        self.headers.insert_view(&cookie, &text)
+        return self
+    }
+
+    /// Send `header` (already `name=value[; ...]`) as the `Cookie` header.
+    public func with_cookie(&mut self, header : std::string_view) : &mut Request {
+        var cookie = std::string_view("Cookie")
+        self.headers.insert_view(&cookie, &header)
+        return self
+    }
+
+    /// Send `body` as an `application/x-www-form-urlencoded` payload (a form POST).
+    public func with_form(&mut self, body : std::string_view) : &mut Request {
+        var ct = std::string_view("Content-Type")
+        var form = std::string_view("application/x-www-form-urlencoded")
+        self.headers.insert_view(&ct, &form)
+        self.set_body_text(body)
+        return self
+    }
+
+    /// Send `body` as a JSON payload.
+    public func with_json(&mut self, body : std::string_view) : &mut Request {
+        var ct = std::string_view("Content-Type")
+        var json = std::string_view("application/json")
+        self.headers.insert_view(&ct, &json)
+        self.set_body_text(body)
+        return self
+    }
+
     /// `Content-Type` without its parameters (`application/json` for
     /// `application/json; charset=utf-8`), or empty when the header is absent.
     public func content_type(&self) : string {
@@ -380,6 +434,15 @@ public struct Request {
             return out
         }
         return string()
+    }
+
+    /// True for a `POST` whose media type is `application/x-www-form-urlencoded` —
+    /// the shape a `<form method="post">` sends. `web::RequestContext.is_form_post()`
+    /// is the same test on the context a route receives.
+    public func is_form_post(&self) : bool {
+        var post = std::string_view("POST")
+        var method_view = self.method.to_view()
+        return text_equals(method_view, post) && self.is_content_type("application/x-www-form-urlencoded")
     }
 
     /// True when the request's media type is `want`, ignoring parameters
@@ -415,6 +478,41 @@ public struct Request {
         }
         return false
     }
+}
+
+/// Build a request by hand — for a test, a fixture, an embedder or a router probe:
+///
+/// ```chemical
+/// var req = http::request("GET", "/search?q=rust")
+/// var res = app.handle(&raw mut req)
+/// ```
+///
+/// Method and path are copied, and a `?query` on the path is split off and decoded
+/// into `query` exactly as the server does with the request line, so a handler reads
+/// `req.query_param("q")` the same way it does in production. The rest of the request
+/// is filled by the chainable `Request.with_*` helpers (`with_cookie`, `with_header`,
+/// `with_form`, `with_json`); `remote` stays empty, because there is no peer.
+public func request(method : std::string_view, path : std::string_view) : Request {
+    var req = Request()
+    req.method.append_view(&method)
+    var mark : ubigint = path.size()
+    var i : ubigint = 0
+    while(i < path.size()) {
+        if(path.at(i) == '?') {
+            mark = i
+            break
+        }
+        i = i + 1
+    }
+    var path_only = unsafe(std::string_view(path.data(), mark))
+    req.path.append_view(&path_only)
+    if(mark < path.size()) {
+        var qs = unsafe(std::string_view(path.data() + mark + 1, path.size() - mark - 1))
+        req.query = QueryMap.make_from_qs(&qs)
+    }
+    var proto = std::string_view("HTTP/1.1")
+    req.proto.append_view(&proto)
+    return req
 }
 
 /// The peer's response. A handler builds one and returns it; the framework owns

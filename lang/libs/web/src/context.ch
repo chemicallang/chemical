@@ -34,9 +34,16 @@ public struct RequestContext {
     /// The app's store. Null during the build-time renders (`build()`/`finish()`
     /// render every pre-rendered route once, with no session and nothing to create).
     private var store : *mut SessionStore
+    /// Whatever the app registered with `App.set_state` (its database, its config).
+    /// Type-erased here and recovered by `ctx.state<T>()`; null when the app has none.
+    private var state_ptr : *mut void
+    /// The app's frozen site, so a handler can render a page through `ctx.render_page`
+    /// without holding the app. Null outside an app (a bare `StaticSite`).
+    private var site : *mut StaticSite
 
     @make
-    func make(request_ : *mut http::Request, store_ : *mut SessionStore) : RequestContext {
+    func make(request_ : *mut http::Request, store_ : *mut SessionStore,
+              state_ : *mut void = null, site_ : *mut StaticSite = null) : RequestContext {
         // Load the session the request carries, once. An unknown or missing id
         // stays invalid: a route decides whether this request deserves a session
         // (`ensure_session`), so an anonymous visit allocates nothing.
@@ -54,8 +61,25 @@ public struct RequestContext {
             request : request_,
             session : session_,
             created : false,
-            store : store_
+            store : store_,
+            state_ptr : state_,
+            site : site_
         }
+    }
+
+    // ── The app's own state ──────────────────────────────────────────────────
+
+    /// The app state registered with `App.set_state`, as the type it was registered
+    /// as: `var db = ctx.state<Db>()`. Null when the app registered none.
+    ///
+    /// This is the answer to "where does a handler keep its database": the app owns
+    /// the value (usually a stack local in `main`), hands it over once, and every
+    /// route reads it through the context — the same context that carries the
+    /// session. Before this, the only public answer was a top-level mutable global
+    /// reached through an `unsafe` accessor, because `SAFE-GLOBAL-001` forbids the
+    /// direct form.
+    public func <T> state(&self) : *mut T {
+        return state_ptr as *mut T
     }
 
     // ── The request ──────────────────────────────────────────────────────────
@@ -106,6 +130,60 @@ public struct RequestContext {
     /// `web::form(req)` behaves.
     public func form(&self) : http::Form {
         return parse_request_form(unsafe(&*request))
+    }
+
+    /// True for a `POST` that carries an urlencoded form body — the request a
+    /// `<form method="post">` sends, and the one `ctx.form()` can read.
+    public func is_form_post(&self) : bool {
+        return unsafe(request.is_form_post())
+    }
+
+    // ── Rendering a page from an endpoint ─────────────────────────────────────────
+
+    /// Render `handler` for this request and answer with it — the escape hatch an
+    /// **endpoint** needs when it should show a page instead of redirecting:
+    ///
+    /// ```chemical
+    /// public func LoginPost(ctx : &mut web::RequestContext) : http::Response {
+    ///     if(!password_ok(ctx)) {
+    ///         return ctx.render_page(LoginPage, 422u)   // re-render the form
+    ///     }
+    ///     return web::redirect(303u, "/todos")
+    /// }
+    /// ```
+    ///
+    /// Redirect-after-post is still the default worth reaching for (a reload then
+    /// does not resubmit); this is for the case it cannot express, a form that has to
+    /// come back with the errors in it. The page is rendered against the app's frozen
+    /// bundle, exactly like a `live` route, so a universal component hydrates.
+    ///
+    /// `cache_control` defaults to `no-store`: a response that depended on a
+    /// submission must not be cached. Fails with 503 when the bundle lacks a
+    /// component the page renders (the same failure a `live` route reports).
+    public func render_page(&mut self, handler : PageHandler, status : u16 = 200u,
+                            cache_control : string_view = "no-store") : http::Response {
+        if(site == null) {
+            var reason = string_view("render_page: this context has no site (a bare StaticSite cannot render a live page)")
+            return error_response(503u, &reason)
+        }
+        var st = unsafe(&mut *site)
+        var page = HtmlPage()
+        if(!st.attach_dynamic(&mut page)) {
+            var reason = st.dynamic_error_message()
+            return error_response(500u, &reason)
+        }
+        handler(self, &mut page)
+        if(page.used_universal()) { page.defaultUniversalSetup() }
+        var html = st.render_dynamic(&mut page)
+        if(html.empty()) {
+            var reason = st.dynamic_error_message()
+            return error_response(503u, &reason)
+        }
+        var out = st.dynamic_response(&html, cache_control)
+        var none = string_view("")
+        var res = response_of(&out, none)
+        res.status = status
+        return res
     }
 
     // ── The session ──────────────────────────────────────────────────────────

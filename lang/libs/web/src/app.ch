@@ -142,6 +142,11 @@ public struct App {
     /// once per request and attaches the cookie when a route started one.
     private var sessions : SessionStore
 
+    /// The app's own state (a database, a config): one pointer handed to every
+    /// `RequestContext` and recovered with `ctx.state<T>()`. Owned by the caller, so
+    /// the pointer only has to outlive the app.
+    private var state_ptr : *mut void
+
     /// Build outputs, replayed in `build()` (a rebuild of the sink must not lose
     /// them).
     private var out_dir : string
@@ -183,6 +188,7 @@ public struct App {
             not_found_handler : empty_page,
             has_not_found : false,
             sessions : SessionStore.make(),
+            state_ptr : null,
             out_dir : o,
             base_name : n,
             asset_prefix : p,
@@ -260,7 +266,7 @@ public struct App {
     }
 
     /// Register a **shell** route (§3.12): `handler` renders the whole page once, in
-    /// `build()`, and every request is answered by splicing `values(req)` into the
+    /// `build()`, and every request is answered by splicing `values(ctx)` into the
     /// frozen bytes. The chrome costs nothing per request — no component walk, no
     /// CSS hashing, no hydration-id allocation.
     ///
@@ -543,7 +549,7 @@ public struct App {
         // One context per request: the session is loaded here (and only created if
         // a route asks for one), and the cookie is attached to whatever this
         // returns. Routes never touch the store directly.
-        var ctx = RequestContext.make(req, unsafe(&raw mut self.sessions))
+        var ctx = RequestContext.make(req, unsafe(&raw mut self.sessions), state_ptr, &raw mut self.site)
         var res = self.dispatch(unsafe(&mut *req), &mut ctx)
         ctx.finish(&mut res)
         return res
@@ -554,6 +560,37 @@ public struct App {
     /// common case.
     public func session_store(&mut self) : &mut SessionStore {
         return &mut sessions
+    }
+
+    /// Hand the app its own state (usually a stack local in `main`):
+    ///
+    /// ```chemical
+    /// var db = Db.make()
+    /// var app = web::App.make("out", "app", "assets")
+    /// app.set_state<Db>(&mut db)        // the type argument is required
+    /// app.live("/todos", Todos)
+    ///
+    /// public func Todos(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
+    ///     var db = ctx.state<Db>()      // the same pointer, typed
+    ///     ...
+    /// }
+    /// ```
+    ///
+    /// The type argument is required because a generic parameter that appears only
+    /// behind a reference is not inferred (`SymRes:link: couldn't infer type for
+    /// generic parameter`), and `ctx.state<T>()` needs it written out anyway.
+    ///
+    /// The caller keeps ownership; nothing is copied or freed. A route sees it in
+    /// `build()` too, so a pre-rendered page can be generated from a database.
+    public func <T> set_state(&mut self, state : &mut T) {
+        var raw = state as *mut T
+        state_ptr = raw as *mut void
+    }
+
+    /// The state registered with `set_state`, as the type it was registered as. Null
+    /// when the app has none — the same value every `ctx.state<T>()` returns.
+    public func <T> state(&self) : *mut T {
+        return state_ptr as *mut T
     }
 
     func dispatch(&mut self, req : &mut http::Request, ctx : &mut RequestContext) : http::Response {
@@ -656,7 +693,7 @@ public struct App {
             if(match_route_pattern(&pv, &path, &mut trial)) {
                 if(r.has_when) {
                     var pred = r.when
-                    if(pred(req)) {
+                    if(pred(ctx)) {
                         shell_matched = si as int
                         params = trial
                         break
@@ -720,34 +757,21 @@ public struct App {
     /// same path.
     func render_live(&mut self, handler : PageHandler, cache_control : string_view,
                      vary : string_view, status : u16, ctx : &mut RequestContext) : http::Response {
-        var page = HtmlPage()
-        if(!site.attach_dynamic(&mut page)) {
-            var reason = site.dynamic_error_message()
-            return error_response(500u, &reason)
+        // The context owns the render (`ctx.render_page`), so an endpoint can reach
+        // the same path without holding the app; a route only adds its `Vary`.
+        var res = ctx.render_page(handler, status, cache_control)
+        if(!vary.empty()) {
+            res.set_header_view("Vary", &vary)
         }
-        handler(ctx, &mut page)
-        // A page that rendered no component needs no hydration runtime, so it gets
-        // none: no runtime bytes, no per-route chunk, no bundle `<script>`.
-        if(page.used_universal()) { page.defaultUniversalSetup() }
-        var html = site.render_dynamic(&mut page)
-        if(html.empty()) {
-            // The bundle lacks a component this route renders. Serving the page
-            // anyway would fail hydration in the browser, so report it instead.
-            var reason = site.dynamic_error_message()
-            return error_response(503u, &reason)
-        }
-        var out = site.dynamic_response(&html, cache_control)
-        var res = response_of(&out, vary)
-        res.status = status
         return res
     }
 
     /// Fill a shell route for this request: one `emit` over the frozen segments,
-    /// with the values `values(req)` supplies. A missing fill emits nothing (that is
+    /// with the values `values(ctx)` supplies. A missing fill emits nothing (that is
     /// a legitimate "no banner for this user").
     func render_shell(&mut self, route : &mut ShellRoute, ctx : &mut RequestContext) : http::Response {
         var provider = route.values
-        var fills = provider(unsafe(&*ctx.req()))
+        var fills = provider(ctx)
         var values = vector<string_view>()
         var n = route.shell.slot_count()
         var i : ubigint = 0
@@ -892,7 +916,7 @@ public struct App {
         var route_req = unsafe(&raw mut req)
         // A build-time render has no session: `RequestContext` with a null store, so
         // a handler that asks for one gets an invalid session instead of a crash.
-        var build_ctx = RequestContext.make(route_req, null)
+        var build_ctx = RequestContext.make(route_req, null, state_ptr, &raw mut self.site)
 
         // 1. Warm pass: a live route renders once into a discarded page so its
         //    components and runtime land in the bundle before it is frozen.
@@ -998,7 +1022,7 @@ public struct App {
         if(shells.size() == 0) { return true }
         var req = http::Request()
         var build_req = unsafe(&raw mut req)
-        var build_ctx = RequestContext.make(build_req, null)
+        var build_ctx = RequestContext.make(build_req, null, state_ptr, &raw mut self.site)
         var i : ubigint = 0
         while(i < shells.size()) {
             var route = unsafe(&mut *shells.get_ptr(i))

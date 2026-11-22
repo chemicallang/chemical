@@ -34,6 +34,15 @@ func text_field(form : &http::Form, name : string_view) : string {
     return string_of(value)
 }
 
+/// A failed sign-in re-renders the form it came from, with the message in the
+/// session flash: `ctx.render_page` is the escape hatch from an endpoint back into a
+/// page. A redirect would lose the submission, and this is the one case PRG cannot
+/// express.
+func login_failed(ctx : &mut web::RequestContext) : http::Response {
+    ctx.set_session("flash", string_view("That email and password do not match."))
+    return ctx.render_page(LoginPage, 422u)
+}
+
 public func LoginPost(ctx : &mut web::RequestContext) : http::Response {
     var form = ctx.form()
     if(!csrf_ok(ctx, &form)) { return web::text(403u, &string_view("bad csrf")) }
@@ -41,10 +50,10 @@ public func LoginPost(ctx : &mut web::RequestContext) : http::Response {
     var password = text_field(&form, string_view("password"))
     var email_view = email.to_view()
     var password_view = password.to_view()
-    var user = db_find_user(email_view)
-    if(user is Option.None) { return web::redirect(303u, string_view("/login?e=bad")) }
+    var user = db_find_user(state_of(ctx), email_view)
+    if(user is Option.None) { return login_failed(ctx) }
     var Some(uid) = user else unsafe { unreachable }
-    if(!db_password_ok(uid, password_view)) { return web::redirect(303u, string_view("/login?e=bad")) }
+    if(!db_password_ok(state_of(ctx), uid, password_view)) { return login_failed(ctx) }
     var uid_text = string()
     uid_text.append_integer(uid)
     ctx.set_session("uid", uid_text.to_view())
@@ -67,10 +76,10 @@ public func SignupPost(ctx : &mut web::RequestContext) : http::Response {
         return web::redirect(303u, string_view("/signup?e=email"))
     }
     if(password_copy.size() < 8u) { return web::redirect(303u, string_view("/signup?e=weak")) }
-    if(db_find_user(email_copy).is_some()) { return web::redirect(303u, string_view("/signup?e=taken")) }
+    if(db_find_user(state_of(ctx), email_copy).is_some()) { return web::redirect(303u, string_view("/signup?e=taken")) }
     var salt : bigint = 0x51a7
     var hash = hash_password(salt, password_copy)
-    var uid = db_create_user(email_copy, hash, salt)
+    var uid = db_create_user(state_of(ctx), email_copy, hash, salt)
     var uid_text = string()
     uid_text.append_integer(uid)
     ctx.set_session("uid", uid_text.to_view())
@@ -95,7 +104,7 @@ public func TodoCreate(ctx : &mut web::RequestContext) : http::Response {
     var title = text_field(&form, string_view("title"))
     var title_view = title.to_view()
     if(title_view.empty()) { return web::redirect(303u, string_view("/todos")) }
-    db_add_todo(uid, title_view)
+    db_add_todo(state_of(ctx), uid, title_view)
     return web::redirect(303u, string_view("/todos"))
 }
 
@@ -118,8 +127,8 @@ public func TodoToggle(ctx : &mut web::RequestContext) : http::Response {
     var id = param_id(ctx)
     // Ownership is part of the lookup: another user's todo is a 404, never a 403
     // that would confirm it exists.
-    if(db_find_owned_todo(id, uid) is Option.None) { return web::text(404u, &string_view("no such todo")) }
-    db_toggle_todo(id)
+    if(db_find_owned_todo(state_of(ctx), id, uid) is Option.None) { return web::text(404u, &string_view("no such todo")) }
+    db_toggle_todo(state_of(ctx), id)
     return web::redirect(303u, string_view("/todos"))
 }
 
@@ -128,8 +137,8 @@ public func TodoDelete(ctx : &mut web::RequestContext) : http::Response {
     if(!csrf_ok(ctx, &form)) { return web::text(403u, &string_view("bad csrf")) }
     var uid = current_uid(ctx)
     var id = param_id(ctx)
-    if(db_find_owned_todo(id, uid) is Option.None) { return web::text(404u, &string_view("no such todo")) }
-    db_delete_todo(id)
+    if(db_find_owned_todo(state_of(ctx), id, uid) is Option.None) { return web::text(404u, &string_view("no such todo")) }
+    db_delete_todo(state_of(ctx), id)
     return web::redirect(303u, string_view("/todos"))
 }
 
@@ -152,7 +161,7 @@ func json_escape(value : string_view) : string {
 /// about routing, not codegen.
 public func TodosJson(ctx : &mut web::RequestContext) : http::Response {
     var uid = current_uid(ctx)
-    var ids = db_todos_of(uid, true)
+    var ids = db_todos_of(state_of(ctx), uid, true)
     var out = string("[")
     var i : ubigint = 0
     while(i < ids.size()) {
@@ -161,10 +170,10 @@ public func TodosJson(ctx : &mut web::RequestContext) : http::Response {
         out.append_view("{\"id\":")
         out.append_integer(id)
         out.append_view(",\"title\":\"")
-        var title = json_escape(db_todo_title(id))
+        var title = json_escape(db_todo_title(state_of(ctx), id))
         out.append_string(&title)
         out.append_view("\",\"done\":")
-        if(db_todo_done(id)) { out.append_view("true") } else { out.append_view("false") }
+        if(db_todo_done(state_of(ctx), id)) { out.append_view("true") } else { out.append_view("false") }
         out.append('}')
         i = i + 1
     }
@@ -176,21 +185,11 @@ public func TodosJson(ctx : &mut web::RequestContext) : http::Response {
 // ── Suite plumbing ────────────────────────────────────────────────────────
 func request_with(app : &mut web::App, method : string_view, path : string_view,
                    cookie : string_view, body : string_view) : http::Response {
-    var req = http::Request()
-    req.method = string_of(method)
-    req.path = string_of(path)
-    if(!cookie.empty()) {
-        var k = string_view("Cookie")
-        var v = string_of(cookie)
-        var v_view = v.to_view()
-        req.headers.insert_view(&k, &v_view)
-    }
-    if(!body.empty()) {
-        var k = string_view("Content-Type")
-        var v = string_view("application/x-www-form-urlencoded")
-        req.headers.insert_view(&k, &v)
-        req.set_body_text(body)
-    }
+    // `http::request` is the documented way to build one: the query string is parsed
+    // off the path, and the body/cookie are one call each.
+    var req = http::request(method, path)
+    if(!cookie.empty()) { req.with_cookie(cookie) }
+    if(!body.empty()) { req.with_form(body) }
     return app.handle(&raw mut req)
 }
 
@@ -282,9 +281,13 @@ func todo_id_from(body : &string, marker : string_view) : string {
 }
 
 public func main() : int {
-    db_init()
+    // The app's data is a stack local, not a global: the app keeps the pointer and
+    // every route reads it back through `ctx.state<Db>()`.
+    var db = state_init()
+    db_init(&mut db)
 
     var app = web::App.make("lang/compiled/tasks_probe", "tasks", "assets")
+    app.set_state<Db>(&mut db)
     app.set_minify(true)
     app.set_gzip(true)
     app.page("/", Landing)
@@ -322,6 +325,12 @@ public func main() : int {
     var landing_body = body_text(&landing)
     check(string_view("landing is 200"), landing.status == 200u)
     check(string_view("landing ships no script"), !has_text(&landing_body, string_view("<script")))
+    // The pre-rendered page read the app state at build (one seeded account).
+    check(string_view("a build-time page reads the app state"),
+        has_text(&landing_body, string_view("Accounts so far: 1")))
+    // `state<T>()` is the pointer that was handed over: nothing was copied.
+    check(string_view("the app exposes the state it was given"),
+        app.state<Db>() == unsafe(&raw mut db) as *mut Db)
 
     // 2. The guarded page answers 200, not 303 — the handler cannot decide.
     var gate = request_with(&mut app, string_view("GET"), string_view("/todos"), string_view(""), string_view(""))
@@ -338,17 +347,26 @@ public func main() : int {
     check(string_view("login form starts a session"), login_cookie.size() > 0)
     var anon = cookie_pair(&login_cookie)
 
-    // 4. Wrong credentials: a redirect to the query-flag error (an endpoint cannot
-    //    re-render the page with 422).
+    // 4. Wrong credentials: the endpoint re-renders the form itself with 422, which
+    //    is the case a redirect cannot express (`ctx.render_page`).
     var bad_body = form2(string_view("csrf"), login_token.to_view(),
         string_view("email"), string_view("ada@example.com"))
     var bad_body2 = string()
     bad_body2.append_string(&bad_body)
     bad_body2.append_view("&password=wrong")
     var bad = request_with(&mut app, string_view("POST"), string_view("/login"), anon, bad_body2.to_view())
-    var bad_location = header_text(&bad, &string_view("Location"))
-    check(string_view("wrong password is a 303 to /login?e=bad (gap)"),
-        bad.status == 303u && has_text(&bad_location, string_view("/login?e=bad")))
+    var bad_text = body_text(&bad)
+    check(string_view("wrong password re-renders the form with 422"), bad.status == 422u)
+    check(string_view("the re-rendered form carries the reason"),
+        has_text(&bad_text, string_view("do not match")))
+    check(string_view("the re-rendered form keeps a CSRF field"),
+        has_text(&bad_text, string_view("name=\"csrf\"")))
+    // The query flag is the other way an error reaches the page, and `http::request`
+    // splits `?e=bad` off the path into `query` exactly as the server does.
+    var flagged = request_with(&mut app, string_view("GET"), string_view("/login?e=bad"), string_view(""), string_view(""))
+    var flagged_body = body_text(&flagged)
+    check(string_view("a query string on the built path reaches the page"),
+        flagged.status == 200u && has_text(&flagged_body, string_view("do not match")))
 
     // 5. Correct credentials: 303 into the app, with the session cookie set.
     var good_body = string()
@@ -461,6 +479,12 @@ public func main() : int {
     var stats1_body = body_text(&stats1)
     check(string_view("the shell route fills its slots"),
         has_text(&stats1_body, string_view("Accounts")) && has_text(&stats1_body, string_view("2")))
+    // The fill reads the session, so a frozen shell greets the viewer.
+    check(string_view("a shell fill reads the session"),
+        has_text(&stats1_body, string_view("Signed in as user ")))
+    var anon_stats = request_with(&mut app, string_view("GET"), string_view("/stats"), string_view(""), string_view(""))
+    check(string_view("an anonymous shell fill says so"),
+        has_text(&body_text(&anon_stats), string_view("Not signed in")))
     var stats2 = request_with(&mut app, string_view("GET"), string_view("/stats"), ada, string_view(""))
     var stats2_body = body_text(&stats2)
     check(string_view("the shell route runs no component work (only fills)"),
@@ -496,9 +520,11 @@ public func main() : int {
 
     // 16. The artifact set the static half exports (pre-rendered routes only).
     var finished = app.finish()
+    var final_users = db_user_count(&mut db)
+    var final_todos = db_todo_count(&mut db)
     unsafe {
         printf("finish=%d artifacts=%zu users=%d todos=%d\n", finished as int,
-            artifacts, db_user_count() as int, db_todo_count() as int)
+            artifacts, final_users as int, final_todos as int)
     }
     return 0
 }

@@ -200,21 +200,11 @@ public func Search(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
 // ── Suite plumbing ────────────────────────────────────────────────────────
 func request_with(app : &mut web::App, method : string_view, path : string_view,
                    cookie : string_view, body : string_view) : http::Response {
-    var req = http::Request()
-    req.method = string_of(method)
-    req.path = string_of(path)
-    if(!cookie.empty()) {
-        var k = string_view("Cookie")
-        var v = string_of(cookie)
-        var v_view = v.to_view()
-        req.headers.insert_view(&k, &v_view)
-    }
-    if(!body.empty()) {
-        var k = string_view("Content-Type")
-        var v = string_view("application/x-www-form-urlencoded")
-        req.headers.insert_view(&k, &v)
-        req.set_body_text(body)
-    }
+    // `http::request` is the documented way to build one: the query string is parsed
+    // off the path, and the body/cookie are one call each.
+    var req = http::request(method, path)
+    if(!cookie.empty()) { req.with_cookie(cookie) }
+    if(!body.empty()) { req.with_form(body) }
     return app.handle(&raw mut req)
 }
 

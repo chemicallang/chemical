@@ -76,12 +76,19 @@ func with_flash(ctx : &mut web::RequestContext, res : http::Response, to : strin
 
 // ── Public pages ─────────────────────────────────────────────────────────
 public func Landing(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
+    // The counts are read once, at build: this is a pre-rendered route, and it sees
+    // the same `ctx.state<Db>()` a live route does — the app's state is not a
+    // per-request thing.
+    var accounts = string()
+    accounts.append_integer(db_user_count(state_of(ctx)))
+    var accounts_view = accounts.to_view()
     page.appendTitle("Tasks — a small shared list")
     #html {
         <main class="landing">
             <h1>Tiny tasks, one per line</h1>
             <p class="lede">A probe app: sign up, keep a list, and let the stack do the rest.</p>
             <p class="cta"><a href="/signup">Create an account</a> or <a href="/login">sign in</a>.</p>
+            <p class="counts">Accounts so far: {accounts_view}</p>
         </main>
     }
 }
@@ -121,6 +128,9 @@ func auth_error(code : string_view) : string {
 public func LoginPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     var code = query_text(ctx, string_view("e"))
     var message = auth_error(code.to_view())
+    // A failed POST re-renders this page through `ctx.render_page`, carrying the
+    // reason in the session flash instead of a redirect flag.
+    if(message.empty()) { message = take_flash(ctx) }
     var token = ctx.csrf_token()
     page.appendTitle("Tasks — sign in")
     #html {
@@ -166,18 +176,18 @@ public func TodosPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
         return
     }
     // Counted so the driver can separate "rendered per request" from "frozen".
-    var handled = db_note_handled()
+    var handled = db_note_handled(state_of(ctx))
     var uid = current_uid(ctx)
     var status_text = query_text(ctx, string_view("status"))
     var show_done = status_text.to_view().equals(&string_view("done"))
-    var ids = db_todos_of(uid, show_done)
+    var ids = db_todos_of(state_of(ctx), uid, show_done)
     var flash = take_flash(ctx)
     var flash_view = flash.to_view()
     var token = ctx.csrf_token()
     var token_copy = string()
     token_copy.append_view(&token)
     var token_view = token_copy.to_view()
-    var open_count = db_todos_of(uid, false).size()
+    var open_count = db_todos_of(state_of(ctx), uid, false).size()
     var counts_text = string()
     counts_text.append_integer(open_count as bigint)
     counts_text.append_view(" open of ")
@@ -207,8 +217,8 @@ public func TodosPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
                 @{
                     while(index < ids.size()) {
                         var todo_id = unsafe(*ids.get_ptr(index))
-                        var title = db_todo_title(todo_id)
-                        var done = db_todo_done(todo_id)
+                        var title = db_todo_title(state_of(ctx), todo_id)
+                        var done = db_todo_done(state_of(ctx), todo_id)
                         var id_text = string()
                         id_text.append_integer(todo_id as bigint)
                         var id_view = id_text.to_view()
@@ -272,7 +282,7 @@ func delete_action(base : string_view) : string {
 public func AccountPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Tasks — account")
     var uid = current_uid(ctx)
-    var email = db_user_email(uid)
+    var email = db_user_email(state_of(ctx), uid)
     var email_copy = escape_html_view(email)
     var email_view = email_copy.to_view()
     var token = ctx.csrf_token()
@@ -286,7 +296,7 @@ public func AccountPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
         return
     }
     var todo_count = string()
-    todo_count.append_integer(db_todos_of(uid, true).size() as bigint)
+    todo_count.append_integer(db_todos_of(state_of(ctx), uid, true).size() as bigint)
     var count_view = todo_count.to_view()
     #html {
         <main class="account">
@@ -304,14 +314,15 @@ public func AccountPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
 }
 
 // A frozen-chrome route: the markup below is produced once at build, and each
-// request only splices the three slot values. `StatsFills` gets the request but no
-// session — a shell route whose chrome depends on the user is not expressible
-// (gap: `SlotValues = (req) => SlotFills`).
+// request only splices the four slot values. `StatsFills` gets the request context,
+// so the per-user line comes from the session — the chrome is frozen, only this one
+// slot differs between viewers.
 public func StatsPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Tasks — site stats")
     #html {
         <main class="stats">
             <h1>Site stats</h1>
+            <p class="viewer">@{page.slot("viewer")}</p>
             <dl>
                 <dt>Accounts</dt><dd>@{page.slot("users")}</dd>
                 <dt>Tasks</dt><dd>@{page.slot("todos")}</dd>
@@ -322,17 +333,27 @@ public func StatsPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     }
 }
 
-public func StatsFills(req : &http::Request) : web::SlotFills {
+public func StatsFills(ctx : &mut web::RequestContext) : web::SlotFills {
     var fills = web::SlotFills()
     var users = string()
-    users.append_integer(db_user_count())
+    users.append_integer(db_user_count(state_of(ctx)))
     var todos = string()
-    todos.append_integer(db_todo_count())
+    todos.append_integer(db_todo_count(state_of(ctx)))
     var handled = string()
-    handled.append_integer(db_note_handled())
+    handled.append_integer(db_note_handled(state_of(ctx)))
     fills.set_text("users", users.to_view())
     fills.set_text("todos", todos.to_view())
     fills.set_text("handled", handled.to_view())
+    // The session is only reachable here because a fill gets the context.
+    var viewer = string()
+    var uid = current_uid(ctx)
+    if(uid != 0) {
+        viewer.append_view("Signed in as user ")
+        viewer.append_integer(uid)
+    } else {
+        viewer.append_view("Not signed in")
+    }
+    fills.set_text("viewer", viewer.to_view())
     return fills
 }
 

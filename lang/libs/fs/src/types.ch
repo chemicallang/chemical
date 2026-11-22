@@ -155,15 +155,16 @@ public struct DirEntry {
     }
 
     /// Full path of this entry.
-    func path(&self) : PathBuf {
+    public func path(&self) : PathBuf {
         return unsafe(self._impl.path.to_path_buf())
     }
 
-    func file_name(&self) : string {
+    /// The entry's name within the directory it was read from.
+    public func file_name(&self) : string {
         return unsafe(self._impl.name.copy())
     }
 
-    func is_dir(&self) : bool {
+    public func is_dir(&self) : bool {
         return unsafe(self._impl.is_dir)
     }
 

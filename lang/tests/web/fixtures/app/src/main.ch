@@ -482,6 +482,136 @@ func persist_restore() {
     }
 }
 
+// ── Durable store: the directory is the store ───────────────────────────────
+// `make_durable(dir)` writes through to one file per session, so a *second store over
+// the same directory* — which is what another process is — reads the session back with
+// no snapshot call, and a restart loses nothing. `scripts/web-app-test.sh` runs the
+// reader half in another process.
+func durable_dir() : string_view {
+    return string_view("lang/compiled/app_out/sessions")
+}
+
+func durable_ttl_dir() : string_view {
+    return string_view("lang/compiled/app_out/sessions_ttl")
+}
+
+func durable_request(id : string_view) : http::Request {
+    var req = http::request(string_view("GET"), string_view("/"))
+    var name = web::session_cookie_name()
+    req.with_cookie_pair(name, id)
+    return req
+}
+
+func durable_store_reads_its_own_files() {
+    var dir = durable_dir()
+    var store = web::SessionStore.make_durable(dir)
+    var session = store.create()
+    store.set(&session, "user", "ada")
+    store.set(&session, "note", "hello world = it's \"quoted\"")
+    var token = string()
+    token.append_view(&store.csrf_token(&mut session))
+
+    // The other process: a fresh store, no shared memory, only the directory.
+    var other = web::SessionStore.make_durable(dir)
+    var id = session.id.to_view()
+    var req = durable_request(id)
+    var found = other.load(&mut req)
+    var reopened = 0
+    var user_ok = 0
+    if(found is Option.Some) {
+        var Some(loaded) = found else unsafe { unreachable }
+        var value = other.get(&loaded, "user")
+        if(value is Option.Some) {
+            var Some(v) = value else unsafe { unreachable }
+            reopened = 1
+            if(v.equals(&string_view("ada"))) { user_ok = 1 }
+        }
+    }
+
+    // A cookie is user data that names a file: a non-hex id must never reach the
+    // filesystem (it is how a session id becomes `../../etc/passwd`).
+    var evil_req = durable_request(string_view("../../etc/passwd"))
+    var evil = other.load(&mut evil_req)
+    var refused = 0
+    if(evil is Option.None) { refused = 1 }
+
+    var tok = token.to_view()
+    unsafe {
+        printf("durable writer reopened=%d user=%d refused=%d count=%zu id=%.*s csrf=%.*s\n",
+            reopened, user_ok, refused, other.count(),
+            id.size() as int, id.data(), tok.size() as int, tok.data())
+    }
+}
+
+func durable_store_expires_and_sweeps() {
+    var dir = durable_ttl_dir()
+    var store = web::SessionStore.make_durable(dir)
+    store.set_ttl(1)
+    var live = store.create()
+    store.set(&live, "user", "grace")
+    // A session nobody comes back to: only `sweep_expired` can reclaim it.
+    var stale = store.create()
+    store.set(&stale, "user", "nobody")
+
+    var fresh = web::SessionStore.make_durable(dir)
+    fresh.set_ttl(1)
+    var live_req = durable_request(live.id.to_view())
+    var before = fresh.load(&mut live_req)
+    var live_ok = 0
+    if(before is Option.Some) { live_ok = 1 }
+
+    // Past the idle timeout: `load` refuses the session and drops the file.
+    std::concurrent.sleep_ms(2100u)
+    var later_req = durable_request(live.id.to_view())
+    var after = fresh.load(&mut later_req)
+    var expired = 0
+    if(after is Option.None) { expired = 1 }
+    var swept = fresh.sweep_expired()
+    unsafe {
+        printf("durable ttl live=%d expired=%d swept=%zu\n", live_ok, expired, swept)
+    }
+}
+
+// The reader half: a process that never saw the session, holding only its id and CSRF
+// token through the environment.
+func durable_restore() {
+    var id_env = std::get_env(&string_view("CHX_SESSION_DURABLE_ID"))
+    var csrf_env = std::get_env(&string_view("CHX_SESSION_DURABLE_CSRF"))
+    if(id_env is Option.None || csrf_env is Option.None) {
+        unsafe { printf("durable restored=skipped\n") }
+        return
+    }
+    var Some(id) = id_env else unsafe { unreachable }
+    var Some(csrf) = csrf_env else unsafe { unreachable }
+    var store = web::SessionStore.make_durable(durable_dir())
+    var req = durable_request(id.to_view())
+    var found = store.load(&mut req)
+    var loaded_ok = 0
+    var user_ok = 0
+    var note_ok = 0
+    var csrf_ok = 0
+    if(found is Option.Some) {
+        var Some(session) = found else unsafe { unreachable }
+        loaded_ok = 1
+        var user = store.get(&session, "user")
+        if(user is Option.Some) {
+            var Some(u) = user else unsafe { unreachable }
+            if(u.equals(&string_view("ada"))) { user_ok = 1 }
+        }
+        var note = store.get(&session, "note")
+        if(note is Option.Some) {
+            var Some(n) = note else unsafe { unreachable }
+            if(n.equals(&string_view("hello world = it's \"quoted\""))) { note_ok = 1 }
+        }
+        var submitted = csrf.to_view()
+        if(store.verify_csrf(&session, submitted)) { csrf_ok = 1 }
+    }
+    unsafe {
+        printf("durable restored loaded=%d user=%d note=%d csrf=%d count=%zu\n",
+            loaded_ok, user_ok, note_ok, csrf_ok, store.count())
+    }
+}
+
 public func main() : int {
     // Restore mode touches nothing but the snapshot: this process is the
     // "after a restart" half of the persistence check.
@@ -489,6 +619,12 @@ public func main() : int {
     var restore = std::get_env(&restore_name)
     if(restore is Option.Some) {
         persist_restore()
+        return 0
+    }
+    var durable_restore_name = string_view("CHX_SESSION_DURABLE_RESTORE")
+    var durable_restore_flag = std::get_env(&durable_restore_name)
+    if(durable_restore_flag is Option.Some) {
+        durable_restore()
         return 0
     }
 
@@ -669,6 +805,10 @@ public func main() : int {
     run_session_flow()
     // Writes the snapshot the gate's second (restore) run reads back.
     persist_save()
+    // The directory-backed store: another store over the same path reads the
+    // session, and the gate's second process reads it again after this one exits.
+    durable_store_reads_its_own_files()
+    durable_store_expires_and_sweeps()
 
     // A second build of the same app is a no-op, not a re-render.
     var again = request(&mut app, "/account/42", "")

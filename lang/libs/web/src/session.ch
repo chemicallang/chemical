@@ -20,10 +20,25 @@
 // `store.verify_csrf(&session, token)`; a cross-site form cannot read the token, so
 // it cannot produce a valid one.
 //
-// The store here is in-memory (one per process): correct for a single process and
-// for tests, and `load`/`create`/`get`/`set`/`remove`/`destroy` are what a persistent
-// store has to implement. Values are read and written through the store rather than
-// copied into the handle, so a session never holds a stale snapshot.
+// Two stores, one API:
+//
+//   * `SessionStore.make()` — process memory. Correct for one process and for tests;
+//     a restart forgets every session. `save_to`/`load_from` snapshot it by hand.
+//   * `SessionStore.make_durable("sessions/")` — the records live in files under a
+//     directory, one per session, written atomically (temp file + rename) on every
+//     change. That survives a restart with no save call, and two processes on the
+//     same host (or a shared volume) see each other's sessions: `load` re-reads the
+//     record from disk on every request, and the memory map is only a cache between
+//     a load and the reads that follow it.
+//
+// Both expire: `set_ttl(seconds)` drops a session whose record has not been written
+// for that long (an idle timeout), and `sweep_expired()` deletes the files of the
+// ones nobody will come back to, so an abandoned store does not grow forever.
+//
+// Durability is per session, not a snapshot: a crash loses at most the session being
+// written, and a session is small enough that one file per session is cheap. Values
+// are read and written through the store rather than copied into the handle, so a
+// session never holds a stale snapshot.
 public namespace web {
 
 using std::Option;
@@ -57,6 +72,9 @@ public struct Session {
 public struct SessionRecord {
     public var values : unordered_map<string, string>
     public var csrf : string
+    /// When this record was last written, as Unix seconds. A durable store uses it
+    /// for the idle timeout; an in-memory store keeps it up to date for symmetry.
+    public var last_seen : i64
 }
 
 /// The session store: cookie parsing, ids, and the server-side records.
@@ -68,6 +86,10 @@ public struct SessionStore {
     /// `Secure` on the session cookie. Keep `false` for `http://localhost`; set it
     /// in production.
     private var secure : bool
+    /// Where durable records live. Empty for an in-memory store.
+    private var dir : string
+    /// Idle timeout in seconds; `0` means a session never expires.
+    private var ttl : i64
 
     @make
     public func make(cookie_name : string_view = "session", secure : bool = false) : SessionStore {
@@ -76,18 +98,51 @@ public struct SessionStore {
         return SessionStore {
             records : unordered_map<string, SessionRecord>(),
             cookie_name : name,
-            secure : secure
+            secure : secure,
+            dir : string(),
+            ttl : 0
         }
+    }
+
+    /// A store whose records live as files under `directory` (created if missing).
+    ///
+    /// Two processes pointed at the same directory share sessions, and a restart does
+    /// not lose them, because every change is written through instead of being held
+    /// only in memory. The directory must be private to the app: a session record is
+    /// user data and its CSRF token, not something another tenant may read.
+    @make
+    public func make_durable(directory : string_view, cookie_name : string_view = "session", secure : bool = false) : SessionStore {
+        var store = SessionStore.make(cookie_name, secure)
+        store.dir.append_view(&directory)
+        store.ensure_dir()
+        return store
     }
 
     public func set_secure(&mut self, on : bool) {
         secure = on
     }
 
+    /// Expire a session this many seconds after its record was last written. `0`
+    /// (the default) never expires, which is why a long-lived deployment wants a
+    /// value here: a session id that never expires is a credential that never expires.
+    public func set_ttl(&mut self, seconds : i64) {
+        ttl = seconds
+    }
+
+    /// True when records are written through to `dir`.
+    public func is_durable(&self) : bool {
+        return !dir.empty()
+    }
+
+    /// The directory durable records live in, or `""`.
+    public func directory(&self) : string_view {
+        return dir.to_view()
+    }
+
     /// The session this request carries, if its id is known to the store. An
     /// unknown or missing id is `None` — never a fresh empty session, so an
     /// anonymous request does not silently allocate server memory.
-    public func load(&self, req : &http::Request) : Option<Session> {
+    public func load(&mut self, req : &http::Request) : Option<Session> {
         var jar = http::CookieJar.of(req)
         var name_view = cookie_name.to_view()
         var id_found = jar.get(name_view)
@@ -95,6 +150,14 @@ public struct SessionStore {
             return Option.None<Session>()
         }
         var Some(id_view) = id_found else unsafe { unreachable }
+        // The id is user data that becomes a file name: only the hex ids `create`
+        // generates are accepted, so a cookie cannot name `../../etc/passwd`.
+        if(!session_id_is_safe(id_view)) {
+            return Option.None<Session>()
+        }
+        if(is_durable()) {
+            self.refresh(id_view)
+        }
         var rec = record_ptr(&records, id_view)
         if(rec == null) {
             return Option.None<Session>()
@@ -133,6 +196,7 @@ public struct SessionStore {
         if(rec == null) { return }
         unsafe {
             map_set(&mut rec.values, name, value)
+            if(is_durable()) { write_record_file(dir.to_view(), session.id.to_view(), rec) }
         }
     }
 
@@ -141,6 +205,7 @@ public struct SessionStore {
         if(rec == null) { return }
         unsafe {
             map_remove(&mut rec.values, name)
+            if(is_durable()) { write_record_file(dir.to_view(), session.id.to_view(), rec) }
         }
     }
 
@@ -154,6 +219,7 @@ public struct SessionStore {
         unsafe {
             if(rec.csrf.empty()) {
                 rec.csrf = random_hex(24u)
+                if(is_durable()) { write_record_file(dir.to_view(), session.id.to_view(), rec) }
             }
             return rec.csrf.to_view()
         }
@@ -185,6 +251,7 @@ public struct SessionStore {
         if(rec == null) { return }
         unsafe {
             rec.csrf = random_hex(24u)
+            if(is_durable()) { write_record_file(dir.to_view(), session.id.to_view(), rec) }
         }
     }
 
@@ -196,6 +263,9 @@ public struct SessionStore {
         if(id_view.empty()) { return }
         var rec = record_mut(&mut records, id_view)
         if(rec == null) { return }
+        unsafe {
+            if(is_durable()) { write_record_file(dir.to_view(), id_view, rec) }
+        }
         var opts = http::CookieOptions.make("/", "Lax", true, secure, 0)
         var name = cookie_name.to_view()
         res.cookie(name, id_view, opts)
@@ -208,6 +278,9 @@ public struct SessionStore {
         id.append_view(&session.id.to_view())
         if(!id.empty()) {
             records.erase(&id)
+            if(is_durable()) {
+                remove_record_file(dir.to_view(), id.to_view())
+            }
         }
         var opts = http::CookieOptions.make("/", "Lax", true, secure, 0)
         var name = cookie_name.to_view()
@@ -216,6 +289,92 @@ public struct SessionStore {
 
     public func count(&self) : ubigint {
         return records.size()
+    }
+
+    // ── Durable store ────────────────────────────────────────────────────────
+
+    func ensure_dir(&mut self) {
+        if(dir.empty()) { return }
+        var view = dir.to_view()
+        var p = path::Path.new(std::str.make_view(view))
+        var _ = fs::create_dir_all(&p)
+    }
+
+    /// Re-read `id` from disk before it is used, so this request sees what another
+    /// process wrote and the idle timer slides on a session that is still in use.
+    ///
+    /// A record that is missing, unreadable or expired drops the cached copy: a
+    /// session another process ended must not come back to life here.
+    func refresh(&mut self, id : string_view) {
+        var fresh = read_record_file(dir.to_view(), id)
+        var key = string()
+        key.append_view(&id)
+        if(fresh is Option.None) {
+            records.erase(&key)
+            return
+        }
+        var Some(rec) = fresh else unsafe { unreachable }
+        if(record_is_expired(ttl, rec.last_seen)) {
+            remove_record_file(dir.to_view(), id)
+            records.erase(&key)
+            return
+        }
+        var last_seen = rec.last_seen
+        records.erase(&key)
+        var inserted = string()
+        inserted.append_view(&id)
+        records.insert(inserted, rec)
+        if(now_secs() - last_seen >= 60) {
+            // Slide the idle timer at most once a minute: a request that only reads
+            // should not rewrite the file.
+            var stored = record_ptr(&records, id)
+            if(stored != null) {
+                unsafe { write_record_file(dir.to_view(), id, stored) }
+            }
+        }
+    }
+
+    /// Delete the records whose idle timeout has passed. Returns how many files were
+    /// removed.
+    ///
+    /// Expiry is checked on every load, so this is housekeeping, not correctness: call
+    /// it from a timer (once a minute is plenty) so abandoned sessions stop taking
+    /// disk space. A process that restarts often may never need it.
+    public func sweep_expired(&mut self) : usize {
+        if(!is_durable() || ttl <= 0) { return 0 }
+        var view = dir.to_view()
+        var p = path::Path.new(std::str.make_view(view))
+        var listed = fs::read_dir(&p)
+        if(listed is std::Result.Err) { return 0 }
+        var Ok(entries) = listed else unsafe { unreachable }
+        var removed : usize = 0
+        unsafe {
+            var i : usize = 0
+            while(i < entries.size()) {
+                var entry = entries.get_ptr(i)
+                var is_dir = entry.is_dir()
+                if(!is_dir) {
+                    var name = entry.file_name()
+                    var removed_id = record_id_from_file_name(name.to_view())
+                    if(removed_id is Option.Some) {
+                        var Some(id) = removed_id else unsafe { unreachable }
+                        var stored = read_record_file(dir.to_view(), id.to_view())
+                        if(stored is Option.Some) {
+                            var Some(rec) = stored else unsafe { unreachable }
+                            if(record_is_expired(ttl, rec.last_seen)) {
+                                remove_record_file(dir.to_view(), id.to_view())
+                                var key = string()
+                                key.append_view(&id.to_view())
+                                records.erase(&key)
+                                removed = removed + 1
+                            }
+                        }
+                    }
+                }
+                i = i + 1
+            }
+        }
+        return removed
     }
 
     // ── Durability ───────────────────────────────────────────────────────────
@@ -321,6 +480,197 @@ public struct SessionStore {
 }
 
 // ── Snapshot parsing ────────────────────────────────────────────────────────
+// ── Durable record files ───────────────────────────────────────────────────────
+// One file per session, named `<id>.sess`, written to a temp file and renamed into
+// place so a reader never sees half a record. The format is:
+//
+//     <last_seen_epoch> <csrf_hex>
+//     <key_hex>=<value_hex>
+//     …
+//
+// Hex for the same reason the snapshot uses it: session values are user data and an
+// escaping scheme is a parser bug waiting to happen. A record is small, so hex is
+// cheap here.
+
+func now_secs() : i64 {
+    var now = std::chrono::SystemTime::now()
+    return now.as_unix_epoch_secs()
+}
+
+func record_is_expired(ttl : i64, last_seen : i64) : bool {
+    if(ttl <= 0) { return false }
+    return now_secs() - last_seen > ttl
+}
+
+// A session id becomes a file name, so it is validated as one: only the hex `create`
+// produces is accepted, which also makes path traversal impossible.
+func session_id_is_safe(id : std::string_view) : bool {
+    if(id.size() == 0 || id.size() > 64u) { return false }
+    var i : size_t = 0
+    while(i < id.size()) {
+        if(hex_value(id.at(i)) < 0) { return false }
+        i = i + 1
+    }
+    return true
+}
+
+func record_file_text(dir : std::string_view, id : std::string_view) : string {
+    var out = string()
+    out.append_view(&dir)
+    out.append('/')
+    out.append_view(&id)
+    out.append_view(".sess")
+    return out
+}
+
+// The id a record file name carries, or `None` for any other file in the directory.
+func record_id_from_file_name(name : std::string_view) : Option<string> {
+    var suffix = std::string_view(".sess")
+    if(name.size() <= suffix.size()) { return Option.None<string>() }
+    var tail = name.subview(name.size() - suffix.size(), name.size())
+    if(!tail.equals(&suffix)) { return Option.None<string>() }
+    var id = name.subview(0, name.size() - suffix.size())
+    if(!session_id_is_safe(id)) { return Option.None<string>() }
+    return Option.Some<string>(copy_of(id))
+}
+
+func write_record_file(dir : std::string_view, id : std::string_view, rec : *mut SessionRecord) : bool {
+    unsafe {
+        rec.last_seen = now_secs()
+    }
+    var text = string()
+    serialize_record(rec, &mut text)
+    var file = record_file_text(dir, id)
+    // A per-write temp name, so two processes saving the same session at the same
+    // moment do not truncate each other's half-written temp file.
+    var tmp = string()
+    tmp.append_view(&file.to_view())
+    tmp.append('.')
+    var tag = random_hex(4u)
+    tmp.append_view(&tag.to_view())
+    tmp.append_view(".tmp")
+    var tmp_view = tmp.to_view()
+    var tmp_path = path::Path.new(std::str.make_view(tmp_view))
+    var wrote = fs::write(&tmp_path, text.as_bytes())
+    if(wrote is std::Result.Err) { return false }
+    var file_view = file.to_view()
+    var target = path::Path.new(std::str.make_view(file_view))
+    var moved = fs::move_path(&tmp_path, &target)
+    return moved is std::Result.Ok
+}
+
+func read_record_file(dir : std::string_view, id : std::string_view) : Option<SessionRecord> {
+    var file = record_file_text(dir, id)
+    var file_view = file.to_view()
+    var p = path::Path.new(std::str.make_view(file_view))
+    var read = fs::read_to_string(&p)
+    if(read is std::Result.Err) { return Option.None<SessionRecord>() }
+    var Ok(contents) = read else unsafe { unreachable }
+    var rec = SessionRecord {
+        values : unordered_map<string, string>(),
+        csrf : string(),
+        last_seen : 0
+    }
+    var ptr = &raw mut rec
+    if(!parse_record_file(contents.to_view(), ptr)) {
+        return Option.None<SessionRecord>()
+    }
+    return Option.Some<SessionRecord>(rec)
+}
+
+func remove_record_file(dir : std::string_view, id : std::string_view) {
+    var file = record_file_text(dir, id)
+    var file_view = file.to_view()
+    var p = path::Path.new(std::str.make_view(file_view))
+    var _ = fs::remove_file(&p)
+}
+
+func serialize_record(rec : *mut SessionRecord, out : &mut string) {
+    unsafe {
+        out.append_integer(rec.last_seen)
+        out.append(' ')
+        append_hex(out, rec.csrf.to_view())
+        out.append('\n')
+        var it = rec.values.iterator()
+        while(it.valid()) {
+            var key = it.key() as *string
+            var value = it.value() as *string
+            append_hex(out, key.to_view())
+            out.append('=')
+            append_hex(out, value.to_view())
+            out.append('\n')
+            it.next()
+        }
+    }
+}
+
+// Fill `out` from one record file. All or nothing: a line that does not parse rejects
+// the whole record, so a damaged file cannot resurrect a session with half its values
+// and a CSRF token that no longer matches.
+func parse_record_file(text : std::string_view, out : *mut SessionRecord) : bool {
+    var first_end = index_of_newline(text, 0)
+    var space = index_of_char(text, 0, first_end, ' ')
+    if(space >= first_end) { return false }
+    var epoch = parse_epoch(text, 0, space)
+    if(epoch < 0) { return false }
+    var csrf = decode_hex_field(text, space + 1, first_end)
+    if(csrf is Option.None) { return false }
+    var Some(csrf_field) = csrf else unsafe { unreachable }
+    unsafe {
+        out.last_seen = epoch
+        // A copy, not `csrf_field.text`: moving out of a local through a raw pointer
+        // leaves the local still owning the string, and both get freed.
+        out.csrf = copy_of(csrf_field.text.to_view())
+    }
+    var i = first_end
+    if(i < text.size()) { i = i + 1 }
+    while(i < text.size()) {
+        var line_end = index_of_newline(text, i)
+        if(line_end > i) {
+            var eq = index_of_char(text, i, line_end, '=')
+            if(eq >= line_end) { return false }
+            var key = decode_hex_field(text, i, eq)
+            var value = decode_hex_field(text, eq + 1, line_end)
+            if(key is Option.None || value is Option.None) { return false }
+            var Some(key_field) = key else unsafe { unreachable }
+            var Some(value_field) = value else unsafe { unreachable }
+            unsafe {
+                map_set(&mut out.values, key_field.text.to_view(), value_field.text.to_view())
+            }
+        }
+        i = line_end
+        if(i < text.size()) { i = i + 1 }
+    }
+    return true
+}
+
+func index_of_newline(text : std::string_view, from : size_t) : size_t {
+    return index_of_char(text, from, text.size(), '\n')
+}
+
+func index_of_char(text : std::string_view, from : size_t, end : size_t, needle : char) : size_t {
+    var i = from
+    while(i < end) {
+        if(text.at(i) == needle) { return i }
+        i = i + 1
+    }
+    return end
+}
+
+// A non-negative decimal epoch, or -1.
+func parse_epoch(text : std::string_view, start : size_t, end : size_t) : i64 {
+    if(start >= end) { return -1 }
+    var value : i64 = 0
+    var i = start
+    while(i < end) {
+        var c = text.at(i)
+        if(c < '0' || c > '9') { return -1 }
+        value = value * 10 + (c as i64 - 48)
+        i = i + 1
+    }
+    return value
+}
+
 // A decoded field plus where the next one starts.
 @direct_init
 struct HexField {
@@ -447,7 +797,8 @@ func record_mut(m : &mut unordered_map<string, SessionRecord>, id : string_view)
     if(existing != null) { return existing }
     var rec = SessionRecord {
         values : unordered_map<string, string>(),
-        csrf : string()
+        csrf : string(),
+        last_seen : now_secs()
     }
     m.insert(k, rec)
     var key = string()

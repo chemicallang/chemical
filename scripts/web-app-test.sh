@@ -256,6 +256,26 @@ check "a snapshot restores in a process that never saw the session" \
 check "a restored session keeps every value and its CSRF token" \
       "$([ "$(contains "$restore_log" 'utf8=1 empty=1 csrf=1')" = "1" ] && echo 1 || echo 0)"
 
+# ── Durable store: the directory is the store ────────────────────────────
+# `make_durable(dir)` writes one file per session, so a second process over the same
+# directory reads the session back with no snapshot call, and a restart loses nothing.
+check "a durable store reads its records back from the directory" \
+      "$([ "$(contains "$log" 'durable writer reopened=1 user=1')" = "1" ] && echo 1 || echo 0)"
+check "a session id that is not hex never reaches the filesystem" \
+      "$([ "$(contains "$log" 'durable writer reopened=1 user=1 refused=1')" = "1" ] && echo 1 || echo 0)"
+check "an idle session expires and sweep_expired reclaims the abandoned one" \
+      "$([ "$(contains "$log" 'durable ttl live=1 expired=1 swept=1')" = "1" ] && echo 1 || echo 0)"
+durable_line="$(grep -F 'durable writer' "$log" | head -1)"
+dur_id="$(echo "$durable_line" | sed -n 's/.* id=\([0-9a-f]*\).*/\1/p')"
+dur_csrf="$(echo "$durable_line" | sed -n 's/.* csrf=\([0-9a-f]*\).*/\1/p')"
+durable_log=/tmp/web_app_durable.txt
+CHX_SESSION_DURABLE_RESTORE=1 CHX_SESSION_DURABLE_ID="$dur_id" CHX_SESSION_DURABLE_CSRF="$dur_csrf" \
+    "$exe" > "$durable_log" 2>&1 || true
+check "a durable session survives in a process that only has the directory" \
+      "$([ "$(contains "$durable_log" 'durable restored loaded=1 user=1 note=1')" = "1" ] && echo 1 || echo 0)"
+check "a restored durable session still verifies its CSRF token" \
+      "$([ "$(contains "$durable_log" 'csrf=1 count=1')" = "1" ] && echo 1 || echo 0)"
+
 if [ "$fail" -ne 0 ]; then
     echo "web-app-test: FAILED" >&2
     exit 1

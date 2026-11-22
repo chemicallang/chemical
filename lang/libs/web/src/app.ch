@@ -763,6 +763,24 @@ public struct App {
         return &mut sessions
     }
 
+    /// Keep sessions in files under `dir` instead of process memory, so a restart
+    /// keeps them and two processes on the same directory share them:
+    ///
+    /// ```chemical
+    /// var app = web::App.make("out", "app", "assets")
+    /// app.durable_sessions("sessions")      // a private directory
+    /// app.session_store().set_ttl(3600)     // and an idle timeout
+    /// ```
+    ///
+    /// A record is written through on every change and re-read on every request, so
+    /// this costs one small file read per request that carries a session cookie. The
+    /// directory must be private (it holds session values and CSRF tokens) and shared
+    /// storage is what makes it cross-instance — a plain local directory covers one
+    /// host's processes and a restart.
+    public func durable_sessions(&mut self, dir : string_view) {
+        sessions = SessionStore.make_durable(dir)
+    }
+
     /// Hand the app its own state (usually a stack local in `main`):
     ///
     /// ```chemical

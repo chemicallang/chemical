@@ -18,6 +18,23 @@ using std::Result;
 using std::string;
 using std::string_view;
 
+// Where the test's log sink writes. A module-level buffer instead of a captured
+// `Arc<Mutex<…>>`: a `Send` callback cannot capture a container the analyzer
+// cannot prove `Send`, and a plain byte buffer needs no capture at all.
+var PROD_LOG_LINE : [2048]char
+var PROD_LOG_LEN : ubigint = 0
+
+func prod_log_store(line : &string) {
+    var view = line.to_view()
+    var n = view.size()
+    if(n > 2047u) { n = 2047u }
+    unsafe {
+        memcpy(&raw mut PROD_LOG_LINE[0], view.data(), n)
+        PROD_LOG_LINE[n] = 0
+        PROD_LOG_LEN = n
+    }
+}
+
 func prod_handler(req : http.Request) : http.Response {
     var body = string()
     body.append_view(std::string_view("0123456789"))
@@ -325,4 +342,102 @@ public func PROD_oversized_head_is_431(env : &mut TestEnv) {
 
     stop.shutdown()
     thread.join()
+}
+
+// ── Access log ─────────────────────────────────────────────────────────────
+
+// The line format is what an operator's tooling parses, so it is pinned here:
+// Common Log Format plus the duration, `-` for a field the entry does not have.
+@test
+public func PROD_access_line_is_common_log_format(env : &mut TestEnv) {
+    var entry = http::AccessEntry {
+        remote : std::string_view("10.0.0.7:51234"),
+        method : std::string_view("GET"),
+        target : std::string_view("/pricing"),
+        status : 200u,
+        bytes : 2565 as usize,
+        duration_us : 38,
+        epoch_secs : 1700000000,
+        keep_alive : true
+    }
+    var line = http::format_access_line(&entry)
+    var view = line.to_view()
+    if(!view.contains(std::string_view("10.0.0.7:51234 - - [14/Nov/2023:22:13:20 +0000] \"GET /pricing HTTP/1.1\" 200 2565 38us"))) {
+        unsafe {
+            var m = string("unexpected access line: [")
+            m.append_view(&view)
+            m.append_view("]")
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        }
+    }
+}
+
+// A bare `format_access_line` proves nothing about the server: this drives a real
+// request through the pipeline and checks the entry it produced. The sink writes
+// into a module-level buffer (a `Send` callback may not capture a container the
+// analyzer cannot prove `Send`), so the check reads the line the server logged.
+@test
+public func PROD_access_log_records_a_served_request(env : &mut TestEnv) {
+    const PORT : uint = 19955u
+    unsafe { PROD_LOG_LEN = 0 }
+    var cfg = server::ServerConfig()
+    cfg.access_log = http::AccessLogger.make(||(entry : &http::AccessEntry) => {
+        var line = http::format_access_line(entry)
+        prod_log_store(&line)
+    })
+    var started = prod_start(PORT, cfg)
+    if(started is Option.None) {
+        env.error("could not bind 127.0.0.1:19955")
+        return
+    }
+    var Some(srv) = started else unsafe { unreachable }
+    var stop = srv.handle()
+    var thread = srv.serve_async()
+    std.concurrent.sleep_ms(200u)
+    var reply = prod_get(PORT, string_view("/logged"))
+    std.concurrent.sleep_ms(50u)
+    stop.shutdown()
+    thread.join()
+
+    var logged = string()
+    unsafe {
+        if(PROD_LOG_LEN == 0u) {
+            env.error("no access line was logged for a served request")
+            return
+        }
+        logged.append_with_len(&raw mut PROD_LOG_LINE[0], PROD_LOG_LEN)
+    }
+    var view = logged.to_view()
+    if(!view.contains(std::string_view("\"GET /logged HTTP/1.1\" 200 10"))) {
+        unsafe {
+            var m = string("access line did not describe the request: [")
+            m.append_view(&view)
+            m.append_view("]")
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        }
+    }
+    if(!view.contains(std::string_view("127.0.0.1:"))) {
+        env.error("the access line did not name the peer")
+    }
+    if(!view.contains(std::string_view("us"))) {
+        env.error("the access line did not carry a duration")
+    }
+    if(reply.empty()) {
+        env.error("the logged request got no response")
+    }
+}
+
+// ── Compression negotiation ────────────────────────────────────────────────
+
+// `accepts_gzip` decides whether a rendered body may be compressed. Getting
+// `gzip;q=0` or `br, gzip;q=0.5` wrong means sending a body the client refused.
+@test
+public func PROD_accept_encoding_decides_gzip(env : &mut TestEnv) {
+    if(!http::accepts_gzip(std::string_view("gzip"))) { env.error("gzip not accepted") }
+    if(!http::accepts_gzip(std::string_view("deflate, gzip;q=0.8"))) { env.error("gzip;q=0.8 not accepted") }
+    if(!http::accepts_gzip(std::string_view("deflate, *"))) { env.error("* not accepted") }
+    if(http::accepts_gzip(std::string_view("gzip;q=0"))) { env.error("gzip;q=0 accepted") }
+    if(http::accepts_gzip(std::string_view("br"))) { env.error("br accepted as gzip") }
+    if(http::accepts_gzip(std::string_view(""))) { env.error("empty header accepted") }
+    if(http::accepts_gzip(std::string_view("gzip;q=0, *"))) { env.error("explicit refusal outranked by *") }
 }

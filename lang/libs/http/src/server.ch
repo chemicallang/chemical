@@ -26,6 +26,8 @@ public struct ServerConfig {
     var max_body_bytes: usize;
     var cert_file: string;
     var key_file: string;
+    /// One line per served message; `AccessLogger.off()` by default.
+    var access_log: http::AccessLogger;
 
     @constructor func constructor() {
         return ServerConfig {
@@ -38,6 +40,7 @@ public struct ServerConfig {
             max_body_bytes = 10u * 1024u * 1024u;
             cert_file = string();
             key_file = string();
+            access_log = http::AccessLogger.off();
         }
     }
 }
@@ -235,9 +238,32 @@ public struct Server {
         return stamp.refresh(secs)
     }
 
+    /// Emit one access-log entry. `started` is when this message's first byte was
+    /// about to be read, so the duration covers the whole exchange (body read,
+    /// handler, write) — the number an operator wants for "why was this slow".
+    func log_access(&self, remote : string_view, method : string_view, target : string_view,
+                    status : u16, bytes : usize, started : &std::chrono::Instant,
+                    keep_alive : bool) {
+        if(!self.cfg.access_log.is_enabled()) { return }
+        var entry = http::AccessEntry {
+            remote : remote,
+            method : method,
+            target : target,
+            status : status,
+            bytes : bytes,
+            duration_us : started.elapsed().as_micros(),
+            epoch_secs : std::chrono::SystemTime::now().as_unix_epoch_secs(),
+            keep_alive : keep_alive
+        }
+        self.cfg.access_log.emit(&entry)
+    }
+
     /// Handle exactly one message on `stream`. Returns whether the connection
-    /// should stay open for another message.
-    func serve_ready(&self, stream : &mut http::Stream, buf : &mut net::Buffer) : bool {
+    /// should stay open for another message. `remote` is the peer's `host:port`
+    /// when the driver knows it (empty otherwise); it is only used for logging.
+    func serve_ready(&self, stream : &mut http::Stream, buf : &mut net::Buffer,
+                     remote : string_view) : bool {
+        var started = std::chrono::Instant.now()
         var date = self.date_header()
         var date_view = date.to_view()
         var head = http::read_request_head(stream, buf,
@@ -254,6 +280,12 @@ public struct Server {
             var reason_view = reason.to_view()
             var refusal = http::response_text(status, &reason_view)
             var _ = refusal.write_to(stream, false, false, date_view)
+            // An idle keep-alive connection that the peer closed carries no request
+            // at all: there is nothing to log, and logging it would bury the lines
+            // that matter under one entry per dropped connection.
+            if(!(buf.len() == 0u && status == 400u)) {
+                self.log_access(remote, string_view(""), string_view(""), status, 0u, &started, false)
+            }
             return false
         }
         var Ok(req) = head else unsafe { unreachable }
@@ -268,6 +300,7 @@ public struct Server {
             var reason_view = reason.to_view()
             var refusal = http::response_text(status, &reason_view)
             var _ = refusal.write_to(stream, false, false, date_view)
+            self.log_access(remote, req.method.to_view(), req.path.to_view(), status, 0u, &started, false)
             return false
         }
 
@@ -277,6 +310,16 @@ public struct Server {
         // the response's length and ETag, so it is taken after the handler runs.
         var range_header = req.headers.get_owned("Range")
         var if_range_header = req.headers.get_owned("If-Range")
+        // `dispatch` consumes the request, so the method and path the access log
+        // needs are copied first — and only when a logger is installed, so the
+        // default server pays nothing for a feature it did not ask for.
+        var method_s = string()
+        var target_s = string()
+        if(self.cfg.access_log.is_enabled()) {
+            method_s.append_string(&req.method)
+            target_s.append_string(&req.path)
+        }
+
         var res = self.dispatch(req)
         if(range_header is Option.Some) {
             var Some(range_value) = range_header else unsafe { unreachable }
@@ -308,7 +351,10 @@ public struct Server {
             }
         }
 
+        var encoded : usize = 0
+        if(!is_head) { encoded = res.body.size() as usize }
         var written = res.write_to(stream, keep, is_head, date_view)
+        self.log_access(remote, method_s.to_view(), target_s.to_view(), res.status, encoded, &started, keep)
         if(written is Result.Err) {
             return false
         }
@@ -316,11 +362,11 @@ public struct Server {
     }
 
     /// Serve a whole connection (blocking), honouring keep-alive and pipelining.
-    func serve_connection(&self, connection : http::Stream) {
+    func serve_connection(&self, connection : http::Stream, remote : string_view) {
         var stream = connection
         var buf = net::Buffer()
         while(self.is_running()) {
-            if(!self.serve_ready(&mut stream, &mut buf)) { break }
+            if(!self.serve_ready(&mut stream, &mut buf, remote)) { break }
         }
         var _ = stream.shutdown()
     }
@@ -387,10 +433,12 @@ public struct Server {
                     var tcp2 = net::raw::stream_from_fd(fd)
                     tcp2.set_keep_alive(true)
                     tcp2.set_no_delay(true)
+                    var remote_s = string()
+                    if(selfp.cfg.access_log.is_enabled()) { remote_s = peer_string(&tcp2) }
                     var opened = selfp.open_stream(tcp2)
                     if(opened is Option.None) { return }
                     var Some(stream) = opened else unsafe { unreachable }
-                    selfp.serve_connection(stream)
+                    selfp.serve_connection(stream, remote_s.to_view())
                 }
             }))
         }
@@ -446,6 +494,8 @@ public struct Server {
                     }
                     ctx.accumulated.append(std::span<u8>(ctx.buffer.buf as *u8, bytes as size_t))
                     var tcp = net::raw::stream_from_fd(s)
+                    var remote_s = string()
+                    if(selfp.cfg.access_log.is_enabled()) { remote_s = peer_string(&tcp) }
                     var opened = selfp.open_stream(tcp)
                     if(opened is Option.None) {
                         net::raw::close_socket(s);
@@ -454,7 +504,7 @@ public struct Server {
                         return;
                     }
                     var Some(stream) = opened else unsafe { unreachable }
-                    var keep = selfp.serve_ready(&mut stream, &mut ctx.accumulated)
+                    var keep = selfp.serve_ready(&mut stream, &mut ctx.accumulated, remote_s.to_view())
                     if(keep) {
                         var _ = stream.detach()
                         ctx.overlapped.Internal = 0;
@@ -489,8 +539,7 @@ public struct Server {
     }
 }
 
-// A `Server` owns a listener descriptor and a worker pool, and every field a
-// worker reads is either immutable for the serving lifetime (`cfg`, `router`,
+// A `Server` owns a listener descriptor and a worker pool, and every field a// worker reads is either immutable for the serving lifetime (`cfg`, `router`,
 // TLS credentials) or atomic (`stopping`). `serve`/`serve_async` consume the
 // value, so exactly one thread owns it while workers borrow it read-only.
 unsafe impl Send for Server { }
@@ -498,6 +547,16 @@ unsafe impl Send for Server { }
 func serve_thread(server : Server) {
     var s = server
     s.serve()
+}
+
+/// `host:port` of the peer, or an empty string when the platform will not say.
+/// Only the access log asks for it, so a server without a logger never pays the
+/// `getpeername` syscall.
+func peer_string(stream : &net::TcpStream) : string {
+    var addr = stream.peer_addr()
+    if(addr is Result.Err) { return string() }
+    var Ok(a) = addr else unsafe { unreachable }
+    return a.to_string()
 }
 
 /// Split `host:port`. Returns `None` when the port is not a number.

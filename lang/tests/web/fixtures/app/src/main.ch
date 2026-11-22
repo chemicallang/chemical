@@ -695,6 +695,24 @@ public func main() : int {
     var conditional = request(&mut app, "/", etag)
     report("/ conditional", &conditional)
 
+    // `If-None-Match` is a weak comparison over a list (RFC 9110 §13.1.2): a weakened
+    // tag, a list carrying the tag, and `*` must all still be a 304.
+    var weak = string("W/")
+    weak.append_view(&etag)
+    var weak_view = weak.to_view()
+    var weak_res = request(&mut app, "/", weak_view)
+    var listing = string("\"stale-tag\", ")
+    listing.append_view(&weak_view)
+    var listing_view = listing.to_view()
+    var list_res = request(&mut app, "/", listing_view)
+    var star_res = request(&mut app, "/", string_view("*"))
+    unsafe {
+        printf("conditional weak=%d list=%d star=%d\n",
+            (weak_res.status == 304u) as int,
+            (list_res.status == 304u) as int,
+            (star_res.status == 304u) as int)
+    }
+
     var account = request(&mut app, "/account/42", "")
     report("/account/42", &account)
     report_body("account42", &account)

@@ -1024,7 +1024,7 @@ public struct StaticSite {
         }
         var vary = std::string_view("")
         if(!a.gzipped.empty()) { vary = std::string_view("Accept-Encoding") }
-        if(!if_none_match.empty() && if_none_match.equals(&etag)) {
+        if(page_etag_matches(if_none_match, etag)) {
             return site_response_encoded(304, a.content_type, cache, std::string_view(""), etag, encoding, vary)
         }
         return site_response_encoded(200, a.content_type, cache, body, etag, encoding, vary)
@@ -1187,8 +1187,10 @@ public struct StaticSite {
             out.clear()
             return out
         }
-        out.append_string(&html)
-        return out
+        // Return the sink's document directly: it is already a fresh allocation for
+        // this request, and copying it into another string would be a second one (the
+        // per-request render path is hot enough to have been measured).
+        return html
     }
 
     /// Answer a per-request render. `html` must outlive the response — the body is
@@ -1458,6 +1460,36 @@ func site_not_found() : SiteResponse {
     return site_response(404, std::string_view("text/html; charset=utf-8"), std::string_view("no-store"),
         std::string_view("<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1></body></html>"),
         std::string_view(""))
+}
+
+/// True when `if_none_match` names `etag`.
+///
+/// RFC 9110 §13.1.2 makes this a **weak** comparison over a **list**: `W/"tag"`
+/// matches `"tag"`, `"a", "tag"` matches on its second member, and `*` matches any
+/// current representation. A browser usually sends one strong tag, but a proxy that
+/// rewrote the body weakens it and a client holding several versions sends a list;
+/// an exact-string compare would answer those with the whole page instead of a 304,
+/// which is the bandwidth this whole design exists to save.
+public func page_etag_matches(if_none_match : std::string_view, etag : std::string_view) : bool {
+    if(if_none_match.empty()) { return false }
+    var start : ubigint = 0
+    var i : ubigint = 0
+    while(i <= if_none_match.size()) {
+        var at_end = i == if_none_match.size()
+        if(at_end || if_none_match.at(i) == ',') {
+            var tag = if_none_match.subview(start, i)
+            while(tag.size() > 0 && (tag.at(0) == ' ' || tag.at(0) == '\t')) { tag = tag.subview(1, tag.size()) }
+            while(tag.size() > 0 && (tag.at(tag.size() - 1) == ' ' || tag.at(tag.size() - 1) == '\t')) {
+                tag = tag.subview(0, tag.size() - 1)
+            }
+            if(tag.size() == 1 && tag.at(0) == '*') { return true }
+            if(tag.size() > 2 && tag.at(0) == 'W' && tag.at(1) == '/') { tag = tag.subview(2, tag.size()) }
+            if(tag.equals(&etag)) { return true }
+            start = i + 1
+        }
+        i = i + 1
+    }
+    return false
 }
 
 /// A strong ETag for `bytes`: the same 12-hex content hash the bundle's file name

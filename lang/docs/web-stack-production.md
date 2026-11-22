@@ -51,7 +51,13 @@ Same host, one thread, loopback, TCC backend, `--mode debug_quick`, single-threa
 |---|---|---|---|
 | frozen page | 3 µs | 63 µs | 38 µs |
 | frozen shell + 2 fills | 5 µs | 66 µs | 44 µs |
-| per-request 24-row render | 34 µs | 103 µs | 77 µs |
+| per-request 24-row render | 31 µs | 100 µs | 73 µs |
+
+The render row is 3 µs faster than it was because the document is now *moved* into the
+response instead of copied twice (`render_dynamic` copied it into its result, `response_of`
+into the body) — A/B over alternating binaries, 4 runs each: 32/32/33/34 → 31/31/31/32 µs p50.
+A microsecond saved per allocation is only worth claiming because it was measured; the
+remaining time is the 24 rows themselves, which is the app's cost, not the framework's.
 
 The framework is microseconds; the network shape is what costs. A page with ten assets that
 does not reuse connections pays ~600 µs of accept/close for nothing, which is why keep-alive
@@ -70,7 +76,7 @@ reason, so the trade-off is written down:
 
 | route (`lang/tests/web/probes/bench`, `/live`, 24 rows) | body | p50 with `app.handle` |
 |---|---|---|
-| no compression | 2,589 B | 32 µs |
+| no compression | 2,589 B | 31 µs |
 | `Accept-Encoding: gzip`, `set_dynamic_gzip(true)` | 483 B | 665 µs |
 
 5.4× fewer bytes for ~630 µs of CPU per request. That is a good trade on a slow link or a
@@ -119,7 +125,9 @@ cfg.access_log = http.AccessLogger.make(||(entry : &http.AccessEntry) => {
 ```
 
 The line is Common Log Format so existing analysers parse it, plus the request's wall time in
-microseconds at the end. `-` stands in for a field the entry does not have. A request the
+microseconds at the end. The method and target are escaped inside the quoted field (`\"`, `\\`,
+`\xHH` for a control byte): the target is attacker-controlled, and an unescaped quote would let
+it read as the status and size — a forged line in the operator's record. `-` stands in for a field the entry does not have. A request the
 framework refused (413/431/408/400) is logged too — that is the line an operator actually wants
 — except for a peer that closed an idle keep-alive connection, which is not a request at all.
 

@@ -231,6 +231,8 @@ check "the cookie jar parses several cookies from one header" \
       "$([ "$(contains "$log" 'jar cookies=3 theme=dark')" = "1" ] && echo 1 || echo 0)"
 check "two new sessions never share an id" \
       "$([ "$(contains "$log" 'session distinct=1')" = "1" ] && echo 1 || echo 0)"
+check "If-None-Match takes a weak tag, a list and *" \
+      "$([ "$(contains "$log" 'conditional weak=1 list=1 star=1')" = "1" ] && echo 1 || echo 0)"
 check "rotating a session keeps its values and kills the old id" \
       "$([ "$(contains "$log" 'session rotated new=1 kept=1 old_dead=1')" = "1" ] && echo 1 || echo 0)"
 check "destroying a session drops the server record" \

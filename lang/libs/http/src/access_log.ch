@@ -73,6 +73,38 @@ public func format_access_date(epoch_secs : i64) : string {
     return out
 }
 
+func clf_hex_digit(value : u8) : char {
+    if(value < 10u) { return (48u + value as u32) as char }
+    return (87u + value as u32) as char
+}
+
+/// Append `value` as one quoted-field body.
+///
+/// The request target is attacker-controlled: it may carry a `"` (which would close
+/// the field and forge the rest of the line), a backslash, or control bytes that a
+/// terminal prints as escapes or that split a line-oriented reader. The line is the
+/// operator's record of what happened, so a field is escaped rather than copied:
+/// `\"`, `\\` and `\xHH` for anything else below 0x20 and for 0x7f.
+func append_clf_field(out : &mut string, value : string_view) {
+    var i : ubigint = 0
+    while(i < value.size()) {
+        var c = value.at(i)
+        var byte = c as u8
+        if(c == '"') {
+            out.append_view("\\\"")
+        } else if(c == '\\') {
+            out.append_view("\\\\")
+        } else if(byte < 32u || byte == 127u) {
+            out.append_view("\\x")
+            out.append(clf_hex_digit((byte >> 4u) & 15u))
+            out.append(clf_hex_digit(byte & 15u))
+        } else {
+            out.append(c)
+        }
+        i = i + 1
+    }
+}
+
 /// One line: the Common Log Format followed by the duration in microseconds.
 ///
 /// ```
@@ -93,9 +125,11 @@ public func format_access_line(entry : &AccessEntry) : string {
     var stamp = format_access_date(entry.epoch_secs)
     out.append_string(&stamp)
     out.append_view("] \"")
-    if(entry.method.empty()) { out.append('-') } else { out.append_view(&entry.method) }
+    if(entry.method.empty()) { out.append('-') } else { append_clf_field(&mut out, entry.method) }
     out.append(' ')
-    if(entry.target.empty()) { out.append('-') } else { out.append_view(&entry.target) }
+    // Both are request data: the method is whatever token arrived and the target is
+    // path + query, so neither may be trusted to be a single unquoted field.
+    if(entry.target.empty()) { out.append('-') } else { append_clf_field(&mut out, entry.target) }
     out.append_view(" HTTP/1.1\" ")
     out.append_uinteger(entry.status as ubigint)
     out.append(' ')

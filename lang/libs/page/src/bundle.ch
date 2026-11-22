@@ -164,7 +164,7 @@ public struct Bundle {
         if(e.immutable) {
             cache = std::string_view("public, max-age=31536000, immutable")
         }
-        if(!if_none_match.empty() && if_none_match.equals(&etag)) {
+        if(page_etag_matches(if_none_match, etag)) {
             return site_response(304, e.content_type.to_view(), cache, std::string_view(""), etag)
         }
         return site_response(200, e.content_type.to_view(), cache, e.bytes.to_view(), etag)

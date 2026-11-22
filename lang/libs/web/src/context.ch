@@ -179,10 +179,16 @@ public struct RequestContext {
             var reason = st.dynamic_error_message()
             return error_response(503u, &reason)
         }
-        var out = st.dynamic_response(&html, cache_control)
-        var none = string_view("")
-        var res = response_of(&out, none)
+        // The document was just built for this request, so it is moved into the body
+        // rather than copied. `site.dynamic_response` would hand back a borrowed view
+        // of it (`response_of` copies); one render, one allocation. The header set is
+        // the one that function decides for a dynamic route: no-store by default, an
+        // HTML content type, no validator (a per-request page has no stable version).
+        var res = http::Response()
         res.status = status
+        res.set_header_view("Cache-Control", &cache_control)
+        res.set_header_view("Content-Type", "text/html; charset=utf-8")
+        res.body = http::ResponseBody.Text(html)
         return res
     }
 

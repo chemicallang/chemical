@@ -835,3 +835,64 @@ public func PROD_ambiguous_request_framing_is_refused(env : &mut TestEnv) {
     stop.shutdown()
     thread.join()
 }
+
+// ── The access line cannot be forged ───────────────────────────────────────
+//
+// The log line is the operator's record of what happened, and the request target is
+// attacker-controlled. A `"` in it would close the quoted field and let the rest of
+// the target read as the status and size; a raw ESC would drive the terminal that
+// `tail -f`s the log. Both are escaped instead of copied.
+@test
+public func PROD_access_line_escapes_request_data(env : &mut TestEnv) {
+    var entry = http::AccessEntry {
+        remote : std::string_view("10.0.0.7:51234"),
+        method : std::string_view("GET"),
+        target : std::string_view("/a\" 200 0 [forged]\u001b[31m"),
+        status : 200u,
+        bytes : 0 as usize,
+        duration_us : 4,
+        epoch_secs : 1700000000,
+        keep_alive : true
+    }
+    var line = http::format_access_line(&entry)
+    var view = line.to_view()
+
+    // Exactly the two delimiters: no unescaped quote from the target.
+    var quotes : int = 0
+    var backslashes : int = 0
+    var controls : int = 0
+    var i : ubigint = 0
+    var escaped = false
+    while(i < view.size()) {
+        var c = view.at(i)
+        if(escaped) {
+            escaped = false
+        } else if(c == '"') {
+            quotes = quotes + 1
+        } else if(c == '\\') {
+            backslashes = backslashes + 1
+            escaped = true
+        }
+        const b = c as u8
+        if(b < 32u && c != '\n') { controls = controls + 1 }
+        i = i + 1
+    }
+    if(quotes != 2) {
+        var m = string("a target quote reached the log unescaped: ")
+        m.append_integer(quotes as bigint)
+        m.append_view(" quotes in the line")
+        unsafe(test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0))
+    }
+    if(controls != 0) {
+        env.error("a control byte reached the log line")
+    }
+    if(!view.contains(std::string_view("\\\""))) {
+        env.error("the target quote was not escaped")
+    }
+    if(!view.contains(std::string_view("\\x1b"))) {
+        env.error("the escape byte was not rendered as \\x1b")
+    }
+    if(backslashes < 2) {
+        env.error("expected the escaped quote and the escaped escape byte")
+    }
+}

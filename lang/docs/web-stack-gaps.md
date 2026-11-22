@@ -458,6 +458,21 @@ Five hardening changes, each with a regression test that fails without it:
    CSRF carried over, old record and durable file gone — and `ctx.rotate_csrf()`. The `tasks`
    probe signs in through them and asserts that the pre-login cookie no longer signs in.
 
+### Fifth pass: two copies, two weak comparisons, one hostile log line (2026-11-22)
+
+- **The per-request render copied its document twice** — once out of `render_dynamic`, once
+  into the response body — for a page it had just built. Both are moves now; measured with the
+  bench probe, alternating old/new binaries over 4 runs: p50 32/32/33/34 → 31/31/31/32 µs.
+- **`If-None-Match` was an exact string compare.** RFC 9110 §13.1.2 is a weak comparison over a
+  list: `W/"tag"`, `"a", "tag"` and `*` all name the representation, and an exact compare
+  answered each with the whole page instead of a `304`. Fixed in `page` for both the artifact
+  responder and `Bundle.respond_if_none_match`; the fixture now asks with a weak tag, a list and
+  `*` and checks all three are 304.
+- **The access line could be forged.** The request target was written verbatim inside the
+  quoted CLF field, so a target carrying `"` read as status and size in the log (and a raw ESC
+  drove the terminal following the log). Method and target are escaped now (`\"`, `\\`,
+  `\xHH`), with a test that a quote, an escape byte and a control byte cannot reach the line.
+
 ### Still open
 
 The production checklist — which of these remain, and what else a real deployment needs — is

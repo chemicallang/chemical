@@ -167,9 +167,21 @@ void append_const_expr_c(const MIRModule& module, ConstExprId id, std::string& o
     }
     const MIRConstExpr& e = module.const_exprs.get(id);
     switch (e.kind) {
-        case MIRConstKind::Zero:
+        case MIRConstKind::Zero: {
+            // A zero of an aggregate type is not the scalar `0`: `char x[8] = 0` is
+            // not valid C, so a `zeroed<[2048]char>()` global used to fail to compile.
+            // `{0}` zero-initialises an array or a struct (C11 6.7.9p21).
+            if (e.type < module.types.size()) {
+                const MIRTypeKind k = module.types.get(e.type).kind;
+                if (k == MIRTypeKind::Array || k == MIRTypeKind::Struct ||
+                    k == MIRTypeKind::Union) {
+                    out += "{0}";
+                    return;
+                }
+            }
             out += '0';
             return;
+        }
         case MIRConstKind::Int: {
             bool unsig = (e.flags & MCF_UNSIGNED) != 0;
             if (!unsig && e.type < module.types.size()) {
@@ -379,7 +391,7 @@ std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
                 if (it.global.flags & MGD_STATIC) out += "static ";
                 if (it.global.flags & MGD_VOLATILE) out += "volatile ";
                 append_global_decl_spelling(module, it.global, out);
-                out += ';';
+                out += ";\n";
                 break;
             case MIRDeclKind::VtableType:
                 out += "\ntypedef struct ";

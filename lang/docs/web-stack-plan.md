@@ -2114,6 +2114,9 @@ Served runtime, one thread, loopback, TCC backend (`lang/tests/web/probes/bench`
 | `/shell` | frozen shell + 2 fills | 5 µs | 66 µs | 44 µs | ~20,000 |
 | `/live` | per-request 24-row render | 34 µs | 103 µs | 77 µs | ~12,600 |
 
-Next, in the order those numbers point at: one `send` per response (head + body are still two),
-a concurrent-load measurement, and reducing per-render allocation. The plan's budgets should be
-read against this table; the framework is microseconds and the network shape is what costs.
+A single `send` per response was tried and **measured to make no difference** (alternating A/B
+runs: frozen keep-alive p50 76–100 µs with two sends vs 82–95 µs with one; the syscall it saves
+costs what the body copy it adds costs, and a large body would be strictly worse), so the
+streaming shape stays and the next steps are a concurrent-load measurement and reducing
+per-render allocation. The plan's budgets should be read against this table; the framework is
+microseconds and the network shape is what costs.

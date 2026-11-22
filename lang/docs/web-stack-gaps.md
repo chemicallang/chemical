@@ -373,7 +373,8 @@ is per module). Lambda/closure helper names now include the enclosing function's
 A benchmark probe now serves the app through `server.Server` and times the same route
 three ways: `app.handle` alone (the framework), a fresh TCP connection per request, and
 one kept-alive connection. 300 requests, one thread, loopback, TCC backend,
-`--mode debug_quick`, single-threaded client:
+`--mode debug_quick`, single-threaded client, measured on an otherwise idle machine (a
+loaded box reads 2–3× these latencies, so compare ratios across runs, not absolutes):
 
 | route | delivery | `app.handle` p50 | new connection p50 | keep-alive p50 | keep-alive req/s |
 |---|---|---|---|---|---|
@@ -399,9 +400,21 @@ Reading the numbers:
 
 What is worth improving next, in the order the profile suggests:
 
-1. **Write the response in one `send`.** NODELAY removed the stall, but head and body are
-   still two syscalls per response; building them into one buffer (or `writev`) is the
-   remaining per-request cost inside the ~38 µs.
+1. ~~**Write the response in one `send`.**~~ **Tried and measured: no gain, reverted.** Appending
+   the body to the head buffer (with `head.reserve(head + body)` first, bodies up to 256 KiB)
+   replaced one `write(2)` with a full copy of the body. A/B runs alternating both binaries,
+   five iterations each, alternating order:
+
+   | build | frozen keep-alive p50 | live keep-alive p50 |
+   |---|---|---|
+   | two sends (current) | 76–100 µs | 187–282 µs |
+   | one send | 82–95 µs | 175–275 µs |
+
+   The saved syscall is ~1 µs on loopback and the copy costs the same, so the two are
+   indistinguishable — and for a large body the copy is strictly worse. Kept the streaming
+   shape; a scatter-gather `writev` binding (absent from `net`) would be the only version worth
+   trying, and it only pays if the response is written in one call with headers *and* body in
+   separate buffers.
 2. **A worker pool, not a thread per connection.** `serve_accept` submits every accepted
    socket to a pool and serves it blocking; with 300 sequential requests that is fine, and
    under concurrency it is the number to watch next (the benchmark is deliberately
@@ -417,7 +430,7 @@ as a speed change.
 
 | # | item | why | done when |
 |---|---|---|---|
-| 1 | Response write as one syscall (see 1 above) | two sends per response is the remaining per-request cost | bench `keepalive_p50_us` drops for every shape |
+| 1 | ~~Response write as one syscall~~ **measured, no gain** (see 1 above); a `writev` binding is the only variant left | two sends cost ~1 µs more, the copy costs the same | a scatter-gather write measured faster than two sends |
 | 2 | Concurrent-load benchmark | the numbers here are sequential by design | a second bench line at N in-flight requests |
 | 3 | `dom` location/history API | the `spa` client routes by click handler; a real router needs `#js` | `spa` navigates a path without a click handler |
 | 4 | Typed JSON decode in `dom` | `spa` splits strings to read `/api/tasks` | the client decodes into a struct |

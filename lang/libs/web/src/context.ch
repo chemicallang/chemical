@@ -246,11 +246,34 @@ public struct RequestContext {
         return st.csrf_token(&session)
     }
 
+    /// Replace the session's CSRF token (the other half of a privilege change):
+    /// a form rendered before it cannot be replayed afterwards.
+    public func rotate_csrf(&mut self) {
+        if(!session.valid() || store == null) { return }
+        var st = unsafe(&mut *store)
+        st.rotate_csrf(&session)
+    }
+
     /// True when `submitted` is this session's token (constant-time compare).
     public func verify_csrf(&self, submitted : string_view) : bool {
         if(!session.valid() || store == null) { return false }
         var st = unsafe(&mut *store)
         return st.verify_csrf(&session, submitted)
+    }
+
+    /// Give the session a new id, keeping its values, and send the new cookie.
+    ///
+    /// Call this at the privilege change itself (after the password/token checked
+    /// out, before the response is built). An id planted before that point stops
+    /// working, which is what defeats session fixation; a store-only `destroy`
+    /// would sign the user out instead of keeping them signed in.
+    public func rotate_session(&mut self) {
+        ensure_session()
+        if(!session.valid() || store == null) { return }
+        var st = unsafe(&mut *store)
+        st.rotate(&mut session)
+        // The response owes the client the new id.
+        created = true
     }
 
     /// Destroy the session (sign-out): the record is gone and `res` carries the

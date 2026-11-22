@@ -54,11 +54,15 @@ public func LoginPost(ctx : &mut web::RequestContext) : http::Response {
     if(user is Option.None) { return login_failed(ctx) }
     var Some(uid) = user else unsafe { unreachable }
     if(!db_password_ok(state_of(ctx), uid, password_view)) { return login_failed(ctx) }
+    // A sign-in is a privilege change: the id and the CSRF token both change, so an
+    // id planted before the credentials were checked is worthless afterwards
+    // (session fixation), and a form rendered before it cannot be replayed.
+    ctx.rotate_session()
+    ctx.rotate_csrf()
     var uid_text = string()
     uid_text.append_integer(uid)
     ctx.set_session("uid", uid_text.to_view())
     ctx.set_session("email", email_view)
-    // A real app rotates the CSRF token on privilege change.
     var hello = string("Welcome back, ")
     hello.append_view(&email_view)
     ctx.set_session("flash", hello.to_view())
@@ -80,6 +84,9 @@ public func SignupPost(ctx : &mut web::RequestContext) : http::Response {
     var salt : bigint = 0x51a7
     var hash = hash_password(salt, password_copy)
     var uid = db_create_user(state_of(ctx), email_copy, hash, salt)
+    // Signing up is a privilege change too: new id, new CSRF token.
+    ctx.rotate_session()
+    ctx.rotate_csrf()
     var uid_text = string()
     uid_text.append_integer(uid)
     ctx.set_session("uid", uid_text.to_view())
@@ -377,10 +384,15 @@ public func main() : int {
     var session_cookie = header_text(&good, &string_view("Set-Cookie"))
     check(string_view("sign-in is a 303 to /todos"),
         good.status == 303u && has_text(&good_location, string_view("/todos")))
-    // The sign-in landed in the session the form's GET already created, so no new
-    // cookie is due: `Set-Cookie` appears only when the session is *created*.
+    // A sign-in rotates the id, so the cookie the form's GET created is replaced:
+    // an id planted before the credentials were checked must not survive them.
+    check(string_view("sign-in replaces the session cookie"), session_cookie.size() > 0)
     var ada = anon
     if(session_cookie.size() > 0) { ada = cookie_pair(&session_cookie) }
+    check(string_view("the rotated id differs from the pre-login id"), !ada.equals(&anon))
+    var stale = request_with(&mut app, string_view("GET"), string_view("/todos"), anon, string_view(""))
+    check(string_view("the pre-login cookie no longer signs in"),
+        has_text(&body_text(&stale), string_view("not signed in")))
 
     // 6. The list renders per request, with the flash from the sign-in.
     var list = request_with(&mut app, string_view("GET"), string_view("/todos"), ada, string_view(""))

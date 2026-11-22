@@ -21,6 +21,82 @@ func status_allows_body(code : u16) : bool {
     return true
 }
 
+// ---------------------------------------------------------------------------
+// Wire safety of a response head
+// ---------------------------------------------------------------------------
+//
+// The head is assembled from values the handler chose, and a handler usually gets
+// some of them from the request: `web::redirect(next)` where `next` is a query
+// parameter, a validation message that quotes what the user typed, a header
+// synthesized from a form field. A CR or LF inside any of those ends our head
+// early: the rest is read by the client as headers or as a second response
+// (response splitting / cache poisoning), and with a body it is XSS.
+//
+// The check lives here, at the single place that turns a `Response` into bytes,
+// because every other producer (a handler, `web`, `webserve`, a plugin) can be
+// skipped but this one cannot.
+
+/// A field value may hold visible characters, spaces, tabs and obs-text; control
+/// characters (CR and LF above all) are refused.
+func wire_safe_field_value(value : string_view) : bool {
+    var i : usize = 0u
+    while(i < value.size()) {
+        var c = value.at(i)
+        var byte = c as u8
+        if(byte < 32u && byte != 9u) { return false }
+        if(byte == 127u) { return false }
+        i = i + 1u
+    }
+    return true
+}
+
+/// A field name must be an RFC 9110 token: `!#$%&'*+-.^_`|~` plus alphanumerics.
+func wire_safe_field_name(value : string_view) : bool {
+    if(value.size() == 0u) { return false }
+    var i : usize = 0u
+    while(i < value.size()) {
+        var c = value.at(i)
+        var ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+        if(!ok) {
+            ok = c == '!' || c == '#' || c == '$' || c == '%' || c == '&' || c == '\''
+            ok = ok || c == '*' || c == '+' || c == '-' || c == '.' || c == '^'
+            ok = ok || c == '_' || c == '`' || c == '|' || c == '~'
+        }
+        if(!ok) { return false }
+        i = i + 1u
+    }
+    return true
+}
+
+/// Whether every byte this response's head would carry is wire-safe.
+func response_head_is_wire_safe(res : &Response) : bool {
+    if(!res.proto.empty() && !wire_safe_field_value(res.proto.to_view())) { return false }
+    if(!res.status_text.empty() && !wire_safe_field_value(res.status_text.to_view())) { return false }
+    var iter = res.headers.iter()
+    while(iter.valid()) {
+        if(!wire_safe_field_name(iter.name())) { return false }
+        if(!wire_safe_field_value(iter.value())) { return false }
+        iter.next()
+    }
+    return true
+}
+
+/// Refuse a head the framework cannot encode: `500`, no body, connection closed.
+/// Nothing of the offending response has been written, so the client sees one
+/// complete answer instead of a truncated or split one.
+func write_unsafe_head_refusal(out : &mut Stream, date : std::string_view) : Result<Unit, HttpError> {
+    var head = string()
+    head.append_view("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n")
+    if(!date.empty()) {
+        head.append_view("Date: ")
+        head.append_view(&date)
+        head.append_view("\r\n")
+    }
+    head.append_view("\r\n")
+    var _ = out.write_all_bytes(unsafe(std::span<u8>(head.data() as *u8, head.size())))
+    return Result.Err(HttpError.Protocol("response head is not wire-safe"))
+}
+
 /// Write a response payload onto `out`.
 public func (b: &mut ResponseBody) write_onto(out : &mut Stream) : Result<Unit, HttpError> {
     switch(b) {
@@ -78,6 +154,9 @@ public func (b: &mut ResponseBody) write_onto(out : &mut Stream) : Result<Unit, 
 ///   caller writing a message for a test).
 public func (res: &mut Response) write_to(out : &mut Stream, keep_alive : bool, head_only : bool,
                                          date : std::string_view) : Result<Unit, HttpError> {
+    if(!response_head_is_wire_safe(res)) {
+        return write_unsafe_head_refusal(out, date)
+    }
     var head = string()
     head.reserve(320)
 

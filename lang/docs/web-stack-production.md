@@ -17,8 +17,8 @@ and pages can be compressed on the wire.
 
 **What is still missing is scale-out beyond shared storage** (sessions are files, not Redis, so
 a multi-host fleet needs a volume every host can write) and **per-request panic containment** —
-build the serving module `[no_panic]` and the compiler proves it instead. Both are written out
-under "The one thing left" below.
+build the serving module `[no_panic]` and the compiler proves it instead. Panic isolation is the
+last checklist row open; it is written out under "The one thing left" below.
 
 ## Readiness checklist
 
@@ -31,15 +31,15 @@ under "The one thing left" below.
 | 5 | Bound request size / timeouts (slowloris) | **done** | `ServerConfig.max_header_bytes` 64 KiB, `max_headers` 512, `max_body_bytes` 10 MiB, header/body timeouts enforced per message |
 | 6 | Compression | **done (opt-in for renders)** | artifacts: gzip at build + negotiation + `Vary`. Renders: `App.set_dynamic_gzip(true)` compresses a `Text` body ≥ 1 KiB when `Accept-Encoding` accepts gzip, sets `Content-Encoding` + `Vary`, and keeps the body only when it is smaller; measured 2,589 → 483 bytes for 665 µs of CPU (below) |
 | 7 | Caching correctness | **done** | `no-cache` + `ETag` + `If-None-Match` → 304 for frozen pages/artifacts, `no-store` for per-request renders (policy is per route) |
-| 8 | Sessions + CSRF | **done** | `SessionStore` (in-memory + snapshot load/save), `HttpOnly`/`SameSite=Lax`, optional `Secure` (`SessionStore.make(name, secure)`) |
+| 8 | Sessions + CSRF | **done** | `SessionStore` (in-memory + snapshot load/save), `HttpOnly`/`SameSite=Lax`, optional `Secure` (`SessionStore.make(name, secure)`); `ctx.rotate_session()` + `ctx.rotate_csrf()` at a privilege change (session fixation), proven by the `tasks` probe: the sign-in re-sends the cookie and the pre-login id stops signing in |
 | 9 | TLS | **done** | `ServerConfig.cert_file`/`key_file` → `tls::TlsServerStream` per connection |
 | 10 | Graceful shutdown | **done** | `Server.handle()` → `ShutdownHandle.shutdown()`; connection loop exits, workers join |
-| 11 | XSS / injection safety | **done** | `{expr}` escapes once in text and attributes, `{!expr}` is explicit raw, script/style bodies stay raw text; plugin suite pins it |
+| 11 | XSS / injection safety | **done** | `{expr}` escapes once in text and attributes, `{!expr}` is explicit raw, script/style bodies stay raw text; plugin suite pins it. Header injection is refused at the wire: a response whose header name, header value or status text carries a control character is answered `500` + close instead of being split (`PROD_unsafe_response_head_is_refused`), and `Client.request` refuses a request head the same way (`PROD_unsafe_request_head_is_refused`) |
 | 12 | Typed client code shipped by the server | **done** | `app.add_client_module()` publishes the `--web` bundle + module script; `spa/client_boot_check.mjs` boots it in Node |
 | 13 | A way to observe a request | **done** | `ServerConfig.access_log`: `AccessLogger.combined()` (Common Log Format + duration on stderr) or `AccessLogger.make(sink)` for any destination; the entry carries peer, method, target, status, bytes and the wall time of the whole exchange. Off by default and one branch when off |
 | 14 | Sessions that survive a restart / a second process | **done (shared directory)** | `SessionStore.make_durable(dir)` / `app.durable_sessions(dir)`: one record file per session, written atomically (temp + rename) on every change and re-read per request, so another process over the same directory sees it. `set_ttl` (idle timeout) + `sweep_expired()`. Cross-process proof: `web-app-test.sh` "a durable session survives in a process that only has the directory". No Redis/DB backend — a shared volume is the cross-host story |
 | 15 | Multipart uploads (files) | **done** | `http::parse_multipart` / `req.multipart()`: parts with `name`/`filename`/`Content-Type`, bodies kept byte-exact (NUL, CR, LF), `max_parts` bound, `MissingBoundary`/`InvalidBoundary`/`MalformedPart`/`TooManyParts` errors, `fields()` for the text fields. `MP_text_field_and_binary_file_survive` and five more in `--server` |
-| 16 | Ranges for streamed files | **missing** | `ResponseBody.File` streams whole; ranges need in-memory bodies |
+| 16 | Ranges for streamed files | **done** | `apply_byte_range` seeks a `File` body and shortens it, so the writer streams the slice (no read into memory): `206` + `Content-Range` + the slice's length, `416` past the end. `http::FileServer` (the `server.serve` static path) also sends `ETag` + `Last-Modified` and answers `If-None-Match` with `304` *without opening the file*; `PROD_file_body_serves_ranges_and_validators` |
 | 17 | Panic isolation | **missing** | a panicking handler follows the module's panic policy; there is no per-request unwind boundary. Not needed in a `[no_panic]` module, where the compiler proves a handler cannot panic |
 
 ## What "ready" means in numbers
@@ -64,9 +64,9 @@ deployment that allows panics. Either build the serving module `[no_panic]` (the
 proves the absence of panics, which is the stronger answer) or wait for an unwind boundary around
 the handler.
 
-Access logging, dynamic gzip, durable sessions and multipart uploads were the previous four
-entries on this list and are all in now (rows 6, 13, 14, 15). Gzip is opt-in for a reason, so the
-trade-off is written down:
+File ranges (16), access logging, dynamic gzip, durable sessions and multipart uploads were the
+previous entries on this list and are all in now (rows 6, 13, 14, 15, 16). Gzip is opt-in for a
+reason, so the trade-off is written down:
 
 | route (`lang/tests/web/probes/bench`, `/live`, 24 rows) | body | p50 with `app.handle` |
 |---|---|---|
@@ -78,6 +78,21 @@ mobile client and a bad one on a warm LAN, and it is why the default is off: tur
 bandwidth costs more than CPU, or compress at the proxy instead. The encoder is the repo's own
 pure-Chemical fixed-Huffman deflate (`compression::gzip`), so making it cheap is a codec job —
 table-driven CRC and precomputed codes, or a zlib binding — not a web-stack one.
+
+## Ambiguous framing is refused, not guessed
+
+Two HTTP implementations that frame one message differently leave the remainder in the
+connection, where the *next* request is read — an attacker's request, carrying the server's
+trust. So `http::read_request_body` rejects (400 + close) instead of choosing:
+
+| request shape | why it is refused |
+|---|---|
+| `Transfer-Encoding` **and** `Content-Length` | a proxy may prefer the length, this server the codings |
+| `Transfer-Encoding` that is not exactly `chunked` | falling back to a length would be a guess |
+| two `Content-Length` fields | header lookup would silently pick the first |
+
+A single unambiguous `Content-Length` or a plain `chunked` body is unchanged. Pinned by
+`PROD_ambiguous_request_framing_is_refused`.
 
 ## Deliberately not on the list
 

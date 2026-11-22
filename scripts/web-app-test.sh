@@ -231,6 +231,8 @@ check "the cookie jar parses several cookies from one header" \
       "$([ "$(contains "$log" 'jar cookies=3 theme=dark')" = "1" ] && echo 1 || echo 0)"
 check "two new sessions never share an id" \
       "$([ "$(contains "$log" 'session distinct=1')" = "1" ] && echo 1 || echo 0)"
+check "rotating a session keeps its values and kills the old id" \
+      "$([ "$(contains "$log" 'session rotated new=1 kept=1 old_dead=1')" = "1" ] && echo 1 || echo 0)"
 check "destroying a session drops the server record" \
       "$([ "$(contains "$log" 'session destroyed loaded=0 count=0')" = "1" ] && echo 1 || echo 0)"
 

@@ -260,6 +260,31 @@ func run_session_flow() {
     unsafe {
         printf("session destroyed loaded=%d count=%zu\n", flag(after), store.count())
     }
+
+    // Rotating the id (what a sign-in does) keeps the values and kills the old id,
+    // so an id planted before the sign-in cannot be reused.
+    var rotating = store.create()
+    store.set(&rotating, "user", "ada")
+    var old_id = rotating.id.copy()
+    var old_id_view = old_id.to_view()
+    store.rotate(&mut rotating)
+    var new_id_view = rotating.id.to_view()
+    var new_ok : int = 0
+    if(!new_id_view.equals(&old_id_view)) { new_ok = 1 }
+    var kept = store.get(&rotating, "user")
+    var stale_req = http::Request()
+    var stale_header = string()
+    stale_header.append_view(&cookie_name)
+    stale_header.append('=')
+    stale_header.append_view(&old_id_view)
+    var stale_key = string()
+    stale_key.append_view("Cookie")
+    stale_req.headers.insert(stale_key, stale_header)
+    var stale_loaded = store.load(&stale_req)
+    var stale_dead = 1 - flag(stale_loaded)
+    unsafe {
+        printf("session rotated new=%d kept=%d old_dead=%d\n", new_ok, flag(kept), stale_dead)
+    }
 }
 
 func header(res : &http::Response, name : &str) : string_view {

@@ -285,19 +285,53 @@ func read_request_head(stream : &mut Stream, buf : &mut net::Buffer,
     }
 }
 
+/// Count the fields named `name` (case-insensitive).
+func field_count(headers : &HeaderMap, name : &str) : usize {
+    var want = name.to_view()
+    var count : usize = 0
+    var iter = headers.iter()
+    while(iter.valid()) {
+        if(header_name_equals(iter.name(), want)) { count = count + 1u }
+        iter.next()
+    }
+    return count
+}
+
 /// Read the request body according to its framing (chunked, Content-Length, or
 /// none) into `req.body`, bounded by `max_body`.
+///
+/// The framing rules are the smuggling rules (RFC 9112 §6.3). A message that is
+/// ambiguous is *rejected*, never guessed: if a front proxy frames it one way and
+/// this server another, the bytes left over become a second request — an attacker's
+/// request — on a reused connection. So:
+///
+///   * `Transfer-Encoding` together with `Content-Length` is refused, because the
+///     proxy may prefer the length and we would prefer the codings;
+///   * `Transfer-Encoding` must be exactly `chunked` — an unsupported coding is
+///     refused instead of falling back to a length the peer may not have meant;
+///   * several `Content-Length` fields are refused (and a list value fails the
+///     decimal parse), since `get` would silently pick the first.
 public func read_request_body(stream : &mut Stream, buf : &mut net::Buffer, req : &mut Request,
                               max_body : usize, timeout_ms : u64) : Result<Unit, HttpError> {
     var _ = stream.set_read_timeout(timeout_ms)
     var chunked = false
+    var has_length = req.headers.contains("Content-Length")
     var te = req.headers.get("Transfer-Encoding")
     if(te is Option.Some) {
         var Some(tv) = te else unsafe { unreachable }
-        if(text_equals(tv, string_view("chunked"))) { chunked = true }
+        if(has_length) {
+            return Result.Err(HttpError.Protocol(http_make_string("transfer-encoding with content-length")))
+        }
+        if(!text_equals(tv, string_view("chunked"))) {
+            return Result.Err(HttpError.Protocol(http_make_string("unsupported transfer-encoding")))
+        }
+        chunked = true
     }
     if(chunked) {
         return take_chunked(stream, buf, &raw mut req.body, max_body, timeout_ms as long)
+    }
+    if(field_count(&req.headers, "Content-Length") > 1u) {
+        return Result.Err(HttpError.Protocol(http_make_string("duplicate content-length")))
     }
     var cl = req.headers.get("Content-Length")
     if(cl is Option.None) { return Result.Ok(Unit { }) }

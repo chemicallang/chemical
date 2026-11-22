@@ -271,6 +271,54 @@ public struct SessionStore {
         res.cookie(name, id_view, opts)
     }
 
+    /// Replace `session`'s id, carrying its values and CSRF token over, and forget
+    /// the old id (memory record and durable file alike).
+    ///
+    /// Call this after a privilege change — a successful sign-in, a password or
+    /// role change — so an id that was fixed on the client *before* that change is
+    /// worthless afterwards. Without it an attacker who can plant a cookie (a
+    /// subdomain, a shared kiosk, a link with `?session=`) reads every request of
+    /// the session it chose: session fixation. Rotating also expires any copy of
+    /// the old id that leaked, because the record behind it is gone.
+    public func rotate(&mut self, session : &mut Session) {
+        var old_id = string()
+        old_id.append_view(&session.id.to_view())
+        var fresh_id = random_hex(24u)
+        var rec = record_ptr(&records, old_id.to_view())
+        if(rec != null) {
+            var carried = SessionRecord {
+                values : unordered_map<string, string>(),
+                csrf : string(),
+                last_seen : 0
+            }
+            unsafe {
+                carried.last_seen = rec.last_seen
+                carried.csrf.append_view(&rec.csrf.to_view())
+                var it = rec.values.iterator()
+                while(it.valid()) {
+                    var k = it.key() as *string
+                    var v = it.value() as *string
+                    map_set(&mut carried.values, k.to_view(), v.to_view())
+                    it.next()
+                }
+            }
+            var key = string()
+            key.append_view(&fresh_id.to_view())
+            records.insert(key, carried)
+        }
+        if(!old_id.empty()) {
+            records.erase(&old_id)
+            if(is_durable()) { remove_record_file(dir.to_view(), old_id.to_view()) }
+        }
+        session.id = fresh_id
+        if(is_durable()) {
+            var stored = record_mut(&mut records, session.id.to_view())
+            if(stored != null) {
+                unsafe { write_record_file(dir.to_view(), session.id.to_view(), stored) }
+            }
+        }
+    }
+
     /// End the session: drop the server record and expire the cookie. A client that
     /// keeps the old id gets `None` from `load`, because the record is gone.
     public func destroy(&mut self, res : &mut http::Response, session : &Session) {

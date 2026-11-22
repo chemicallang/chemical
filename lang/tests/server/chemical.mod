@@ -9,6 +9,7 @@ import async
 import net
 import http
 import fs
+import path
 import server
 import test
 import test_env

@@ -11,14 +11,15 @@
 //     `multipart/byteranges`, which nothing in this stack emits; a request for two
 //     ranges gets the whole representation (200), which RFC 9110 permits for a
 //     server that does not support it.
-//   * in-memory bodies (`Text`, `Bytes`, `View`). A `View` is sliced without a
-//     copy because it borrows a longer-lived buffer; an owned body is copied. A
-//     `File` body keeps streaming the whole file (200).
+//   * every body kind: an in-memory body (`Text`, `Bytes`, `View`) is sliced (a
+//     `View` without a copy, an owned body by copying), and a `File` body is
+//     served by seeking the handle and streaming the slice — no read into memory.
 //   * `If-Range` is honoured when it is an `ETag`: a client holding a stale ETag
 //     gets the whole current representation instead of a slice of a different one.
 public namespace http {
 
 using std::Option;
+using std::Result;
 using std::string;
 using std::string_view;
 
@@ -108,12 +109,18 @@ public func parse_byte_range(value : string_view, length : usize) : RangeDecisio
     return RangeDecision.Slice(first, end)
 }
 
-/// True when the body can be served in pieces without touching the disk.
+/// True when the body can be served in pieces.
+///
+/// A `File` body is rangeable without a copy: the writer streams exactly `len`
+/// bytes from the handle's current position, so a slice is a seek plus a shorter
+/// length. That is what makes a resumed download or a video seek cost one syscall
+/// instead of reading the whole file into memory.
 func body_is_rangeable(body : &ResponseBody) : bool {
     switch(body) {
         Text(_) => { return true }
         Bytes(_) => { return true }
         View(_) => { return true }
+        File(_, _) => { return true }
         default => { return false }
     }
 }
@@ -184,6 +191,23 @@ public func apply_byte_range(res : &mut Response, decision : RangeDecision) {
         Slice(first, last) => {
             if(res.status != 200u || !rangeable) { return }
             var length = res.body.size()
+            if(res.body is ResponseBody.File) {
+                // Seek instead of copy: the head then advertises the slice's length
+                // and the writer streams exactly that many bytes.
+                var taken = std::replace(&mut res.body, ResponseBody.Empty())
+                var File(file, file_len) = taken else unsafe { unreachable }
+                var mut_file = file
+                var moved = mut_file.seek(std::io::SeekFrom.Start(first as i64))
+                if(moved is Result.Err) {
+                    // Cannot position the handle: answer the whole representation
+                    // rather than a slice starting at the wrong offset.
+                    res.body = ResponseBody.File(mut_file, file_len)
+                    return
+                }
+                res.body = ResponseBody.File(mut_file, (last + 1u - first) as u64)
+            } else {
+                res.body = body_slice(&res.body, first, last)
+            }
             var content_range = string()
             content_range.append_view("bytes ")
             content_range.append_uinteger(first as ubigint)
@@ -195,7 +219,6 @@ public func apply_byte_range(res : &mut Response, decision : RangeDecision) {
             res.set_header_view("Content-Range", &header)
             res.set_header_view("Accept-Ranges", "bytes")
             res.status = 206u
-            res.body = body_slice(&res.body, first, last)
             return
         }
     }

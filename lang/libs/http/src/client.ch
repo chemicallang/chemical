@@ -235,6 +235,27 @@ public struct RequestBuilder {
         return self.method.equals_with_len("HEAD", 4);
     }
 
+    /// Whether this request can be written as one HTTP message.
+    ///
+    /// The method, the host, the request target and every header value come from
+    /// the caller — often from a value the caller itself got over the wire. A CR
+    /// or LF in any of them ends the request line or the head early, and the peer
+    /// reads the rest as a second request (request smuggling). The check runs
+    /// before the connection is opened (see `Client.request`).
+    public func is_wire_safe(&self) : bool {
+        if(!wire_safe_field_name(method.to_view())) { return false }
+        if(!wire_safe_field_value(url.host.to_view())) { return false }
+        if(!wire_safe_field_value(url.path.to_view())) { return false }
+        if(!wire_safe_field_value(url.query.to_view())) { return false }
+        var iter = headers.iter()
+        while(iter.valid()) {
+            if(!wire_safe_field_name(iter.name())) { return false }
+            if(!wire_safe_field_value(iter.value())) { return false }
+            iter.next()
+        }
+        return true
+    }
+
     public func build(&self, absolute: bool = false) : string {
         var out = string();
         out.append_string(&method);
@@ -472,6 +493,11 @@ public struct Client {
     /// Perform one request on a fresh connection. `&self`, so one client can be
     /// shared by a worker pool; the trust store is read under its own lock.
     public func request(&self, req_builder : &RequestBuilder) : Result<Response, HttpError> {
+        // Refuse a message that would split into two before dialing anything: the
+        // peer would see a request the caller did not write.
+        if(!req_builder.is_wire_safe()) {
+            return Result.Err(HttpError.Protocol("request head is not wire-safe"))
+        }
         var host_str = std::str.make_view(req_builder.url.host.to_view())
         var is_https = req_builder.url.is_https()
         var use_proxy = proxy_host.size() > 0u && proxy_port > 0u

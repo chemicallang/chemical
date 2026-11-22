@@ -430,6 +430,34 @@ What is worth improving next, in the order the profile suggests:
 The probe also prints `artifacts` and the frozen page size, so a size change is as visible
 as a speed change.
 
+### Fourth pass: the wire, the framing and the session id (2026-11-22)
+
+Five hardening changes, each with a regression test that fails without it:
+
+1. **A response head could be split.** `Response.write_to` emitted every handler-set header
+   name, header value and status text verbatim. A `Location` built from `?next=` (or a
+   validation message quoting the user) containing `\r\n` therefore ended our head early and
+   the rest was read as headers — or as a second response — by the client. The writer now
+   validates the head before writing a byte and answers `500` + `Connection: close` when it
+   cannot encode it. `PROD_unsafe_response_head_is_refused` covers a value, a status text and a
+   header name.
+2. **A request head could be split.** The mirror case in `http::Client`: `is_wire_safe()` checks
+   the method, host, target and every header, and `Client.request` refuses *before dialing*.
+   `PROD_unsafe_request_head_is_refused` asserts the specific protocol error, not just "it failed".
+3. **A file body ignored `Range`.** `apply_byte_range` now seeks a `File` body and shortens it,
+   so a resumed download or a video seek streams the slice instead of the whole file (no read
+   into memory). `http::FileServer` gained `ETag` + `Last-Modified` and a `304` path that is
+   answered without opening the file; `If-Range` works because the tag is now there.
+4. **Ambiguous request framing was guessed.** `Transfer-Encoding` + `Content-Length`, an
+   unsupported `Transfer-Encoding`, and duplicate `Content-Length` fields are now `400`: a proxy
+   and this server framing one message differently turns the leftover bytes into the next
+   request (smuggling).
+
+5. **A session id survived a privilege change.** An id planted before a sign-in kept reading
+   the signed-in session (fixation). `web` gained `ctx.rotate_session()` — new id, values and
+   CSRF carried over, old record and durable file gone — and `ctx.rotate_csrf()`. The `tasks`
+   probe signs in through them and asserts that the pre-login cookie no longer signs in.
+
 ### Still open
 
 The production checklist — which of these remain, and what else a real deployment needs — is

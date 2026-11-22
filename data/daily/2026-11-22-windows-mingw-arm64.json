@@ -1,0 +1,86 @@
+{
+  "type": "daily",
+  "id": "2026-11-22-windows-mingw-arm64",
+  "date": "2026-11-22",
+  "generated_at": "2026-11-22T10:54:00Z",
+  "duration_ms": 113207,
+  "status": "failed",
+  "status_reason": "no backend could be built (see per-backend build/test logs)",
+  "platform": {
+    "os": "windows-mingw",
+    "arch": "arm64",
+    "libc": "ucrt"
+  },
+  "commit": {
+    "sha": "ab2e7629c8036dae940becd22e49efaa472cd695",
+    "short": "ab2e7629c803",
+    "subject": "Record that one send per response is not faster, and make the bench guard load-tolerant",
+    "author_date": "2026-11-22T14:22:15+05:00"
+  },
+  "compiler_version": {
+    "TCCCompiler": "n/a",
+    "Compiler": "n/a"
+  },
+  "backends": {
+    "Interpreter": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see Interpreter_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    },
+    "Compiler": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see Compiler_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    },
+    "TCCCompiler": {
+      "build": {
+        "status": "failed",
+        "reason": "compiler build failed; see TCCCompiler_build.log"
+      },
+      "benchmarks": [],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "unavailable",
+        "reason": "compiler build failed",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "duration_ms": null,
+        "failed_tests": []
+      },
+      "tests_build_ms": null,
+      "tests_build_status": "unavailable"
+    }
+  }
+}

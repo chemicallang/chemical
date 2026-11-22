@@ -428,6 +428,11 @@ as a speed change.
 
 ### Still open
 
+The production checklist — which of these remain, and what else a real deployment needs (access
+logs, dynamic gzip, multipart, durable sessions, panic containment) — is
+[`web-stack-production.md`](web-stack-production.md). Items 1–3 of the HTTP response protocol
+(`Date`, `Range`, `413`/`431` refusals) landed on 2026-11-22 and are no longer open.
+
 | # | item | why | done when |
 |---|---|---|---|
 | 1 | ~~Response write as one syscall~~ **measured, no gain** (see 1 above); a `writev` binding is the only variant left | two sends cost ~1 µs more, the copy costs the same | a scatter-gather write measured faster than two sends |

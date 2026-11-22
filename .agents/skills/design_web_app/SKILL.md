@@ -898,6 +898,19 @@ written head-then-body, and with Nagle on the body waited for the client's delay
 the same table read **40 ms** per kept-alive request until that was fixed. If you serve
 with your own accept loop, set `TCP_NODELAY` on the accepted socket too.
 
+**The protocol details are already handled by `http::server`** — do not re-implement them in a
+handler:
+
+| behaviour | what the server does |
+|---|---|
+| `Date` | stamped on every response (once per second, cached), RFC 9110 IMF-fixdate |
+| `Range` | `bytes=…` on in-memory bodies → `206` + `Content-Range` + `Accept-Ranges: bytes`; unsatisfiable → `416` + `Content-Range: bytes */N`; multiple ranges → the whole body; `If-Range` honoured when it is an `ETag`. `ResponseBody.File` bodies are streamed whole and never ranged |
+| oversized request | `413` past `max_body_bytes` (10 MiB), `431` past `max_header_bytes` (64 KiB) — complete or partial, counted the same way — `408` on a header/body timeout, `400` for a malformed head |
+
+The full production checklist (what is done, what is still missing — access logs, dynamic
+compression, multipart, cross-instance sessions) is
+[`lang/docs/web-stack-production.md`](../../../lang/docs/web-stack-production.md).
+
 ### `SharedAssets` — the low-level primitive
 
 `StaticSite` is a thin owner around `SharedAssets`, which you can still drive yourself when you need

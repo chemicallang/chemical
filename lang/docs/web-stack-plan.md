@@ -2120,3 +2120,23 @@ costs what the body copy it adds costs, and a large body would be strictly worse
 streaming shape stays and the next steps are a concurrent-load measurement and reducing
 per-render allocation. The plan's budgets should be read against this table; the framework is
 microseconds and the network shape is what costs.
+
+### Production readiness (2026-11-22)
+
+The served runtime now covers the response-protocol items a deployment needs, each with a test in
+`lang/tests/server/src/http_production_test.ch` (the `--server` suite, 22 tests):
+
+| item | where |
+|---|---|
+| `Date` on every response, per-second cache | `http::format_http_date`, `Server.date_header` |
+| `Range` / `206` / `416` on in-memory bodies, `If-Range` on `ETag` | `http/src/range.ch`, applied in `serve_ready` |
+| `413` / `431` / `408` / `400` refusals instead of a silent close | `status_for_error`, and `read_request_head` now rejects a *complete* oversized head too |
+
+No measurable cost: the same keep-alive p50 (37–40 µs) and in-process p50 (3 µs) as the table
+above, and the greedy `Date` format was ~1 µs per response before it was cached.
+
+The checklist of what is done versus still missing — access logging, dynamic-response gzip,
+multipart uploads, cross-instance sessions, a concurrent-load measurement, `writev`, per-request
+panic containment — with the evidence for each row, is
+[`web-stack-production.md`](web-stack-production.md). Those are the next work items; none of them
+is a correctness defect in what ships today.

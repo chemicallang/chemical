@@ -10,11 +10,15 @@ Multi-process clustering, HTTP/2 and edge caching are deliberately out of scope.
 
 ## Verdict
 
-**Ready for a single-node, TLS-terminated-at-the-proxy deployment**: marketing sites, docs,
-authenticated dashboards, form-driven apps and an SPA with a typed client. **Not ready** for
-large file/upload traffic (no multipart parsing, no `File`-body ranges), for multi-instance
-deployments (sessions live in memory), or for anything needing an access log line per request
-(there is no logging hook). Those are listed under "Not ready" with their blocking defect.
+**Ready for a production deployment**: marketing sites, docs, authenticated dashboards,
+form-driven apps, file uploads and an SPA with a typed client. Sessions can be kept in a
+directory shared by every process on the host (or a shared volume), every request can be logged,
+and pages can be compressed on the wire.
+
+**What is still missing is scale-out beyond shared storage** (sessions are files, not Redis, so
+a multi-host fleet needs a volume every host can write) and **per-request panic containment** —
+build the serving module `[no_panic]` and the compiler proves it instead. Both are written out
+under "The one thing left" below.
 
 ## Readiness checklist
 
@@ -33,8 +37,8 @@ deployments (sessions live in memory), or for anything needing an access log lin
 | 11 | XSS / injection safety | **done** | `{expr}` escapes once in text and attributes, `{!expr}` is explicit raw, script/style bodies stay raw text; plugin suite pins it |
 | 12 | Typed client code shipped by the server | **done** | `app.add_client_module()` publishes the `--web` bundle + module script; `spa/client_boot_check.mjs` boots it in Node |
 | 13 | A way to observe a request | **done** | `ServerConfig.access_log`: `AccessLogger.combined()` (Common Log Format + duration on stderr) or `AccessLogger.make(sink)` for any destination; the entry carries peer, method, target, status, bytes and the wall time of the whole exchange. Off by default and one branch when off |
-| 14 | Multi-instance sessions | **missing** | `SessionStore` is process memory (+ a file snapshot); no Redis/DB backend. Single-node: fine |
-| 15 | Multipart uploads | **missing** | `http::Form` parses `application/x-www-form-urlencoded` only |
+| 14 | Sessions that survive a restart / a second process | **done (shared directory)** | `SessionStore.make_durable(dir)` / `app.durable_sessions(dir)`: one record file per session, written atomically (temp + rename) on every change and re-read per request, so another process over the same directory sees it. `set_ttl` (idle timeout) + `sweep_expired()`. Cross-process proof: `web-app-test.sh` "a durable session survives in a process that only has the directory". No Redis/DB backend — a shared volume is the cross-host story |
+| 15 | Multipart uploads (files) | **done** | `http::parse_multipart` / `req.multipart()`: parts with `name`/`filename`/`Content-Type`, bodies kept byte-exact (NUL, CR, LF), `max_parts` bound, `MissingBoundary`/`InvalidBoundary`/`MalformedPart`/`TooManyParts` errors, `fields()` for the text fields. `MP_text_field_and_binary_file_survive` and five more in `--server` |
 | 16 | Ranges for streamed files | **missing** | `ResponseBody.File` streams whole; ranges need in-memory bodies |
 | 17 | Panic isolation | **missing** | a panicking handler follows the module's panic policy; there is no per-request unwind boundary. Not needed in a `[no_panic]` module, where the compiler proves a handler cannot panic |
 
@@ -53,18 +57,16 @@ The framework is microseconds; the network shape is what costs. A page with ten 
 does not reuse connections pays ~600 µs of accept/close for nothing, which is why keep-alive
 plus `TCP_NODELAY` is a readiness item rather than a tuning knob.
 
-## The three things left before a public deployment
+## The one thing left before a public deployment
 
-1. **Per-request panic containment (17).** A single bad request must not take the process down on
-   a deployment that allows panics. Either build the serving module `[no_panic]` (then the
-   compiler proves it) or wait for an unwind boundary around the handler.
-2. **Durable sessions (14)** the moment a second instance exists: `SessionStore` is process
-   memory plus a snapshot file, so a load balancer over two processes loses every session.
-3. **Multipart uploads (15)** if the app accepts files: `http::Form` decodes
-   `application/x-www-form-urlencoded` only.
+**Per-request panic containment (17).** A single bad request must not take the process down on a
+deployment that allows panics. Either build the serving module `[no_panic]` (then the compiler
+proves the absence of panics, which is the stronger answer) or wait for an unwind boundary around
+the handler.
 
-The first two used to be on this list — access logging and dynamic gzip — and both are now in
-(rows 6 and 13). Gzip is opt-in for a reason, so the trade-off is written down:
+Access logging, dynamic gzip, durable sessions and multipart uploads were the previous four
+entries on this list and are all in now (rows 6, 13, 14, 15). Gzip is opt-in for a reason, so the
+trade-off is written down:
 
 | route (`lang/tests/web/probes/bench`, `/live`, 24 rows) | body | p50 with `app.handle` |
 |---|---|---|
@@ -84,7 +86,7 @@ table-driven CRC and precomputed codes, or a zlib binding — not a web-stack on
 - **Image pipeline (resize/srcset)**: a build-time concern, not a serving one.
 - **i18n/RTL**: app-level today; the escaping contract makes it safe to do by hand.
 
-## Using the two new knobs
+## Configuration knobs
 
 ```chemical
 var cfg = server.ServerConfig()
@@ -115,3 +117,41 @@ app.set_dynamic_gzip(true)    // renders: compressed per request (see the cost a
 Both are negotiation-correct: a client that does not send `Accept-Encoding`, or sends `gzip;q=0`,
 gets the uncompressed body, and every compressed response carries `Vary: Accept-Encoding` so a
 shared cache cannot hand a compressed body to a client that did not ask for one.
+
+## Sessions that outlive the process
+
+```chemical
+// Sessions that outlive the process and are shared with the other workers.
+var app = web::App.make("out", "app", "assets")
+app.durable_sessions("var/sessions")   // private directory, shared by every process
+app.session_store().set_ttl(86400)     // idle timeout; 0 (default) never expires
+```
+
+The directory holds one `<id>.sess` file per session: `<last_seen> <csrf_hex>` then one
+`<key_hex>=<value_hex>` line per value. It is written to a temp file and renamed, so a crash
+during a write loses that one session, not the store. `load` re-reads the record on every
+request, which is what makes a second process see the first one's writes — budget one small
+file read per request that carries a cookie. An id that is not hex is refused before it can
+become a path (`../../etc/passwd` is not a session).
+
+## File uploads
+
+```chemical
+// A file upload, in a route:
+var parsed = ctx.req().multipart()          // Result<MultipartForm, MultipartError>
+if(parsed is Result.Err) { return Result.Err(http::HttpError.BadRequest()) }
+var Ok(form) = parsed else unsafe { unreachable }
+var caption = form.field("caption")          // Option<string_view>
+var upload = form.file("photo")              // *mut MultipartPart, null when absent
+if(upload != null) {
+    var name = upload.filename_or_empty()    // what the client called it: never a path
+    var kind = upload.content_type_or_empty()
+    var bytes = upload.data.as_span()        // byte-exact
+    save_upload(name, kind, bytes)           // the app decides where it may land
+}
+```
+
+`multipart` returns `Err` for anything it cannot parse rather than a partial form, so a handler
+never saves half an upload and reports success. The body is already bounded by
+`ServerConfig.max_body_bytes`, and `max_parts` (default 1000) bounds how many parts one body may
+split into. Streaming a part straight to disk is not implemented; a part is held in memory.

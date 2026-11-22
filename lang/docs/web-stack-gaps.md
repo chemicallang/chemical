@@ -95,9 +95,13 @@ progressive enhancement" as v1 and `web::Form` in the frozen API; neither exists
 `value_at`) over `parse_query`, so `+`/`%XX` decoding is shared with query strings, plus
 `http::parse_form(body)` and `web::form(req)` (which returns an empty form for another media type, so
 a JSON handler is not fed a mis-parse). One type, not two: a separate `web::Form` would have been the
-same struct, so the request-shaped accessor is the whole web-side addition. `multipart/form-data`
-(file uploads) remains open; CSRF is still `SessionStore.verify_csrf` called by the handler rather
-than something the form does, because that is a policy decision per route.
+same struct, so the request-shaped accessor is the whole web-side addition.
+*`multipart/form-data` landed (2026-11-22).* `http::parse_multipart` / `req.multipart()` walk the raw
+bytes — a file part's body is kept byte-exact (NUL, CR, LF, high bytes), which is what a urlencoded
+parser cannot do — and `MultipartForm.fields()` hands the text fields over as the same `Form`, so a
+handler written for a urlencoded body keeps working. A body that stops before its closing boundary is
+an error, not a form with a part missing. CSRF is still `SessionStore.verify_csrf` called by the
+handler rather than something the form does, because that is a policy decision per route.
 
 **4. A page with no components still ships the 48 KB hydration runtime.**
 `web::App` calls `defaultUniversalSetup()` on every page unconditionally, so the storefront — no
@@ -428,10 +432,11 @@ as a speed change.
 
 ### Still open
 
-The production checklist — which of these remain, and what else a real deployment needs (access
-logs, dynamic gzip, multipart, durable sessions, panic containment) — is
+The production checklist — which of these remain, and what else a real deployment needs — is
 [`web-stack-production.md`](web-stack-production.md). Items 1–3 of the HTTP response protocol
-(`Date`, `Range`, `413`/`431` refusals) landed on 2026-11-22 and are no longer open.
+(`Date`, `Range`, `413`/`431` refusals) landed on 2026-11-22, as did the operator-facing gaps
+(access logging, dynamic gzip, multipart uploads, directory-backed durable sessions); per-request
+panic containment is the one production item still open.
 
 | # | item | why | done when |
 |---|---|---|---|

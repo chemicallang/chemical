@@ -771,8 +771,45 @@ store.destroy(&mut res, &session)                 // drops the server record and
 Defaults are the safe ones: `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Secure` (pass `secure: true` /
 `store.set_secure(true)` in production — `http://localhost` needs the default). Cookie names and
 values that cannot be serialised produce **no** header rather than a broken one. CSRF comparison is
-constant time. The store is in-memory (process lifetime) and the interface is what a persistent store
-implements.
+constant time.
+
+**Sessions that survive the process.** `SessionStore.make()` is process memory: a restart forgets
+every session. For a deployment use the directory-backed store — one record file per session,
+written through atomically, re-read per request, so a second process over the same directory sees
+it and a crash loses at most the session being written:
+
+```chemical
+var app = web::App.make("out", "app", "assets")
+app.durable_sessions("var/sessions")     // private directory (values + CSRF tokens live there)
+app.session_store().set_ttl(86400)       // idle timeout; 0 (default) never expires
+// housekeeping from a timer, not per request:
+app.session_store().sweep_expired()
+```
+
+`load` refuses any id that is not hex before it touches the filesystem, so a cookie can never name
+a path. There is no Redis backend: a shared volume is the cross-host story.
+
+### File uploads (`multipart/form-data`)
+
+```chemical
+var parsed = req.multipart()                      // Result<MultipartForm, MultipartError>
+if(parsed is Result.Err) { /* 400 */ }
+var Ok(form) = parsed else unsafe { unreachable }
+var caption = form.field("caption")               // Option<string_view>, text fields only
+var upload = form.file("photo")                   // *mut MultipartPart, null when absent
+if(upload != null) {
+    var client_name = upload.filename_or_empty()   // never use it as a path
+    var kind = upload.content_type_or_empty()
+    var bytes = upload.data.as_span()              // byte-exact (NUL/CR/LF preserved)
+}
+var text_fields = form.fields()                    // -> http::Form, so form.get("q") works
+```
+
+A body that stops before its closing boundary is an `Err`, never a form with a part missing, and
+`max_parts` (default 1000) bounds how many parts one body may split into. Parts are held in memory
+(the request body is already capped by `ServerConfig.max_body_bytes`); there is no streaming-to-disk
+upload. Text fields can also be read with `http::parse_form` for urlencoded bodies — check
+`req.is_content_type("multipart/form-data")` when a handler accepts both.
 
 ### Client modules and typed `dom`
 

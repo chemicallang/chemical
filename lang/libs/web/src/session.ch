@@ -618,8 +618,10 @@ func parse_record_file(text : std::string_view, out : *mut SessionRecord) : bool
     var Some(csrf_field) = csrf else unsafe { unreachable }
     unsafe {
         out.last_seen = epoch
-        // A copy, not `csrf_field.text`: moving out of a local through a raw pointer
-        // leaves the local still owning the string, and both get freed.
+        // A copy, not `csrf_field.text`: `csrf_field` is a payload bound by
+        // `var Some(csrf_field) = csrf`, so its `text` aliases the variant's payload.
+        // Moving the field out clears this binding's drop flag while `csrf` still
+        // owns the string, and both free it (see destructure_move.ch).
         out.csrf = copy_of(csrf_field.text.to_view())
     }
     var i = first_end

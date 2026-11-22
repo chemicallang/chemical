@@ -451,3 +451,22 @@ func consuming_self_by_value_binding_is_allowed(env : &mut TestEnv) {
     var ch = "struct S {\n    var id : int\n    @delete func delete(&self) { }\n    func consume(self) : int { return self.id }\n}\npublic func main() : int {\n    unsafe {\n        var s = S { id : 1 }\n        return s.consume()\n    }\n}\n"
     expect_compile_success(env, "consuming_self_by_value_ok", ch)
 }
+
+@test
+func move_field_out_of_a_pointer_field_is_rejected(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // Reading a destructor-bearing field out of a pointee would move it away
+    // while the pointee's owner still destroys it; the drop flag cannot be
+    // reached through the pointer, so the shape is rejected instead of being
+    // lowered into a copy that frees the buffer twice. Moving a *local's* field
+    // (reached through a place, not a pointer) is tracked and allowed.
+    var ch = "using std::string\nstruct P {\n    var text : string\n}\npublic func main() : int {\n    var a = P { text : string(\"a\") }\n    var b = P { text : string(\"b\") }\n    var pa = &raw mut a\n    var pb = &raw mut b\n    unsafe { pa.text = pb.text }\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "move_field_out_of_pointer_field", ch, "SAFE-MOVE-004", NEG_MOD_STD_CORE)
+}
+
+@test
+func move_local_field_through_a_pointer_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "using std::string\nstruct P {\n    var text : string\n}\npublic func main() : int {\n    var dst = P { text : string() }\n    var p = &raw mut dst\n    unsafe {\n        var local = P { text : string(\"abcdefghij\") }\n        p.text = local.text\n    }\n    return dst.text.size() as int\n}\n"
+    expect_compile_success_with_mod(env, "move_local_field_through_pointer", ch, NEG_MOD_STD_CORE)
+}

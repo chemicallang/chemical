@@ -601,7 +601,16 @@ public struct TlsStream {
         if(p == null) { return null }
         unsafe { *p = TlsStream { ctx : null, peer : Certificate { ptr : null, owns : false, cn : string() } } }
         unsafe { p.ctx = stream.ctx }
-        unsafe { p.peer = stream.peer }
+        // A destructor-bearing field of a `&mut` cannot be moved out (the pointee's
+        // owner would still drop it, SAFE-MOVE-004), so the peer is rebuilt: the raw
+        // handle and its ownership flag are handed over and the CN is copied. The
+        // stream's own certificate is reset below, so exactly one side owns it.
+        unsafe {
+            var cn_view = stream.peer.cn.to_view()
+            var peer = Certificate { ptr : stream.peer.ptr, owns : stream.peer.owns, cn : string() }
+            peer.cn.append_view(&cn_view)
+            p.peer = peer
+        }
         stream.ctx = null
         stream.peer = Certificate { ptr : null, owns : false, cn : string() }
         return p
@@ -752,7 +761,14 @@ public struct TlsServerStream {
         if(p == null) { return null }
         unsafe { *p = TlsServerStream { ctx : null, peer : Certificate { ptr : null, owns : false, cn : string() } } }
         unsafe { p.ctx = stream.ctx }
-        unsafe { p.peer = stream.peer }
+        // Same hand-off as `TlsStream::into_box`: the peer cannot be moved out of a
+        // `&mut`, so its raw handle is transferred and its CN copied.
+        unsafe {
+            var cn_view = stream.peer.cn.to_view()
+            var peer = Certificate { ptr : stream.peer.ptr, owns : stream.peer.owns, cn : string() }
+            peer.cn.append_view(&cn_view)
+            p.peer = peer
+        }
         stream.ctx = null
         stream.peer = Certificate { ptr : null, owns : false, cn : string() }
         return p

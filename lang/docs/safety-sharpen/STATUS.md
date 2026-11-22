@@ -511,6 +511,37 @@ where a safe wrapper exists.
   assertion).
 - Gates: main 2485/2485, libs 904/904.
 
+## Field moves into a pointer field / a global (2026-11-22)
+
+- **Assignment to a field of a pointee owned the value silently.**
+  `MIRLowerer::lower_stmt`'s `AccessChain` field-assignment path handled an
+  `Address` source (a *field* of a local or of a by-value parameter, e.g.
+  `p.text = local.text`) by `load_indirect` + store without telling the move
+  tracker, so the source's drop flag stayed set. The destination kept the
+  pointer while the source's destructor freed it: reading the destination
+  returned memory shared with whatever reused the chunk, and the process
+  aborted at scope exit with `free(): double free detected in tcache 2`. A
+  move whose source is reached through a pointer/reference (`p.text = q.text`)
+  is still rejected with `SAFE-MOVE-004` — that flag cannot be reached.
+- **`store_global` skipped the move.** The global-assignment path never marked a
+  `Place`/`Address` source moved, so `GLOBAL = local` left the local owning the
+  value the global kept pointing at (dangling first, double free at exit).
+- **Tests:** `lang/tests/src/stdlib/language/destructors/move_through_pointer.ch`
+  (local field, parameter field, nested field, global from a local and from a
+  local field, plus an allocator-churn loop — each reads the destination back
+  *after* an equally sized allocation, which is what makes a freed chunk show up
+  as wrong bytes instead of accidentally still-correct stale memory) and two
+  `move_semantics.ch` negatives (pointer-source rejected, local field accepted).
+- **Remaining hole found while verifying:** moving a field out of a
+  *pattern-bound variant payload* (`var Some(f) = o; out.x = f.text`) is accepted
+  and still untracked — the payload aliases the variant, so clearing the
+  binding's flag leaves the variant to free the same string. `web`'s
+  durable-session record parser copies that field instead and says why.
+- Gates: main 2495/2495, negative 902/902, server 31/31, `web-app-test.sh` 76
+  checks green, all-library `--check` compile clean (tls `into_box` no longer
+  moves a destructor-bearing field out of a `&mut`: it hands the raw handle over
+  and copies the CN).
+
 ## Phase 1 notes
 
 - `dyn`/`DynBox`, tuple structs, unit tuple, core tuples, flat destructuring, slices/`str`, and generic impls stay.

@@ -384,9 +384,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         return true;
                     }
                     if (r.kind == MIRExprKind::Address) {
+                        // The destination takes ownership of the source field, so the
+                        // source's drop must not run again: clear its flag (or reject the
+                        // move when that flag cannot be reached). Without this a
+                        // `dest = source.field` — the source being a local or a by-value
+                        // parameter — copied the pointer and both sides freed it.
                         const TypeId ft2 = types_.map(chain->values.back()->getType());
                         const ValueId loaded =
                             builder_->load_indirect(static_cast<ValueId>(r.id), ft2);
+                        if (!mark_field_moved(as->value, r, error)) return false;
                         if (!have_ptr) {
                             builder_->field_store(cur_place, fc, loaded);
                         } else {
@@ -1410,6 +1416,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     bool have = false;
                     if (r.kind == MIRExprKind::Place) {
                         rv = builder_->load(static_cast<PlaceId>(r.id), vt);
+                        // The global now owns the value, so the source must not be
+                        // destroyed again: this is the same move the local-target
+                        // path marks, and without it the source freed the bytes the
+                        // global kept pointing at.
+                        mark_moved(static_cast<PlaceId>(r.id));
                         have = true;
                     } else if (r.kind == MIRExprKind::Address) {
                         const MIRTypeRecord& gtr = module_.types.get(vt);
@@ -1418,6 +1429,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                             rv = static_cast<ValueId>(r.id);
                         } else {
                             rv = builder_->load_indirect(static_cast<ValueId>(r.id), vt);
+                            if (!mark_field_moved(as->value, r, error)) return false;
                         }
                         have = true;
                     } else if (r.kind == MIRExprKind::Value) {

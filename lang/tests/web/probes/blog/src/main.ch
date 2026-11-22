@@ -161,7 +161,7 @@ func render_post(page : &mut HtmlPage, post : &Post) {
     var description = string("A note about ")
     description.append_string(&post.title)
     var desc_view = description.to_view()
-    var head = Head { description : desc_view }
+    var head = PageHead { description : desc_view }
     page.set_head(&head)
     var html = markdown_html(post)
     var html_view = html.to_view()

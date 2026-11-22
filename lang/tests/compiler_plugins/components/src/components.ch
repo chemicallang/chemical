@@ -921,8 +921,8 @@ public func components_slider_disabled(env : &mut TestEnv) {
 @test
 public func page_typed_head_emits_and_replaces(env : &mut TestEnv) {
     var page = HtmlPage()
-    page.set_head(Head { title: "Default | Docs", noindex: true })
-    page.set_head(Head { title: "Widgets <Docs>", description: "a \"quoted\" desc", canonical: "https://x.test/widgets" })
+    page.set_head(PageHead { title: "Default | Docs", noindex: true })
+    page.set_head(PageHead { title: "Widgets <Docs>", description: "a \"quoted\" desc", canonical: "https://x.test/widgets" })
     var head = std::string()
     head.append_view(page.getHead())
     contains_string_assert(env, head.to_view(), std::string_view("<title>Widgets &lt;Docs&gt;</title>"))

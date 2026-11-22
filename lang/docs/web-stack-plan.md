@@ -859,7 +859,7 @@ behaviour-only.
 | 2 | props payload becomes a JSON `<script type="application/json">` manifest; `window.$__uni_dispatch` and the global queue are removed | 42% of a page is dispatch text, and the global contract blocks ESM | automatic |
 | 3 | hydration ids become per-instance counters (`useId`) — **landed**; the emitted dispatch is now `document.getElementById('u' + <n>)` | two instances of one node collided before | automatic |
 | 4 | `SharedAssets`/`attach_shared` and manual `shared.js() + getHtml() + local_js()` assembly replaced by `web::App`/`web::Bundle` | the manual warm pass is the step that never happens | one `app.page(...)` per route |
-| 5 | head metadata becomes a typed `Head { title, meta, canonical, noindex }` instead of ad-hoc title strings | the head is part of the frozen shell and the manifest | mechanical |
+| 5 | head metadata becomes a typed `PageHead { title, meta, canonical, noindex }` instead of ad-hoc title strings | the head is part of the frozen shell and the manifest | mechanical |
 | 6 | `http::Server` normalised: `Server.bind(cfg)`, public listener-free `dispatch`, `handle(app)`, one constructor | routing, assets and serving must be one pipeline | constructor rename |
 | 7 | `page.writeToDirectory` becomes `web::Static.build(...)` (`@deprecated` shim for one release) | static export must use the same graph | one call |
 | 8 | `#globaljs` becomes an ESM chunk with defined order (after runtime, before route) | order is currently emission order | documented order |
@@ -1024,7 +1024,7 @@ parallel with Phase 1; everything else is ordered.
       consequence: SSR has the `href` and no `aria-current`.*
 - [x] Router cheap wins: `noindex` on missing/fallback routes (`emit_route_noindex`), the
       static-export route manifest is kept, the link-active render read is fixed (an effect, see
-      above), and **typed `Head` is landed** — `Head { title, description, canonical, noindex }`
+      above), and **typed `PageHead` is landed** — `PageHead { title, description, canonical, noindex }`
       with every field optional plus `HtmlPage.set_head(&Head)`, which **replaces** the previously
       emitted block instead of appending a second `<title>`, so a layout can set a default and a
       page can override it. Escaped (`<title>Widgets &lt;Docs&gt;</title>`), and covered by

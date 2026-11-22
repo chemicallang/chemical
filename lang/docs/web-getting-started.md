@@ -90,7 +90,7 @@ public struct CounterProps {
 Head metadata is typed rather than ad-hoc strings:
 
 ```chemical
-page.set_head(Head { title: "Home", description: "…", canonical: "…", noindex: false })
+page.set_head(PageHead { title: "Home", description: "…", canonical: "…", noindex: false })
 ```
 
 Every field is optional; a second call **replaces** the block (a layout sets a

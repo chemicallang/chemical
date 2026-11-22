@@ -149,7 +149,7 @@ func layout(page : &mut HtmlPage, all : &vector<Doc>, doc : &Doc, index : int) {
     page.appendTitle(doc.title.to_view())
     var canonical = doc_path(doc)
     var canonical_view = canonical.to_view()
-    var head = Head {
+    var head = PageHead {
         description : doc.summary.to_view(),
         canonical : canonical_view
     }

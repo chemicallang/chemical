@@ -76,7 +76,7 @@ public variant PageParameter {
 // instead of ad-hoc `<title>` strings appended from page bodies. Every field is
 // optional and empty/false means "emit nothing", so `Head{title: "Docs"}` is the
 // common case and the rest are opt-in.
-public struct Head {
+public struct PageHead {
     var title : std::string_view = ""
     var description : std::string_view = ""
     var canonical : std::string_view = ""
@@ -941,7 +941,7 @@ public struct HtmlPage {
     // Typed head metadata. Calling it again **replaces** the previously emitted
     // block instead of appending a second `<title>`, so a layout can set a default
     // and a page can override it (last call wins).
-    public func set_head(&mut self, head : &Head) {
+    public func set_head(&mut self, head : &PageHead) {
         if(head_mark_valid) { pageHead.resize(head_mark_start) }
         head_mark_start = pageHead.size()
         head_mark_valid = true

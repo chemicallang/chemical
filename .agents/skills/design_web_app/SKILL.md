@@ -682,9 +682,10 @@ public func Dashboard(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     #html { <DashboardBody /> }        // a component is fine *outside* a slot
 }
 
-public func DashboardFills(req : &http::Request) : web::SlotFills {
+public func DashboardFills(ctx : &mut web::RequestContext) : web::SlotFills {
     var f = web::SlotFills()
-    f.set_text("account", "ada")       // escaped; `set` splices trusted HTML verbatim
+    // The context carries the session, so the frozen chrome can greet the viewer.
+    f.set_text("account", ctx.session_text("user"))   // escaped; `set` splices raw HTML
     return f
 }
 
@@ -697,39 +698,33 @@ The three probe apps in `lang/tests/web/probes/` (`shop`, `blog`, `spa`) were wr
 published API only. `scripts/web-probes-test.sh` builds and runs them. Their findings, and the shape
 you should copy from them, are in `lang/docs/web-stack-gaps.md`; the short version:
 
-- **`web::App` routes by path, not method, and a handler cannot return a status.** There is no
-  POST, no redirect and no JSON answer from `app.handle`. A mutating app puts a hand-written
-dispatch in front of `App.handle`, as `shop/src/main.ch` (`handle_request`) does:
-
-  ```chemical
-  public func handle_request(app : &mut web::App, req : &mut http::Request, body : string_view) : http::Response {
-      var path = req.path.to_view()
-      if(path.equals(&string_view("/cart/add"))) {
-          if(!req.method.to_view().equals(&string_view("POST"))) { return http::response_text(405u, "method not allowed") }
-          // ... read the form, mutate, then redirect (PRG) ...
-          return http::response_redirect(303u, "/cart")
-      }
-      if(path.equals(&string_view("/api/products"))) { return http::response_json_text(200u, &json) }
-      return app.handle(req)
-  }
-  ```
-
-  Pass the body as a parameter: a `Request` cannot be built with a body (`RequestBody`'s fields are
-  internal), so a probe/test cannot hand `app.handle` one.
-- **No form parser exists.** `application/x-www-form-urlencoded` decoding is per-app code today
-  (`form_value`/`url_decode` in the shop probe). Do not assume `http`/`web` will do it for you.
+- **Methods, redirects and JSON are `endpoint` routes.** `app.endpoint(method, path, handler, cache,
+  vary)` runs per request and returns the whole `http::Response`, so a form POST, an API and a webhook
+  need no hand-written dispatch in front of `app.handle`; a path shared with a `page`/`live` route
+  serves both (GET from the page, POST from the endpoint, 405 only for a method nobody lists).
+  `ctx.form()` parses an urlencoded body (`ctx.is_form_post()` says whether there is one),
+  `ctx.body_text()` / `ctx.is_content_type("application/json")` read any other, and `web::redirect` /
+  `web::json` / `web::text` build the response.
+- **An endpoint that must show a page uses `ctx.render_page`.** PRG (`303` then GET) is the default
+  worth reaching for; when a form has to come back *with its errors*, `return
+  ctx.render_page(LoginPage, 422u)` renders the same handler a `live` route would — against the frozen
+  bundle, so a component in it hydrates — and the reason can ride in the session flash.
+- **A request a test builds itself is `http::request(method, path)`.** It copies both, splits and
+  decodes `?query` exactly as the server does, and chains `with_cookie` / `with_header` / `with_form` /
+  `with_json`. Feeding that to `app.handle` is how every probe asserts on a response.
 - **`{value}` interpolation is NOT escaped** — in element text *or* in an attribute. Every value that
   came from a user must go through `page.escape_html_view(&view)` (or `append_html` with an escaped
   string). A forgotten escape is an XSS bug; `#html { <a href={url}>…` is an attribute injection.
-- **A shell's fill callback is `(req : &Request) => FillSet` — it does not get the
-  `RequestContext`**, so it cannot read the session (`values(req)` is called with the raw request).
-  A shell page whose chrome varies per user (sign-in name, cart count) can only see cookies, not the
-  resolved session. Use `live`/`page` for those, or read the cookie yourself in the fill.
-- **An endpoint cannot render a page.** `endpoint()` handlers return an `http::Response`; rendering
-  HTML from one means building the bytes by hand. A form post that wants the browser to show a page
-  must redirect (PRG) to a `live`/`page` route.
-- **`web::App` always emits the hydration runtime** (~48 KB, 11 KB gzip) even on pages that use no
-  component — `web::Static` does not. Component-free pages still pay it.
+- **A shell fill can read the session but cannot change it.** `SlotValues` is
+  `(ctx : &mut RequestContext) => SlotFills`, so `ctx.session_text("user")` works; a fill that called
+  `set_session` would have nothing to carry the cookie (the document is spliced, not built by
+  `App.handle`). Mutating routes are `live`/`endpoint`.
+- **App state lives on the app, not in a global.** `app.set_state<Db>(&mut db)` (the type argument is
+  required: a generic parameter behind a reference is not inferred) and a handler reads
+  `ctx.state<Db>()`; build-time `page` routes see it too. Null means the app registered none.
+- **The hydration runtime ships only to a page that hydrates.** A `live`/`page` route that renders no
+  universal component gets no runtime, no chunk and no bundle `<script>` (the `tasks` probe serves a
+  component-free app with **0 B** of JS); a page that mounts one pays ~48 KB min / ~11 KB gzip.
 - **`Static.add(page, path)` stores the `string_view` without copying** (`web::Static` and
   `StaticSite.add`). Use `site.page(path)` instead — it copies the path and the site owns the page, so
   loop-built pages and helper-built pages are safe. `add` still exists for a page a caller already
@@ -962,7 +957,7 @@ Real shapes, measured by the probes (TCC, `--mode debug_quick`, one thread; full
 |---|---|---|
 | storefront, per-request product page | `shop` | ~0.36 ms SSR (5,500 renders in 2.03 s), 7.5 MB RSS |
 | 47-page blog, build + write | `blog` | 0.16 s, 3.8 MB RSS, 1.8 KB average HTML |
-| authenticated multi-user app, session + form post | `tasks` | **~15 µs/render** (400 renders), shell 337 B, **0 B JS** (component-free), 3 artifacts |
+| authenticated multi-user app, session + form post | `tasks` | **~15 µs/render** (400 renders), shell 381 B, **0 B JS** (component-free), 3 artifacts |
 | 43-page docs site with sidebar/prev-next/search index | `docs` | build **~50 ms**, 136,565 B HTML, biggest page 3,688 B, **0 scripts / 0 B JS**, gzip on |
 
 A component-free page can serve **0 bytes of JS** under `web::Static` but not under `web::App`

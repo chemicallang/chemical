@@ -242,16 +242,16 @@ session** (a real app) and **hundreds of similar routes** (a real content site).
 
 | measurement | `tasks` | `docs` |
 |---|---|---|
-| checks green | 31 | 11 (the search index replaced one 404 assertion with three positive ones) |
+| checks green | 38 | 11 (the search index replaced one 404 assertion with three positive ones) |
 | build | — | **~50 ms** |
 | artifacts | 3 (1 page, 1 shell, 1 chunk) | 46 (43 HTML + sitemap + robots + search index) |
-| total bytes | shell 337 B | 143,128 B (136,565 B HTML, biggest page 3,688 B) |
+| total bytes | shell 381 B | 143,128 B (136,565 B HTML, biggest page 3,688 B) |
 | JS sent to a component-free page | **0 B** (no bundle, no `<script>`) | **0 B**, 0 script tags on every page |
 | per-request render | **~15 µs** (400 renders in 6.2 ms) | n/a (all pre-rendered) |
 | gzip | — | on; HTML has gzip variants |
 
 Two numbers matter for the goals. `tasks` shows the *precompute* claim holding for an app: the chrome
-is a frozen shell (337 B, spliced), and the only per-request work is the list itself at ~15 µs. `docs`
+is a frozen shell (381 B, spliced), and the only per-request work is the list itself at ~15 µs. `docs`
 shows the *zero-JS* claim holding at scale: 43 pages with a sidebar and pagination ship no JavaScript
 at all, because every page is HTML and no page mounts a component.
 
@@ -277,32 +277,55 @@ at all, because every page is HTML and no page mounts a component.
    `application/json; charset=utf-8` and its own ETag. Also exposed `artifact_bytes(path)` and
    `has_gzip_variants()` on `web::Static`.
 
-### What the second survey adds to the gap list
+### What the second survey adds to the gap list — and what the third pass closed
 
-* **Shell fills never see the session** (new, P1). `app.shell(path, handler, values)` types `values`
-  as `(req : &Request) => FillSet`, but the session was resolved by the app *before* the fill runs and
-  lives on `RequestContext`. So the one route shape built for "chrome frozen, one region per user"
-  cannot render the signed-in user's name or cart count from the session — it can only parse cookies
-  itself. `tasks` works around it by rendering the greeting from a cookie. *Fix:* `SlotValues` should
-  take `&mut RequestContext` (the fill runs inside `render_shell`, which already has it).
-* **An endpoint cannot render a page** (confirmed, P1). `endpoint()` returns `http::Response`; a form
-  post that should show a page must redirect (PRG) to a page route. That is the right default, but
-  there is no `web::render_page(handler, ctx) : http::Response` escape hatch, so an endpoint that
-  wants to re-render a form with errors has to build HTML by hand (the `tasks` probe avoids it by
-  redirecting). *Fix:* expose the live-render path as a helper.
-* **App state has no home** (confirmed, P1). `tasks` needs one `SessionStore` and one list of todos
-  shared by every route. There is no `App`-owned store, so the probe keeps them behind one pointer in
-  a request-local and touches it through `unsafe` — exactly the pattern `RequestContext` was added to
-  remove, one level up. *Fix:* `App.state<T>(init) : &mut T` (or `app.set_state(&mut T)`), read back
-  from a handler through `ctx.state()`.
+Four of the six were fixed in the pass that followed the survey; the two left are feature-sized
+(`P0-2`, `P0-5`) and are described as such below.
+
+* ~~**Shell fills never see the session**~~ **fixed.** `SlotValues`/`ShellPredicate` now take
+  `&mut RequestContext`, so a fill reads `ctx.session_text("uid")` and a variant predicate can choose
+  "signed in vs out" chrome. `tasks` renders `Signed in as user N` from the session (and `Not signed
+  in` anonymously) in a **frozen 381 B shell** — the same shell for every viewer, one spliced slot
+  apart. A fill still cannot *create* a session: the document is spliced by `render_shell`, not built
+  by `App.handle`, so no `Set-Cookie` would ride along. Mutating routes are `live`/`endpoint`.
+* ~~**An endpoint cannot render a page**~~ **fixed as `ctx.render_page(handler, status, cache)`.** It
+  renders the page against the app's frozen bundle exactly like a `live` route (a component in it
+  hydrates) and answers 503 when the bundle lacks one, which is the failure a `live` route reports.
+  `tasks` re-renders its sign-in form with **422** on a wrong password, and the reason travels in the
+  session flash. PRG is still the default for a successful POST.
+* ~~**App state has no home**~~ **fixed as `app.set_state<T>(&mut state)` + `ctx.state<T>()`.** The app
+  keeps one pointer (the caller keeps ownership); every route — including a build-time `page` route —
+  reads the typed value from the context. `tasks` dropped its `@never_destructed` global and its
+  `db()` accessor; `Db` is now a stack local in `main`, and the only `unsafe` left in `db.ch` is the
+  single dereference of the pointer the app was given. Note: the type argument is **required**
+  (`app.set_state<Db>(&mut db)`) — a generic parameter that appears only behind a reference is not
+  inferred (`SymRes:link: couldn't infer type for generic parameter`).
+* ~~**A request cannot be built for a test**~~ **fixed as `http::request(method, path)`** plus the
+  chainable `with_cookie` / `with_header` / `with_form` / `with_json`. It splits and decodes `?query`
+  off the path exactly as the server's parser does, so a handler cannot tell a built request from a
+  received one. `is_form_post()` was missing from `http::Request` despite being documented — added
+  there and on `RequestContext`. Pinned by six `@test`s in `lang/tests/server` (suite 9 → 16).
 * **`respond()` is identity-only and that is the right split** (checked while writing `docs`). With
   `set_gzip(true)` an artifact has two representations and two ETags; `respond(path)` always returns
   the identity bytes, and `respond_negotiated(path, etag, accept_encoding)` returns the gzip body +
   `Content-Encoding: gzip` + its own ETag only when the header allows it. A server must call the
   negotiated form to get `Vary: Accept-Encoding` right, so the probes do; no API change.
-* **P1-11 is stale on the clock.** `std::time.Instant::now()`/`.elapsed()` exists and both new probes
-  time themselves with it; only `http::Request.make` is still missing from that item.
 
+### Next round, in order
+
+| # | item | why | done when |
+|---|---|---|---|
+| 1 | ~~`SlotValues` takes `&mut RequestContext`~~ **done** | a shell is the shape for per-user chrome | `tasks` renders the signed-in user from the session in a fill, frozen shell unchanged |
+| 2 | ~~`App.state<T>` + `ctx.state()`~~ **done** | every app has process state; it was a global behind `unsafe` | `tasks` keeps `Db` on the stack, no global |
+| 3 | ~~`http::Request.make`~~ **done as `http::request`** | request-level testing was hand-rolled in every probe | probes/tests build a request in one call |
+| 4 | ~~`web::render_page`~~ **done as `ctx.render_page`** | form re-render with errors | `tasks` answers **422** with the form and its message |
+| 5 | Point `spa`'s shell at the client bundle (P0-2, still open) | typed client code exists but nothing loads it; the client job's `web-client/assets/*.mjs` is not in the server's artifact set, and no build hook names it | the served shell references the module; a Node harness runs it |
+| 6 | Escape-by-default `{}` (P0-5, still open) | the only security bug in the list; needs a syntax decision for the raw marker | `shop` search needs no `escape_html_view` |
+
+Items 5 and 6 are the two that remain, and both need a decision before code: 5 needs the build to hand
+the server the client bundle (an `assets.ch` generated from the chunk graph, per the note at
+`LabBuildCompiler.cpp:3707`), 6 needs the raw-interpolation spelling (`{!expr}` vs `{raw expr}` vs a
+`raw(...)` wrapper) since it changes what every `#html { … }` means.
 ### Next round, in order
 
 | # | item | why | done when |

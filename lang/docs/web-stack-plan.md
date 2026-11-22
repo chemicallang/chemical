@@ -1983,7 +1983,7 @@ Before freezing v1 we wrote five apps using **only** the public API and measured
 | `shop` | storefront: frozen pages + per-request renders + shell, sessions, CSRF, POST, PRG, JSON, user input in HTML | 22 checks green; ~0.36 ms/SSR render (5,500 in 2.03 s, 7.5 MB RSS); 48 KB bundle on pages with no component (**now 25 checks, no bundle**) |
 | `blog` | content site: 47 pre-rendered pages, tag pages, one shared island | 0.16 s build+write, 3.8 MB RSS, 1.8 KB avg HTML, 0 `<script>` on component-free pages, 40 identical chunks → 40 URLs |
 | `spa` | single-page app: `--web` split, shell, JSON endpoint, typed client | 7 checks green; the emitted `web-client.mjs` (217 KB / 27.9 KB gz) is **not referenced by the served page** |
-| `tasks` | authenticated multi-user app: `page`+`live`+`shell`+`endpoint` on shared paths, sessions, form POST→303, per-user lists, CSRF | 31 checks green; **~15 µs/render**, 337 B shell, **0 B JS** on a component-free page, 3 artifacts |
+| `tasks` | authenticated multi-user app: `page`+`live`+`shell`+`endpoint` on shared paths, sessions, form POST→303, per-user lists, CSRF | 38 checks green; **~15 µs/render**, 381 B shell, **0 B JS** on a component-free page, 3 artifacts |
 | `docs` | documentation site: 43 generated pages, sidebar, prev/next, sitemap/robots, JSON search index, gzip | 11 checks green; build **~50 ms**, 136,565 B HTML, biggest page 3,688 B, **0 scripts / 0 B JS** |
 
 The survey also found a real parser bug, fixed here: `@{ ... }` could not span lines — and, in the
@@ -2031,14 +2031,25 @@ all landed and gated by the probes:
 - **Endpoint/page dispatch on a shared path** answers GET from the page route and 405 only for methods
   no route lists (a real bug: `app.live("/todos")` + `app.endpoint("POST", "/todos")` returned 405
   to GET).
-- **`RequestContext` reaches every route shape except a shell fill** — `SlotValues` is still
-  `(req : &Request) => FillSet`, so a shell cannot render the signed-in user from the session. That,
-  `App.state<T>` (app-owned state instead of a global behind `unsafe`), `http::Request.make`, the
-  client-bundle wiring (P0-2) and the `{}` escape decision are the six items in the next-round table at
-  the end of `web-stack-gaps.md`.
+- **`RequestContext` now reaches every route shape**: a shell fill and a shell-variant predicate take
+  `&mut RequestContext` too, so the frozen chrome can greet the signed-in user (one spliced slot), and
+  `ctx.render_page(handler, status)` lets an endpoint answer with a rendered page (a 422 form
+  re-render) instead of redirecting.
+- **`App.state<T>`**: `app.set_state<Db>(&mut db)` gives the app its own state (a database, a config)
+  and `ctx.state<Db>()` reads it back in every route — including a build-time `page` route. The type
+  argument is required (a generic parameter behind a reference is not inferred). The `tasks` probe
+  dropped its `@never_destructed` global for this.
+- **`http::request(method, path)`** builds a request for a test, splitting `?query` off the path
+  exactly as the server's parser does, with `with_cookie` / `with_form` / `with_json` /
+  `with_header`; `is_form_post()` exists on `http::Request` and `RequestContext`.
+
+The two that remain are feature-sized and need a decision first: the client-bundle wiring (P0-2, the
+build must hand the server the client job's module) and escape-by-default `{}` (P0-5, which needs the
+raw-interpolation spelling). Both are the last two rows of the table at the end of
+`web-stack-gaps.md`.
 
 Measured on the two new shapes, the plan's two headline claims hold: a precomputed app answers a
-per-user render in **~15 µs** with a 337 B frozen shell, and a 43-page content site ships **0 bytes of
+per-user render in **~15 µs** with a 381 B frozen shell, and a 43-page content site ships **0 bytes of
 JS** while building in **~50 ms**.
 
 ## 10. How we will know it worked

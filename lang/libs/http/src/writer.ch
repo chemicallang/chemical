@@ -73,9 +73,13 @@ public func (b: &mut ResponseBody) write_onto(out : &mut Stream) : Result<Unit, 
 ///   emitted accordingly (a handler can force `close` by setting it).
 /// * `head_only` — a `HEAD` response: the head carries the real
 ///   `Content-Length`, the body is not written.
-public func (res: &mut Response) write_to(out : &mut Stream, keep_alive : bool, head_only : bool) : Result<Unit, HttpError> {
+/// * `date` — the `Date` header value (RFC 9110 §6.6.1). The server passes its
+///   per-second cached IMF-fixdate; empty means "do not send one" (a non-server
+///   caller writing a message for a test).
+public func (res: &mut Response) write_to(out : &mut Stream, keep_alive : bool, head_only : bool,
+                                         date : std::string_view) : Result<Unit, HttpError> {
     var head = string()
-    head.reserve(256)
+    head.reserve(320)
 
     if(res.proto.empty()) {
         head.append_view("HTTP/1.1 ")
@@ -115,6 +119,12 @@ public func (res: &mut Response) write_to(out : &mut Stream, keep_alive : bool, 
         head.append_view("Connection: keep-alive\r\n")
     } else {
         head.append_view("Connection: close\r\n")
+    }
+
+    if(!date.empty() && !res.headers.contains("Date")) {
+        head.append_view("Date: ")
+        head.append_view(&date)
+        head.append_view("\r\n")
     }
 
     var iter = res.headers.iter()

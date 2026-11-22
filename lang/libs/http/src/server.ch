@@ -61,6 +61,29 @@ public struct ShutdownHandle {
     }
 }
 
+/// The `Date` header shared by every connection: an IMF-fixdate is calendar work
+/// (about a microsecond), a third of a frozen page's framework cost, so it is
+/// formatted once per second and reused.
+@direct_init
+protected struct DateStamp {
+    var second : i64
+    var text : string
+
+    /// Re-format only when the wall clock crossed a second boundary: the header may
+    /// be stale by under a second, which is what the format's resolution allows.
+    func refresh(&mut self, secs : i64) : string {
+        if(second != secs) {
+            second = secs
+            var formatted = http::format_http_date(secs)
+            // `replace` moves `formatted` into `text` and returns the *old* text, which
+            // is the value being discarded here — assigning the result back would put
+            // the stale text in place and throw the fresh date away.
+            var _ = std::replace(&mut text, formatted)
+        }
+        return text.copy()
+    }
+}
+
 public struct Server {
     internal var cfg: ServerConfig;
     internal var pool: std::concurrent.ThreadPool;
@@ -70,6 +93,7 @@ public struct Server {
     /// during serving is impossible by construction.
     var router: web.Router;
     internal var stopping: std::Arc<std::Mutex<bool>>;
+    internal var date_stamp: std::Arc<std::Mutex<DateStamp>>;
     internal var tls_chain: tls::CertificateChain;
     internal var tls_key: tls::PrivateKey;
     internal var tls_enabled: bool;
@@ -84,6 +108,7 @@ public struct Server {
             listener = net::TcpListener();
             router = web.Router();
             stopping : std::arc(std::new_mutex(false)),
+            date_stamp : std::arc(std::new_mutex(DateStamp { second : -1, text : string() })),
             tls_chain = tls::CertificateChain();
             tls_key = tls::PrivateKey();
             tls_enabled = false;
@@ -181,15 +206,54 @@ public struct Server {
     // Message pipeline
     // -----------------------------------------------------------------------
 
+    /// The status a framing failure deserves. `read_request_head`/`read_request_body`
+    /// report *why* a message was rejected; answering every case with 400 hides the
+    /// one thing the client can act on (a body or header block that is too large).
+    func status_for_error(err : &http::HttpError) : u16 {
+        switch(err) {
+            HeaderTooLarge() => { return 431u }
+            BodyTooLarge() => { return 413u }
+            Timeout() => { return 408u }
+            default => { return 400u }
+        }
+    }
+
+    func reason_for_status(status : u16) : string {
+        switch(status) {
+            413u => { return string("Request body too large\n") }
+            431u => { return string("Request header fields too large\n") }
+            408u => { return string("Request timed out\n") }
+            default => { return string("Bad Request\n") }
+        }
+    }
+
+    /// The `Date` header for this second (see `DateStamp`).
+    func date_header(&self) : string {
+        var guard = self.date_stamp.get().lock()
+        var stamp = guard.get()
+        var secs = std::chrono::SystemTime::now().as_unix_epoch_secs()
+        return stamp.refresh(secs)
+    }
+
     /// Handle exactly one message on `stream`. Returns whether the connection
     /// should stay open for another message.
     func serve_ready(&self, stream : &mut http::Stream, buf : &mut net::Buffer) : bool {
+        var date = self.date_header()
+        var date_view = date.to_view()
         var head = http::read_request_head(stream, buf,
                                            self.cfg.header_timeout_secs,
                                            self.cfg.max_header_bytes,
                                            self.cfg.max_headers)
         if(head is Result.Err) {
-
+            // A request the framework cannot frame still deserves an answer: a silent
+            // close leaves the client with "connection reset" and no reason, and a
+            // body over the limit is a 413, not a generic 400.
+            var Err(head_err) = head else unsafe { unreachable }
+            var status = status_for_error(&head_err)
+            var reason = reason_for_status(status)
+            var reason_view = reason.to_view()
+            var refusal = http::response_text(status, &reason_view)
+            var _ = refusal.write_to(stream, false, false, date_view)
             return false
         }
         var Ok(req) = head else unsafe { unreachable }
@@ -198,15 +262,42 @@ public struct Server {
                                              self.cfg.max_body_bytes,
                                              (self.cfg.body_timeout_secs * 1000) as u64)
         if(body_r is Result.Err) {
-
-            var err = http::response_text(400u, "Bad Request\n")
-            var _ = err.write_to(stream, false, false)
+            var Err(body_err) = body_r else unsafe { unreachable }
+            var status = status_for_error(&body_err)
+            var reason = reason_for_status(status)
+            var reason_view = reason.to_view()
+            var refusal = http::response_text(status, &reason_view)
+            var _ = refusal.write_to(stream, false, false, date_view)
             return false
         }
 
         var is_head = http::text_equals(req.method.to_view(), string_view("HEAD"))
         var keep = request_wants_keep_alive(&req)
+        // Range, read off the request before dispatch consumes it. The decision needs
+        // the response's length and ETag, so it is taken after the handler runs.
+        var range_header = req.headers.get_owned("Range")
+        var if_range_header = req.headers.get_owned("If-Range")
         var res = self.dispatch(req)
+        if(range_header is Option.Some) {
+            var Some(range_value) = range_header else unsafe { unreachable }
+            var if_range : Option<string_view> = Option.None<string_view>()
+            if(if_range_header is Option.Some) {
+                var Some(if_range_value) = if_range_header else unsafe { unreachable }
+                if_range = Option.Some<string_view>(if_range_value.to_view())
+            }
+            var etag_owned = res.headers.get_owned("ETag")
+            var etag : Option<string_view> = Option.None<string_view>()
+            if(etag_owned is Option.Some) {
+                var Some(etag_value) = etag_owned else unsafe { unreachable }
+                etag = Option.Some<string_view>(etag_value.to_view())
+            }
+            var range_view = range_value.to_view()
+            var length = res.body.size() as usize
+            var decision = http::range_decision_for(range_view, if_range, etag, length)
+            http::apply_byte_range(&mut res, decision)
+        } else {
+            http::apply_byte_range(&mut res, http::RangeDecision.None())
+        }
 
         // A handler may opt out of keep-alive explicitly.
         if(keep) {
@@ -217,7 +308,7 @@ public struct Server {
             }
         }
 
-        var written = res.write_to(stream, keep, is_head)
+        var written = res.write_to(stream, keep, is_head, date_view)
         if(written is Result.Err) {
             return false
         }

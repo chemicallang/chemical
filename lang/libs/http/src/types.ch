@@ -625,6 +625,7 @@ public func status_text(code : u16) : string_view {
         413 => { return string_view("Content Too Large") }
         414 => { return string_view("URI Too Long") }
         415 => { return string_view("Unsupported Media Type") }
+        416 => { return string_view("Range Not Satisfiable") }
         429 => { return string_view("Too Many Requests") }
         431 => { return string_view("Request Header Fields Too Large") }
         500 => { return string_view("Internal Server Error") }

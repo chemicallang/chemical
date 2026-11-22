@@ -258,6 +258,12 @@ func read_request_head(stream : &mut Stream, buf : &mut net::Buffer,
     loop {
         var end = find_header_end(buf)
         if(end != std::NPOS) {
+            // A complete head over the limit is rejected exactly like an incomplete one:
+            // the limit bounds how many bytes a peer can make the server buffer, not
+            // whether those bytes arrived in one read.
+            if(end > max_header_bytes) {
+                return Result.Err(HttpError.HeaderTooLarge())
+            }
             var parsed = parse_request_from_bytes(buf.as_ptr(), end, max_headers)
             if(parsed is Option.Some) {
                 var Some(req) = parsed else unsafe { unreachable }

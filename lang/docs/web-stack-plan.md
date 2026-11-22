@@ -2082,3 +2082,38 @@ JS** while building in **~50 ms**.
 
 **Evidence that later releases stayed additive:** after v1, no user-visible rename, no changed
 signature, no changed `chemical.mod` shape. A later release that needs one is a bug in this plan.
+
+## Landed 2026-11-22: escaping, the client bundle, and the served-runtime numbers
+
+Three of the survey's findings closed in one pass. Details and measurements:
+`web-stack-gaps.md` (third pass).
+
+1. **`{expr}` in `#html` escapes by default; `{!expr}` is the raw splice.** A value becomes a
+   text node (or an attribute value) and is escaped exactly once by `page`'s `append_text_*`
+   sinks, so escaping is one definition shared by every backend rather than a rule each code
+   generator re-implements. Attributes are escaped once. A `<script>`/`<style>` body is **raw
+   text** — the browser never entity-decodes it, so a JSON island stays unescaped (an escaped
+   `{&quot;a&quot;:1}` is not JSON). A type that means to emit markup implements
+   `writeToPageHtml` (raw); the default hook is `writeTextToPageHtml`.
+2. **`app.add_client_module()`** publishes the `--web` client job's `.mjs` assets under
+   `<asset_prefix>/client/` and adds `<script type="module" src=".../client/boot.mjs">` to every
+   page's head (`StaticSite.add_head_tag` is the general hook). `boot.mjs` imports `index.mjs`
+   and calls `$run()`, so the bundle keeps its relative imports and the app names no file. The
+   `spa` probe boots the exported bundle in Node against a stub DOM to check it runs, not just
+   that it is served.
+3. **Accepted sockets are `TCP_NODELAY`.** `http::server` writes a response head-then-body; with
+   Nagle on, the body waited for the peer's delayed ACK, which measured **40 ms per kept-alive
+   request** (48 req/s instead of ~25,000). `net::raw::set_no_delay` is applied in every accept
+   path, and `web-probes-test.sh bench` fails if keep-alive p50 exceeds 5 ms.
+
+Served runtime, one thread, loopback, TCC backend (`lang/tests/web/probes/bench`):
+
+| route | delivery | `app.handle` p50 | new connection p50 | keep-alive p50 | keep-alive req/s |
+|---|---|---|---|---|---|
+| `/` | frozen page | 3 µs | 63 µs | 38 µs | ~25,000 |
+| `/shell` | frozen shell + 2 fills | 5 µs | 66 µs | 44 µs | ~20,000 |
+| `/live` | per-request 24-row render | 34 µs | 103 µs | 77 µs | ~12,600 |
+
+Next, in the order those numbers point at: one `send` per response (head + body are still two),
+a concurrent-load measurement, and reducing per-render allocation. The plan's budgets should be
+read against this table; the framework is microseconds and the network shape is what costs.

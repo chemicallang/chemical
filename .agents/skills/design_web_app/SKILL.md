@@ -712,9 +712,15 @@ you should copy from them, are in `lang/docs/web-stack-gaps.md`; the short versi
 - **A request a test builds itself is `http::request(method, path)`.** It copies both, splits and
   decodes `?query` exactly as the server does, and chains `with_cookie` / `with_header` / `with_form` /
   `with_json`. Feeding that to `app.handle` is how every probe asserts on a response.
-- **`{value}` interpolation is NOT escaped** — in element text *or* in an attribute. Every value that
-  came from a user must go through `page.escape_html_view(&view)` (or `append_html` with an escaped
-  string). A forgotten escape is an XSS bug; `#html { <a href={url}>…` is an attribute injection.
+- **`{value}` interpolation IS escaped** (once), in element text and in attribute values. Put user
+  data straight in — `#html { <p>{ctx.query("q")}</p> }` cannot inject markup, and neither can
+  `href={url}`. `{!value}` is the explicit raw splice, for a value that already is markup (a
+  pre-rendered fragment, a `RawHtml`-like wrapper); use it only where you own the string. A
+  `<script>`/`<style>` body is **raw text** (the browser never entity-decodes it), so a JSON island
+  is `<script type="application/json">{payload}</script>` with no escaping; `{}` and `{!}` behave
+  identically there and literal text stays verbatim. A type that must emit markup from `{}`
+  implements `writeToPageHtml` (raw); the escaping hook is `writeTextToPageHtml` (what
+  `string`/`string_view` use).
 - **A shell fill can read the session but cannot change it.** `SlotValues` is
   `(ctx : &mut RequestContext) => SlotFills`, so `ctx.session_text("user")` works; a fill that called
   `set_session` would have nothing to carry the cookie (the document is spliced, not built by
@@ -824,11 +830,15 @@ public func main() : int {
   **Not yet in v1:** `query_selector_all`, `child_count`/`child_at`, `remove_child`,
   `location`/hash, history, a `fetch` with headers/body, and JSON. An SPA that navigates from a
   hash or renders a list of unknown length needs workarounds today (see `spa/client/main.ch`).
-- **The client bundle is not wired into the served page yet.** `--web` writes
-  `<build-dir>/web-client/assets/web-client.mjs`, but `web::App` emits only the universal hydration
-  bundle, so a `client` module's JS is compiled and never referenced. Until that lands, treat
-  `client/*.ch` as code you test under Node (`scripts/web-dom-test.sh`), not as something the served
-  page loads.
+- **`app.add_client_module()` wires `client/*.ch` into the served page.** On a `--web` build the
+  client job writes `<build-dir>/web-client/assets/*.mjs` before the server runs; this call publishes
+  every `.mjs` under `<asset_prefix>/client/` and adds
+  `<script type="module" src="assets/client/boot.mjs">` to every page's `<head>` (`boot.mjs` imports
+  `index.mjs` and calls `$run()`). Call it before `build()`; without `--web` it returns `false` and
+  `error_message()` says why. `static_site.add_head_tag(tag)` is the general hook if you need a
+  different tag. Verify a bundle the way `lang/tests/web/probes/spa/client_boot_check.mjs` does:
+  import the exported `boot.mjs` in Node against a stub `document`/`fetch` and assert what the client
+  rendered.
 - **`set_html` is trusted-markup only** — it parses HTML and never escapes; use
   `set_text` for anything that came from a user.
 - Debugging: the client job always emits a source map (`web-client.mjs.map`), so a
@@ -870,6 +880,23 @@ a bundle asset). Two rules follow from that: use `res.body.text()`/`data()` (the
 rendered per request is a local `string` and must go through the owning `Response.text()`/
 `html()` (which is why `web::App` keeps `response_of` as the copying default and uses
 `response_of_borrowed` only for frozen artifacts).
+
+**Keep-alive is the fast path, and it needs `TCP_NODELAY`.** Measured with
+`lang/tests/web/probes/bench` (`./scripts/web-probes-test.sh bench`), 24-row pages, TCC
+backend, one thread, loopback:
+
+| shape | `app.handle` p50 | new connection p50 | keep-alive p50 |
+|---|---|---|---|
+| frozen page | 3 µs | 63 µs | 38 µs |
+| frozen shell + fills | 5 µs | 66 µs | 44 µs |
+| per-request render | 34 µs | 103 µs | 77 µs |
+
+The honest reading is that accept/close is ~15× the framework work, so a page with ten
+assets that does not reuse connections pays ~600 µs of nothing. `http::server` sets
+`net::raw::set_no_delay` on every accepted socket for exactly that reason: a response is
+written head-then-body, and with Nagle on the body waited for the client's delayed ACK —
+the same table read **40 ms** per kept-alive request until that was fixed. If you serve
+with your own accept loop, set `TCP_NODELAY` on the accepted socket too.
 
 ### `SharedAssets` — the low-level primitive
 

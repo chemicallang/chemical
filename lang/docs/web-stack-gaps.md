@@ -20,7 +20,7 @@ The probes live in `lang/tests/web/probes/` and are built/run by `scripts/web-pr
 Numbers are from this machine, TCC backend, `--mode debug_quick`, minified + gzip where the probe
 enables it. They are the baseline the plan's budgets should be written against.
 
-### `shop` (22 checks green)
+### `shop` (25 checks green)
 
 | measurement | value |
 |---|---|
@@ -44,14 +44,14 @@ enables it. They are the baseline the plan's budgets should be written against.
 | per-route chunks | 40 post pages get **40 separate 28-byte files with the same content hash** (`post-NN_index.14afcbcb6b1a.js`) |
 | script tags on a post page | **0** (a page that uses no component correctly ships no JS) |
 
-### `spa` (`--web`, 7 checks green)
+### `spa` (`--web`, 10 checks green)
 
 | measurement | value |
 |---|---|
 | shell page | 810 B |
 | JSON endpoint | 130 B |
 | client job output | `web-client.mjs` 217,182 B (27,866 gzip) + `runtime.mjs` 27,586 B (8,060 gzip) + 778 B entry, unminified |
-| shell references the client bundle? | **no** — the page loads `assets/spa.<hash>.js` (the universal hydration runtime), not `web-client.mjs` |
+| shell references the client bundle? | **yes** (third pass) — `assets/client/boot.mjs` is a module script in the `<head>` and the bundle is served under `assets/client/`; before that the page loaded nothing that runs the client job |
 
 ## Bugs found and fixed here
 
@@ -79,11 +79,11 @@ answers `405` with `Allow` instead of `404`. Public helpers are `web::json`, `we
 `Cache-Control` unset, and `App.endpoint_count()` reports the size of the table. The storefront probe
 registers its four mutating/JSON routes and its hand-written dispatch is gone.
 
-**2. The typed client job is not connected to the served page.**
-`--web` compiles `client/*.ch` to `web-client.mjs`, and `web::App` emits `assets/spa.<hash>.js`
-(the universal hydration runtime). Nothing joins them: the served shell never references the client
-bundle. So typed client code — the stack's answer to "SPAs and client interaction" — cannot ship.
-*Fix:* a `web::App.client_bundle(path)` / module-level marker that puts the emitted client module
+**2. ~~The typed client job is not connected to the served page~~ — fixed (third pass).**
+`--web` compiles `client/*.ch` to `web-client/assets/*.mjs`, and the served shell referenced none of
+it, so typed client code could not ship. `web::App.add_client_module()` now publishes those assets
+under `<asset_prefix>/client/` and adds a `boot.mjs` module script to every page's `<head>`.
+*Original proposal:* a `web::App.client_bundle(path)` / module-level marker that puts the emitted client module
 into the page bundle (and into `SharedAssets`), plus one `web-client` gate that asserts the served
 HTML references it.
 
@@ -121,14 +121,16 @@ Measured on the probes (same host, `--mode debug_quick`, `-bm-modules`):
 The universal plugin suite (`--tcc --plugins`, 1,315) and the component-bearing `blog` page still
 hydrate: a page that does render a component gets the runtime, its definition and its chunk.
 
-**5. Interpolation never escapes, and there is no way to say "this is HTML".**
+**5. ~~Interpolation never escapes~~ — fixed (third pass): `{expr}` escapes, `{!expr}` is raw.**
 `page.ch` documents it: "The #html macro does NOT auto-escape interpolated values". `{userInput}`
 is written verbatim into element text and into attribute values, so attribute injection is one
 `{value}` away. The escape hatch direction is backwards: raw is the default, and `escape_html_view`
 is opt-in.
-*Fix:* make `{value}` escape by default and add an explicit raw marker (`SsrText`/`RawHtml`) that
-components use for `props.children`/nested markup; `#html`'s own literal text stays raw. This is a
-v1 break to take **now**, before apps exist (see §3.17 of the plan).
+*Landed (2026-11-22).* `{value}` is a text node and is escaped once; `{!value}` splices markup
+verbatim; attribute values are escaped once; a `<script>`/`<style>` body stays raw text (see the
+third-pass section at the end for why an escaped JSON island would be a bug). Universal
+`props.children` still render raw, which is the documented opt-in a type expresses with
+`writeToPageHtml` instead of `writeTextToPageHtml`.
 
 ### P1 — the API works but makes every app duplicate machinery
 
@@ -215,8 +217,8 @@ where noted, and none is a rewrite.
 | 1 | ~~`App.endpoint` + public `web::json`/`web::redirect`~~ **done** | unblocks every mutating app (P0-1) | `shop`'s POST routes are registered through the app; its hand-written dispatch disappears; gate green |
 | 2 | ~~Form parsing + `web::Form`~~ **done** (urlencoded) | forms are claimed v1 (P0-3) | `shop`'s `form_value`/`url_decode` are deleted and replaced by `web::form` + `http::Form` |
 | 3 | ~~Emit the hydration runtime only when a component was used (P0-4)~~ **done**, content-address chunks (P1-9) **done** | immediate, measurable win for the common case | `shop` `/` and `/products` carry no bundle (432 B → 270 B); blog artifacts 100 → 57 with 4 `chunk.<hash>.js` |
-| 4 | Connect the client job to the page bundle (P0-2) | without it typed client code cannot ship | `spa`'s shell references the client module; a Node harness runs it against the served shell |
-| 5 | Escape-by-default `{}` + explicit raw marker (P0-5) | the only finding that is a security bug; must be decided before apps exist | `shop`'s search page needs no `escape_html_view`; universal `children` still render raw; plugin suite + components e2e green |
+| 4 | ~~Connect the client job to the page bundle (P0-2)~~ **done as `app.add_client_module()`** | typed client code had nowhere to ship | `spa`'s shell loads `assets/client/boot.mjs`; a Node harness boots it and renders |
+| 5 | ~~Escape-by-default `{}` + explicit raw marker~~ **done, raw form is `{!expr}`** | it was the only security bug in the list | `shop`'s search page needs no `escape_html_view`; script/style bodies stay raw |
 | 6 | ~~`RequestContext` (P1-6) + `Session` handle (P1-7)~~ **done** | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |
 | 7 | ~~Copy the path and own the page in `Static.add` (P1-8)~~ **done as `Static.page(path)`**; `Request.make` + `now_ms` (P1-11) | probe/gate ergonomics; one-line-ish each | `blog` drops `page_paths`; probes time their own renders |
 | 8 | `dom` additions + `web::Client` (P1-12) | makes an SPA expressible without the `#js` escape hatch | `spa`'s client uses `location.hash`, `query_selector_all`, and typed `fetch` |
@@ -279,8 +281,8 @@ at all, because every page is HTML and no page mounts a component.
 
 ### What the second survey adds to the gap list — and what the third pass closed
 
-Four of the six were fixed in the pass that followed the survey; the two left are feature-sized
-(`P0-2`, `P0-5`) and are described as such below.
+Four of the six were fixed in the pass that followed the survey. The last two (`P0-2`, `P0-5`) were
+feature-sized and are closed in the third pass below.
 
 * ~~**Shell fills never see the session**~~ **fixed.** `SlotValues`/`ShellPredicate` now take
   `&mut RequestContext`, so a fill reads `ctx.session_text("uid")` and a variant predicate can choose
@@ -319,20 +321,103 @@ Four of the six were fixed in the pass that followed the survey; the two left ar
 | 2 | ~~`App.state<T>` + `ctx.state()`~~ **done** | every app has process state; it was a global behind `unsafe` | `tasks` keeps `Db` on the stack, no global |
 | 3 | ~~`http::Request.make`~~ **done as `http::request`** | request-level testing was hand-rolled in every probe | probes/tests build a request in one call |
 | 4 | ~~`web::render_page`~~ **done as `ctx.render_page`** | form re-render with errors | `tasks` answers **422** with the form and its message |
-| 5 | Point `spa`'s shell at the client bundle (P0-2, still open) | typed client code exists but nothing loads it; the client job's `web-client/assets/*.mjs` is not in the server's artifact set, and no build hook names it | the served shell references the module; a Node harness runs it |
-| 6 | Escape-by-default `{}` (P0-5, still open) | the only security bug in the list; needs a syntax decision for the raw marker | `shop` search needs no `escape_html_view` |
+| 5 | ~~Point `spa`'s shell at the client bundle~~ **done as `app.add_client_module()`** | typed client code existed but nothing loaded it | the served shell references the module; a Node harness boots it |
+| 6 | ~~Escape-by-default `{}`~~ **done, raw form is `{!expr}`** | the only security bug in the list | `shop` search needs no `escape_html_view` |
 
-Items 5 and 6 are the two that remain, and both need a decision before code: 5 needs the build to hand
-the server the client bundle (an `assets.ch` generated from the chunk graph, per the note at
-`LabBuildCompiler.cpp:3707`), 6 needs the raw-interpolation spelling (`{!expr}` vs `{raw expr}` vs a
-`raw(...)` wrapper) since it changes what every `#html { … }` means.
-### Next round, in order
+### Third pass: P0-2 and P0-5 closed, and what the served runtime measures (2026-11-22)
+
+**Escape-by-default (P0-5) is done.** `{expr}` in `#html` is a **text node**: it is
+HTML-escaped exactly once, so no app ever calls `escape_html_view` before interpolating
+user data. `{!expr}` is the explicit raw form, for a value that already *is* markup. Two
+rules complete the contract:
+
+* **Attributes** are escaped once by the template (a value in `class={state}` needs no
+  escaping either);
+* a `<script>`/`<style>` body is **raw text** — the browser never entity-decodes it, so a
+  JSON island (`<script type="application/json">{payload}</script>`) must not be escaped;
+  the template leaves both literal text and interpolated values verbatim there.
+
+The escape lives in `page`'s new `append_text_*` sinks (one definition, so it holds for
+every backend), and a type opts out only by implementing `writeTextToPageHtml`-free
+markup deliberately (`writeToPageHtml`), which is what universal `children` do. `shop`
+needs no escaper call, `tasks` lost its `escape_html_view` helper, and the plugin suite
+pins the contract (`html/src/escape.ch`, `script_interpolation.ch`,
+`to_string.ch` — 1,318 tests).
+
+**The `--web` client bundle is wired (P0-2).** One call:
+
+```chemical
+var app = web::App.make("dist", "app", "assets")
+app.page("/", Shell)
+var wired = app.add_client_module()      // false + error_message() without --web
+```
+
+`add_client_module()` publishes every `.mjs` asset the client job wrote to
+`<build>/web-client/assets/` under `<asset_prefix>/client/`, and adds
+`<script type="module" src="assets/client/boot.mjs">` to **every** page's `<head>`
+(`static_site.add_head_tag`, which is also the general hook). `boot.mjs` is a two-line
+module that imports `index.mjs` and calls `$run()`, so relative imports inside the bundle
+(`./runtime.mjs`, `./web-client.mjs`) resolve without the app naming any file. `spa` now
+checks the tag, serves the boot/index/program modules with 200, and
+`lang/tests/web/probes/spa/client_boot_check.mjs` boots the exported bundle in Node
+against a stub DOM (`fetch` included) and asserts the client rendered rows, fetched
+`/api/tasks`, and bound the nav — 6 checks that the bytes are not just present but run.
+
+A backend bug fell out of that wiring: two modules' non-capturing lambdas were both named
+`__chemda_0`, so the C backend's single translation unit saw a redefinition (the counter
+is per module). Lambda/closure helper names now include the enclosing function's name
+(`MIRLowerer::lambda_scope_tag_`), which is unique across modules by construction.
+
+**Served runtime, measured (`lang/tests/web/probes/bench`, `./scripts/web-probes-test.sh bench`)**
+
+A benchmark probe now serves the app through `server.Server` and times the same route
+three ways: `app.handle` alone (the framework), a fresh TCP connection per request, and
+one kept-alive connection. 300 requests, one thread, loopback, TCC backend,
+`--mode debug_quick`, single-threaded client:
+
+| route | delivery | `app.handle` p50 | new connection p50 | keep-alive p50 | keep-alive req/s |
+|---|---|---|---|---|---|
+| `/` | frozen page | **3 µs** | 63 µs | **38 µs** | ~25,000 |
+| `/shell` | frozen shell + 2 slot fills | **5 µs** | 66 µs | **44 µs** | ~20,000 |
+| `/live` | per-request render (24-item list) | **34 µs** | 103 µs | **77 µs** | ~12,600 |
+
+Reading the numbers:
+
+* the framework is **2–4 µs** per frozen request — routing, artifact lookup, ETag, splice;
+  a full 2.5 KB per-request render of a 24-row list is **34 µs**. Rendering is not the
+  bottleneck at this size;
+* a fresh connection costs **~60 µs** on loopback (accept + close), which is 15× the
+  framework work for the same page. That is why keep-alive is the shape to optimise and
+  why a page with 10 assets under HTTP/1.1 without reuse pays 600 µs of nothing;
+* **the first version of this table read keep-alive p50 = 40,412 µs.** Accepted sockets
+  had Nagle on while a response is written as head + body, so the body waited for the
+  client's delayed ACK: **~40 ms per request**, i.e. 48 req/s instead of 25,000 — a 500×
+  regression that only appears on a reused connection (every browser). Fixed by setting
+  `TCP_NODELAY` on accepted sockets (`net::raw::set_no_delay`, applied in
+  `http::server`'s accept paths); the probe script now fails if keep-alive p50 exceeds
+  5 ms, so the regression cannot come back silently.
+
+What is worth improving next, in the order the profile suggests:
+
+1. **Write the response in one `send`.** NODELAY removed the stall, but head and body are
+   still two syscalls per response; building them into one buffer (or `writev`) is the
+   remaining per-request cost inside the ~38 µs.
+2. **A worker pool, not a thread per connection.** `serve_accept` submits every accepted
+   socket to a pool and serves it blocking; with 300 sequential requests that is fine, and
+   under concurrency it is the number to watch next (the benchmark is deliberately
+   sequential so the framework cost is visible).
+3. **Per-request render allocation.** `/live` is 34 µs for 24 rows; the string builder
+   growth is the next thing to measure (reserve from the previous render, or render into
+   a reused buffer).
+
+The probe also prints `artifacts` and the frozen page size, so a size change is as visible
+as a speed change.
+
+### Still open
 
 | # | item | why | done when |
 |---|---|---|---|
-| 1 | `SlotValues` takes `&mut RequestContext` | a shell is the shape for per-user chrome; today it cannot read the session | `tasks` renders the signed-in user from `ctx.session_text` in a fill, no cookie parsing |
-| 2 | `App.state<T>` + `ctx.state()` | every app has process state; today it is a global behind `unsafe` | `tasks` drops its request-local pointer |
-| 3 | `http::Request.make` with fillable query/headers | request-level testing is hand-rolled in every probe | probes/tests build a request in one call |
-| 4 | Point `spa`'s shell at the client bundle (P0-2, still open) | typed client code exists but nothing loads it | a Node harness runs the served shell's script |
-| 5 | Escape-by-default `{}` (P0-5, still open) | the only security bug in the list | `shop` search needs no `escape_html_view` |
-| 6 | `web::render_page` escape hatch for endpoints | form re-render with errors | an endpoint returns a rendered page |
+| 1 | Response write as one syscall (see 1 above) | two sends per response is the remaining per-request cost | bench `keepalive_p50_us` drops for every shape |
+| 2 | Concurrent-load benchmark | the numbers here are sequential by design | a second bench line at N in-flight requests |
+| 3 | `dom` location/history API | the `spa` client routes by click handler; a real router needs `#js` | `spa` navigates a path without a click handler |
+| 4 | Typed JSON decode in `dom` | `spa` splits strings to read `/api/tasks` | the client decodes into a struct |

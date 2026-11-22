@@ -156,6 +156,92 @@ func route_request(path : string_view) : http::Request {
     return req
 }
 
+// The same request, advertising gzip — what a browser sends.
+func gzip_request(path : string_view) : http::Request {
+    var req = http::request(string_view("GET"), path)
+    var _ = req.with_header(string_view("Accept-Encoding"), string_view("gzip"))
+    return req
+}
+
+/// What dynamic gzip saves and what it costs on one route: the render alone, the
+/// render plus the deflate, and the two body sizes. The saving is the point; the
+/// cost is why `set_dynamic_gzip` is opt-in.
+func report_gzip(app : &mut web::App, path : string_view) {
+    var plain = vector<i64>()
+    var packed = vector<i64>()
+    var plain_bytes : ubigint = 0
+    var packed_bytes : ubigint = 0
+    var i = 0
+    while(i < BENCH_REQUESTS) {
+        var req = route_request(path)
+        var started = std::chrono::Instant::now()
+        var res = app.handle(&raw mut req)
+        plain.push_back(started.elapsed().as_micros())
+        plain_bytes = res.body.size()
+
+        var gz_req = gzip_request(path)
+        var gz_started = std::chrono::Instant::now()
+        var gz_res = app.handle(&raw mut gz_req)
+        packed.push_back(gz_started.elapsed().as_micros())
+        packed_bytes = gz_res.body.size()
+        i = i + 1
+    }
+    // Both halves matter: the saving is worth nothing if the bytes cannot be read
+    // back, and a body the client refused is worse than no compression at all.
+    var round_trips = true
+    var encoded = true
+    var probe = route_request(path)
+    var plain_res = app.handle(&raw mut probe)
+    var plain_view = string_view("")
+    var plain_text = plain_res.body.text()
+    if(plain_text is Option.Some) {
+        var Some(t) = plain_text else unsafe { unreachable }
+        plain_view = t
+    }
+    var gz_probe = gzip_request(path)
+    var gz_res = app.handle(&raw mut gz_probe)
+    var encoding = gz_res.headers.get("Content-Encoding")
+    if(encoding is Option.Some) {
+        var Some(e) = encoding else unsafe { unreachable }
+        encoded = http::text_equals(e, string_view("gzip"))
+    } else {
+        encoded = false
+    }
+    var allow = gz_res.headers.get("Vary")
+    if(allow is Option.None) { encoded = false }
+    var packed_bytes_view = string_view("")
+    var packed_text = gz_res.body.text()
+    if(packed_text is Option.Some) {
+        var Some(pt) = packed_text else unsafe { unreachable }
+        packed_bytes_view = pt
+    }
+    var restored = compression::gunzip(packed_bytes_view.as_bytes())
+    if(restored is Result.Err) {
+        round_trips = false
+    } else {
+        var Ok(decoded) = restored else unsafe { unreachable }
+        if(decoded.size() != plain_view.size()) { round_trips = false }
+    }
+    var ok = round_trips && encoded && packed_bytes < plain_bytes
+    var route = path
+    unsafe {
+        printf("bench gzip route=%.*s plain_bytes=%llu gz_bytes=%llu plain_p50_us=%lld gz_p50_us=%lld round_trip=%d encoded=%d %s\n",
+            route.size() as int, route.data(), plain_bytes, packed_bytes,
+            percentile(&plain, 1u, 2u), percentile(&packed, 1u, 2u),
+            if_bool(round_trips), if_bool(encoded), ok_label(ok))
+    }
+}
+
+func if_bool(flag : bool) : int {
+    if(flag) { return 1 }
+    return 0
+}
+
+func ok_label(ok : bool) : *char {
+    if(ok) { return "ok" }
+    return "FAIL"
+}
+
 // `app.handle` for `path`, `requests` times; returns per-request micros.
 func bench_inproc(app : &mut web::App, path : string_view, requests : int) : vector<i64> {
     var out = vector<i64>()
@@ -379,6 +465,9 @@ public func main() : int {
     app.page("/", Home)
     app.shell("/shell", ShellPage, ShellFill)
     app.live("/live", Live)
+    // Rendered pages are not precompressed, so this is the only way a served render
+    // reaches a client compressed. Measured below, off by default.
+    app.set_dynamic_gzip(true)
     if(!app.build()) {
         var msg = app.error_message()
         unsafe { printf("bench build failed: %.*s\n", msg.size() as int, msg.data()) }
@@ -442,6 +531,8 @@ public func main() : int {
         }
         i = i + 1
     }
+
+    report_gzip(&mut app, string_view("/live?user=ada"))
 
     // What the site ships, so a size change is as visible as a speed change.
     unsafe {

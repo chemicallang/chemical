@@ -9,4 +9,5 @@ import http
 import page
 import html_cbi
 import web
+import compression
 import server

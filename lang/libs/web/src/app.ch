@@ -170,6 +170,9 @@ public struct App {
     private var want_minify : bool
     /// Precompress the artifact set and negotiate it per request (`set_gzip`).
     private var want_gzip : bool
+    /// Compress a rendered (per-request) body when the client accepts gzip and the
+    /// result is smaller (`set_dynamic_gzip`). Opt-in: it costs CPU per request.
+    private var want_dynamic_gzip : bool
     /// Add `profile.json` to the export (`set_profile`).
     private var want_profile : bool
 
@@ -211,6 +214,7 @@ public struct App {
             want_robots : false,
             want_minify : false,
             want_gzip : false,
+            want_dynamic_gzip : false,
             want_profile : false,
             built : false,
             failed : false,
@@ -388,6 +392,23 @@ public struct App {
 
     public func is_gzip_enabled(&self) : bool {
         return want_gzip
+    }
+
+    /// Compress each rendered response (`Text`/`Bytes` bodies, at least
+    /// `min_bytes`) when the request's `Accept-Encoding` accepts gzip and the gzip
+    /// result is smaller, setting `Content-Encoding: gzip` and `Vary:
+    /// Accept-Encoding`.
+    ///
+    /// Off by default because it spends CPU on every rendered request: the pure
+    /// Chemical deflate costs more than the render itself for a small page (see
+    /// `lang/docs/web-stack-production.md`), so turn it on for pages big enough to
+    /// win back the bytes — and measure with `lang/tests/web/probes/bench`.
+    public func set_dynamic_gzip(&mut self, on : bool) {
+        want_dynamic_gzip = on
+    }
+
+    public func is_dynamic_gzip_enabled(&self) : bool {
+        return want_dynamic_gzip
     }
 
     /// Write `profile.json` into the artifact set: per-route HTML/chunk bytes,
@@ -698,7 +719,41 @@ public struct App {
         var ctx = RequestContext.make(req, unsafe(&raw mut self.sessions), state_ptr, &raw mut self.site)
         var res = self.dispatch(unsafe(&mut *req), &mut ctx)
         ctx.finish(&mut res)
+        if(want_dynamic_gzip) {
+            self.compress(&mut res, unsafe(&*req))
+        }
         return res
+    }
+
+    /// Replace an in-memory response body with its gzip form when the request
+    /// accepts it and the compressed bytes are smaller. A frozen artifact never
+    /// reaches here (the site's sink already negotiates its own gzip variant), and
+    /// a `File`/`Empty` body cannot be compressed without buffering it, so both are
+    /// left alone.
+    func compress(&self, res : &mut http::Response, req : &http::Request) {
+        // Only a 200 with a text body is worth it. A 304/204 has no body at all, and
+        // an error page is a few hundred bytes that fit in one packet anyway.
+        if(res.status != 200u) { return }
+        if(res.headers.contains("Content-Encoding")) { return }
+        var encoding = req.headers.get("Accept-Encoding")
+        if(encoding is Option.None) { return }
+        var Some(enc) = encoding else unsafe { unreachable }
+        if(!http::accepts_gzip(enc)) { return }
+        var source = string()
+        switch(&mut res.body) {
+            Text(t) => { source.append_string(&t) }
+            default => { return }
+        }
+        var min_bytes : usize = 1024u
+        if(source.size() < min_bytes) { return }
+        var packed = compression::gzip(source.as_bytes())
+        if(packed is Result.Err) { return }
+        var Ok(bytes) = packed else unsafe { unreachable }
+        if(bytes.size() >= source.size()) { return }
+        var gz = string_view("gzip")
+        res.set_header_view("Content-Encoding", &gz)
+        ensure_vary(res, string_view("Accept-Encoding"))
+        res.body = http::ResponseBody.Bytes(bytes)
     }
 
     /// The session store, for config (`app.session_store().set_secure(true)`) and
@@ -1283,6 +1338,23 @@ func lower_ascii(c : char) : char {
 
 // An endpoint's default cache policy, applied only when the handler did not choose
 // one. A handler that sets `Cache-Control` (or `Vary`) wins.
+/// Add `token` to the response's `Vary` header without dropping what a route
+/// already put there. A cached response must not be reused across encodings, so
+/// a compressed body is only correct together with this.
+func ensure_vary(res : &mut http::Response, token : string_view) {
+    var merged = string()
+    var existing = res.headers.get("Vary")
+    if(existing is Option.Some) {
+        var Some(v) = existing else unsafe { unreachable }
+        if(http::text_equals(v, token)) { return }
+        merged.append_view(&v)
+        merged.append_view(", ")
+    }
+    merged.append_view(&token)
+    var view = merged.to_view()
+    res.set_header_view("Vary", &view)
+}
+
 func apply_endpoint_policy(res : &mut http::Response, route : &AppEndpoint) {
     var cache = route.cache_control.to_view()
     if(!cache.empty() && !res.headers.contains("Cache-Control")) {

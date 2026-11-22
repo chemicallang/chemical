@@ -224,6 +224,14 @@ if want bench; then
             else
                 fail_note "bench: frozen page in-process p50 above 20 us (${frozen:-missing})"
             fi
+            # Dynamic gzip: the rendered page must arrive compressed, decode back to
+            # the same body, and be smaller — a broken negotiation is a corrupt page.
+            grep -a '^bench gzip ' "$out/bench.log" | sed 's/^/     /'
+            if grep -aq '^bench gzip .* ok$' "$out/bench.log"; then
+                pass_note "bench: a rendered page compresses, decodes back, and shrinks"
+            else
+                fail_note "bench: dynamic gzip did not round-trip (see $out/bench.log)"
+            fi
         else
             fail_note "bench: exited non-zero"
             tail -20 "$out/bench.log" >&2

@@ -46,8 +46,13 @@ func gz_shr(value : uint, n : uint) : uint {
 // instead of a panic.
 struct GzOut {
     var bytes : vector<u8>
-    var acc : uint
-    var count : uint
+    // A 64-bit accumulator, not a byte-at-a-time one: a Huffman code is up to 9
+    // bits, so `acc`/`count` hold a whole code plus the previous partial byte and
+    // a call emits its bytes with a shift instead of a loop over bits. The bit
+    // stream is unchanged; this is the same encoder, written so a 3 KB page does
+    // not cost 20,000 function calls.
+    var acc : u64
+    var count : u64
     var failed : bool
 }
 
@@ -64,38 +69,40 @@ func gz_push_byte(out : &mut GzOut, value : uint) {
 }
 
 func gz_put_bit(out : &mut GzOut, bit : uint) {
-    if(out.failed) { return }
-    out.acc = out.acc | gz_shl(bit & 1, out.count)
-    out.count = out.count + 1
-    if(out.count == 8) {
-        gz_push_byte(out, out.acc)
-        out.acc = 0
-        out.count = 0
-    }
+    gz_put_bits(out, bit & 1, 1)
 }
 
 // `n` bits of `value`, least-significant bit first: headers, lengths, distances.
 func gz_put_bits(out : &mut GzOut, value : uint, n : uint) {
-    var i : uint = 0
-    while(i < n) {
-        gz_put_bit(out, gz_shr(value, i) & 1)
-        i = i + 1
+    if(out.failed || n == 0) { return }
+    var v : u64 = value as u64
+    if(n < 32) { v = v & (((1 as u64) << (n as u64)) - 1) }
+    out.acc = out.acc | (v << out.count)
+    out.count = out.count + (n as u64)
+    while(out.count >= 8) {
+        gz_push_byte(out, (out.acc & 0xFF) as uint)
+        out.acc = out.acc >> 8
+        out.count = out.count - 8
     }
 }
 
 // A Huffman code, most-significant bit first (deflate packs codes that way).
+// Reversing first and then writing least-significant bit first is the same bit
+// sequence, and it is one bulk write instead of a call per bit.
 func gz_put_code(out : &mut GzOut, code : uint, n : uint) {
-    var i = n
-    while(i > 0) {
-        i = i - 1
-        gz_put_bit(out, gz_shr(code, i) & 1)
+    var reversed : uint = 0
+    var i : uint = 0
+    while(i < n) {
+        reversed = gz_shl(reversed, 1) | (gz_shr(code, i) & 1)
+        i = i + 1
     }
+    gz_put_bits(out, reversed, n)
 }
 
 // Pad the last byte with zero bits so the next field starts byte-aligned.
 func gz_align(out : &mut GzOut) {
     if(out.failed || out.count == 0) { return }
-    gz_push_byte(out, out.acc)
+    gz_push_byte(out, (out.acc & 0xFF) as uint)
     out.acc = 0
     out.count = 0
 }
@@ -208,7 +215,16 @@ func gz_dist_base(code : uint) : uint {
 
 // ── LZ77 ─────────────────────────────────────────────────────────────────────
 
-func gz_hash_at(src : &[u8], p : size_t) : size_t {
+// The hash slot for `p` in a table of `hsize` entries. A short input gets a short
+// table (see `gz_deflate_fixed`), so the slot is reduced into range here — one
+// division per position, versus zeroing 256 KB of table per call.
+func gz_hash_slot(src : &[u8], p : size_t, hsize : size_t) : size_t {
+    var h = gz_hash_at_raw(src, p)
+    if(h >= hsize) { h = h % hsize }
+    return h
+}
+
+func gz_hash_at_raw(src : &[u8], p : size_t) : size_t {
     var v = gz_shl(unsafe(*src.at(p)) as uint, 16)
     v = v | gz_shl(unsafe(*src.at(p + 1)) as uint, 8)
     v = v | (unsafe(*src.at(p + 2)) as uint)
@@ -221,7 +237,8 @@ func gz_hash_at(src : &[u8], p : size_t) : size_t {
 func gz_insert(src : &[u8], head : &mut vector<size_t>, prev : &mut vector<size_t>, p : size_t) {
     if(p + 2 >= src.size()) { return }
     if(p >= prev.size()) { return }
-    var h = gz_hash_at(src, p)
+    if(head.size() == 0) { return }
+    var h = gz_hash_slot(src, p, head.size())
     if(h >= head.size()) { return }
     unsafe {
         *prev.get_ptr(p) = *head.get_ptr(h)
@@ -241,14 +258,21 @@ func gz_deflate_fixed(src : &[u8], out : &mut GzOut) {
     gz_put_bits(out, 1, 2)   // BTYPE = 01, fixed Huffman
 
     var n = src.size()
+    // The hash table is sized for the input, not always for a full window: a 2.5 KB
+    // page zeroed a 32,768-entry table (256 KB of `memset`) per compression, which
+    // cost more than the encoding. `gz_insert` skips a hash that is past the end of
+    // a small table, so a short input loses some chain depth and stays correct.
+    var hsize = HSIZE
+    if(n < hsize) { hsize = n }
+    if(hsize == 0) { hsize = 1 }
     var head = vector<size_t>()
     var prev = vector<size_t>()
-    if(!head.try_reserve(HSIZE) || !prev.try_reserve(n)) {
+    if(!head.try_reserve(hsize) || !prev.try_reserve(n)) {
         out.failed = true
         return
     }
     var z : size_t = 0
-    while(z < HSIZE) {
+    while(z < hsize) {
         if(!head.try_push(0)) { out.failed = true; return }
         z = z + 1
     }
@@ -263,7 +287,7 @@ func gz_deflate_fixed(src : &[u8], out : &mut GzOut) {
         var best_len : size_t = 0
         var best_dist : size_t = 0
         if(pos + MIN_MATCH <= n) {
-            var cand = head.at(gz_hash_at(src, pos))
+            var cand = head.at(gz_hash_slot(src, pos, head.size()))
             var chain : uint = 0
             // Newest occurrence first; a chain of older ones. Once a candidate is
             // farther back than the window, every later one is too (the chain is

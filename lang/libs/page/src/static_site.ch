@@ -50,6 +50,9 @@ public struct StaticSite {
 
     // The `<head>` tags for a page at the site root (empty before `build()`).
     private var head_tags : std::string
+    // Tags a caller added with `add_head_tag()` (a client module script): shared by
+    // every page, so they join both the root tags and each page's own tag set.
+    private var head_extra : std::string
     // Site-relative URL of the frozen bundle ("" when that half is empty).
     private var bundle_js_path : std::string
     private var bundle_css_path : std::string
@@ -115,6 +118,7 @@ public struct StaticSite {
             out_dir : dir_s,
             asset_prefix : prefix_s,
             head_tags : std::string(),
+            head_extra : std::string(),
             bundle_js_path : std::string(),
             bundle_css_path : std::string(),
             artifacts : std::vector<SiteArtifact>(),
@@ -427,6 +431,19 @@ public struct StaticSite {
         return head_tags.to_view()
     }
 
+    /// Append a tag to every rendered page's `<head>` (`web::App.add_client_module`
+    /// uses this for its module script). Call before `build()` — a pre-rendered
+    /// page's `<head>` is frozen then — and remember the tag is shared by all
+    /// routes, so its URLs must not be page-relative.
+    public func add_head_tag(&mut self, tag : std::string_view) : bool {
+        if(built) {
+            fail_with("add_head_tag must be called before build()")
+            return false
+        }
+        head_extra.append_view(&tag)
+        return !failed
+    }
+
     /// Site-relative URLs of the shared bundle, e.g. `assets/app.<hash>.js`.
     /// Empty when that half of the bundle is empty (or before `build()`).
     public func bundle_js_url(&self) : std::string_view {
@@ -734,6 +751,10 @@ public struct StaticSite {
         var root_tags = head_tags_for(&root_prefix_view, &css_name_view, &vendor_name_view, &js_name_view)
         var root_tags_view = root_tags.to_view()
         head_tags.append_view(&root_tags_view)
+        var extra_view = head_extra.to_view()
+        if(!extra_view.empty()) {
+            head_tags.append_view(&extra_view)
+        }
 
         var i : ubigint = 0
         // A page that dispatches hydration calls (`$__uni_c(...)`) only works if
@@ -820,6 +841,12 @@ public struct StaticSite {
             if(chunk_src.empty()) {
                 var no_asset = std::string_view("")
                 page_tags = head_tags_for(&url_prefix, &css_name_view, &no_asset, &no_asset)
+            }
+            // Tags the caller added (`add_head_tag`) belong to every page, not just
+            // the root one, so they are appended after the per-page prefix is known.
+            var page_extra_view = head_extra.to_view()
+            if(!page_extra_view.empty()) {
+                page_tags.append_view(&page_extra_view)
             }
             var page_tags_view = page_tags.to_view()
             var body_src_view = body_src.to_view()

@@ -387,12 +387,23 @@ public func expression_with_parens_followed_by_text(env : &mut TestEnv) {
 }
 
 @test
-public func html_entities_in_expression_preserved(env : &mut TestEnv) {
+public func html_entities_in_expression_are_escaped(env : &mut TestEnv) {
+    // A value in `{expr}` is text: an `&#...;` in it is the literal characters, so it
+    // is escaped like everything else. `{!expr}` is the form that keeps markup.
     var page = HtmlPage()
     #html {
         <div>{"&#9733; Star"}</div>
     }
-    string_equals(env, page.toStringHtmlOnly(), "<div>&#9733; Star</div>");
+    string_equals(env, page.toStringHtmlOnly(), "<div>&amp;#9733; Star</div>");
+}
+
+@test
+public func html_entities_in_raw_expression_are_preserved(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div>{!"&#9734; Star"}</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div>&#9734; Star</div>");
 }
 
 @test
@@ -472,9 +483,11 @@ public func self_closing_div_works(env : &mut TestEnv) {
 
 @test
 public func html_entities_in_expression_with_text(env : &mut TestEnv) {
+    // Text around the value is source text (kept verbatim); the value itself is a
+    // text node, so its `&#...;` is the literal characters and is escaped.
     var page = HtmlPage()
     #html {
         <div>Label: {"&#9734;"} text</div>
     }
-    string_equals(env, page.toStringHtmlOnly(), "<div>Label: &#9734; text</div>");
+    string_equals(env, page.toStringHtmlOnly(), "<div>Label: &amp;#9734; text</div>");
 }

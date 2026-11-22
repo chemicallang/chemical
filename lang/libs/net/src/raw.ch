@@ -46,6 +46,21 @@ public namespace raw {
         net::sock_setsockopt(s, SOL_SOCKET as int, SO_KEEPALIVE as int, &optval as *char, sizeof(int) as int);
     }
 
+    /// Disable Nagle's algorithm on `s` (TCP_NODELAY).
+    ///
+    /// A request/response server writes the head and the body as separate sends. With
+    /// Nagle on, the second small write is held until the peer acknowledges the first,
+    /// and the peer's delayed ACK adds ~40 ms to the round trip — per request on a
+    /// kept-alive connection. Both a browser and a benchmark see that as "the server is
+    /// slow", so an accepted connection is always write-through.
+    public func set_no_delay(s : Socket, enable : bool) {
+        const IPPROTO_TCP_OPT = 6
+        const TCP_NODELAY_OPT = 1
+        var optval : int = if(enable) 1 else 0
+        net::sock_setsockopt(s, IPPROTO_TCP_OPT as int, TCP_NODELAY_OPT as int,
+                             &optval as *char, sizeof(int) as int)
+    }
+
     public func htons_port(p: u16) : u16 {
         // portable byte-swap for 16-bit
         return ((p & 0x00FFu) << 8) as u16 | ((p & 0xFF00u) >> 8) as u16;

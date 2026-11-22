@@ -46,6 +46,11 @@ public func main() : int {
     app.set_minify(true)
     app.page("/", Shell)
     app.endpoint("GET", "/api/tasks", Tasks)
+    // One call publishes the `--web` client job's bundle and the module script that
+    // runs it: the app no longer re-implements the JS emission or copies filenames.
+    var wired = app.add_client_module()
+    var wire_msg = app.error_message()
+    unsafe { printf("client_module=%d msg=%.*s\n", wired as int, wire_msg.size() as int, wire_msg.data()) }
 
     var built = app.build()
     var msg = app.error_message()
@@ -58,11 +63,28 @@ public func main() : int {
     unsafe { printf("shell status=%d bytes=%zu\n", res.status as int, body.to_view().size()) }
     check(string_view("the shell renders"), res.status == 200u && has_text(&body, string_view("Task board")))
     // The shell renders no universal component, so it must not ship the hydration
-    // runtime it never runs. What it *should* carry is the typed client module
-    // (`client/*.ch` -> `web-client.mjs`), which nothing connects to the page yet
-    // (`web-stack-gaps.md` P0-2).
+    // runtime it never runs. What it does carry is the typed client module
+    // (`client/*.ch` -> the `--web` client job's `.mjs` assets) plus the module
+    // script that runs its entry point.
     check(string_view("a client-only shell carries no hydration runtime"),
         !has_text(&body, string_view("assets/spa.")))
+    check(string_view("the client bundle is wired into the shell"),
+        wired && has_text(&body, string_view("assets/client/boot.mjs")))
+    var boot_req = http::request(string_view("GET"), string_view("/assets/client/boot.mjs"))
+    var boot_res = app.handle(&raw mut boot_req)
+    var boot_body = body_text(&boot_res)
+    check(string_view("the served boot module runs the entry point"),
+        boot_res.status == 200u && has_text(&boot_body, string_view("$run()")))
+    var index_req = http::request(string_view("GET"), string_view("/assets/client/index.mjs"))
+    var index_res = app.handle(&raw mut index_req)
+    var index_body = body_text(&index_res)
+    check(string_view("the served index module exports the entry"),
+        index_res.status == 200u && has_text(&index_body, string_view("$entryName")))
+    var module_req = http::request(string_view("GET"), string_view("/assets/client/web-client.mjs"))
+    var module_res = app.handle(&raw mut module_req)
+    var module_body = body_text(&module_res)
+    check(string_view("the served program module carries the client code"),
+        module_res.status == 200u && has_text(&module_body, string_view("client_main")))
     check(string_view("the shell ships a bootstrap payload"), has_text(&body, string_view("id=\"bootstrap\"")))
     check(string_view("the client mounts into #tasks"), has_text(&body, string_view("id=\"tasks\"")))
 

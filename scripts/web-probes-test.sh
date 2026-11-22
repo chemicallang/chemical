@@ -10,8 +10,9 @@
 #   spa    single-page app: `--web` split, shell page, JSON endpoint, client job
 #   tasks  authenticated multi-user app: sign-in/sign-up, per-user state, PRG, flash
 #   docs   documentation site: 43 pages, sectioned layout, prev/next, zero JS
+#   bench  served runtime: in-process vs socket vs keep-alive, per delivery shape
 #
-#   ./scripts/web-probes-test.sh            # build + run all five
+#   ./scripts/web-probes-test.sh            # build + run all six
 #   ./scripts/web-probes-test.sh shop       # only one
 set -eu
 
@@ -147,6 +148,19 @@ if want spa; then
         grep -q 'fetch_text' "$bundle" 2>/dev/null \
             && pass_note "spa: client bundle carries the fetch path" \
             || fail_note "spa: client bundle lacks the fetch path"
+        # The export written by `finish()` holds the served bundle. Boot it in Node
+        # against a stub DOM: the probe's own checks prove the bytes are wired, this
+        # proves the wired bytes actually run and render.
+        if command -v node >/dev/null 2>&1; then
+            if node lang/tests/web/probes/spa/client_boot_check.mjs lang/compiled/spa_probe \
+                    >"$out/spa_boot.log" 2>&1; then
+                pass_note "spa: served bundle boots in node ($(grep -c '^ok  ' "$out/spa_boot.log") checks)"
+            else
+                fail_note "spa: served bundle failed to boot (see $out/spa_boot.log)"
+            fi
+        else
+            echo "skip spa: node not installed, bundle not booted"
+        fi
     fi
 fi
 
@@ -178,6 +192,37 @@ if want docs; then
         grep -q '^bundle= gzip=1' "$out/docs.log" \
             && pass_note "docs: zero JS bundle, gzip on" \
             || fail_note "docs: expected an empty bundle"
+    fi
+fi
+
+# ---------------------------------------------------------------- bench
+if want bench; then
+    echo "== bench (served runtime) =="
+    rm -rf lang/tests/web/probes/bench/build
+    if build_probe bench; then
+        if "$out/bench.exe" >"$out/bench.log" 2>&1; then
+            grep -a '^bench route=' "$out/bench.log" | sed 's/^/     /'
+            # A kept-alive request that takes tens of milliseconds is Nagle holding the
+            # response body for the peer's delayed ACK: it was ~40 ms before
+            # `tcp_nodelay` was set on accepted sockets. 5 ms is loose enough for a
+            # loaded CI box and far below the regression it guards.
+            slow=$(grep -ao 'keepalive_p50_us=[0-9]*' "$out/bench.log" | cut -d= -f2 \
+                | awk '$1 > 5000' | wc -l | tr -d ' ')
+            if [ "$slow" = "0" ]; then
+                pass_note "bench: keep-alive requests answer in microseconds"
+            else
+                fail_note "bench: keep-alive p50 over 5 ms (Nagle regression?)"
+                grep -a '^bench route=' "$out/bench.log" >&2
+            fi
+            # The framework itself must stay in the single-digit microseconds for the
+            # frozen shapes; a render is allowed to cost more.
+            grep -aqE 'bench route=/ kind=frozen .*inproc_p95_us=[0-9] ' "$out/bench.log" \
+                && pass_note "bench: a frozen page answers in single-digit microseconds" \
+                || fail_note "bench: frozen page in-process p95 above 10 us"
+        else
+            fail_note "bench: exited non-zero"
+            tail -20 "$out/bench.log" >&2
+        fi
     fi
 fi
 

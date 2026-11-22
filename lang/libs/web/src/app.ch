@@ -32,6 +32,7 @@
 public namespace web {
 
 using std::Option;
+using std::Result;
 using std::pair;
 using std::string;
 using std::string_view;
@@ -147,6 +148,14 @@ public struct App {
     /// the pointer only has to outlive the app.
     private var state_ptr : *mut void
 
+    /// `add_client_module()`, replayed in `build()`: the `--web` client bundle's
+    /// artifacts (site-relative URL + bytes) and the `<script type="module">` tag
+    /// that loads it. Empty/`false` when this build has no client module.
+    private var client_module : bool
+    private var client_urls : vector<string>
+    private var client_bytes : vector<string>
+    private var client_tag : string
+
     /// Build outputs, replayed in `build()` (a rebuild of the sink must not lose
     /// them).
     private var out_dir : string
@@ -189,6 +198,10 @@ public struct App {
             has_not_found : false,
             sessions : SessionStore.make(),
             state_ptr : null,
+            client_module : false,
+            client_urls : vector<string>(),
+            client_bytes : vector<string>(),
+            client_tag : string(),
             out_dir : o,
             base_name : n,
             asset_prefix : p,
@@ -435,6 +448,138 @@ public struct App {
         return &site
     }
 
+    // ── Client bundle (`--web`) ──────────────────────────────────────────
+    /// Serve the `--web` client bundle from this app.
+    ///
+    /// A `--web` build compiles the client module to JavaScript **before** the
+    /// server pass runs, and writes it to `<build>/web-client/assets/`. This method
+    /// publishes those bytes: every `.mjs` asset is registered under
+    /// `<asset_prefix>/client/`, and a module script that runs the bundle's entry
+    /// point is added to every page's `<head>` (a tiny generated `boot.mjs`, so the
+    /// document needs one tag and the bundle keeps its relative imports).
+    ///
+    /// Call before `build()`/`finish()`. Returns `false` (with `error_message()`
+    /// explaining) when the build has no client bundle — a plain, non-`--web` build.
+    public func add_client_module(&mut self) : bool {
+        if(built) {
+            fail_with("add_client_module must be called before build()")
+            return false
+        }
+        client_module = false
+        client_urls.clear()
+        client_bytes.clear()
+        client_tag.clear()
+
+        // The `--web` pipeline compiles the client module first and writes it to
+        // `<build>/web-client/assets`. Where that is relative to this pass depends on
+        // how the build dir is scoped (the server half may build into
+        // `<build>/web-server`), so both spellings are tried.
+        // Both spellings are built up front: a `path::Path` borrows its text, so the
+        // strings have to outlive the directory reads.
+        var dir_next = string(intrinsics::get_build_dir())
+        dir_next.append_view("/web-client/assets")
+        var dir_parent = string(intrinsics::get_build_dir())
+        dir_parent.append_view("/../web-client/assets")
+        var dir_next_view = dir_next.to_view()
+        var dir_parent_view = dir_parent.to_view()
+        var dir_next_path = path::Path.new(std::str.make_view(dir_next_view))
+        var dir_parent_path = path::Path.new(std::str.make_view(dir_parent_view))
+        var listing = fs::read_dir(&dir_next_path)
+        if(listing is Result.Err) {
+            listing = fs::read_dir(&dir_parent_path)
+        }
+        if(listing is Result.Err) {
+            fail_with("no client bundle to serve: this build produced no `web-client/assets` (build the app with `--web`)")
+            return false
+        }
+        var Ok(entries) = listing else unsafe { unreachable }
+
+        var url_prefix = string()
+        var prefix = self.resolved_asset_prefix()
+        var prefix_view = prefix.to_view()
+        url_prefix.append_view(&prefix_view)
+        url_prefix.append_view("/client/")
+
+        var i : size_t = 0
+        var found : ubigint = 0
+        while(i < entries.size()) {
+            unsafe {
+            var entry = entries.get_ptr(i)
+            if(!entry.is_dir()) {
+                var name = entry.file_name()
+                var name_view = name.to_view()
+                if(name_view.ends_with(std::string_view(".mjs"))) {
+                    var entry_path = entry.path()
+                    var read = fs::read_to_string(&entry_path.as_path())
+                    if(read is Result.Ok) {
+                        var Ok(js) = read else unsafe { unreachable }
+                        var url_prefix_view = url_prefix.to_view()
+                        var url = string()
+                        url.append_view(&url_prefix_view)
+                        url.append_view(&name_view)
+                        var bytes = string()
+                        bytes.append_view(&js.to_view())
+                        client_urls.push(url)
+                        client_bytes.push(bytes)
+                        found = found + 1
+                    }
+                }
+            }
+            }
+            i = i + 1
+        }
+        if(found == 0) {
+            fail_with("the client bundle directory has no `.mjs` asset to serve")
+            return false
+        }
+
+        var url_prefix_view2 = url_prefix.to_view()
+        var boot_url = string()
+        boot_url.append_view(&url_prefix_view2)
+        boot_url.append_view("boot.mjs")
+        var boot = string()
+        boot.append_view("import { $run } from \"./index.mjs\";\n$run();\n")
+        client_urls.push(boot_url)
+        client_bytes.push(boot)
+
+        client_tag.append_view("<script type=\"module\" src=\"")
+        var boot_view = boot_url.to_view()
+        client_tag.append_view(&boot_view)
+        client_tag.append_view("\"></script>")
+        client_module = true
+        return true
+    }
+
+    /// Site-relative URLs of the client-bundle assets `add_client_module()`
+    /// published (empty before it runs, or when the build has no client bundle).
+    public func client_module_urls(&self) : &vector<string> {
+        return &client_urls
+    }
+
+    /// The `<script type="module">` tag the client module is loaded with.
+    public func client_module_tag(&self) : string_view {
+        return client_tag.to_view()
+    }
+
+    /// Replay the client bundle onto the freshly created sink (`build()` rebuilds
+    /// the sink, so registrations cannot be left on the old one).
+    func publish_client_module(&mut self) {
+        if(!client_module) { return }
+        var i : ubigint = 0
+        while(i < client_urls.size()) {
+            unsafe {
+            var url = client_urls.get_ptr(i)
+            var bytes = client_bytes.get_ptr(i)
+            var url_view = url.to_view()
+            var bytes_view = bytes.to_view()
+            site.add_artifact(url_view, bytes_view, std::string_view("text/javascript; charset=utf-8"), false)
+            }
+            i = i + 1
+        }
+        var tag_view = client_tag.to_view()
+        site.add_head_tag(tag_view)
+    }
+
     // ── Unit graph (build diagnostics) ───────────────────────────────────
     /// Component definitions the bundle kept (the runtime plus everything two
     /// routes — or any per-request route — use).
@@ -476,6 +621,7 @@ public struct App {
         site = StaticSite.make(out_view, name_view, prefix_view)
         if(want_minify) { site.set_minify(true) }
         if(want_gzip) { site.set_gzip(true) }
+        self.publish_client_module()
 
         if(!warm_artifacts()) { return false }
 

@@ -791,6 +791,7 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     extension_anchor_ = MIR_INVALID_ID;
 
     func.symbol = intern_function(decl);
+    lambda_scope_tag_ = sanitized_symbol_tag(func.symbol);
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
     func.region_signature = module_.symbol_region_signature(func.symbol);
@@ -948,6 +949,32 @@ static bool check_no_panic_effect(const MIRModule& module,
     return true;
 }
 
+/**
+ * The enclosing function's linker name reduced to C-identifier characters. Lambda
+ * helpers are named from it: a backend may emit every module into one translation
+ * unit, where a bare `__chemda_<n>` (one counter per module) is a redefinition.
+ */
+std::string MIRLowerer::sanitized_symbol_tag(SymbolId sym) {
+    if (sym == MIR_INVALID_ID) return "top";
+    const std::string_view name = module_.symbols.mangled_view(module_.symbols.get(sym));
+    std::string out;
+    out.reserve(name.size());
+    for (char c : name) {
+        const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '_';
+        out.push_back(ok ? c : '_');
+    }
+    if (out.empty()) return "top";
+    // Long mangled names are legal in C but noisy; a stable hash keeps it readable.
+    if (out.size() > 48) {
+        std::size_t h = 1469598103934665603ull;
+        for (char c : out) { h ^= static_cast<unsigned char>(c); h *= 1099511628211ull; }
+        out.resize(40);
+        out += "_" + std::to_string(h & 0xffffffffull);
+    }
+    return out;
+}
+
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     MIR_OP(functions);
@@ -966,6 +993,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             error = "SAFE-PANIC-001: [no_panic] async functions are not supported yet";
             return false;
         }
+        lambda_scope_tag_ = sanitized_symbol_tag(intern_function(decl));
         return lower_async_function(decl, arena, func, error);
     }
     // Cache the "constructor writes the whole result" proof now, while this
@@ -989,6 +1017,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
+    lambda_scope_tag_ = sanitized_symbol_tag(func.symbol);
     if (source_loc_provider_ && decl) {
         const uint64_t enc = decl->encoded_location().encoded;
         if (enc != 0 && source_loc_provider_(enc, func.decl_loc)) {

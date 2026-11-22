@@ -113,7 +113,18 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             HtmlChild : HtmlChild {
                 kind : HtmlChildKind.ChemicalValue
             },
-            value : null
+            value : null,
+            // `{expr}` is text: the code generator escapes it. `{!expr}` is the raw
+            // form: the leading `!` marks the value as markup and is not part of the
+            // expression, so a value that is already HTML is spliced verbatim.
+            raw : false
+        }
+
+        var next_is_raw = parser.getToken()
+        if(next_is_raw.type == ChemicalTokenType.NotSym) {
+            parser.increment()
+            value_child.raw = true
+            skip_newlines(parser)
         }
 
         const expr = parser.parseExpressionOrArrayOrStruct(builder)
@@ -145,7 +156,9 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
             HtmlChild : HtmlChild {
                 kind : HtmlChildKind.ChemicalValue
             },
-            value : null
+            value : null,
+            // `@(expr)` is the long spelling of `{!expr}`: raw, the value is markup.
+            raw : true
         }
 
         const expr = parser.parseExpressionOrArrayOrStruct(builder);

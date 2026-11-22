@@ -535,7 +535,7 @@ bool MIRLowerer::materialize_async_capturing_lambda(
         SymbolId dtor_sym, SymbolId& ramp_sym, TypeId& ramp_type,
         std::string& error) {
     static std::atomic<uint64_t> s_async_counter{0};
-    const std::string name = "__chemda_async_cap_" +
+    const std::string name = "__chemda_async_cap_" + lambda_scope_tag_ + "_" +
         std::to_string(s_async_counter.fetch_add(1, std::memory_order_relaxed));
 
     // A synthetic declaration gives the existing coroutine planner/lowering a
@@ -778,7 +778,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     }
 
     static std::atomic<uint64_t> s_counter{0};
-    const std::string lname = "__chemda_cap_" +
+    // The enclosing function is part of the name: the counter alone is per-module,
+    // and a backend may emit every module into one translation unit.
+    const std::string lname = "__chemda_cap_" + lambda_scope_tag_ + "_" +
         std::to_string(s_counter.fetch_add(1, std::memory_order_relaxed));
     const std::string cap_name = lname + "_cap";
 
@@ -1334,7 +1336,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         return MIRExprResult::value(builder_->function_addr(ramp_sym, lam_type), lam_type);
     }
     static std::atomic<uint64_t> s_lambda_counter{0};
-    const std::string lname = "__chemda_" +
+    // Scoped by the enclosing function so two modules' lambdas cannot collide when
+    // a backend puts them in one translation unit (see MIRLowerer::lambda_scope_tag_).
+    const std::string lname = "__chemda_" + lambda_scope_tag_ + "_" +
         std::to_string(s_lambda_counter.fetch_add(1, std::memory_order_relaxed));
 
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();

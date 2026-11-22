@@ -1,11 +1,14 @@
 
 using std::Result;
 
-// Explicit HTML escaping. The #html macro does NOT auto-escape interpolated values,
-// so callers must escape any untrusted / user-provided string before embedding it in
-// markup: #html { <div>{escape_html(userValue)}</div> }. Escaping is explicit to keep
-// the framework fast and avoid escaping values that are already safe (e.g. a single
-// *char placed into <head>).
+// HTML escaping, and the sinks #html uses for it.
+//
+// `#html` escapes `{value}` by default: it becomes a text node (or an attribute
+// value) and is escaped exactly once by the `append_text_*` sinks below. `{!value}`
+// is the explicit raw splice, for a value that already is markup. A
+// `<script>`/`<style>` body is raw text (the browser never entity-decodes it), so
+// values there are written verbatim. These two helpers stay public because literal
+// head/attribute markup assembled by the libraries still needs them.
 public func escape_html(value : &std::str) : std::string {
     return escape_html_view(value.to_view())
 }
@@ -391,6 +394,37 @@ public struct HtmlPage {
         pageHtml.append(value)
     }
 
+    // ── Text sinks: what `{expr}` means (`#html` escapes by default) ──────────
+    // A value interpolated into `#html` is **text**, so `&`, `<`, `>`, `"` and `'`
+    // are escaped on the way in. `append_text_*` is that sink; the `append_html_*`
+    // sinks above stay raw for a value the author built as markup (`page.append_html`,
+    // a type's `writeToPageHtml`), and `@(expr)` in a template is the raw form.
+    //
+    // Escaping here rather than in the macro keeps one definition of "safe to put in
+    // a document" and makes the guarantee hold for every backend (C and LLVM both
+    // call these functions).
+    func append_text_char_ptr(&mut self, value : *char) {
+        var view = unsafe(std::string_view(value, strlen(value)))
+        appendHtmlEscaped(&mut pageHtml, &view)
+    }
+
+    func append_text_char(&mut self, value : char) {
+        switch(value) {
+            '&' => pageHtml.append_view("&amp;")
+            '<' => pageHtml.append_view("&lt;")
+            '>' => pageHtml.append_view("&gt;")
+            '"' => pageHtml.append_view("&quot;")
+            '\'' => pageHtml.append_view("&#39;")
+            default => pageHtml.append(value)
+        }
+    }
+
+    /// Append `value` as escaped text into the page body (the sink `{expr}` uses).
+    /// A value that is already markup goes through `append_html` instead.
+    public func append_text(&mut self, value : &std::string_view) {
+        appendHtmlEscaped(&mut pageHtml, value)
+    }
+
     func append_html_integer(&mut self, value : bigint) {
         pageHtml.append_integer(value)
     }
@@ -453,6 +487,22 @@ public struct HtmlPage {
 
     func append_head_char(&mut self, value : char) {
         pageHead.append(value)
+    }
+
+    func append_head_text_char_ptr(&mut self, value : *char) {
+        var view = unsafe(std::string_view(value, strlen(value)))
+        appendHtmlEscaped(&mut pageHead, &view)
+    }
+
+    func append_head_text_char(&mut self, value : char) {
+        switch(value) {
+            '&' => pageHead.append_view("&amp;")
+            '<' => pageHead.append_view("&lt;")
+            '>' => pageHead.append_view("&gt;")
+            '"' => pageHead.append_view("&quot;")
+            '\'' => pageHead.append_view("&#39;")
+            default => pageHead.append(value)
+        }
     }
 
     func append_head_integer(&mut self, value : bigint) {

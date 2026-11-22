@@ -176,14 +176,12 @@ public func CartJson(ctx : &mut web::RequestContext) : http::Response {
     return web::json(200u, &view)
 }
 
-// A search page: the only place user input reaches the HTML. `#html` does NOT
-// auto-escape `{value}` (page.ch documents the choice), so every untrusted value
-// must go through `escape_html_view` first. This is the escaping contract an app
-// author has to know, and the reason `web` needs a safe-by-default story.
+// A search page: the only place user input reaches the HTML. `#html` escapes
+// `{value}` by default, so the query goes straight in — no helper, and nothing to
+// forget. (`{!value}` is the raw form, for a value that already is markup.)
 public func Search(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     var q_text = query_of(ctx, string_view("q"))
-    var escaped = escape_html_view(q_text.to_view())
-    var q = escaped.to_view()
+    var q = q_text.to_view()
     page.appendTitle("Probe Supply — search")
     #html {
         <main class="search">

@@ -655,6 +655,13 @@ func converter_script_body_is_raw(element : *mut HtmlElement) : bool {
         }
     }
 
+// Elements whose content the HTML parser does **not** entity-decode: a value written
+// inside one is script/style text, so `{expr}` must not escape it (a JSON payload in
+// `<script type="application/json">` would otherwise stop being JSON).
+func converter_raw_text_element(name : &std::string_view) : bool {
+        return name.equals(std::string_view("script")) || name.equals(std::string_view("style"))
+}
+
 func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
         unsafe {
 
@@ -666,7 +673,14 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
         switch(child.kind) {
             HtmlChildKind.Text => {
                 var text = child as *mut HtmlText
-                converter.escapeHtml(text.value);
+                // Inside a raw-text element (`<script>`/`<style>`) the source text is
+                // script/style data: the browser does not decode entities there, so
+                // escaping it would change what runs or what the client parses.
+                if(converter.raw_value) {
+                    str.append_view(&text.value)
+                } else {
+                    converter.escapeHtml(text.value);
+                }
             }
             HtmlChildKind.Element => {
                 var element = child as *mut HtmlElement
@@ -695,6 +709,9 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     str.append('>')
                     var sci : uint = 0
                     var scs = element.children.size()
+                    // `{expr}` here is script text, not HTML: escape nothing.
+                    const was_raw_script = converter.raw_value
+                    converter.raw_value = true
                     while(sci < scs) {
                         const sc = element.children.at(sci);
                         if(sc.kind == HtmlChildKind.Text) {
@@ -705,6 +722,7 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                         }
                         sci++;
                     }
+                    converter.raw_value = was_raw_script
                     if(!element.isSelfClosing) {
                         str.append_view("</");
                         str.append_view(&element.name);
@@ -756,7 +774,17 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 if(is_table_structure_element(element.name)) {
                     converter.in_table_context = true;
                 }
+                // A `<script>`'s (and a `<style>`'s) content is **raw text**: the
+                // browser never entity-decodes it, so a JSON payload or a CSS value
+                // must be written verbatim. Escaping one here would corrupt it
+                // (`{&quot;a&quot;:1}` is not JSON), which is why the value sinks
+                // leave raw-text elements alone regardless of `{expr}`.
+                const prevRawText = converter.raw_value
+                if(converter_raw_text_element(&element.name)) {
+                    converter.raw_value = true;
+                }
                 converter.convertChildren(element);
+                converter.raw_value = prevRawText;
                 converter.in_table_context = prevInTable;
 
                 if(!element.isSelfClosing) {
@@ -783,7 +811,12 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                     converter.put_chain_in();
                 }
                 const chem_child = child as *mut HtmlChemValueChild
+                // `{expr}` is text (escaped) and `{!expr}` is the raw form — except
+                // inside a raw-text element, where the content is never HTML.
+                const was_raw = converter.raw_value
+                converter.raw_value = was_raw || chem_child.raw
                 converter.put_chemical_value_in(chem_child.value)
+                converter.raw_value = was_raw
             }
             HtmlChildKind.IfStatement => {
                 if(!str.empty()) {

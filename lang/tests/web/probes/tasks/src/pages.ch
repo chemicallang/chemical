@@ -95,10 +95,8 @@ public func Landing(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
 
 func auth_form(page : &mut HtmlPage, action : string_view, submit : string_view,
                token : string_view, error : string_view) {
-    var token_copy = escaped_token(token)
-    var token_view = token_copy.to_view()
-    var error_copy = escaped_token(error)
-    var error_view = error_copy.to_view()
+    var token_view = token
+    var error_view = error
     #html {
         <form method="post" action={action} class="auth">
             <input type="hidden" name="csrf" value={token_view} />
@@ -110,13 +108,9 @@ func auth_form(page : &mut HtmlPage, action : string_view, submit : string_view,
     }
 }
 
-/// `#html` does not escape interpolated values, so every user-visible string goes
-/// through the escaper first. This helper is the workaround the P0-5 gap asks the
-/// stack to remove.
-func escaped_token(value : string_view) : string {
-    return escape_html_view(value)
-}
-
+/// `#html` escapes `{value}` by default now, so a user-visible string goes straight
+/// into the template. Nothing here escapes by hand; the one place markup is intended
+/// is marked `{!…}`.
 func auth_error(code : string_view) : string {
     if(code.equals(&string_view("bad"))) { return string("That email and password do not match.") }
     if(code.equals(&string_view("weak"))) { return string("Use a password of at least 8 characters.") }
@@ -226,8 +220,7 @@ public func TodosPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
                         slug.append_view("/todos/")
                         slug.append_view(&id_view)
                         var slug_view = slug.to_view()
-                        var title_copy = escape_html_view(title)
-                        var title_view = title_copy.to_view()
+                        var title_view = title
                         var state = item_class(done)
                         #html {
                             <li class={state}>
@@ -283,8 +276,7 @@ public func AccountPage(ctx : &mut web::RequestContext, page : &mut HtmlPage) {
     page.appendTitle("Tasks — account")
     var uid = current_uid(ctx)
     var email = db_user_email(state_of(ctx), uid)
-    var email_copy = escape_html_view(email)
-    var email_view = email_copy.to_view()
+    var email_view = email
     var token = ctx.csrf_token()
     var token_copy = string()
     token_copy.append_view(&token)

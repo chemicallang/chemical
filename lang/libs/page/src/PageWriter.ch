@@ -92,6 +92,11 @@ public interface HtmlPageWriter {
 
     func getSsrAttributeValue(&mut self, page : &mut HtmlPage) : SsrAttributeValue;
 
+    // `writeTextToPageHtml(self, page, buffer)` — append the value as **text**,
+    // escaped for HTML. `#html`'s `{expr}` asks for this hook first, falls back to
+    // `writeToPageHtml` when a type does not implement it, and `@(expr)` always uses
+    // the raw one. Implementing it is how a type says "I am a value, escape me".
+
     func writeToPageHtml(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
         renderHtmlAttrValue(page, getSsrAttributeValue(page))
     }
@@ -111,6 +116,10 @@ impl HtmlPageWriter for std::string_view {
     func writeToPageHtml(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
         buffer.append_with_len(self.data(), self.size())
     }
+    func writeTextToPageHtml(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
+        var view = unsafe(std::string_view(self.data(), self.size()))
+        appendHtmlEscaped(buffer, &view)
+    }
     func writeToPageJs(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
         buffer.append('\'');
         append_js_single_quoted_escaped(buffer, self.data(), self.size())
@@ -129,6 +138,10 @@ impl HtmlPageWriter for std::string {
     }
     func writeToPageHtml(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
         buffer.append_with_len(self.data(), self.size())
+    }
+    func writeTextToPageHtml(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
+        var view = unsafe(std::string_view(self.data(), self.size()))
+        appendHtmlEscaped(buffer, &view)
     }
     func writeToPageJs(&mut self, page : &mut HtmlPage, buffer : &mut std::string) {
         buffer.append('\'');

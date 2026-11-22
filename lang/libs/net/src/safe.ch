@@ -271,6 +271,11 @@ public struct TcpStream {
         if(self.fd != 0 as raw::Socket) { raw::set_keep_alive(self.fd, enable) }
     }
 
+    /// TCP_NODELAY: write-through, no Nagle batching (see `raw::set_no_delay`).
+    public func set_no_delay(&mut self, enable : bool) {
+        if(self.fd != 0 as raw::Socket) { raw::set_no_delay(self.fd, enable) }
+    }
+
     public func set_nonblocking(&mut self) {
         if(self.fd != 0 as raw::Socket) { raw::set_nonblocking(self.fd) }
     }

@@ -1812,6 +1812,15 @@ private:
     unsigned async_capture_slot_ = MIR_INVALID_ID;
     /** set once the `int main` trampoline has been built, so it is emitted once */
     bool async_main_emitted_ = false;
+    /**
+     * Sanitized name of the function whose body is being lowered. Lambda helpers
+     * are named from it so a lambda in one module cannot collide with a lambda in
+     * another once a backend concatenates every module into one translation unit
+     * (`__chemda_0` twice is a redefinition, not two functions).
+     */
+    std::string lambda_scope_tag_;
+    /** `lambda_scope_tag_`'s input: a symbol's linker name, reduced to `[A-Za-z0-9_]`. */
+    std::string sanitized_symbol_tag(SymbolId sym);
     // per-site lowering info
     std::string async_mangled_;
     std::unordered_map<ASTNode*, size_t> async_site_index_;

@@ -28,6 +28,19 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Functi
 
 // this makes the call 'page.fn_name(value)'
 // value is the argument here
+// The `page` function to call for a sink. The pre-resolved `SymResSupport` node is a
+// fallback only: a sink added after that struct was built (`append_text_*`) has no
+// node there, and binding the call to the *wrong* node would silently emit raw output
+// where escaping was asked for.
+func (converter : &mut ASTConverter) page_fn(name : &std::string_view, fallback : *mut ASTNode) : *mut ASTNode {
+        unsafe {
+        const found = converter.support.pageNode.child(name)
+        if(found == null) { return fallback }
+        return found
+
+        }
+    }
+
 func (converter : &mut ASTConverter) make_value_call_with(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCallNode {
         unsafe {
         const builder = converter.builder
@@ -62,20 +75,38 @@ func (converter : &mut ASTConverter) make_call_inside(value : *mut Value, fn_nam
 
 func (converter : &mut ASTConverter) make_char_ptr_value_call(value : *mut Value) : *mut FunctionCallNode {
         unsafe {
-        if(converter.in_head) {
-            return converter.make_value_call_with(value, std::string_view("append_head_char_ptr"), converter.support.appendHeadCharPtrFn)
+        // `{expr}` is text: `append_text_char_ptr` escapes it. `@(expr)` is the raw
+        // form and keeps the html sink.
+        if(converter.raw_value) {
+            if(converter.in_head) {
+                return converter.make_value_call_with(value, std::string_view("append_head_char_ptr"), converter.support.appendHeadCharPtrFn)
+            }
+            return converter.make_value_call_with(value, std::string_view("append_html_char_ptr"), converter.support.appendHtmlCharPtrFn)
         }
-        return converter.make_value_call_with(value, std::string_view("append_html_char_ptr"), converter.support.appendHtmlCharPtrFn)
+        var head_text = std::string_view("append_head_text_char_ptr")
+        var body_text = std::string_view("append_text_char_ptr")
+        if(converter.in_head) {
+            return converter.make_value_call_with(value, head_text, converter.page_fn(&head_text, converter.support.appendHeadCharPtrFn))
+        }
+        return converter.make_value_call_with(value, body_text, converter.page_fn(&body_text, converter.support.appendHtmlCharPtrFn))
 
         }
     }
 
 func (converter : &mut ASTConverter) make_char_value_call(value : *mut Value) : *mut FunctionCallNode {
         unsafe {
-        if(converter.in_head) {
-            return converter.make_value_call_with(value, std::string_view("append_head_char"), converter.support.appendHeadCharFn)
+        if(converter.raw_value) {
+            if(converter.in_head) {
+                return converter.make_value_call_with(value, std::string_view("append_head_char"), converter.support.appendHeadCharFn)
+            }
+            return converter.make_value_call_with(value, std::string_view("append_html_char"), converter.support.appendHtmlCharFn)
         }
-        return converter.make_value_call_with(value, std::string_view("append_html_char"), converter.support.appendHtmlCharFn)
+        var head_text = std::string_view("append_head_text_char")
+        var body_text = std::string_view("append_text_char")
+        if(converter.in_head) {
+            return converter.make_value_call_with(value, head_text, converter.page_fn(&head_text, converter.support.appendHeadCharFn))
+        }
+        return converter.make_value_call_with(value, body_text, converter.page_fn(&body_text, converter.support.appendHtmlCharFn))
 
         }
     }

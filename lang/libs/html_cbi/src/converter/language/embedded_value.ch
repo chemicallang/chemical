@@ -51,8 +51,17 @@ func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *m
         unsafe {
         switch(node.getKind()) {
             ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
-                var fnName = std::string_view("writeToPageHtml")
-                const writeFn = node.child(&fnName)
+                // A value in `{expr}` is **text**, so a type that says "I am a value"
+                // (`writeTextToPageHtml`, `std::string`/`string_view` implement it)
+                // is escaped. A type with only `writeToPageHtml` produces markup and
+                // is spliced as such — that is the documented opt-in — and
+                // `@(expr)` always takes the raw hook.
+                var fnName = std::string_view("writeTextToPageHtml")
+                var writeFn = node.child(&fnName)
+                if(converter.raw_value || writeFn == null) {
+                    fnName = std::string_view("writeToPageHtml")
+                    writeFn = node.child(&fnName)
+                }
                 if(writeFn == null) {
                     converter.unsupported_value(value, std::string_view("its type has no HTML serialization (define writeToPageHtml on the type, or pass a primitive/string)"));
                     return;

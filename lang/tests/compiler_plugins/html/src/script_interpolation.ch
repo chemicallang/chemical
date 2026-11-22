@@ -43,32 +43,34 @@
 @test
 public func script_json_island_interpolates_its_content(env : &mut TestEnv) {
     var payload = std::string("{\"uuid\":\"abc\"}")
-    var esc = escape_html_view(payload.to_view())
     var page = HtmlPage()
     #html {
-        <script type="application/json" id="r3">{esc.to_view()}</script>
+        <script type="application/json" id="r3">{payload.to_view()}</script>
     }
-    // Emitted exactly as it would be in a <div>: the value, entity-escaped the
-    // same way. Not the literal source text "{esc.to_view()}".
+    // A `<script>` is a **raw text** element: the browser never entity-decodes its
+    // content, so a value here is written verbatim. (Escaping it would put
+    // `&quot;` inside the JSON and make it unparseable.) Not the literal source
+    // text "{payload.to_view()}".
     string_equals(env, page.toStringHtmlOnly(),
-        "<script type=\"application/json\" id=\"r3\">{&quot;uuid&quot;:&quot;abc&quot;}</script>")
+        "<script type=\"application/json\" id=\"r3\">{\"uuid\":\"abc\"}</script>")
 }
 
 // The same payload through a <div>, pinning the equivalence the bug violated:
 // a data-island script and any other element must interpolate identically.
 @test
-public func script_json_island_matches_div_interpolation(env : &mut TestEnv) {
+public func script_json_island_differs_from_div_interpolation(env : &mut TestEnv) {
+    // The same payload in three positions, each with its own rule: element text is
+    // escaped, an attribute is escaped, and a script body is raw text.
     var payload = std::string("{\"uuid\":\"abc\"}")
-    var esc = escape_html_view(payload.to_view())
     var page = HtmlPage()
     #html {
-        <div         id="r1">{esc.to_view()}</div>
-        <script type="application/json" id="r2" data-p={esc.to_view()}></script>
-        <script type="application/json" id="r3">{esc.to_view()}</script>
+        <div         id="r1">{payload.to_view()}</div>
+        <script type="application/json" id="r2" data-p={payload.to_view()}></script>
+        <script type="application/json" id="r3">{payload.to_view()}</script>
     }
     var expected = std::string("<div id=\"r1\">{&quot;uuid&quot;:&quot;abc&quot;}</div>")
     expected.append_view(std::string_view("<script type=\"application/json\" id=\"r2\" data-p=\"{&quot;uuid&quot;:&quot;abc&quot;}\"></script>"))
-    expected.append_view(std::string_view("<script type=\"application/json\" id=\"r3\">{&quot;uuid&quot;:&quot;abc&quot;}</script>"))
+    expected.append_view(std::string_view("<script type=\"application/json\" id=\"r3\">{\"uuid\":\"abc\"}</script>"))
     string_equals(env, page.toStringHtmlOnly(), &expected.to_view())
 }
 
@@ -100,9 +102,8 @@ public func script_data_island_interpolates_a_plain_value(env : &mut TestEnv) {
 
 // Attribute interpolation on a data-island script must keep working (this is
 // the sibling-product workaround that hid the bug; it must not regress).
-// Note the quotes are NOT entity-escaped: #html never auto-escapes an
-// interpolated value, in an attribute or anywhere else, so escaping stays the
-// caller's job (see escape.ch).
+// The quotes ARE entity-escaped: an attribute is an attribute, whatever element
+// it is on, so `#html` escapes the value once (see escape.ch).
 @test
 public func script_data_island_attribute_interpolation_is_unaffected(env : &mut TestEnv) {
     var payload = std::string("{\"a\":1}")
@@ -111,22 +112,21 @@ public func script_data_island_attribute_interpolation_is_unaffected(env : &mut 
         <script type="application/json" data-p={payload.to_view()}></script>
     }
     string_equals(env, page.toStringHtmlOnly(),
-        "<script type=\"application/json\" data-p=\"{\"a\":1}\"></script>")
+        "<script type=\"application/json\" data-p=\"{&quot;a&quot;:1}\"></script>")
 }
 
-// Characters a JSON payload actually contains. In a data island '<' and '&' are
-// ordinary text, not markup, so they are entity-escaped on output exactly as they
-// would be in a <div> -- the browser decodes them back, so the island still
-// carries the characters the client will JSON.parse. It no longer has to be
-// written in the grammar of raw script text.
+// Characters a JSON payload actually contains. A `<script>` is a raw text element
+// (regardless of its `type`): '<' and '&' are ordinary text and the browser does
+// NOT decode entities there, so escaping them would change the bytes the client
+// parses. Literal text and interpolated values are both emitted verbatim.
 @test
-public func script_data_island_body_is_ordinary_text(env : &mut TestEnv) {
+public func script_data_island_body_is_raw_text(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {
         <script type="application/json">a < b && c > d</script>
     }
     string_equals(env, page.toStringHtmlOnly(),
-        "<script type=\"application/json\">a &lt; b &amp;&amp; c &gt; d</script>")
+        "<script type=\"application/json\">a < b && c > d</script>")
 }
 
 // ------------------------- what must NOT regress: the JavaScript raw path

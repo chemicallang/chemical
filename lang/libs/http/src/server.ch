@@ -284,6 +284,9 @@ public struct Server {
             }
             var Ok(tcp) = accepted else unsafe { unreachable }
             tcp.set_keep_alive(true)
+            // Write-through: the response is sent as head + body, and Nagle would hold
+            // the second write for the peer's delayed ACK (~40 ms per keep-alive request).
+            tcp.set_no_delay(true)
             var fd = unsafe(net::raw::release_tcp(&mut tcp))
             // A non-blocking listener hands the flag to the accepted socket on
             // some platforms; the connection is served with blocking reads.
@@ -292,6 +295,7 @@ public struct Server {
                 unsafe {
                     var tcp2 = net::raw::stream_from_fd(fd)
                     tcp2.set_keep_alive(true)
+                    tcp2.set_no_delay(true)
                     var opened = selfp.open_stream(tcp2)
                     if(opened is Option.None) { return }
                     var Some(stream) = opened else unsafe { unreachable }
@@ -326,6 +330,7 @@ public struct Server {
                 continue
             }
             net::raw::set_keep_alive(s, true)
+            net::raw::set_no_delay(s, true)
             if(!cp.register(s, s as usize)) {
                 net::raw::close_socket(s)
                 continue

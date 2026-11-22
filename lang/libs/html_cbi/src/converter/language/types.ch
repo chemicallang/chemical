@@ -21,6 +21,11 @@ struct ASTConverter {
 
     var in_head : bool = false
 
+    // True while converting a value written in a template's **raw** position
+    // (`@(expr)`): the value is spliced verbatim, markup and all. Everywhere else a
+    // value is text and goes through the escaped sinks (`#html` escapes by default).
+    var raw_value : bool = false
+
     // While rendering a parent component's children for SSR, nested component
     // children are emitted as client vnodes by the parent, so they must NOT also
     // emit their own hydration dispatch (that would double-mount).

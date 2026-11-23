@@ -1094,9 +1094,16 @@ What that first version proves and what it does not:
   field/index addressing, `sizeof`/`alignof`/`offsetof` folded from the type table, the libc subset
   std actually uses (`ctype`, `strtol`/`strtod`, `str*`/`mem*`), and C-vs-JS agreement on real std
   code and on the `json` library.
-- **Not yet:** cross-module ESM splitting (a bundle is one program module today; the split is Phase 3
-  with the module split, and per-module files need a symbol→module mapping MIR does not publish),
-  interface dispatch (`dynamic_call`), async, atomics, inline asm, source maps, and minification.
+- **Cross-module ESM splitting landed 2026-11-23.** A bundle is now one `.mjs` per Chemical module
+  with `import { $fN } from "./other.mjs"` between them (plus `index.mjs` merging the modules'
+  `$exports` tables) — the first item on this list that needed MIR to publish a fact it did not have:
+  `MIRModule::module_of_symbol`, filled at lowering, because two modules may both define `run` and a
+  mangled name cannot say which module owns a symbol. Globals follow the same rule (one module
+  allocates the storage, the others import it), and the runtime's `$fns` table is now *merged* across
+  modules with `rt.indirect` resolving through the merged table — a closure created in one module and
+  called from another was the case that proved it (see `js_backend_closure`). Verified by the same
+  differential gate: every fixture still agrees with the native backend byte for byte.
+- **Not yet:** interface dispatch (`dynamic_call`), async, atomics, inline asm, and minification.
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 
@@ -1146,8 +1153,11 @@ Then, in order:
    fall-through asks the table — so the emitter, `--check` and any future pre-emission check cannot
    disagree. The rules are data (reason strings are the user-facing diagnostics) and are unit-testable
    without standing up an emitter. Remaining: wiring it into the LSP, which does not lower to MIR yet.
-6. ESM emission: one module per Chemical module; shared mangling. — **deferred to Phase 3**: a bundle
-   is one program module plus `index.mjs` and `runtime.mjs` today.
+6. ESM emission: one module per Chemical module; shared mangling. — **landed 2026-11-23**: `--emit-js`
+   writes `<module>.mjs` + `.mjs.map` per Chemical module that defined a reachable function, cross-module
+   calls/globals become ES imports, and `index.mjs` re-exports the entry module and merges every
+   module's `$exports`. Mangled names are already program-unique (`$f<symbol>`), so no shared-mangling
+   step was needed. `scripts/js_backend/sourcemap_check.mjs` now validates one map per module.
 7. Test harness: differential **C-vs-JS conformance** (same program, identical stdout) + a
    Node runner path (the current runner spawns child processes over Win32 pipes and prints
    via `printf`). — **differential harness landed** (`scripts/js-backend-test.sh`,

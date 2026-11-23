@@ -50,6 +50,33 @@ bool emit_module_js(const MIRModule& module, std::string& out, std::string& erro
                     const MIREmitJsOptions& options = MIREmitJsOptions{},
                     std::string* source_map = nullptr);
 
+/** One emitted file of a split bundle. */
+struct JsEmittedModule {
+    /** File stem (`app__main`); the file is `<stem>.mjs`, the map `<stem>.mjs.map`. */
+    std::string stem;
+    /** The Chemical module this file represents (empty for an unattributed symbol). */
+    std::string module_name;
+    std::string source;
+    std::string source_map;
+};
+
+/**
+ * Emit one ES module **per Chemical module** that defined a reachable function,
+ * with imports between them.
+ *
+ * This is what lets a browser cache a module's code separately and what makes an
+ * emitted bundle a real ESM graph rather than one concatenated file. Ownership
+ * comes from `MIRModule::module_of_symbol` (filled at lowering); a symbol whose
+ * owner is unknown is emitted into the job's own module rather than dropped, so
+ * a partially-attributed program still builds.
+ *
+ * `files` receives one entry per module, in discovery order. The caller writes
+ * them and an entry module that merges their `$exports` tables.
+ */
+bool emit_modules_js(const MIRModule& module, const std::vector<const MIRFunction*>& functions,
+                     std::vector<JsEmittedModule>& files, std::string& error,
+                     const MIREmitJsOptions& options);
+
 /**
  * Emit `functions` (a subset of `module.functions`) as one ES module. The module
  * tables are shared, so cross-references between the emitted functions resolve

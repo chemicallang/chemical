@@ -36,6 +36,13 @@ check() {
     fi
 }
 file_has() { grep -qF -- "$2" "$1" 2>/dev/null && echo 1 || echo 0; }
+# A client bundle is one `.mjs` per Chemical module (plus `index.mjs` and the
+# runtime), so "the emitted JavaScript does X" is a property of the union of them.
+bundle_has() {
+    local dir="$1" needle="$2"
+    grep -rqF --include='*.mjs' -- "$needle" "$dir" 2>/dev/null && echo 1 || echo 0
+}
+bundle_file() { ls "$1"/*.mjs 2>/dev/null | head -1; }
 
 command -v node >/dev/null 2>&1 || {
     echo "web-dom-test: node is required to run the emitted bundle" >&2
@@ -56,19 +63,22 @@ else
     check "the two-job build succeeds" 0
     tail -20 "$log" >&2
 fi
+assets="$build_dir/web-client/assets"
 check "the client job emits a JavaScript bundle" \
-      "$([ -f "$build_dir/web-client/assets/index.mjs" ] && [ -f "$build_dir/web-client/assets/web-client.mjs" ] && echo 1 || echo 0)"
-check "the client job emits a source map" \
-      "$([ -f "$build_dir/web-client/assets/web-client.mjs.map" ] && echo 1 || echo 0)"
-check "the client bundle links the source map" \
-      "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'sourceMappingURL=web-client.mjs.map')"
+      "$([ -f "$assets/index.mjs" ] && [ -f "$assets/client.mjs" ] && [ -f "$assets/shared.mjs" ] && echo 1 || echo 0)"
+check "the client job emits one module file per Chemical module" \
+      "$([ -f "$assets/dom.mjs" ] && [ -f "$assets/std.mjs" ] && echo 1 || echo 0)"
+check "the client job emits a source map per module" \
+      "$([ -f "$assets/client.mjs.map" ] && [ -f "$assets/shared.mjs.map" ] && echo 1 || echo 0)"
+check "every module links its own source map" \
+      "$([ "$(grep -l 'sourceMappingURL=' "$assets"/*.mjs | wc -l)" = "$(ls "$assets"/*.mjs | grep -v 'runtime.mjs\|index.mjs\|boot.mjs' | wc -l)" ] && echo 1 || echo 0)"
 check "the server job emits a native executable" \
       "$([ -x "$out/dom_client.exe" ] && echo 1 || echo 0)"
 
 # The two jobs share `shared` and nothing else: the server's HTML must not appear in
 # the client bundle, and the client's DOM calls must not appear in the server binary.
 check "server-only code is absent from the client bundle" \
-      "$([ "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'DOCTYPE html')" = "0" ] && echo 1 || echo 0)"
+      "$([ "$(bundle_has "$assets" 'DOCTYPE html')" = "0" ] && echo 1 || echo 0)"
 check "client-only code is absent from the server executable" \
       "$([ "$(file_has "$out/dom_client.exe" 'chx_dom_get_element_by_id')" = "0" ] && echo 1 || echo 0)"
 
@@ -80,11 +90,11 @@ check "the server executable runs and renders the page" \
 
 echo "== client side: emitted JavaScript against a host DOM"
 check "the emitted bundle resolves the shared rule through the JS backend" \
-      "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'shared_next')"
+      "$(bundle_has "$assets" 'shared_next')"
 check "the emitted bundle calls the dom host (not raw externs)" \
-      "$([ "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'rt.dom.get_element_by_id')" = "1" ] && [ "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'chx_dom_get_element_by_id')" = "0" ] && echo 1 || echo 0)"
+      "$([ "$(bundle_has "$assets" 'rt.dom.get_element_by_id')" = "1" ] && [ "$(bundle_has "$assets" 'chx_dom_get_element_by_id')" = "0" ] && echo 1 || echo 0)"
 check "the emitted bundle registers its function table for host callbacks" \
-      "$(file_has "$build_dir/web-client/assets/web-client.mjs" 'rt.register_fns($fns)')"
+      "$(bundle_has "$assets" 'rt.register_fns($fns)')"
 
 harness_out="$out/harness.txt"
 if node scripts/js_backend/dom_harness.mjs "$build_dir/web-client/assets" > "$harness_out" 2>&1; then

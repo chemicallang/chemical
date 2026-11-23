@@ -136,6 +136,51 @@ struct MIRModule {
      */
     std::vector<std::string> source_files;
     /**
+     * The Chemical modules this program was lowered from, and which one defined
+     * each symbol.
+     *
+     * A bundle is one MIR program, but it is not one source unit: a backend that
+     * emits one file per Chemical module (the JS backend does, so a browser can
+     * cache each separately) has to know which module owns a function or global —
+     * a fact MIR did not publish, and one it cannot re-derive from a mangled name
+     * (two modules may both define `run`). Filled while lowering: a symbol is
+     * attributed to the module whose body is being lowered, so a *reference* to
+     * another module's function does not move the definition. Lookups of an
+     * unattributed symbol return `MIR_INVALID_ID`.
+     */
+    std::vector<std::string> module_names;
+    std::vector<uint32_t> symbol_modules;
+    std::mutex symbol_module_mutex;
+    /** The module currently being lowered; its symbols are attributed to it. */
+    uint32_t lowering_module = MIR_INVALID_ID;
+
+    /** Intern (or find) a Chemical module name; returns its id. */
+    uint32_t module_name(const std::string& name) {
+        std::lock_guard<std::mutex> lock(symbol_module_mutex);
+        for (uint32_t i = 0; i < module_names.size(); ++i) {
+            if (module_names[i] == name) return i;
+        }
+        module_names.push_back(name);
+        return static_cast<uint32_t>(module_names.size() - 1);
+    }
+    /** Record that `symbol` is defined by the module currently being lowered. */
+    void attribute_symbol(SymbolId symbol) {
+        if (symbol == MIR_INVALID_ID || lowering_module == MIR_INVALID_ID) return;
+        std::lock_guard<std::mutex> lock(symbol_module_mutex);
+        if (symbol >= symbol_modules.size()) symbol_modules.resize(symbol + 1, MIR_INVALID_ID);
+        symbol_modules[symbol] = lowering_module;
+    }
+    /** The Chemical module that defined `symbol`, or `MIR_INVALID_ID`. */
+    uint32_t module_of_symbol(SymbolId symbol) const {
+        if (symbol >= symbol_modules.size()) return MIR_INVALID_ID;
+        return symbol_modules[symbol];
+    }
+    /** The name of module `id` (`""` when unknown). */
+    std::string_view module_name_of(uint32_t id) const {
+        if (id == MIR_INVALID_ID || id >= module_names.size()) return std::string_view();
+        return module_names[id];
+    }
+    /**
      * Declare that one thread performs every mutation of this module's tables
      * (the shipping pipeline). Every reader then skips its table lock; readers
      * may still run concurrently, because the flag only rules out a concurrent
@@ -193,6 +238,9 @@ struct MIRModule {
         vtables.clear();
         declarations.clear();
         source_files.clear();
+        module_names.clear();
+        symbol_modules.clear();
+        lowering_module = MIR_INVALID_ID;
         inline_structs.clear();
         inline_struct_seen_.clear();
     }

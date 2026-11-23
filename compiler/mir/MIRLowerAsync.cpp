@@ -1365,9 +1365,13 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                 static_cast<uint32_t>(async_mangled_.size()),
                 async_mangled_.data(),
                 static_cast<uint32_t>(async_mangled_.size()));
+            // A synthetic coroutine body is as much a body of this module as a
+            // source function (the JS backend emits one file per module).
+            module_.attribute_symbol(func.symbol);
         } else {
             func.symbol = intern_function(decl);
             module_.symbols.set_type(func.symbol, ftype);
+            module_.attribute_symbol(func.symbol);
         }
         func.function_type = ftype;
     }

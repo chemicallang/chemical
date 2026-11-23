@@ -9554,6 +9554,10 @@ SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
     SymbolId s = module_.symbols.add(rec, mangle_buf_.data(),
                                      static_cast<uint32_t>(mangle_buf_.size()),
                                      mangle_buf_.data(), static_cast<uint32_t>(mangle_buf_.size()));
+    // Only the module that *defines* the global owns its storage: a reference to
+    // another module's global must import it, not emit a second `$g` with zeroed
+    // contents.
+    if (defined_here) { module_.attribute_symbol(s); }
     global_symbols_[vi] = s;
     return s;
 }

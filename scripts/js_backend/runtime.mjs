@@ -599,13 +599,24 @@ export function exit(code) {
 // (`{ptr,len}`, 16 bytes) or as C strings returned by the host, and a Chemical
 // callback travels as its function address (a symbol id resolved through `$fns`,
 // which the emitted module registers with `rt.register_fns`).
-let fnTable = null;
+let fnTable = [];
+let fnTableRegistered = false;
 
 /** Give the runtime the emitted module's `$fns` table, so host callbacks can call
- * back into Chemical code. Called once per bundle at module scope. */
+ * back into Chemical code. A bundle is one ES module per Chemical module and each
+ * registers its own table, so this *merges*: symbol ids are unique across the
+ * whole program, and overwriting would drop every other module's functions. */
 export function register_fns(table) {
-  fnTable = table;
+  fnTableRegistered = true;
+  for (let i = 0; i < table.length; i++) {
+    if (table[i] !== undefined) fnTable[i] = table[i];
+  }
 }
+
+/** The merged table. An indirect call site must resolve through this, not through
+ * its own module's table: the address it calls may have been taken in another
+ * module of the bundle (a closure created there, called here). */
+export const fns = fnTable;
 
 const hosts = [null];
 
@@ -648,7 +659,7 @@ function view_of(text) {
 }
 
 function call_chemical(fn, ...args) {
-  if (fnTable === null) throw new Error("js runtime: a dom callback fired before rt.register_fns");
+  if (!fnTableRegistered) throw new Error("js runtime: a dom callback fired before rt.register_fns");
   return indirect(fnTable, fn)(...args);
 }
 
@@ -750,7 +761,7 @@ export const rt = {
   isspace, isdigit, isalpha, isalnum, isxdigit, isupper, islower, isprint,
   isgraph, iscntrl, ispunct, toupper, tolower, abs, labs, llabs,
   strtol, strtoll, strtoul, strtoull, atoi, strtod, atof,
-  printf, putchar, abort, exit, trap, indirect, HEAP,
+  printf, putchar, abort, exit, trap, indirect, fns, HEAP,
   register_fns, dom,
 };
 /** Resolve a MIR function address (a symbol id) to the emitted function. */

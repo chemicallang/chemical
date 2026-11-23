@@ -791,6 +791,10 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     extension_anchor_ = MIR_INVALID_ID;
 
     func.symbol = intern_function(decl);
+    // The body is created while its own module is being lowered, so this is where
+    // the symbol's owning module is recorded (a *call* to a foreign function only
+    // interns its symbol, it does not run this path).
+    module_.attribute_symbol(func.symbol);
     lambda_scope_tag_ = sanitized_symbol_tag(func.symbol);
     // Region signatures are built from the declaration before any body
     // lowering, so MIRBorrowCheck (M4) never has to read the AST.
@@ -1017,6 +1021,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
+    module_.attribute_symbol(func.symbol);
     lambda_scope_tag_ = sanitized_symbol_tag(func.symbol);
     if (source_loc_provider_ && decl) {
         const uint64_t enc = decl->encoded_location().encoded;

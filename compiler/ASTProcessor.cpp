@@ -2820,6 +2820,14 @@ int ASTProcessor::implement_module(
     mir::MIRTaskContext mir_task_local(mir_module_local, mir_types_local);
     std::recursive_mutex mir_mutex_local;
     mir::MIRModule& mir_module = mir_interp_program ? mir_interp_program->module : mir_module_local;
+    // A shared program is lowered one Chemical module at a time, and a backend
+    // that emits one file per module (the JS backend) needs to know which module
+    // owns each function/global. Attributes recorded here belong to `module`:
+    // interning another module's declaration while lowering this one does not
+    // move its definition (see `MIRModule::attribute_symbol`).
+    if (mir_interp_program != nullptr && module != nullptr) {
+        mir_module.lowering_module = mir_module.module_name(module->name.to_std_string());
+    }
     mir::MIRTypeBuilder& mir_types = mir_interp_program ? *mir_interp_program->types : mir_types_local;
     mir::MIRTaskContext& mir_task = mir_interp_program ? *mir_interp_program->task : mir_task_local;
     mir_task.check_only = options->check_only;

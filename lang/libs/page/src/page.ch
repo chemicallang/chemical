@@ -295,6 +295,60 @@ public struct HtmlPage {
         return pageHeadJs.to_view()
     }
 
+    // ── Production minification ──────────────────────────────────────────────
+    // When true, serialization writes this page's own JS and CSS through
+    // `page.minify_js` / `page.minify_css`: comments and insignificant
+    // whitespace go, identifiers stay, so a stack trace still names the
+    // functions that ran. The render is untouched and the buffers are never
+    // rewritten — the same page still dumps and reads as source while a
+    // component is being written, and only the artifact shrinks.
+    //
+    // Off by default: emitted bytes are the most useful thing to read during
+    // development, and only bytes that go over a network are worth shrinking.
+    // `StaticSite`/`web::App` turn it on from `set_minify`, which is where a
+    // production site decides it.
+    private var minify_output : bool = false
+
+    /// Minify this page's own JS and CSS when it is serialized: `toString`,
+    /// `toStringExternalJs`, `toStringWithAssets`, and the `{name}.js` /
+    /// `{name}_head.js` / `{name}.css` files `writeToDirectory` writes. Off by default;
+    /// call before serializing.
+    ///
+    /// The work happens at serialization, which is a build for an export and a
+    /// response for a server that inlines its JS. The `getJs`/`toStringJsOnly`
+    /// accessors keep returning the rendered bytes, so an app that serves its
+    /// client JS as a cached asset can minify it once and hand it out as-is.
+    public func set_minify(&mut self, on : bool) {
+        minify_output = on
+    }
+
+    public func is_minify_enabled(&self) : bool {
+        return minify_output
+    }
+
+    // Serialization helpers for the two buffers that are not `pageJs` (which
+    // `getFinalizedPageJs` already minifies). Appending straight through when the
+    // switch is off is why enabling it costs nothing on a development build; a
+    // minifier that cannot prove a rewrite is safe returns its input unchanged, so
+    // a page never ships half-minified code.
+    func append_output_head_js(&self, out : &mut std::string) {
+        if(!minify_output) {
+            out.append_string(&pageHeadJs)
+            return
+        }
+        var js = minify_js(pageHeadJs.to_view())
+        out.append_string(&js)
+    }
+
+    func append_output_css(&self, out : &mut std::string) {
+        if(!minify_output) {
+            out.append_string(&pageCss)
+            return
+        }
+        var css = minify_css(pageCss.to_view())
+        out.append_string(&css)
+    }
+
     // ── Shared JS/CSS sink ────────────────────────────────────────────────
     // Raw pointer attach (legacy). The page does not take ownership; the sink
     // must outlive every attached page. Prefer `attach_shared_ref` /
@@ -1290,12 +1344,12 @@ public struct HtmlPage {
         str.append_string(&pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<style>"))
-            str.append_string(&pageCss)
+            append_output_css(&mut str)
             str.append_view(std::string_view("</style>"))
         }
         if(!pageHeadJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(&pageHeadJs)
+            append_output_head_js(&mut str)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</head>"))
@@ -1324,12 +1378,12 @@ public struct HtmlPage {
         str.append_string(&pageHead)
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<style>"))
-            str.append_string(&pageCss)
+            append_output_css(&mut str)
             str.append_view(std::string_view("</style>"))
         }
         if(!pageHeadJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(&pageHeadJs)
+            append_output_head_js(&mut str)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</head>"))
@@ -1361,12 +1415,12 @@ public struct HtmlPage {
         }
         if(!pageCss.empty()) {
             str.append_view(std::string_view("<style>"))
-            str.append_string(&pageCss)
+            append_output_css(&mut str)
             str.append_view(std::string_view("</style>"))
         }
         if(!pageHeadJs.empty()) {
             str.append_view(std::string_view("<script>"))
-            str.append_string(&pageHeadJs)
+            append_output_head_js(&mut str)
             str.append_view(std::string_view("</script>"))
         }
         str.append_view(std::string_view("</head>"))
@@ -3590,6 +3644,9 @@ public struct HtmlPage {
         str.reserve(pageJs.size() + pageJsEnd.size())
         str.append_view(pageJs.to_view())
         str.append_view(pageJsEnd.to_view())
+        if(minify_output) {
+            return minify_js(str.to_view())
+        }
         return str;
     }
 
@@ -3652,21 +3709,27 @@ public struct HtmlPage {
 
         // {name}.css
         if(!pageCss.empty()) {
+            // The bytes written are the serialized form (minified when enabled),
+            // never the render buffer: a page may write itself more than once.
+            var css_out = std::string()
+            append_output_css(&mut css_out)
             // mutated through `append` below, so must be a `var`
             var cssFile = unsafe(std::string(path.data(), path.size()))
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
-            unsafe(fs::raw::write_text_file(cssFile.data(), pageCss.data() as *u8, pageCss.size()))
+            unsafe(fs::raw::write_text_file(cssFile.data(), css_out.data() as *u8, css_out.size()))
         }
 
         // {name}_head.js
         if(!pageHeadJs.empty()) {
+            var head_js_out = std::string()
+            append_output_head_js(&mut head_js_out)
             var jsHeadFile = unsafe(std::string(path.data(), path.size()))
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
-            unsafe(fs::raw::write_text_file(jsHeadFile.data(), pageHeadJs.data() as *u8, pageHeadJs.size()))
+            unsafe(fs::raw::write_text_file(jsHeadFile.data(), head_js_out.data() as *u8, head_js_out.size()))
         }
 
         // {name}.js

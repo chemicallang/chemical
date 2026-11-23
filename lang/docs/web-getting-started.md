@@ -175,8 +175,11 @@ These are planned, not shipped — do not design around them:
 - **Writing client logic in Chemical.** Client behaviour lives in `#universal`
   component bodies (and `#js` escape hatches); the JS backend emits ES modules
   for whole programs but is not wired into the bundle graph.
-- **Production packaging**: minification, `--static` multi-page export,
-  sessions/CSRF, gzip precompression, size budgets.
+- **Production packaging**: `--static` multi-page export, sessions/CSRF, gzip
+  precompression, size budgets. (JS/CSS minification *is* available — it is an
+  opt-in on the artifact, `HtmlPage.set_minify` / `StaticSite.set_minify` /
+  `web::App.set_minify`, so the emitted source stays readable; see
+  `web-stack-plan.md` §9.1 item 10.)
 
 ## Known sharp edge
 

@@ -2107,7 +2107,23 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
     the `app` fixture's runtime bundle: **108,520 → 48,283 B (−55%)**, `node --check` clean,
     chunk plan identical (`graph chunked=1` still passes on minified bytes). Unit tests live in
     `lang/tests/libs/page/src/minify.ch` (13 tests: ASI newlines, token-separating spaces,
-    strings/templates, regex fallback, division, comments, CSS last-`;`). **Still open from item
+    strings/templates, regex fallback, division, comments, CSS last-`;`).
+    **Page-level opt-in (2026-11-23):** the switch is on the artifact, never on the source.
+    `HtmlPage.set_minify(true)` minifies what serialization *writes* — the `toString` family,
+    `toStringWithAssets`, and the `{name}.js` / `{name}_head.js` / `{name}.css` files
+    `writeToDirectory` writes — while the render buffers keep the readable bytes, so the same
+    object is dumped and read while a component is being written and exported minified from the
+    same render. `StaticSite.set_minify` now also turns the page flag on for every registered
+    page, because a route's own chunk is an artifact too: it used to shrink only the shared
+    bundle and leave every chunk unminified. Measured: the small probe page (runtime + four
+    components) JS **130,158 → 68,029 B (−47.7%)**, CSS 18,392 → 17,751 B, head JS 3,014 →
+    1,595 B; the components-e2e app (196 component declarations) **269,499 → 196,414 B
+    (−27.1%)**, the difference being string literals and identifiers this minifier keeps. The
+    full Playwright suite (380 tests: SSR, hydration, interaction, aria) passes against the
+    minified build, which is what makes “formatting only” a checked claim rather than an
+    assertion. Tests: `lang/tests/libs/page/src/page_minify.ch` (4: off keeps the source, on
+    shrinks JS+CSS without losing tokens, `writeToDirectory` writes minified files, a site build
+    minifies route chunks — it fails when the page propagation is removed). **Still open from item
     1:** emitter identifier mangling, tree-shaking, gzip precompression, numeric budgets in the
     gate, `--profile`. Then the **skills kit** (item 4) and `skill conformance` in CI.
 

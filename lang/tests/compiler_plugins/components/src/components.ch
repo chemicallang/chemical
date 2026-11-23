@@ -1610,3 +1610,64 @@ public func components_default_theme_is_emitted_once(env : &mut TestEnv) {
     }
     env.success("default components theme emitted once across repeated calls")
 }
+
+// ---------------------------------------------------------------------------
+// `{...props}` forwards implicit attributes only
+// ---------------------------------------------------------------------------
+
+// A declared prop is the component's API: the body reads `props.x` and renders
+// what it exposes itself. The spread exists so callers can pass any implicit
+// attribute (`id`, `title`, `style`, `data-*`, `aria-*`, `role`, `on*`) straight
+// through. Spreading the declared names too painted `variant="ghost"`,
+// `options="AppleBanana"` and `label="Pick"` onto the element as invalid
+// attributes, made a component's `title` prop a native tooltip, and put a
+// leading space in the class list.
+public struct SpreadProbeProps {
+    @optional var variant : std::string_view
+    @optional var options : []std::string
+    @optional var label : std::string_view
+}
+
+#universal SpreadProbe(props : SpreadProbeProps) {
+    return <div {...props} data-variant={props.variant || "default"}>{props.label}</div>
+}
+
+@test
+public func components_spread_forwards_implicit_attrs_only(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SpreadProbe variant="ghost" options={["Apple", "Banana"]} label="Pick" id="probe-1" title="T" data-test-id="d1" /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // declared props never reach the element...
+    not_contains_string_assert(env, html.to_view(), std::string_view(" variant=\""))
+    not_contains_string_assert(env, html.to_view(), std::string_view(" options=\""))
+    not_contains_string_assert(env, html.to_view(), std::string_view(" label=\""))
+    // ...but stay readable: the component renders them itself
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"ghost\""))
+    contains_string_assert(env, html.to_view(), std::string_view(">Pick</div>"))
+    // implicit attributes still flow through the spread
+    contains_string_assert(env, html.to_view(), std::string_view("id=\"probe-1\""))
+    contains_string_assert(env, html.to_view(), std::string_view("title=\"T\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-test-id=\"d1\""))
+    // the client spread filters the same names
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("$__uni_props_rest(window.$__uni_value(props)"))
+}
+
+// The same rule for a component from the library: a declared prop must not be
+// rendered as an attribute by its root element's spread.
+@test
+public func components_library_root_spread_skips_declared_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <Button variant="destructive" size="sm" loading={false} title="T">Go</Button> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    not_contains_string_assert(env, html.to_view(), std::string_view(" variant=\""))
+    not_contains_string_assert(env, html.to_view(), std::string_view(" size=\""))
+    not_contains_string_assert(env, html.to_view(), std::string_view(" loading=\""))
+    not_contains_string_assert(env, html.to_view(), std::string_view(" disabled=\"false\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-variant=\"destructive\""))
+    contains_string_assert(env, html.to_view(), std::string_view("data-size=\"sm\""))
+    contains_string_assert(env, html.to_view(), std::string_view("title=\"T\""))
+}

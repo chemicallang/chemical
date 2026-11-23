@@ -1581,6 +1581,20 @@ public struct HtmlPage {
         }
         return out;
     })
+    // The spread half of a component's props object: `{...props}` on a DOM element
+    // forwards the implicit attributes (class/style/id/title/role/data-*/aria-*/on*)
+    // only, because the declared props are the component's API — it reads them and
+    // renders the ones it exposes itself. Filtering here (rather than at each
+    // component) keeps the props object intact for `props.x` reads.
+    window.$__uni_props_rest = ((props, names) => {
+        const src = window.$__uni_value(props);
+        if(!src) return {};
+        const out = {};
+        for(const k in src) {
+            if(names.indexOf(k) < 0) out[k] = src[k];
+        }
+        return out;
+    })
     window.$_ur = {
         Fragment: {},
         createElement: (t, p, ...c) => ({ t, p: p || {}, c })

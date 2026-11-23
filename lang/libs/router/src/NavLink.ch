@@ -47,11 +47,10 @@ public #universal NavLink(props : NavLinkProps) {
     const userClass = props.class || props.className
     const base = userClass ? ("chx-navlink " + userClass) : "chx-navlink"
     return <a {...props}
-        router={null}
-        routeId={null}
-        preload={null}
-        end={null}
         href={props.href}
+        target={props.target}
+        rel={props.rel}
+        download={props.download}
         class={active ? (base + " is-active") : base}
         aria-current={active ? "page" : null}
         onMouseEnter={() => { if(props.preload) { if(props.routeId) { r.preload(props.routeId) } else { r.preloadByUrl(props.href) } } }}

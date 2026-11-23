@@ -18,9 +18,10 @@
  *
  * Typed props (Phase 2). `href` is required — it drives `normPath`, the rendered
  * `href` and the click predicate. The rest are `@optional`: the body already
- * substitutes `"main-router"` and treats `preload`/`end` as falsy when absent, and
- * the tag nulls those router-only attributes out again after `{...props}`, so a
- * declared default would only move where the default is written.
+ * substitutes `"main-router"` and treats `preload`/`end` as falsy when absent, so
+ * a declared default would only move where the default is written. Declared props
+ * are the component's API: `{...props}` forwards only the implicit attributes, so
+ * the three anchor attributes a caller may set are rendered explicitly below.
  *
  * URL active state comes from `$__uni_link_active`, a browser-only runtime
  * helper, so it is applied in an effect (§3.15b): reading `window` during render
@@ -61,11 +62,10 @@ public #universal RouterLink(props : RouterLinkProps) {
         ? r.$current.value == props.routeId
         : urlActive
     return <a {...props}
-        router={null}
-        routeId={null}
-        preload={null}
-        end={null}
         href={props.href}
+        target={props.target}
+        rel={props.rel}
+        download={props.download}
         aria-current={active ? "page" : null}
         onMouseEnter={() => { if(props.preload) { if(props.routeId) { r.preload(props.routeId) } else { r.preloadByUrl(props.href) } } }}
         onFocus={() => { if(props.preload) { if(props.routeId) { r.preload(props.routeId) } else { r.preloadByUrl(props.href) } } }}

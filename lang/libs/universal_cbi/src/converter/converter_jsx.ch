@@ -489,7 +489,26 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
                  const a = resolvedAttrs.get_ptr(i);
                  if(a.original == null) {
                      if(!first) converter.str.append_view(", ");
-                     converter.convertJsNode(a.spreadArgument);
+                     // `{...props}` on a DOM element forwards the implicit attributes
+                     // (class/style/id/title/role/data-*/aria-*/on*) — the component's
+                     // declared props are its API, not DOM attributes, and leaking them
+                     // painted `variant="default"`/`size=""` on the element.
+                     if(converter.declared_prop_names.size() > 0 &&
+                        a.spreadArgument != null && a.spreadArgument.kind == JsNodeKind.Identifier &&
+                        converter.is_component_props_name((a.spreadArgument as *mut JsIdentifier).value)) {
+                         converter.str.append_view("window.$__uni_props_rest(")
+                         converter.convertJsNode(a.spreadArgument)
+                         converter.str.append_view(", [")
+                         for(var pk : uint = 0; pk < converter.declared_prop_names.size(); pk++) {
+                             if(pk > 0) converter.str.append_view(", ")
+                             converter.str.append('"')
+                             converter.str.append_view(converter.declared_prop_names.at(pk))
+                             converter.str.append('"')
+                         }
+                         converter.str.append_view("])")
+                     } else {
+                         converter.convertJsNode(a.spreadArgument);
+                     }
                      first = false;
                  }
              }

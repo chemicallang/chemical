@@ -24,6 +24,28 @@ func has_non_ssr_attr_value(attrValue : *AttributeValue) : bool {
         }
     }
 
+// Is `name` a declared field of the props struct of the component `element` mounts?
+//
+// A declared field is the component's API, not a DOM attribute: the server function
+// reads `props.x`, and the body's `{...props}` spread must not paint it onto the
+// element. Marking it here lets `page::accumulateAttrs` skip it while still letting
+// the component read it (the marker only affects rendering).
+func (converter : &mut ASTConverter) is_declared_component_prop(element : *mut HtmlElement, name : &std::string_view) : bool {
+        unsafe {
+        const signature = element.componentSignature
+        if(signature == null) return false
+        const propsStruct = signature.propsStruct
+        if(propsStruct == null) return false
+        const members = propsStruct.getMembers()
+        if(members == null) return false
+        for(var i : uint = 0; i < members.size(); i++) {
+            if(members.get(i).getName().equals(name)) return true
+        }
+        return false
+
+        }
+    }
+
 // Builds an SsrAttributeList struct value for a component invocation. When `withClass` is
 // non-empty, an additional `class` attribute carrying the generated class name is appended
 // (renderHtmlAttrs merges it with any caller-provided class).
@@ -82,6 +104,7 @@ func (converter : &mut ASTConverter) build_ssr_attrs(element : *mut HtmlElement,
             nameStructVal.add_value(std::string_view("data"), builder.make_string_value(&attr.name, location))
             nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
             attrStructVal.add_value(std::string_view("name"), nameStructVal)
+            attrStructVal.add_value(std::string_view("declared"), builder.make_bool_value(converter.is_declared_component_prop(element, &attr.name), location))
 
             const attrValue = attr.value;
             if(attrValue == null) {

@@ -65,7 +65,21 @@ public unsafe func universal_replacementNode(builder : *mut ASTBuilder, diagnose
             ssr_index_param : std::string_view(),
             ssr_index_param_valid : false,
             ssr_index_param_value : ssr_js_eval_invalid(),
-            router_outlet_routes : std::vector<*mut JsNode>()
+            router_outlet_routes : std::vector<*mut JsNode>(),
+            declared_prop_names : std::vector<std::string_view>()
+        }
+
+        // The component's own props struct: `{...props}` on a DOM element forwards
+        // the implicit attributes only, so these names are filtered out of the
+        // client spread (SSR filters the same list via `SsrAttribute.declared`).
+        const selfPropsStruct = root.signature.propsStruct
+        if(selfPropsStruct != null) {
+            const selfPropMembers = selfPropsStruct.getMembers()
+            if(selfPropMembers != null) {
+                for(var pi : uint = 0; pi < selfPropMembers.size(); pi++) {
+                    converter.declared_prop_names.push(selfPropMembers.get(pi).getName())
+                }
+            }
         }
 
         const nodeLocation = value.getEncodedLocation()

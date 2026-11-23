@@ -727,9 +727,11 @@ Still to land for typed props (Phase 2 remainder):
   client payload), `neg_universal_optional_prop_with_default`, and
   `neg_universal_optional_prop_value_checked`.
   A rule this surfaced in the components: **prefer `@optional` over a default when the body already
-  falls back** (`props.size || "md"`). A declared default is injected and then forwarded by a
-  `{...props}` spread as a bogus element attribute (`size="md"` on a `<label>`, `id=""` on an
-  `<input>`); `@optional` keeps the attribute off the DOM and changes nothing else.
+  falls back** (`props.size || "md"`). A declared default has to agree with that fallback or the
+  same prop has two sources of truth; `@optional` keeps the fallback in the body, where SSR and the
+  client already evaluate it. (The original reason — a default being forwarded by `{...props}` as a
+  bogus element attribute — is gone: declared props are no longer spread at all, see **A declared
+  prop never spreads** below.)
 
 - **A default is a value, not a node — two bugs from the first typed batches (fixed 2026-11-18).**
   Injecting a default into the SSR attribute and the client payload reuses the *call-site* emitters,
@@ -1268,10 +1270,9 @@ of the breaking changes in §3.17.
 
    - **Every field is `@optional`**, not defaulted. Absence is load-bearing in these components
      (`props.open != null` is the controlled/uncontrolled axis; `props.value || ""` and
-     `props.variant || "line"` are body fallbacks), and a declared default is injected into the
-     SSR attribute list these components `{...props}`-spread onto DOM elements, so the default
-     would leak a non-DOM attribute (`delay="200"`) into the markup. `@optional` defers the
-     fallback to the body, which both SSR and the client already evaluate.
+     `props.variant || "line"` are body fallbacks), so a declared default would compete with the
+     body's fallback for the same prop. `@optional` defers the fallback to the body, which both SSR
+     and the client already evaluate.
    - **`Toast`'s `actionClick` was renamed `onActionClick`.** Typing surfaced it: `on*` is the
      library's event convention (and an implicit prop the check never requires declaring), so
      `actionClick` was the only event prop in the library that needed a struct field. Four call
@@ -1414,6 +1415,36 @@ of the breaking changes in §3.17.
    **empty** props struct, which still rejects `<Outlet href="/x">` instead of dropping it.
    A `<RouterLink>` for an id route still needs `href`: the click handler and
    `$__uni_should_intercept` are URL-based even when active state comes from `$current`.
+
+   **A declared prop never spreads (2026-11-23).** `{...props}` forwards the **implicit** attributes
+   only. A field declared by the component's props struct is its API: the body reads `props.x` and
+   renders the ones it exposes itself (`data-variant={variant}`, `disabled={disabled}`,
+   `target={props.target}`). Before this, the spread forwarded *everything*, so
+   `<Button variant="default" size="">` rendered `<button variant="default" size="" …>`,
+   `<Select options={[…]} value placeholder>` rendered `options="AppleBananaCherry"`, and
+   `<Toast title="Saved">` put `title="Saved"` on the toast div — a real native tooltip, i.e. a
+   behaviour change from a prop that was only ever meant as text. Two mechanisms, one list:
+   * **SSR** — `page::SsrAttribute` carries a `declared` flag (default `false`). Both props-list
+     builders (`universal_cbi`'s `build_ssr_attributes`, `html_cbi`'s `build_ssr_attrs`) set it when
+     the element's `componentSignature.propsStruct` declares that name, and
+     `page::accumulateAttrs` skips flagged entries. It only affects *rendering*: `props.x` reads go
+     through `getSsrAttributeValue(name)` on the same list, so a declared value is still there.
+   * **client** — `JsConverter.declared_prop_names` (filled from the same props struct) makes the
+     native-element spread emit `$_um(window.$__uni_props_rest(window.$__uni_value(props),
+     ["variant", "size", …]), {…})`. Component-to-component spreads are untouched: a wrapper
+     forwarding `{...props}` into `<Button>` must still pass the declared props through.
+   The invariant this puts on every component: **a declared prop that must become a DOM attribute
+   is rendered explicitly.** Audit at the time (a script over `lang/libs`) found exactly two
+   exceptions — `RouterLink`/`NavLink`, which leaned on the spread for `target`/`rel`/`download`
+   (now rendered explicitly, which also retired their `router={null}`-style null-out idiom).
+   Everything else a component declares is consumed (`value`, `options`, `open`, `multiple`) or
+   rendered by the body (`type`, `disabled`, `id`, `name`, `aria-label`, `data-*`).
+   This also retires step 2 of the spread-surface policy above: a typed component keeps its
+   `{...props}` and gains the filtering for free — the body no longer has to enumerate the implicit
+   kinds by hand. Gated by `components_spread_forwards_implicit_attrs_only` and
+   `components_library_root_spread_skips_declared_props` (SSR markup + client emission; both fail if
+   the SSR skip is removed) and by the universal WebView `button loading state` test, which now
+   asserts `loading` is *absent* and `aria-busy` carries the state.
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

@@ -38,6 +38,15 @@ public variant SsrAttributeValue {
 public struct SsrAttribute {
     var name : SsrText
     var value : SsrAttributeValue
+    // True when this entry is a **declared prop** of the component the list belongs
+    // to, rather than an attribute meant for the DOM. A component's props are its
+    // API: it reads them (`props.size`) and renders the ones it wants explicitly
+    // (`data-size={size}`). The `{...props}` spread exists to forward the *implicit*
+    // attributes (class/style/id/title/role/data-*/aria-*/on*), so spreading it must
+    // not paint internal props onto the element — that produced
+    // `variant="default" size=""` on every `<button>`, `options="XY"` on the
+    // Select div, and made a Toast's `title` a real HTML tooltip.
+    var declared : bool = false
 }
 
 // Serializes an `SsrText` payload as an attribute value. Lets a struct-valued
@@ -519,6 +528,13 @@ func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
         var d = list.data
         const end = d + list.size
         while(d != end) {
+            // A declared prop is the component's API, not a DOM attribute: it only
+            // reaches this list through a `{...props}` spread, which is what would
+            // otherwise paint it onto the element.
+            if(d.declared) {
+                d++
+                continue
+            }
             switch(d.value) {
                 Spread(value) => {
                     // Recursively accumulate the spread's attributes

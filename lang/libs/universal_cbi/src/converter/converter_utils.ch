@@ -3982,6 +3982,30 @@ func (converter : &mut JsConverter) collect_ssr_concat_parts(node : *mut JsNode,
         }
     }
 
+// Is `name` a declared field of the props struct of the component `element` names?
+//
+// Used when building that component's props list: a declared field is the
+// component's API (it reads `props.x` and renders what it wants), so it is marked
+// on the `SsrAttribute` entry and the `{...props}` spread skips it. Implicit
+// attributes (`class`, `style`, `id`, `title`, `role`, `data-*`, `aria-*`, `on*`)
+// are not declared and keep passing through, which is the point of the spread.
+func (converter : &mut JsConverter) is_declared_component_prop(element : *mut JsJSXElement, name : &std::string_view) : bool {
+        unsafe {
+        if(element == null) return false
+        const signature = element.componentSignature
+        if(signature == null) return false
+        const propsStruct = signature.propsStruct
+        if(propsStruct == null) return false
+        const members = propsStruct.getMembers()
+        if(members == null) return false
+        for(var i : uint = 0; i < members.size(); i++) {
+            if(members.get(i).getName().equals(name)) return true
+        }
+        return false
+
+        }
+    }
+
 func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXElement) : *mut Value {
         unsafe {
         const builder = converter.builder;
@@ -4025,6 +4049,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                         const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
                         attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&resolvedAttr.name, location));
                         attrStructVal.add_value(std::string_view("value"), attrValConv.convert_to_attr_value(builder, dvType, defaultValue));
+                        attrStructVal.add_value(std::string_view("declared"), builder.make_bool_value(converter.is_declared_component_prop(element, &resolvedAttr.name), location));
                         attrValues.push(attrStructVal);
                         pushedCount++;
                     }
@@ -4045,6 +4070,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                     const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
                     const attrName = jsx_attr_normalized_name(attr.name);
                     attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&attrName, location));
+                    attrStructVal.add_value(std::string_view("declared"), builder.make_bool_value(converter.is_declared_component_prop(element, &attrName), location));
 
                     if(attr.value == null) {
                         const boolVal = builder.make_bool_value(true, location);
@@ -4205,6 +4231,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                             if(prop.key.empty()) continue
                             const spreadAttr = builder.make_struct_value(support.ssrAttrLinkedNode, location)
                             spreadAttr.add_value(std::string_view("name"), converter.make_ssr_text(&prop.key, location))
+                            spreadAttr.add_value(std::string_view("declared"), builder.make_bool_value(converter.is_declared_component_prop(element, &prop.key), location))
                             var valHandled = false
                             if(prop.value != null && prop.value.kind == JsNodeKind.Literal) {
                                 spreadAttr.add_value(std::string_view("value"), converter.convert_js_literal_to_ssr_value(prop.value as *mut JsLiteral, &mut attrValConv, location))

@@ -38,10 +38,15 @@
     <ButtonFixture />
     <script>
         const btn = byTestId('button-fixture').getByTestId('btn-loading')
+        // `loading` is a declared prop: it is consumed by the component
+        // (aria-busy + disabled) and must never reach the element through the
+        // `{...props}` spread.
+        expect(btn).not.toHaveAttribute('loading')
         btn.click()
-        expect(btn).toHaveAttribute('loading', 'true')
+        expect(btn).toHaveAttribute('aria-busy', 'true')
+        expect(btn).toBeDisabled()
         await t.sleep(700)
-        expect(btn).not.toHaveAttribute('loading', 'true')
+        expect(btn).toHaveAttribute('aria-busy', 'false')
     </script>
 }
 

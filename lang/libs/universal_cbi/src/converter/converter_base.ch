@@ -95,6 +95,10 @@ struct JsConverter {
     // reported at its enclosing element instead of at 1:1.
     var current_element_loc : ubigint = 0
     var component_props_name : std::string_view
+    // Names declared by the current component's props struct. The client mirror of
+    // the SSR `declared` marker: `{...props}` on a DOM element forwards only the
+    // implicit attributes, so these are filtered out of the spread object.
+    var declared_prop_names : std::vector<std::string_view>
     var in_jsx_attribute : bool = false
     var skip_reactive_deref : bool = false
     // Save/restore stack for the conversion context flags (see ConversionContext).

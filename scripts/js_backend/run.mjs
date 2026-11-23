@@ -25,7 +25,9 @@ try {
 }
 
 try {
-    const rc = bundle.$run();
+    // `$run` is async: an async entry resolves only after its awaited I/O, so a
+    // driver must wait for it rather than read a half-finished program.
+    const rc = await bundle.$run();
     process.exitCode = typeof rc === "number" ? rc : 0;
 } catch (error) {
     console.error("js-backend: the program threw");

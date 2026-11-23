@@ -59,6 +59,28 @@ export function frame_alloc(size, align) {
   return addr;
 }
 
+// ── async: promises behind integer tokens ───────────────────────────────────
+// An `async func` is emitted as an `async` arrow, and its result is a JS
+// Promise. MIR values are words and aggregates are memory, so a promise cannot
+// travel through a `FutureHandle<T>` slot directly: it is stored in this table
+// and the slot keeps its index. `await` reads that index back.
+const PROMISES = [null];
+/** Store `promise` behind a token and write the token into a handle slot. */
+export function promise_put(handle, promise) {
+  PROMISES.push(promise);
+  st(handle, 8, 0, PROMISES.length - 1);
+}
+/** The promise a handle token names; throws on a handle this runtime did not make. */
+export function promise_get(token) {
+  if (typeof token !== "number" || (token | 0) !== token || token <= 0 ||
+      token >= PROMISES.length) {
+    throw new Error("js runtime: awaited value is not a promise-backed future (token " +
+                    token + "; a ready future built by the async library needs the "
+                    + "coroutine lowering, which a JS build does not use)");
+  }
+  return PROMISES[token];
+}
+
 // ── typed memory access ─────────────────────────────────────────────────────
 export function ld(p, size, signed) {
   if (size === 0) return 0;
@@ -762,7 +784,7 @@ export const rt = {
   isgraph, iscntrl, ispunct, toupper, tolower, abs, labs, llabs,
   strtol, strtoll, strtoul, strtoull, atoi, strtod, atof,
   printf, putchar, abort, exit, trap, indirect, fns, HEAP,
-  register_fns, dom,
+  register_fns, dom, promise_put, promise_get,
 };
 /** Resolve a MIR function address (a symbol id) to the emitted function. */
 export function indirect(table, id) {

@@ -5406,7 +5406,10 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
             for (const auto node : file_meta.result->unit.scope.body.nodes) {
                 if (node->kind() != ASTNodeKind::FunctionDecl) continue;
                 auto fn = node->as_function_unsafe();
-                if (fn->name_view() == "main") {
+                // An async `main` is renamed before any prototype is emitted (its
+                // sync trampoline owns `main`), so both spellings are the entry.
+                if (fn->name_view() == "main" ||
+                    fn->name_view() == mir::MIRLowerer::kAsyncMainInternalName) {
                     main_fn = fn;
                     break;
                 }
@@ -5427,6 +5430,10 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
         mangler.mangle(mw, main_fn);
         main_mangled.assign(mw.data(), mw.getPosition());
     }
+    // `async func main` lowers to a ramp plus a trampoline that drives it with a
+    // poll loop. A JS build has no use for the trampoline: the entry is the async
+    // body (a promise), and `$run` awaits it.
+    const bool async_entry = main_fn->is_async();
 
     // Only what `main` can reach is emitted. Without this the bundle would carry
     // every function of every linked module — including platform code the
@@ -5538,15 +5545,41 @@ export const $entryName = ")JS";
 export function $entry() {
   return $exports[$entryName];
 }
+)JS";
+    if (async_entry) {
+        // The entry is a promise-mode async body: it writes a promise token into
+        // an sret handle and returns. A handle is two pointers, so the slot below
+        // is ample for the token the runtime stores in it.
+        index += R"JS(
 
-/** Run the program; returns its exit code. */
-export function $run() {
+/** Run the program; resolves to its exit code. */
+export async function $run() {
+  const main = $entry();
+  if (!main) throw new Error("js backend: the program has no entry point (" + $entryName + ")");
+  const $h = rt.malloc(64);
+  main($h);
+  const rc = await rt.promise_get(rt.ld($h, 8, 0));
+  return typeof rc === "number" ? rc : 0;
+}
+)JS";
+    } else {
+        index += R"JS(
+
+/** Run the program; resolves to its exit code. */
+export async function $run() {
   const main = $entry();
   if (!main) throw new Error("js backend: the program has no entry point (" + $entryName + ")");
   const rc = main();
   return typeof rc === "number" ? rc : 0;
 }
 )JS";
+    }
+    if (async_entry) {
+        // `rt` is only needed for the awaitable entry; a sync program's driver
+        // stays free of the runtime import.
+        const std::string import_rt = "import * as rt from \"./runtime.mjs\";\n";
+        index.insert(index.find("\n") + 1, import_rt);
+    }
     // The entry module ships too, so it is compacted by the same pass.
     if (js_options.minify) index = mir::minify_js_source(index);
     writeToFile(resolve_rel_child_path_str(out_dir, "index.mjs"), index);

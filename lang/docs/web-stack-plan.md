@@ -1118,9 +1118,16 @@ What that first version proves and what it does not:
   and a smaller bundle: 58.3–84.9% of debug bytes across the six fixtures, with identical output
   (see `js-backend-abi.md` §16 for the table). Identifiers keep their names; renaming is the separate
   mangling item below.
-- **Not yet:** async (see `js-backend-abi.md` §15 — Promise-based vs poll-based is an open semantic
-  choice, plus a scheduler and the `FutureHandle` representation), atomics, inline asm, and
-  identifier mangling (`$f22` → short names, needs a scope table).
+- **Promise-based async/await landed 2026-11-23.** The decision in `js-backend-abi.md` §15 was to
+  use the platform: an async body is emitted as a JS `async` arrow, `await` is a JS `await`, and
+  `FutureHandle<T>` is a *promise token* in the handle's first word (no poll loop, no reactor, no
+  `block_on`). MIR keeps the coroutine shape for the native backends and now publishes
+  `async_body`/`async_poll`/`async_deferred` so no backend re-derives which function holds the body.
+  Details and the three traps (poll signature `(scratch, frame, ctx)`, frame-slot aliasing, heap
+  storage for suspended frames) are in §17. Fixture `js_backend_async` runs in
+  `js-backend-suites.sh`; aggregate await/async results are diagnosed, not mis-compiled.
+- **Not yet:** atomics, inline asm, and identifier mangling (`$f22` → short names, needs a scope
+  table).
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 

@@ -26,6 +26,12 @@ echo
 echo "############ diagnostics"
 ./scripts/js-backend-diagnostics.sh | tail -2 || fail=1
 
+# Promise-based async/await (a different execution model from native, so the
+# fixture compares against expected output and the emitted shape).
+echo
+echo "############ async (promise-based)"
+./scripts/js-backend-async-test.sh | tail -2 || fail=1
+
 if [ "$fail" -ne 0 ]; then
     echo
     echo "js-backend-suites: FAILED"

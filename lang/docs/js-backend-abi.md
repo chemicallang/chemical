@@ -373,7 +373,10 @@ Verified differentially by `lang/tests/web/fixtures/js_backend_dyn` (one interfa
 method returning `*char` and one returning `int`, both dispatched call sites): identical output
 under both backends.
 
-## 15. Async — why it is not a switch to flip
+## 15. Async — why it is not a switch to flip (decided: §17, promise-based)
+
+**Resolved 2026-11-23:** the promise-based design below was implemented (see §17). This section
+is kept as the decision record.
 
 MIR carries the *lowered* coroutine: a frame struct, a state number per `await` site, spill lists
 of live locals, a poll protocol (`Ready`/`Pending`), and a `FutureHandle<T>` vtable
@@ -436,3 +439,54 @@ The fixtures that shrink least are the ones dominated by table data already writ
 formatting; the modules themselves still shed ~40% (e.g. `main.mjs` 2,135 → 1,229 B). The dom
 client in release mode was also run against its host harness (clicks, fetch) with the minified
 runtime — same output, `runtime.mjs` 28,162 → 16,458 B.
+
+## 17. Promise-based async/await — landed 2026-11-23
+
+A JS build has real promises, so async is *not* translated into the coroutine protocol. Each
+async body becomes a JS `async` arrow, `await` becomes a JS `await`, and a `FutureHandle<T>`
+became **a promise token**: an integer naming a slot in the runtime's promise table, written into
+the handle's first word. MIR keeps the coroutine shape (native backends need it); only the
+emission changes.
+
+The mapping, faithfully:
+
+| MIR | JS |
+|---|---|
+| ramp (`async_body`) with no await site | the ramp *is* the async function: `const $p = (async () => { … })(); rt.promise_put(sret, $p)` |
+| ramp with await sites (`async_deferred`) | allocates the frame (heap — see below), stores params, then `rt.promise_put(sret, <poll>(0, frame, 0))` |
+| poll (`async_poll`) — the body lives here when the function awaits | `const $p = (async () => { … })(); return $p` |
+| `AsyncAwait` | `<result> = await rt.promise_get(rt.ld(<child handle>, 8, 0))` — no state store, no spills, no poll |
+| `AsyncFinish` (poll: `Ready(frame->__result)`) | `return rt.ld(frame + offset(__result), …)` |
+| `AsyncRampFinish` (native: build `{frame, vtbl}`) | eager ramp: `return <__result>`; deferred ramp: hand over the poll's promise and `return` |
+
+Three details that are easy to get wrong, and are now covered by the fixture:
+
+1. **The body is in the poll whenever the function awaits.** `eager = async_plan_.sites.empty()`:
+   with no await site the lowering inlines the body into the ramp, otherwise the ramp only sets
+   the frame up. `MIRFunction::async_body` / `async_poll` / `async_deferred` now carry that fact so
+   no backend re-derives it from opcodes.
+2. **Poll parameters are `(scratch, frame, ctx)`.** The first parameter is the poll-base scratch the
+   coroutine writes `Ready` into, *not* the frame — passing the frame first silently makes every
+   parameter read garbage (it looked like "async returns wrong numbers", not like a pointer bug).
+3. **Frame slots must alias, and async storage is heap storage.** A `FrameField` place *is* a frame
+   field; a pointer backend aliases the two, JS cannot, so each such place is declared without
+   storage and bound to `frame + offset(field)` once the frame is known — at `AsyncFrameAlloc` in
+   the ramp, and at the store that lands the frame parameter in the poll. Places are allocated with
+   `rt.malloc`, not `rt.frame_alloc`: a suspended arrow outlives the synchronous caller whose frame
+   the mark/release discipline reclaims.
+
+`async func main` is the entry point: `index.mjs` exports an **async** `$run()` that allocates a
+handle, calls the ramp, and awaits the token. `run.mjs` awaits `$run()`. `async::block_on` is
+deliberately *not* available in a JS build — it polls, and there is no reactor to poll against; a
+JS client awaits instead.
+
+**Verified** by `scripts/js-backend-async-test.sh` (in `js-backend-suites.sh`): fixture
+`js_backend_async` awaits a plain async call, a two-level chain, awaits inside a `while` loop, and
+evaluates awaits left-to-right (`inc=21 / twice=22 / loop=10 / order=240`), and the gate then
+asserts the emitted module really contains async arrows + `await rt.promise_get` and that no
+poll-protocol await leaked into the bundle.
+
+**Limits (diagnosed, not silent):** an await whose result is an aggregate, and an async function
+whose result is an aggregate, are rejected with a message. Instants (`await <plain value>`) are
+built by the async library as coroutine futures; `rt.promise_get` throws a named error on such a
+handle instead of resolving garbage.

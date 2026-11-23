@@ -1,0 +1,4 @@
+inc=21
+twice=22
+loop=10
+order=240

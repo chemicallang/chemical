@@ -146,6 +146,26 @@ struct MIRFunction {
     uint32_t flags = 0; // MF_WEAK_STUB; e.g. has sret, is lambda, is comptime-eliminated
     /** Entry value holding the hidden sret destination, if this function has one. */
     ValueId sret_pointer = MIR_INVALID_ID;
+    /**
+     * This is an async function's *ramp*: the body runs in it (eagerly, up to
+     * `AsyncRampFinish`) and it returns the `FutureHandle<T>` through the sret
+     * pointer. A backend that has native promises (JS) emits it as an async
+     * function instead of a coroutine, which is why the fact is in MIR rather
+     * than re-derived from the presence of an opcode.
+     */
+    bool async_body = false;
+    /**
+     * This is an async function's *poll*: the coroutine body, resumed by state.
+     * When the function has awaits the body lives here (the ramp only sets up the
+     * frame), so a promise backend emits this body as its async function.
+     */
+    bool async_poll = false;
+    /**
+     * The ramp defers the body to the poll (the function has at least one await
+     * site), so it only allocates the frame and starts the future. When false the
+     * lowering ran the body inline in the ramp (the "eager" case).
+     */
+    bool async_deferred = false;
 
     MIRArray<MIRInstruction> instructions;
     MIRArray<MIROperand> operands;
@@ -212,6 +232,9 @@ struct MIRFunction {
         region_signature = MIR_INVALID_ID;
         region_var_count = 0;
         sret_pointer = MIR_INVALID_ID;
+        async_body = false;
+        async_poll = false;
+        async_deferred = false;
         has_decl_loc = false;
         parent_symbol = MIR_INVALID_ID;
         sources.clear();

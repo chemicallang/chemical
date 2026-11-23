@@ -416,6 +416,61 @@ private:
     /** Global symbols whose address the emitted code takes (`dyn I` takes a vtable's). */
     std::unordered_set<SymbolId> addressed_symbols_;
 
+    /**
+     * The function being emitted runs its body in an `async` arrow, so its
+     * storage must survive suspension. `rt.frame_alloc` hands out memory from the
+     * calling frame, which the (synchronous) caller releases on return — long
+     * before a suspended arrow resumes — so an async body allocates on the heap.
+     */
+    bool async_body_ = false;
+    /** This function's body is emitted inside an `async` arrow (it awaits). */
+    bool async_arrow_ = false;
+    /** This is a ramp whose body lives in the poll, so it hands out that promise. */
+    bool async_defers_ = false;
+    std::string alloc_call(uint32_t size, uint32_t align) const {
+        if (async_body_) return "rt.malloc(" + std::to_string(size ? size : 1) + ")";
+        return "rt.frame_alloc(" + std::to_string(size ? size : 1) + ", " +
+               std::to_string(align ? align : 1) + ")";
+    }
+
+    /**
+     * Coroutine-frame slots. In MIR a `FrameField` place *is* a field of the
+     * frame: the lowering writes it through an explicit `frame + offset` field
+     * store and reads it back as a place. A pointer-based backend aliases the two;
+     * JS cannot, so each such place is declared without storage and bound to the
+     * address of the field store/load that defines it. There is one frame per
+     * async function, so the field name identifies the slot uniquely.
+     */
+    std::vector<std::pair<PlaceId, std::string>> frame_slots_;
+    /** Append `pN = addr` for every frame slot named `designator`. */
+    std::string bind_frame_slots(std::string_view designator, const std::string& addr) const {
+        std::string out;
+        for (const auto& slot : frame_slots_) {
+            if (slot.second.size() != designator.size()) continue;
+            if (slot.second.compare(0, slot.second.size(), designator) != 0) continue;
+            out += pname(slot.first) + " = " + addr + "; ";
+        }
+        return out;
+    }
+    /**
+     * Bind every frame slot to `frame + offset`. Used where the frame becomes
+     * known: the ramp's allocation, or the poll's frame parameter landing in its
+     * place. Slots the function never touches are bound harmlessly.
+     */
+    std::string bind_all_frame_slots(const std::string& frame) const {
+        std::string out;
+        for (const auto& slot : frame_slots_) {
+            TypeId ft = MIR_INVALID_ID;
+            uint32_t off = 0;
+            if (!resolve_field(frame_type_, slot.second, ft, off)) continue;
+            out += pname(slot.first) + " = " + frame + " + " + std::to_string(off) + "; ";
+        }
+        return out;
+    }
+    /** The place holding the coroutine frame pointer, and the frame's type. */
+    PlaceId frame_place_ = MIR_INVALID_ID;
+    TypeId frame_type_ = MIR_INVALID_ID;
+
     /** Mangled name -> symbol id, built once (the symbol table is append-only). */
     std::unordered_map<std::string, SymbolId> symbol_by_name_;
     bool symbol_index_built_ = false;
@@ -1225,6 +1280,14 @@ bool ModuleEmitter::emit_const_into(ConstExprId id, uint32_t base_offset, const 
 
 bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
     fn_ = &fn;
+    // Async storage is heap-allocated: a suspended body outlives the frame of the
+    // (synchronous) caller that started it.
+    async_body_ = fn.async_body || fn.async_poll;
+    // A ramp with no await site runs the whole body inline (the lowering's eager
+    // case), so the ramp *is* the async function. With awaits the body lives in
+    // the poll, and the ramp only sets the frame up and starts that promise.
+    async_defers_ = fn.async_body && fn.async_deferred;
+    async_arrow_ = fn.async_poll || (fn.async_body && !fn.async_deferred);
     fn_name_ = fn.symbol < module_.symbols.size()
                    ? module_.symbols.mangled_name(module_.symbols.get(fn.symbol))
                    : std::string("<anon>");
@@ -1276,15 +1339,49 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
         lets += ";\n";
         add(lets);
     }
+    frame_slots_.clear();
+    frame_place_ = MIR_INVALID_ID;
+    frame_type_ = MIR_INVALID_ID;
+    for (uint32_t i = 0; i < fn.places.size() && i < 256; ++i) {
+        const TypeId pt = pointee_of(place_type(i));
+        if (pt == MIR_INVALID_ID) continue;
+        TypeId ft = MIR_INVALID_ID;
+        uint32_t off = 0;
+        if (!resolve_field(pt, "__result", ft, off)) continue;
+        frame_place_ = i;
+        frame_type_ = pt;
+        break;
+    }
     for (uint32_t i = 0; i < fn.places.size(); ++i) {
+        const MIRPlaceDef& pd = fn.places[i];
+        if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FrameField)) {
+            // Bound to the frame field by the first store/load of that field.
+            std::string_view field;
+            if (pd.frame_field != MIR_INVALID_ID &&
+                constant_text(module_, pd.frame_field, field)) {
+                frame_slots_.emplace_back(i, std::string(field));
+                add("  let " + pname(i) + " = 0;\n");
+                continue;
+            }
+        }
         const JsType t = type_of(place_type(i));
         const uint32_t size = t.size ? t.size : 1;
         const uint32_t align = t.align ? t.align : 1;
-        add("  const " + pname(i) + " = rt.frame_alloc(" + std::to_string(size) + ", " +
-            std::to_string(align) + ");\n");
+        add("  const " + pname(i) + " = " + alloc_call(size, align) + ";\n");
     }
     for (size_t i = 0; i < params.size(); ++i) {
         add("  " + vname(params[i]->result_or_place) + " = a" + std::to_string(i) + ";\n");
+    }
+
+    // An async function's ramp body becomes the body of an `async` arrow whose
+    // promise is stored behind a token in the returned `FutureHandle<T>` slot.
+    // `await` then suspends that arrow instead of the coroutine's poll loop, and
+    // the state machine below still works because `$pc` is a closure variable.
+    if (async_arrow_) {
+        if (fn.async_body && fn.sret_pointer == MIR_INVALID_ID) {
+            return fail_at("async function without an sret pointer");
+        }
+        add("  const $p = (async () => {\n");
     }
 
     const BlockId entry = (fn.entry_block < fn.blocks.size()) ? fn.entry_block : 0;
@@ -1332,11 +1429,26 @@ bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
     add("      default: throw new Error(\"js backend: bad block \" + $pc);\n");
     add("    }\n");
     add("  }\n");
+    if (async_arrow_) {
+        // The arrow returns only through `AsyncRampFinish` / `AsyncFinish`;
+        // falling out of the dispatch loop would mean a return path the lowering
+        // did not emit.
+        add("  throw new Error(\"js backend: async body fell through: " + fn_name_ + "\");\n");
+        add("  })();\n");
+        if (fn.async_body) {
+            add("  rt.promise_put(" + vname(fn.sret_pointer) + ", $p);\n");
+        } else {
+            add("  return $p;\n");
+        }
+    }
     add("}\n\n");
 
     body_lines_ += body_line;
     out += body;
     fn_ = nullptr;
+    async_body_ = false;
+    async_arrow_ = false;
+    async_defers_ = false;
     return true;
 }
 
@@ -1408,6 +1520,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             if (base == nullptr || km == nullptr) return fail_at("load without operands");
             TypeId accessed = value_type(rp);
             std::string addr;
+            std::string alias;
             if (km->kind() == MIROperandKind::Constant) {
                 std::string_view designator;
                 if (!constant_text(module_, km->id, designator)) {
@@ -1421,6 +1534,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
                 accessed = ftype;
                 if (!base_addr_expr(*base, addr)) return fail_at("bad load base");
                 addr = addr + " + " + std::to_string(off);
+                alias = bind_frame_slots(designator, addr);
             } else if (km->kind() == MIROperandKind::Value) {
                 const TypeId et = element_of(operand_type(*base));
                 if (et == MIR_INVALID_ID) return fail_at("indexed load without an element type");
@@ -1436,17 +1550,19 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             if (t.is_agg) {
                 // An aggregate load produces a *copy*: MIR values are single
                 // words, so the address of fresh storage is the value.
-                out = result() + " = rt.frame_alloc(" + std::to_string(t.size) + ", " +
-                      std::to_string(t.align) + "); rt.memcpy(" + result() + ", " + addr + ", " +
+                out = result() + " = " + alloc_call(t.size, t.align) + "; rt.memcpy(" + result() + ", " + addr + ", " +
                       std::to_string(t.size) + ");";
+                out = alias + out;
                 return true;
             }
             if (t.is_float || t.is_double) {
                 out = result() + " = rt.ldF(" + addr + ", " + std::to_string(t.size) + ");";
+                out = alias + out;
                 return true;
             }
             out = result() + " = rt.ld(" + addr + ", " + std::to_string(t.size) + ", " +
                   (t.is_signed ? "1" : "0") + ");";
+            out = alias + out;
             return true;
         }
         case MIROpcode::Store: {
@@ -1454,6 +1570,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             const MIROperand* km = op(1);
             if (dst == nullptr || km == nullptr) return fail_at("store without operands");
             std::string addr;
+            std::string alias;
             JsType t;
             const MIROperand* src = nullptr;
             if (km->kind() == MIROperandKind::Constant) {
@@ -1471,6 +1588,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
                 t = type_of(ftype);
                 if (!base_addr_expr(*dst, addr)) return fail_at("bad store base");
                 addr = addr + " + " + std::to_string(off);
+                alias = bind_frame_slots(designator, addr);
             } else if (km->kind() == MIROperandKind::Value && ins.operand_count >= 3) {
                 src = op(2);
                 if (src == nullptr) return fail_at("element store without a value");
@@ -1502,6 +1620,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
                 const JsType st = type_of(operand_type(*src));
                 if (st.size != 0 && st.size < n) n = st.size;
                 out = "rt.memcpy(" + addr + ", " + src_addr + ", " + std::to_string(n) + ");";
+                out = alias + out;
                 return true;
             }
             std::string value;
@@ -1512,6 +1631,13 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
                 out = "rt.st(" + addr + ", " + std::to_string(t.size) + ", " +
                       (t.is_signed ? "1" : "0") + ", " + value + ");";
             }
+            if (dst->kind() == MIROperandKind::Place && dst->id == frame_place_ &&
+                frame_type_ != MIR_INVALID_ID) {
+                // This store is where the poll learns the frame's address.
+                out += " " + bind_all_frame_slots("rt.ld(" + pname(dst->id) + ", " +
+                                                  std::to_string(ptr_size_) + ", 0)");
+            }
+            out = alias + out;
             return true;
         }
         case MIROpcode::AddressOf: {
@@ -1621,9 +1747,9 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             if (src->kind() == MIROperandKind::Place) {
                 const JsType st = type_of(place_type(src->id));
                 if (st.is_agg) {
-                    out = result() + " = rt.frame_alloc(" + std::to_string(st.size) + ", " +
-                          std::to_string(st.align) + "); rt.memcpy(" + result() + ", " +
-                          pname(src->id) + ", " + std::to_string(st.size) + ");";
+                    out = result() + " = " + alloc_call(st.size, st.align) + "; rt.memcpy(" +
+                          result() + ", " + pname(src->id) + ", " +
+                          std::to_string(st.size) + ");";
                     return true;
                 }
                 std::string value;
@@ -1974,6 +2100,49 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             return true;
         }
 
+        // ── async: promises, not a poll protocol ────────────────────────────
+        // The lowering is a coroutine because the native backends need one. In a
+        // JS build each async body is a single `async` arrow and each `await`
+        // suspends it on a promise, so the frame only has to hold the awaited
+        // child's token between statements — the state the coroutine would keep
+        // in `__state`/spills lives in the arrow's closure instead.
+        case MIROpcode::AsyncFrameAlloc: {
+            const MIROperand* frame_type = op(0);
+            if (frame_type == nullptr || frame_type->kind() != MIROperandKind::Type) {
+                return fail_at("async frame allocation without a frame type");
+            }
+            const JsType t = type_of(frame_type->id);
+            // The frame's address is what every frame slot aliases from now on.
+            out = result() + " = " + alloc_call(t.size, t.align) + "; " +
+                  bind_all_frame_slots(result());
+            return true;
+        }
+        case MIROpcode::AsyncAwait: {
+            // operands: Place(frame), Place(child), Place(result), Type(poll),
+            //           Constant(state), Place(ret), Type(fn_poll),
+            //           Constant(spill_count), [Place, Constant(field)]*
+            const MIROperand* child = op(1);
+            const MIROperand* result_place = op(2);
+            if (child == nullptr || result_place == nullptr ||
+                result_place->kind() != MIROperandKind::Place) {
+                return fail_at("async await without a result place");
+            }
+            if (child->kind() != MIROperandKind::Place) {
+                return fail_at("async await of a non-place child");
+            }
+            const JsType rt_t = type_of(place_type(result_place->id));
+            if (rt_t.is_agg) {
+                return fail_at(
+                    "the JS backend's promise lowering does not support an aggregate await result yet");
+            }
+            // The child handle is a fat pointer; the promise token lives in its
+            // first slot (see `rt.promise_put`).
+            const std::string token = "rt.ld(" + pname(child->id) + ", " +
+                                      std::to_string(ptr_size_) + ", 0)";
+            out = "rt.st(" + pname(result_place->id) + ", " + std::to_string(rt_t.size) + ", " +
+                  (rt_t.is_signed ? "1" : "0") + ", await rt.promise_get(" + token + "));";
+            return true;
+        }
         default:
             // One answer for "is this expressible for JS?" lives in
             // MIRTargetSupport, so `--check`, the emitter and (later) the LSP agree
@@ -2060,6 +2229,94 @@ bool ModuleEmitter::emit_terminator(const MIRInstruction& ins, std::string& out)
             std::string v;
             if (!operand_expr(*value, v)) return fail_at("bad return value");
             out = "rt.frame_release($m); return " + v + ";";
+            return true;
+        }
+        case MIROpcode::AsyncRampFinish: {
+            // operands: Place(frame), Place(sret), Constant(state),
+            //           Constant(vtbl_name), Type(handle)
+            //
+            // The coroutine protocol builds a `{frame, vtbl}` handle here and lets
+            // the caller poll it. A promise backend has two shapes instead:
+            //  - the body ran inline (eager ramp): the arrow *is* the future, so
+            //    resolve it with the value the body stored in `__result`;
+            //  - the body lives in the poll: start that promise and hand it over.
+            const MIROperand* frame = op(0);
+            if (frame == nullptr) return fail_at("async ramp finish without a frame");
+            const MIROperand* sret = op(1);
+            const MIROperand* vtbl_name = op(3);
+            if (async_defers_) {
+                if (sret == nullptr || sret->kind() != MIROperandKind::Place) {
+                    return fail_at("async ramp finish without an sret place");
+                }
+                std::string_view table;
+                if (vtbl_name == nullptr || !constant_text(module_, vtbl_name->id, table) ||
+                    table.size() < 6) {
+                    return fail_at("async ramp finish without a vtable name");
+                }
+                // `<mangled>__vtbl` names the table; the poll beside it is
+                // `<mangled>__poll`, and that body is this future.
+                std::string poll_name(table.substr(0, table.size() - 6));
+                poll_name += "__poll";
+                const SymbolId poll_sym = symbol_for_name(poll_name);
+                if (poll_sym == MIR_INVALID_ID) return fail_at("async ramp has no poll body");
+                std::string frame_addr;
+                if (!base_addr_expr(*frame, frame_addr)) return fail_at("bad async frame");
+                // The sret operand is the place holding the hidden destination
+                // pointer, not the pointer itself.
+                const std::string handle_addr =
+                    "rt.ld(" + pname(sret->id) + ", " + std::to_string(ptr_size_) + ", 0)";
+                // The ramp hands the future over and is done: without the return
+                // the case would fall through into the dispatch loop's default.
+                out = "rt.promise_put(" + handle_addr + ", " + js_function_name(poll_sym) +
+                      "(0, " + frame_addr + ", 0)); rt.frame_release($m); return;";
+                return true;
+            }
+            TypeId result_type = MIR_INVALID_ID;
+            uint32_t offset = 0;
+            const TypeId frame_ptr_type = operand_type(*frame);
+            const TypeId frame_type = pointee_of(frame_ptr_type) != MIR_INVALID_ID
+                                          ? pointee_of(frame_ptr_type)
+                                          : frame_ptr_type;
+            if (!resolve_field(frame_type, "__result", result_type, offset)) {
+                return fail_at("async frame has no __result field");
+            }
+            const JsType t = type_of(result_type);
+            if (t.is_agg) {
+                return fail_at(
+                    "the JS backend's promise lowering does not support an aggregate async result yet");
+            }
+            std::string addr;
+            if (!base_addr_expr(*frame, addr)) return fail_at("bad async frame");
+            out = "return rt.ld(" + addr + " + " + std::to_string(offset) + ", " +
+                  std::to_string(t.size) + ", " + (t.is_signed ? "1" : "0") + ");";
+            return true;
+        }
+        case MIROpcode::AsyncFinish: {
+            // operands: Place(frame), Place(ret), Type(poll_base)
+            //
+            // The poll reports `Ready(frame->__result)` by storing it into `ret`.
+            // As an `async` arrow it simply resolves with that value — the caller
+            // is awaiting, not polling.
+            const MIROperand* frame = op(0);
+            if (frame == nullptr) return fail_at("async finish without a frame");
+            TypeId result_type = MIR_INVALID_ID;
+            uint32_t offset = 0;
+            const TypeId frame_ptr_type = operand_type(*frame);
+            const TypeId frame_type = pointee_of(frame_ptr_type) != MIR_INVALID_ID
+                                          ? pointee_of(frame_ptr_type)
+                                          : frame_ptr_type;
+            if (!resolve_field(frame_type, "__result", result_type, offset)) {
+                return fail_at("async frame has no __result field");
+            }
+            const JsType t = type_of(result_type);
+            if (t.is_agg) {
+                return fail_at(
+                    "the JS backend's promise lowering does not support an aggregate async result yet");
+            }
+            std::string addr;
+            if (!base_addr_expr(*frame, addr)) return fail_at("bad async frame");
+            out = "return rt.ld(" + addr + " + " + std::to_string(offset) + ", " +
+                  std::to_string(t.size) + ", " + (t.is_signed ? "1" : "0") + ");";
             return true;
         }
         case MIROpcode::Unreachable:
@@ -2294,6 +2551,7 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
         if (it == by_name.end()) continue;
         const MIRFunction* fn = it->second;
         out.push_back(fn);
+
         for (const MIRInstruction& ins : fn->instructions) {
             switch (ins.opcode()) {
                 case MIROpcode::Call:
@@ -2318,6 +2576,22 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
                         if (vt != vtable_targets.end()) {
                             for (const std::string& target : vt->second) work.push_back(target);
                         }
+                    }
+                    break;
+                }
+                case MIROpcode::AsyncRampFinish: {
+                    // An async function's body can live in its poll, which no
+                    // instruction calls by name. The ramp's vtable constant names
+                    // the pair (`<mangled>__vtbl` / `<mangled>__poll`), so that is
+                    // what makes the poll reachable.
+                    const MIROperand* vt = nullptr;
+                    if (ins.operand_count > 3) vt = &fn->operands[ins.operand_offset + 3];
+                    std::string_view table;
+                    if (vt != nullptr && vt->kind() == MIROperandKind::Constant &&
+                        constant_text(module, vt->id, table) && table.size() > 6) {
+                        std::string poll_name(table.substr(0, table.size() - 6));
+                        poll_name += "__poll";
+                        work.push_back(poll_name);
                     }
                     break;
                 }

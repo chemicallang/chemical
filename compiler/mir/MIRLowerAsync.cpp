@@ -902,6 +902,11 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
                                        static_cast<uint32_t>(poll_name.size()), poll_name.data(),
                                        static_cast<uint32_t>(poll_name.size()));
     fn.symbol = sym;
+    // Same module as the ramp: the poll is part of the async function, and the
+    // ramp calls it directly, so it must live where the ramp does (an emitted
+    // bundle is one ES module per Chemical module).
+    module_.attribute_symbol(sym);
+    fn.async_poll = true;
     const TypeId poll_ptr = types_.pointer_type(types_.map(async_poll_base_), true);
     const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
     const TypeId ctx_ptr = types_.map(async_context_);
@@ -1309,6 +1314,9 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                                   std::string& error) {
     // The ramp returns the handle; for the eager path it runs the body inline.
     const bool eager = async_plan_.sites.empty();
+    // `eager` runs the body in the ramp; otherwise the body is the poll and the
+    // ramp only starts it. Backends with native promises need the distinction.
+    func.async_deferred = !eager;
     async_capture_ptr_from_frame_ = false;
     async_capture_frame_ = MIR_NULL;
     const TypeId handle_t = types_.map(async_handle_);
@@ -1387,6 +1395,9 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     }
     sret_ptr_ = b.param(sret_ptr_type_);
     func.sret_pointer = sret_ptr_;
+    // The body of an async function lives in this ramp; a backend with native
+    // promises emits it as a single async function instead of a coroutine.
+    func.async_body = true;
     const PlaceId sret_place = b.alloca(sret_ptr_type_, MIRStorageClass::Parameter);
     b.store(sret_place, sret_ptr_);
 

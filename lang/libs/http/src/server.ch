@@ -534,8 +534,19 @@ public struct Server {
             }
             net::raw::set_keep_alive(s, true)
             net::raw::set_no_delay(s, true)
+            // The same cap as the blocking driver, and for the same reason: without
+            // it a burst allocates one descriptor, one 8 KiB receive buffer and one
+            // completion context per accepted socket, as fast as the peer can
+            // connect. Refused before registration, so the peer gets an answer and
+            // no context is ever built for it.
+            if(!self.try_reserve_connection()) {
+                net::raw::set_blocking(s)
+                self.refuse_overloaded(s)
+                continue
+            }
             if(!cp.register(s, s as usize)) {
                 net::raw::close_socket(s)
+                self.release_connection()
                 continue
             }
             var buf_sz = 8192u;
@@ -545,6 +556,7 @@ public struct Server {
                 if(buf != null) { free(buf) }
                 if(ctx != null) { free(ctx) }
                 net::raw::close_socket(s)
+                self.release_connection()
                 continue
             }
             new (ctx) net::iocp::AsyncContext(buf, buf_sz);
@@ -554,6 +566,7 @@ public struct Server {
                         net::raw::close_socket(s);
                         free(ctx.buffer.buf);
                         delete ctx;
+                        selfp.release_connection();
                         return;
                     }
                     ctx.accumulated.append(std::span<u8>(ctx.buffer.buf as *u8, bytes as size_t))
@@ -565,6 +578,7 @@ public struct Server {
                         net::raw::close_socket(s);
                         free(ctx.buffer.buf);
                         delete ctx;
+                        selfp.release_connection();
                         return;
                     }
                     var Some(stream) = opened else unsafe { unreachable }
@@ -580,6 +594,7 @@ public struct Server {
                         net::raw::close_socket(s);
                         free(ctx.buffer.buf);
                         delete ctx;
+                        selfp.release_connection();
                     }
                 }
             };

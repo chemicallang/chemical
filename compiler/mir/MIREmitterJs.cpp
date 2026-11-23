@@ -384,8 +384,65 @@ private:
         out += text;
         out += '\n';
     }
-    static std::string vname(ValueId id) { return "v" + std::to_string(id); }
-    static std::string pname(PlaceId id) { return "p" + std::to_string(id); }
+    /**
+     * `a`, `b`, … `Z`, `aa`, … — letters only, so a local can never collide with a
+     * parameter (`a0`, `a1`) or with anything the module owns (`$f…`, `$g…`, `$k…`,
+     * `$pc`, `$m`, `$p`).
+     */
+    static std::string short_name(uint32_t index) {
+        std::string out;
+        uint32_t n = index + 1;
+        while (n > 0) {
+            const uint32_t rem = (n - 1) % 52;
+            out += rem < 26 ? static_cast<char>('a' + rem) : static_cast<char>('A' + (rem - 26));
+            n = (n - 1) / 52;
+        }
+        return out;
+    }
+    /**
+     * A local's emitted name. In a release build MIR ids are noise the program never
+     * reads (`v1234`), so values and places are renamed per function by first use.
+     * Exported names are *not* mangled: another module imports `$f…` by that name,
+     * and `$exports` is the bundle's symbol table.
+     */
+    /** A generated name this short can spell a JS keyword (`if`, `do`, `in`). */
+    static bool js_reserved(const std::string& name) {
+        static const char* kReserved[] = {
+            "do", "if", "in", "for", "new", "var", "let", "try", "int", "byte", "case",
+            "else", "enum", "goto", "long", "null", "this", "true", "void", "with", "char",
+            "class", "const", "false", "final", "float", "short", "super", "throw", "while",
+            "break", "catch", "yield", "await", "async", "debugger", "default", "delete",
+            "double", "export", "extends", "import", "native", "public", "return", "static",
+            "switch", "typeof", "boolean", "package", "private", "continue", "function",
+            "abstract", "arguments", "interface", "protected", "implements", "instanceof",
+        };
+        for (const char* word : kReserved) {
+            if (name == word) return true;
+        }
+        return false;
+    }
+    std::string next_name() {
+        while (js_reserved(short_name(next_short_))) ++next_short_;
+        return short_name(next_short_++);
+    }
+    std::string vname(ValueId id) {
+        if (!options_.mangle_names) return "v" + std::to_string(id);
+        if (id >= short_values_.size()) short_values_.resize(id + 1);
+        std::string& slot = short_values_[id];
+        if (slot.empty()) slot = next_name();
+        return slot;
+    }
+    std::string pname(PlaceId id) {
+        if (!options_.mangle_names) return "p" + std::to_string(id);
+        if (id >= short_places_.size()) short_places_.resize(id + 1);
+        std::string& slot = short_places_[id];
+        if (slot.empty()) slot = next_name();
+        return slot;
+    }
+    /** Per-function short names (`mangle_names` only). */
+    std::vector<std::string> short_values_;
+    std::vector<std::string> short_places_;
+    uint32_t next_short_ = 0;
 
     const MIRModule& module_;
     const std::vector<const MIRFunction*>& functions_;
@@ -443,7 +500,7 @@ private:
      */
     std::vector<std::pair<PlaceId, std::string>> frame_slots_;
     /** Append `pN = addr` for every frame slot named `designator`. */
-    std::string bind_frame_slots(std::string_view designator, const std::string& addr) const {
+    std::string bind_frame_slots(std::string_view designator, const std::string& addr) {
         std::string out;
         for (const auto& slot : frame_slots_) {
             if (slot.second.size() != designator.size()) continue;
@@ -457,7 +514,7 @@ private:
      * known: the ramp's allocation, or the poll's frame parameter landing in its
      * place. Slots the function never touches are bound harmlessly.
      */
-    std::string bind_all_frame_slots(const std::string& frame) const {
+    std::string bind_all_frame_slots(const std::string& frame) {
         std::string out;
         for (const auto& slot : frame_slots_) {
             TypeId ft = MIR_INVALID_ID;
@@ -1283,6 +1340,11 @@ bool ModuleEmitter::emit_const_into(ConstExprId id, uint32_t base_offset, const 
 
 bool ModuleEmitter::emit_function(const MIRFunction& fn, std::string& out) {
     fn_ = &fn;
+    // Short names are per function: a fresh alphabet for each, so no two
+    // functions share a name and nothing depends on emission order.
+    short_values_.assign(fn.values.size(), std::string());
+    short_places_.assign(fn.places.size(), std::string());
+    next_short_ = 0;
     // Async storage is heap-allocated: a suspended body outlives the frame of the
     // (synchronous) caller that started it.
     async_body_ = fn.async_body || fn.async_poll;

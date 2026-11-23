@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs every JS-backend differential fixture.
-set -u
+set -u -o pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(dirname "$here")"
 cd "$root"

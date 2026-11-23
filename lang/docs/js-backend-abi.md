@@ -418,8 +418,8 @@ longer match the file is worse than no map at all.
 - It is applied to every emitted module, to `index.mjs`, and to `runtime.mjs`. The runtime is
   scanned safely because it has no regex literals (the one construct this pass cannot classify);
   that property is worth keeping in mind when the runtime grows.
-- **Identifiers keep their names.** This is formatting only; renaming locals (`$f22` → `a`) is the
-  plan's separate "identifier mangling" item, and it is what a debugger needs to see.
+- **Identifiers are mangled too (§16.1)** — but only names the emitter invented, and only in a
+  release build, so a debug build still reads like the MIR.
 - The release build must still *behave* identically, so `scripts/js-backend-test.sh` runs the
   whole differential comparison a second time in `release_small` and then asserts three things
   about the result: no comment survived, no source map was written, and the bundle is smaller.
@@ -521,3 +521,38 @@ contains `async` arrows and no `async.await` (so it cannot pass through the coro
 it under `scripts/js_backend/dom_harness.mjs` (whose `fetch` is a real promise, rejecting for
 `/api/down`) and diffs the three lines. The harness now awaits `$run()`, because an awaiting entry
 resolves only after its I/O settles.
+
+### 16.1 Identifier mangling (release builds)
+
+Formatting was only half of what a bundle carried: every local was called after its MIR id
+(`v1234`, `p77`), which no reader and no runtime needs. A release build now renames **each
+function's** values and places into `a`, `b`, … `Z`, `aa`, … — a fresh alphabet per function, so
+nothing depends on emission order and two functions cannot collide.
+
+Three rules make it safe rather than clever:
+
+- **Letters only.** Parameters are `a0`, `a1`, … and everything the module owns starts with `$`
+  (`$f…` exports, `$g…` globals, `$k…` constants, `$pc`/`$m`/`$p`/`$fns`), so a letters-only local
+  can never shadow any of them.
+- **Reserved words are skipped.** `if`, `do`, `in` are reachable in a two-letter alphabet — that
+  is not a hypothetical: `js_backend_json` produced `let if` and Node rejected the module.
+- **Exported symbols keep their names.** Another module imports `$f<id>` and `$exports` is the
+  bundle's symbol table, so those are API, not bookkeeping. Module-scope constants (`$k…`) and the
+  runtime's own identifiers are unchanged; the runtime is hand-written JS whose names a *parser*
+  would have to mangle, which is a different (bigger) job.
+
+Measured on the same release bundles as §16:
+
+| fixture | release before | release after | saving |
+|---|---|---|---|
+| `js_backend` | 25,425 B | 25,035 B | 1.5% |
+| `js_backend_std` | 155,355 B | 151,052 B | 2.8% |
+| `js_backend_closure` | 155,796 B | 151,697 B | 2.6% |
+| `js_backend_iter` | 120,311 B | 119,928 B | 0.3% |
+| `js_backend_json` | 375,129 B | 355,241 B | 5.3% |
+| `js_backend_dyn` | 23,827 B | 23,739 B | 0.4% |
+
+The saving tracks how much of a bundle is code rather than constant tables: the JSON fixture is
+mostly code, and its 5.3% is the honest ceiling for this change. `scripts/js-backend-test.sh`
+asserts no release module still contains a `v<id>`/`p<id>` name, and the released program's output
+must still match the native build byte for byte.

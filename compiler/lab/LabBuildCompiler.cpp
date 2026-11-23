@@ -5456,6 +5456,9 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     // A release build ships compact modules; a debug build keeps the formatting
     // it needs to read (and the source map, which a minified file cannot have).
     js_options.minify = is_release(job->mode);
+    // Local names too: `v1234` is MIR bookkeeping, and a shipped bundle is not the
+    // place to read it. Exported symbols keep their names (see MIREmitJsOptions).
+    js_options.mangle_names = js_options.minify;
     // One `.mjs` per Chemical module, so a browser caches each separately and a
     // change to one module invalidates only that file. The build-level module
     // split (shared/server/client) already decided *which* modules are in this

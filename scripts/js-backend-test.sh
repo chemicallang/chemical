@@ -111,6 +111,14 @@ if ls "$out_root/bundle-release"/*.map >/dev/null 2>&1; then
     echo "FAIL: a minified module still emitted a source map" >&2
     exit 1
 fi
+# Locals are renamed in a release build: `v1234` is MIR bookkeeping, not API.
+# Exports keep `$f<id>` (another module imports them by that name).
+if grep -lE '(^|[^$A-Za-z0-9_])[vp][0-9]+' "$out_root/bundle-release"/*.mjs 2>/dev/null |
+    grep -v runtime.mjs >/dev/null; then
+    echo "FAIL: a release module still carries MIR local ids:" >&2
+    grep -lE '(^|[^$A-Za-z0-9_])[vp][0-9]+' "$out_root/bundle-release"/*.mjs >&2
+    exit 1
+fi
 pct=$(python3 -c "print(f'{$rel_bytes * 100 / $bytes:.1f}')" 2>/dev/null || echo "?")
 echo "PASS: minified and identical — $bytes B -> $rel_bytes B (${pct}% of debug)"
 exit 0

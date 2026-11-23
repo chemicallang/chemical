@@ -421,7 +421,7 @@ minifier and asset pipeline are build-time work and live in a Chemical library/b
 
 | stage | technique |
 |---|---|
-| minify JS | **whitespace/comments landed in the emitter** (§Phase 1, `js-backend-abi.md` §16 — release mode only, no map); identifier mangling for emitter output (scope table) and for the runtime (needs the shared JS parser — budget 45 KB min for the runtime until then) |
+| minify JS | **whitespace/comments landed in the emitter** (§Phase 1, `js-backend-abi.md` §16 — release mode only, no map); **identifier mangling for emitter output landed too** (§16.1 — per function, exports keep their names); the runtime's own identifiers still need the shared JS parser (budget 45 KB min for the runtime until then) |
 | minify CSS | existing parser → compact re-emit; hashed classes preserved |
 | tree-shake | reachability from entry + dynamic boundaries (we know every export) |
 | split | route table + lazy boundaries (§3.5) |
@@ -1131,8 +1131,12 @@ What that first version proves and what it does not:
   slot (`rt.dom.fetch_status`). Fixture `lang/tests/web/fixtures/dom_async` awaits `200`, `404` and
   a rejecting request (`0`) inside the `web-dom-test.sh` gate, which also asserts the bundle uses
   async arrows and no poll-protocol await — so an async client can be written in Chemical today.
-- **Not yet:** atomics, inline asm, and identifier mangling (`$f22` → short names, needs a scope
-  table).
+- **Identifier mangling landed 2026-11-23 (`§16.1`).** Each function's values and places become
+  `a`, `b`, … (letters only, reserved words skipped, fresh alphabet per function); exports keep
+  `$f<id>` because another module imports them. 0.3–5.3% off a release bundle depending on how much
+  of it is code rather than constant tables.
+- **Not yet:** atomics and inline asm; mangling the *runtime's* identifiers (needs the shared JS
+  parser, not a regex).
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 

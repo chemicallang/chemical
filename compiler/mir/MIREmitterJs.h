@@ -45,6 +45,13 @@ struct MIREmitJsOptions {
      * correspond, and a map that points at the wrong line is worse than none.
      */
     bool minify = false;
+    /**
+     * Rename each function's values and places to short names (`a`, `b`, …) in a
+     * release build. MIR ids are an implementation detail of this emitter, so a
+     * shipped bundle should not carry them; exported functions keep `$f<id>`
+     * because another module imports them by that name.
+     */
+    bool mangle_names = false;
 };
 
 /**

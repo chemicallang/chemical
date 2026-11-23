@@ -115,6 +115,9 @@ public namespace raw {
     func chx_dom_fetch_text(url : string_view, handler : (status : int, body : &string_view) => void)
 
     @extern @no_mangle
+    func chx_dom_fetch_status(url : string_view) : core::async::FutureHandle<'static, int>
+
+    @extern @no_mangle
     func chx_dom_storage_get(key : string_view) : *char
 
     @extern @no_mangle
@@ -300,6 +303,22 @@ public func query_selector(doc : &Document, selector : string_view) : Option<Ele
 /// the duration of the callback — copy it if you need to keep it.
 public func fetch_text(url : string_view, handler : (status : int, body : &string_view) => void) {
     unsafe { raw::chx_dom_fetch_text(url, handler) }
+}
+
+/// `fetch(url)` in awaitable form: the future resolves to the HTTP status, and `0`
+/// means the request failed. Await it inside an `async func`:
+///
+/// ```
+/// async func load(url : string_view) : int {
+///     var status = await dom::fetch_status(url)
+///     return status
+/// }
+/// ```
+///
+/// A client-only entry point: the native runtimes have no DOM, so this resolves only
+/// where the host supplies it (a browser, or the JS backend's harness).
+public func fetch_status(url : string_view) : core::async::FutureHandle<'static, int> {
+    return unsafe(raw::chx_dom_fetch_status(url))
 }
 
 // ── localStorage ────────────────────────────────────────────────────────────

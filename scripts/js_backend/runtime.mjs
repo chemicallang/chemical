@@ -758,6 +758,15 @@ export const dom = {
       .catch((error) => call_chemical(fn, 0, view_of(String(error && error.message ? error.message : error))));
   },
 
+  // The awaitable form: the *handle* is an sret destination the emitted call
+  // passes first, and the future is a real host promise stored behind a token.
+  // `promise_put` is what makes `await` on the Chemical side suspend on it.
+  fetch_status: (handle, url) => {
+    promise_put(handle, globalThis.fetch(text_at(url))
+      .then((response) => response.status)
+      .catch(() => 0));
+  },
+
   storage_get: (key) => {
     const value = storage().getItem(text_at(key));
     return value === null ? 0 : cstr_of(value);

@@ -141,8 +141,47 @@ else
     tail -10 "$out/sourcemap.txt" >&2
 fi
 
+# ── promise-based async: `await dom::fetch_status(...)` ────────────────────
+# The second fixture's client entry point is an `async func` that awaits a host
+# `fetch`. The emitted JavaScript must suspend on a real promise (not poll), and
+# the bundle's `$run` must resolve only after the request settles.
+echo "== promise-based async fetch (dom_async fixture)"
+async_out="$out/async"
+async_build="$async_out/build"
+rm -rf "$async_out"
+mkdir -p "$async_out"
+if "$compiler" lang/tests/web/fixtures/dom_async/chemical.mod --web \
+        --build-dir "$async_build" -o "$async_out/dom_async.exe" > "$async_out/build.log" 2>&1; then
+    check "the async-fetch fixture builds (two jobs)" 1
+else
+    check "the async-fetch fixture builds (two jobs)" 0
+    tail -20 "$async_out/build.log" >&2
+fi
+async_assets="$async_build/web-client/assets"
+check "the async client bundle is an async function, not a poll loop" \
+      "$([ "$(bundle_has "$async_assets" 'async () =>')" = "1" ] && [ "$(bundle_has "$async_assets" 'async.await')" = "0" ] && echo 1 || echo 0)"
+check "the awaited fetch is a host promise, not a raw extern" \
+      "$([ "$(bundle_has "$async_assets" 'rt.dom.fetch_status')" = "1" ] && [ "$(bundle_has "$async_assets" 'chx_dom_fetch_status')" = "0" ] && echo 1 || echo 0)"
+
+async_harness="$async_out/harness.txt"
+if node scripts/js_backend/dom_harness.mjs "$async_assets" > "$async_harness" 2>&1; then
+    check "the async bundle runs against the DOM harness" 1
+else
+    check "the async bundle runs against the DOM harness" 0
+    tail -20 "$async_harness" >&2
+fi
+echo "dom async ok=200" > "$async_out/expected.txt"
+echo "dom async missing=404" >> "$async_out/expected.txt"
+echo "dom async down=0" >> "$async_out/expected.txt"
+if diff -u "$async_out/expected.txt" <(grep -F 'dom async ' "$async_harness" 2>/dev/null || true) > "$async_out/diff.txt" 2>&1; then
+    check "awaited fetches settled to 200, 404 and 0 (network failure)" 1
+else
+    check "awaited fetches settled to 200, 404 and 0 (network failure)" 0
+    cat "$async_out/diff.txt" >&2
+fi
+
 if [ "$fail" -ne 0 ]; then
     echo "web-dom-test: FAILED" >&2
     exit 1
 fi
-echo "web-dom-test: PASS (client/*.ch compiles to JS, typed dom runs against the host)"
+echo "web-dom-test: PASS (client/*.ch compiles to JS, typed dom runs against the host, async fetch awaits real promises)"

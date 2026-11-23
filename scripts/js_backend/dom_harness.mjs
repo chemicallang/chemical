@@ -162,11 +162,18 @@ globalThis.localStorage = {
   removeItem: (key) => { store.delete(String(key)); },
 };
 
-globalThis.fetch = async (url) => ({
-  status: 200,
-  ok: true,
-  text: async () => JSON.stringify({ ok: true, url: String(url) }),
-});
+// A real host promise: `/api/ok` succeeds, any other path answers 404, and
+// `/api/down` *rejects* — the three outcomes an awaited `fetch` has to handle.
+globalThis.fetch = async (url) => {
+  const path = String(url);
+  if (path.includes("/api/down")) throw new Error("network down");
+  const status = path.includes("/api/ok") ? 200 : 404;
+  return {
+    status,
+    ok: status === 200,
+    text: async () => JSON.stringify({ ok: status === 200, url: path }),
+  };
+};
 
 const entry = pathToFileURL(resolve(dir, "index.mjs")).href;
 let bundle;
@@ -179,7 +186,9 @@ try {
 }
 
 try {
-  bundle.$run();
+  // `$run` is async: a client entry that awaits a host fetch resolves only after
+  // the promise settles, and the harness must wait for it.
+  await bundle.$run();
 } catch (error) {
   console.error("dom-harness: the program threw");
   console.error(error && error.stack ? error.stack : error);

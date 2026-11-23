@@ -1075,6 +1075,9 @@ bool ModuleEmitter::extern_expr(std::string_view name, std::string& out) {
         {"chx_dom_target", "rt.dom.target"},
         {"chx_dom_key", "rt.dom.key"},
         {"chx_dom_fetch_text", "rt.dom.fetch_text"},
+        // Returns a `FutureHandle<int>` through the sret slot; the host writes a
+        // promise token into it (see runtime.mjs `dom.fetch_status`).
+        {"chx_dom_fetch_status", "rt.dom.fetch_status"},
         {"chx_dom_storage_get", "rt.dom.storage_get"},
         {"chx_dom_storage_set", "rt.dom.storage_set"},
         {"chx_dom_storage_remove", "rt.dom.storage_remove"},

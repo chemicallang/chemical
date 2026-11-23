@@ -1126,6 +1126,11 @@ What that first version proves and what it does not:
   Details and the three traps (poll signature `(scratch, frame, ctx)`, frame-slot aliasing, heap
   storage for suspended frames) are in §17. Fixture `js_backend_async` runs in
   `js-backend-suites.sh`; aggregate await/async results are diagnosed, not mis-compiled.
+- **A host future exists too (`§17.1`).** `dom::fetch_status(url)` returns a
+  `FutureHandle<'static, int>`; the host creates the promise and writes its token through the sret
+  slot (`rt.dom.fetch_status`). Fixture `lang/tests/web/fixtures/dom_async` awaits `200`, `404` and
+  a rejecting request (`0`) inside the `web-dom-test.sh` gate, which also asserts the bundle uses
+  async arrows and no poll-protocol await — so an async client can be written in Chemical today.
 - **Not yet:** atomics, inline asm, and identifier mangling (`$f22` → short names, needs a scope
   table).
 

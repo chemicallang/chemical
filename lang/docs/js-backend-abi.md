@@ -490,3 +490,34 @@ poll-protocol await leaked into the bundle.
 whose result is an aggregate, are rejected with a message. Instants (`await <plain value>`) are
 built by the async library as coroutine futures; `rt.promise_get` throws a named error on such a
 handle instead of resolving garbage.
+
+### 17.1 A host future: `await dom::fetch_status(url)`
+
+The promise path is not testable without a future the *host* creates, so `dom` gained the
+awaitable form of its fetch:
+
+```chemical
+async func load_status(url : string_view) : int {
+    var status = await dom::fetch_status(url)   // 0 when the request failed
+    return status
+}
+```
+
+`dom::fetch_status` returns `core::async::FutureHandle<'static, int>`; underneath,
+`raw::chx_dom_fetch_status` is an extern whose aggregate return travels through the hidden sret
+pointer, so the emitted call is `rt.dom.fetch_status(handle, url)` and the host does
+
+```js
+promise_put(handle, fetch(url).then(r => r.status).catch(() => 0));
+```
+
+That is the whole host contract for a future in a JS build: **create the promise, hand its token
+over through the sret slot.** Nothing polls, so there is no `Context`, no waker, and no vtable.
+
+Fixture `lang/tests/web/fixtures/dom_async` is a `--web` app whose client entry point is an
+`async func main` that awaits three requests — success (`200`), an error status (`404`), and a
+network failure that rejects (`0`). `scripts/web-dom-test.sh` builds both jobs, asserts the bundle
+contains `async` arrows and no `async.await` (so it cannot pass through the coroutine path), runs
+it under `scripts/js_backend/dom_harness.mjs` (whose `fetch` is a real promise, rejecting for
+`/api/down`) and diffs the three lines. The harness now awaits `$run()`, because an awaiting entry
+resolves only after its I/O settles.

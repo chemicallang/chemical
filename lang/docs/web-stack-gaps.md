@@ -468,6 +468,10 @@ Five hardening changes, each with a regression test that fails without it:
   answered each with the whole page instead of a `304`. Fixed in `page` for both the artifact
   responder and `Bundle.respond_if_none_match`; the fixture now asks with a weak tag, a list and
   `*` and checks all three are 304.
+- **Accepted connections were unbounded.** The pool is fixed-size but its queue is not, so a
+  burst queued descriptors without limit. `ServerConfig.max_inflight` (256) reserves a slot before
+  a worker is requested and answers `503` + `Retry-After` on the accept thread past the cap,
+  releasing the slot when the connection ends.
 - **The access line could be forged.** The request target was written verbatim inside the
   quoted CLF field, so a target carrying `"` read as status and size in the log (and a raw ESC
   drove the terminal following the log). Method and target are escaped now (`\"`, `\\`,

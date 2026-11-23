@@ -28,6 +28,13 @@ public struct ServerConfig {
     var key_file: string;
     /// One line per served message; `AccessLogger.off()` by default.
     var access_log: http::AccessLogger;
+    /// Connections accepted and not yet finished. A peer that connects is served
+    /// on a pool worker; past this many, the accept loop answers `503` and closes
+    /// immediately instead of queueing another descriptor. This is what keeps a
+    /// burst (or a slow-loris sweep) bounded by configuration rather than by the
+    /// kernel's listen backlog: unbounded, every queued connection costs a
+    /// descriptor and the pool's queue grows without limit.
+    var max_inflight: uint;
 
     @constructor func constructor() {
         return ServerConfig {
@@ -41,6 +48,7 @@ public struct ServerConfig {
             cert_file = string();
             key_file = string();
             access_log = http::AccessLogger.off();
+            max_inflight = 256u;
         }
     }
 }
@@ -96,6 +104,9 @@ public struct Server {
     /// during serving is impossible by construction.
     var router: web.Router;
     internal var stopping: std::Arc<std::Mutex<bool>>;
+    /// Live connection count shared with the workers, which release their slot
+    /// when the connection is done with.
+    internal var inflight: std::Arc<std::Mutex<uint>>;
     internal var date_stamp: std::Arc<std::Mutex<DateStamp>>;
     internal var tls_chain: tls::CertificateChain;
     internal var tls_key: tls::PrivateKey;
@@ -111,6 +122,7 @@ public struct Server {
             listener = net::TcpListener();
             router = web.Router();
             stopping : std::arc(std::new_mutex(false)),
+            inflight : std::arc(std::new_mutex(0u)),
             date_stamp : std::arc(std::new_mutex(DateStamp { second : -1, text : string() })),
             tls_chain = tls::CertificateChain();
             tls_key = tls::PrivateKey();
@@ -361,6 +373,48 @@ public struct Server {
         return keep
     }
 
+    /// Take one of the `max_inflight` connection slots, or report that the server
+    /// is at its cap. Reserved by the accept loop before a worker is asked for.
+    func try_reserve_connection(&self) : bool {
+        var guard = self.inflight.get().lock()
+        var count = guard.get()
+        if(*count >= self.cfg.max_inflight) { return false }
+        *count = *count + 1u
+        return true
+    }
+
+    /// Give a slot back. Exactly one release per successful reservation: the
+    /// accepting task calls this on every way out of the connection.
+    func release_connection(&self) {
+        var guard = self.inflight.get().lock()
+        var count = guard.get()
+        if(*count > 0u) { *count = *count - 1u }
+    }
+
+    /// Answer a connection accepted while the server is at `max_inflight` with
+    /// `503` and close it, on the accept thread. A refused peer learns
+    /// immediately (and knows to retry) instead of sitting in a queue it cannot
+    /// see, and no worker is taken from the pool for it.
+    func refuse_overloaded(&self, fd : net::raw::Socket) {
+        var tcp = net::raw::stream_from_fd(fd)
+        var remote_s = string()
+        if(self.cfg.access_log.is_enabled()) { remote_s = peer_string(&tcp) }
+        var started = std::chrono::Instant.now()
+        var date = self.date_header()
+        var stream = http::Stream.Tcp(tcp)
+        var reason = reason_for_status(503u)
+        var reason_view = reason.to_view()
+        var refusal = http::response_text(503u, &reason_view)
+        // `Retry-After` is the honest answer for a busy server: the client may
+        // try again, and one second is the shortest hint the format allows.
+        refusal.set_header(string("Retry-After"), string("1"))
+        var written = refusal.write_to(&mut stream, false, false, date.to_view())
+        var bytes : usize = 0
+        if(written is Result.Ok) { bytes = refusal.body.size() as usize }
+        self.log_access(remote_s.to_view(), string_view(""), string_view(""), 503u, bytes, &started, false)
+        var _ = stream.shutdown()
+    }
+
     /// Serve a whole connection (blocking), honouring keep-alive and pipelining.
     func serve_connection(&self, connection : http::Stream, remote : string_view) {
         var stream = connection
@@ -428,6 +482,12 @@ public struct Server {
             // A non-blocking listener hands the flag to the accepted socket on
             // some platforms; the connection is served with blocking reads.
             net::raw::set_blocking(fd)
+            // At the cap, refuse on this thread: queueing the descriptor would be
+            // exactly the unbounded growth the cap exists to prevent.
+            if(!self.try_reserve_connection()) {
+                self.refuse_overloaded(fd)
+                continue
+            }
             unsafe(self.pool.submit_void(|selfp, fd|() => {
                 unsafe {
                     var tcp2 = net::raw::stream_from_fd(fd)
@@ -436,9 +496,13 @@ public struct Server {
                     var remote_s = string()
                     if(selfp.cfg.access_log.is_enabled()) { remote_s = peer_string(&tcp2) }
                     var opened = selfp.open_stream(tcp2)
-                    if(opened is Option.None) { return }
+                    if(opened is Option.None) {
+                        selfp.release_connection()
+                        return
+                    }
                     var Some(stream) = opened else unsafe { unreachable }
                     selfp.serve_connection(stream, remote_s.to_view())
+                    selfp.release_connection()
                 }
             }))
         }

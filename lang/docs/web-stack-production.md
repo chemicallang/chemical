@@ -28,7 +28,7 @@ last checklist row open; it is written out under "The one thing left" below.
 | 2 | `Date` on every response (RFC 9110 §6.6.1) | **done** | `http::format_http_date` + per-second cache (`DateStamp`); `PROD_every_response_carries_a_valid_date`, `PROD_date_formatter_matches_known_instants` |
 | 3 | `Range` / resumable downloads | **done (in-memory bodies)** | `http::parse_byte_range` + `apply_byte_range`; `PROD_range_answers_partial_content`, `PROD_range_parser_handles_the_forms` |
 | 4 | Say *why* a request was refused | **done** | 413 / 431 / 408 / 400 from `status_for_error`; oversized complete heads now rejected (`parser.ch`); `PROD_oversized_body_is_413`, `PROD_oversized_head_is_431` |
-| 5 | Bound request size / timeouts (slowloris) | **done** | `ServerConfig.max_header_bytes` 64 KiB, `max_headers` 512, `max_body_bytes` 10 MiB, header/body timeouts enforced per message |
+| 5 | Bound request size / timeouts (slowloris) | **done** | `ServerConfig.max_header_bytes` 64 KiB, `max_headers` 512, `max_body_bytes` 10 MiB, header/body timeouts enforced per message; `max_inflight` (256) caps live connections — past it the accept loop answers `503` + `Retry-After` on that thread, so a burst cannot queue descriptors without bound |
 | 6 | Compression | **done (opt-in for renders)** | artifacts: gzip at build + negotiation + `Vary`. Renders: `App.set_dynamic_gzip(true)` compresses a `Text` body ≥ 1 KiB when `Accept-Encoding` accepts gzip, sets `Content-Encoding` + `Vary`, and keeps the body only when it is smaller; measured 2,589 → 483 bytes for 665 µs of CPU (below) |
 | 7 | Caching correctness | **done** | `no-cache` + `ETag` + `If-None-Match` → 304 for frozen pages/artifacts, `no-store` for per-request renders (policy is per route) |
 | 8 | Sessions + CSRF | **done** | `SessionStore` (in-memory + snapshot load/save), `HttpOnly`/`SameSite=Lax`, optional `Secure` (`SessionStore.make(name, secure)`); `ctx.rotate_session()` + `ctx.rotate_csrf()` at a privilege change (session fixation), proven by the `tasks` probe: the sign-in re-sends the cookie and the pre-login id stops signing in |
@@ -178,3 +178,23 @@ if(upload != null) {
 never saves half an upload and reports success. The body is already bounded by
 `ServerConfig.max_body_bytes`, and `max_parts` (default 1000) bounds how many parts one body may
 split into. Streaming a part straight to disk is not implemented; a part is held in memory.
+
+## Concurrency is bounded, and the bound is a refusal
+
+`ServerConfig.worker_count` sizes the pool, but a pool with an unbounded queue does not bound
+anything: every accepted connection waits in that queue, so a burst — or a handful of peers that
+open a connection and stall mid-head — grows the process by whatever the peer sends. That is the
+one number an operator cannot see from outside.
+
+`ServerConfig.max_inflight` (default 256) is the cap on connections accepted and not yet
+finished. The accept loop reserves a slot *before* asking the pool for a worker; past the cap it
+writes `503` with `Retry-After: 1` on the accept thread and closes. So the ceiling is
+`max_inflight` descriptors plus one thread per pool worker, regardless of traffic, and a refused
+peer learns immediately instead of waiting in a queue it cannot see. The slot is released when
+the connection ends — including the paths where the TLS handshake fails — so the refusal is a
+pause, not a leak.
+
+What this does not do: a slow-loris sweep still occupies a worker per connection until the header
+timeout (5 s) expires, so `max_inflight` bounds memory, not throughput, under that attack. The
+answers there are a shorter `header_timeout_secs` and, eventually, an evented driver that does
+not need a thread per connection.

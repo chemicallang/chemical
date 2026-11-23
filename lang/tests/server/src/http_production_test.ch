@@ -896,3 +896,78 @@ public func PROD_access_line_escapes_request_data(env : &mut TestEnv) {
         env.error("expected the escaped quote and the escaped escape byte")
     }
 }
+
+// ── A burst above the connection cap ──────────────────────────────────────
+//
+// Served connections come from a bounded pool with an unbounded queue, so
+// without a cap every accepted descriptor waits in that queue: a burst, or a
+// few peers that open a connection and stall mid-head, grows the process by
+// whatever the attacker sends. With `max_inflight` the accept loop answers 503
+// on the spot, and — the part that is easy to get wrong — the slot is released
+// when the connection ends, so the next request is served normally.
+@test
+public func PROD_connections_above_the_cap_are_refused_and_slots_come_back(env : &mut TestEnv) {
+    const PORT : uint = 19972u
+    var cfg = server::ServerConfig()
+    cfg.worker_count = 1u
+    // One slot on one worker: the first connection is served (and then holds the
+    // worker stalled mid-head), so the second must be refused by the accept loop.
+    cfg.max_inflight = 1u
+    var started = prod_start(PORT, cfg)
+    if(started is Option.None) {
+        env.error("could not bind 127.0.0.1:19972")
+        return
+    }
+    var Some(srv) = started else unsafe { unreachable }
+    var stop = srv.handle()
+    var thread = srv.serve_async()
+    std.concurrent.sleep_ms(200u)
+
+    var refused = string()
+    var recovered = string()
+    unsafe {
+        var held = net::raw::dial("127.0.0.1", PORT)
+        if(held == 0u || (held as longlong) < 0) {
+            env.error("could not open the first connection")
+        } else {
+            // A head without its blank line: the worker blocks in `read_request_head`
+            // with the timeout still ahead of it, holding the only slot.
+            var partial = string("GET /held HTTP/1.1\r\nHost: 127.0.0.1\r\n")
+            net::raw::send_all(held, partial.data(), partial.size() as int)
+            std.concurrent.sleep_ms(200u)
+            refused = prod_get(PORT, string_view("/burst"))
+            net::raw::close_socket(held)
+            // The worker sees EOF, the connection ends, the slot returns.
+            std.concurrent.sleep_ms(200u)
+            recovered = prod_get(PORT, string_view("/after"))
+        }
+    }
+    stop.shutdown()
+    thread.join()
+
+    if(!refused.starts_with("HTTP/1.1 503")) {
+        unsafe {
+            var view = refused.to_view()
+            var m = string("the connection above the cap was not refused: [")
+            m.append_view(&view)
+            m.append_view("]")
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        }
+        env.error("a connection above max_inflight was queued instead of refused")
+    }
+    var retry_after = prod_header(&refused, std::string_view("Retry-After"))
+    var retry_view = retry_after.to_view()
+    if(!retry_view.equals(&std::string_view("1"))) {
+        env.error("the refusal did not carry Retry-After")
+    }
+    if(!recovered.starts_with("HTTP/1.1 200")) {
+        unsafe {
+            var view = recovered.to_view()
+            var m = string("the request after the burst was not served: [")
+            m.append_view(&view)
+            m.append_view("]")
+            test_env::ffi::log_cstr(env, LogType.Error, m.data(), 0, 0)
+        }
+        env.error("the connection slot was not released when the held connection ended")
+    }
+}

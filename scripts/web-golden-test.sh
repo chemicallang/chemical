@@ -177,7 +177,9 @@ if build_fixture router; then
     # Unit graph: `NavLink` renders on the home route only, `RouterApp` on all
     # three, so the route-only definition must travel in that route's chunk and
     # the shared one must stay in the bundle.
-    home_chunk_ref=$(grep -o 'src="[^"]*_index\.[0-9a-f]*\.js"' "$d/home/index.html" | head -1 | sed 's/src="//;s/"$//')
+    # The per-route chunk is `<name>.chunk.<hash>.js` (it was `<route>_index.<hash>.js`
+    # before the hydration-runtime change renamed it; the gate follows the scheme).
+    home_chunk_ref=$(grep -o 'src="[^"]*chunk\.[0-9a-f]*\.js"' "$d/home/index.html" | head -1 | sed 's/src="//;s/"$//')
     home_chunk="$d/assets/$(basename "$home_chunk_ref")"
     bundle_file="$d/assets/$(basename "$home_ref")"
     check "router: a route-only component ships in that route's chunk" \

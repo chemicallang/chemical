@@ -80,7 +80,10 @@ public func main() : int {
     var index_body = body_text(&index_res)
     check(string_view("the served index module exports the entry"),
         index_res.status == 200u && has_text(&index_body, string_view("$entryName")))
-    var module_req = http::request(string_view("GET"), string_view("/assets/client/web-client.mjs"))
+    // One ES module per Chemical module since `ea2cfae80`; the entry module is
+    // `client.mjs` (named by `index.mjs`'s `$entryName`), not the job wrapper
+    // `web-client.mjs`.
+    var module_req = http::request(string_view("GET"), string_view("/assets/client/client.mjs"))
     var module_res = app.handle(&raw mut module_req)
     var module_body = body_text(&module_res)
     check(string_view("the served program module carries the client code"),

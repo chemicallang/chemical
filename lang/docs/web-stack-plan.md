@@ -1703,7 +1703,9 @@ wrapper over `#js` still compiles.
 ### Phase 8 — Hardening  *(M, ongoing)*
 
 Streaming SSR and virtual lists for large documents; sampled hydration-mismatch reporting (needs
-the error endpoint); `http::FileServer` cache headers/ETag (needed by disk mode); a11y linting;
+the error endpoint); ~~`http::FileServer` cache headers/ETag (needed by disk mode)~~ — **landed
+2026-11-22** (`ETag`/`Last-Modified`/`304` answered without opening the file, plus `Range` streamed
+from the file handle); a11y linting;
 i18n/l10n + RTL (design in Phase 6 so the manifest can reserve a locale dimension); perf budgets
 (LCP/TBT) in `components-e2e`; `--check`-integrated audit of escape-hatch usage across the app
 corpus (a `#js` block without a typed wrapper is a lint finding).

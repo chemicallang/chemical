@@ -1190,9 +1190,11 @@ of the breaking changes in §3.17.
    page rendered late) refuses to hand out a name, so a build cannot publish a filename that
    disagrees with its content. Tested: two pages share the runtime + one component definition, a
    page's own JS keeps only its dispatch, the hash is deterministic, and a late page marks the sink
-   stale. **Remaining**: the app-level two-pass writer that injects `<script src="app.<hash>.js">`
-   into each page's HTML (the hash is only known after every page has rendered) and the ETag/
-   immutable header in `web::App` — both belong with `web::Static` in Phase 4/5.
+   stale. **The two-pass writer landed with `StaticSite.build()`**: the hash is computed after every
+   page has rendered, the frozen `<script src="app.<hash>.js">` / `<link>` are written into each
+   page's `<head>`, and an artifact flagged immutable is served with
+   `public, max-age=31536000, immutable` while the HTML it points at is revalidated. Pinned by
+   `web-golden-test` (the artifact tree is compared byte for byte) and `web-app-test.sh`.
 3. [~] **Typed `#universal` props** (§3.15a): declaration form, struct resolution, attribute-name
    validation on both the `#html` and JSX paths, **required-prop enforcement**, **value-type
    checking** against the field type (via the type checker's own `satisfies`), and **props

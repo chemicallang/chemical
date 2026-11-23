@@ -1401,6 +1401,19 @@ of the breaking changes in §3.17.
    Components whose spread is load-bearing for an open API (a `Card`-like surface is fine; a
    `Button` used as a link with arbitrary `role`/`aria` is not) should keep the spread and stay
    untyped rather than silently narrowing their public surface.
+
+   **Router links are typed (2026-11-23).** `RouterLink`, `NavLink` and `Outlet` were the last
+   untyped `#universal` declarations in `lang/libs`, and the two links are the `{...props}` case the
+   paragraph above warns about. They are typed anyway, because their surface is the anchor's:
+   `href` (required — it drives `normPath`, the rendered `href` and the click predicate), `router`,
+   `routeId`, `preload`, `end`, and the anchor attributes a router link still needs to reach the
+   `<a>` (`target`, `rel`, `download`); everything else an anchor can carry (`class`, `style`, `id`,
+   `role`, `aria-*`, `data-*`, `on*`) is already an implicit prop. That matches what the components
+   library's own `Link` declares (`href`, `target`, `rel`), so the two link components now have the
+   same surface. `Outlet` takes no props at all — its placement is the contract — so it uses an
+   **empty** props struct, which still rejects `<Outlet href="/x">` instead of dropping it.
+   A `<RouterLink>` for an id route still needs `href`: the click handler and
+   `$__uni_should_intercept` are URL-based even when active state comes from `$current`.
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

@@ -14,7 +14,26 @@
  * server's (`false`), then the effect applies the active state — the same
  * post-mount pattern any client-only value needs.
  */
-public #universal NavLink(props) {
+// Typed props (Phase 2), the same surface as `RouterLink` plus the implicit
+// `class`/`className` merge below; see Link.ch for why `href` is required.
+public struct NavLinkProps {
+    // the destination, normalized against the router's base
+    var href : std::string_view
+    // the router instance (one per name; `main-router` when absent)
+    @optional var router : std::string_view
+    // id-route name: active state then comes from `$current`, not the URL
+    @optional var routeId : std::string_view
+    // preload the destination as soon as it is hovered or focused
+    @optional var preload : bool
+    // match the exact path (not its prefixes) for active state
+    @optional var end : bool
+    // anchor attributes forwarded by `{...props}` (see RouterLink)
+    @optional var target : std::string_view
+    @optional var rel : std::string_view
+    @optional var download : std::string_view
+}
+
+public #universal NavLink(props : NavLinkProps) {
     const r = router(props.router || "main-router")
     const cur = r.$url.value
     const target = r.normPath(props.href)

@@ -9,6 +9,12 @@
  * into the nearest slot when the layout activates, so a layout can host the
  * nested content from its own body.
  */
-public #universal Outlet(props) {
+// Typed props (Phase 2): `<Outlet />` takes no props of its own — the placement is
+// the whole contract — so this is an **empty** props struct, which still rejects a
+// typo'd attribute (`<Outlet href="/x">`) instead of silently dropping it.
+public struct OutletProps {
+}
+
+public #universal Outlet(props : OutletProps) {
     return <div data-uni-outlet="true"></div>
 }

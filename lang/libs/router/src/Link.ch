@@ -16,13 +16,40 @@
  * (param-aware), an id route to `$current`. Reading the signal — not
  * `r.currentRoute` — is what makes the link re-render on navigation.
  *
+ * Typed props (Phase 2). `href` is required — it drives `normPath`, the rendered
+ * `href` and the click predicate. The rest are `@optional`: the body already
+ * substitutes `"main-router"` and treats `preload`/`end` as falsy when absent, and
+ * the tag nulls those router-only attributes out again after `{...props}`, so a
+ * declared default would only move where the default is written.
+ *
  * URL active state comes from `$__uni_link_active`, a browser-only runtime
  * helper, so it is applied in an effect (§3.15b): reading `window` during render
  * cannot be reproduced by SSR, and the hydration-safety analysis rejects it. The
  * first client render therefore matches the server (`aria-current` absent), then
  * the effect sets it — the post-mount pattern for client-only values.
  */
-public #universal RouterLink(props) {
+public struct RouterLinkProps {
+    // the destination, normalized against the router's base
+    var href : std::string_view
+    // the router instance (one per name; `main-router` when absent)
+    @optional var router : std::string_view
+    // id-route name: active state then comes from `$current`, not the URL
+    @optional var routeId : std::string_view
+    // preload the destination as soon as it is hovered or focused
+    @optional var preload : bool
+    // match the exact path (not its prefixes) for active state
+    @optional var end : bool
+    // anchor attributes forwarded by `{...props}`: a link that opens a new tab or
+    // downloads is not intercepted by the router (it falls through to the browser),
+    // but the attribute still has to be declarable to reach the anchor
+    @optional var target : std::string_view
+    @optional var rel : std::string_view
+    // the string form (`download="name"`); a bare boolean `download` is not a
+    // Chemical value and cannot be expressed here
+    @optional var download : std::string_view
+}
+
+public #universal RouterLink(props : RouterLinkProps) {
     const r = router(props.router || "main-router")
     const cur = r.$url.value
     const target = r.normPath(props.href)

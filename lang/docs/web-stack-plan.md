@@ -1445,6 +1445,32 @@ of the breaking changes in §3.17.
    `components_library_root_spread_skips_declared_props` (SSR markup + client emission; both fail if
    the SSR skip is removed) and by the universal WebView `button loading state` test, which now
    asserts `loading` is *absent* and `aria-busy` carries the state.
+
+   **Per-instance DOM ids (2026-11-23).** A component that wires ARIA by id must not hard-code the
+   id: `Select` used `chx-select-listbox` / `chx-select-opt-N` and `Tabs` used `props.id || "tabs"`,
+   so a page with two of them had duplicate ids and every `aria-controls`/`aria-labelledby`/
+   `aria-activedescendant` resolved to the *first* instance's nodes (this is audit item #34).
+   Uniqueness on both sides is needed, and the id also has to agree with the hydrating first render,
+   so ids are assigned **after mount**: `window.$__uni_uid(prefix)` (in `defaultUniversalSetup`)
+   hands out one id per instance, the component stores it in `state`, an effect fills it on mount,
+   and every id attribute is `null` while the base is empty. SSR and the first client render
+   therefore emit *no* ids (byte-identical markup), and one effect later each instance renders its
+   own ids plus the aria references that point at them. `props.id` (implicit) overrides the generated
+   base for callers that want stable ids — the Tabs case `components_tabs_aria_wiring` pins.
+   Trade-off: pre-hydration/no-JS markup has no aria references at all, but with two instances it
+   never had *usable* ones. Gated by the universal WebView test
+   `tabs and selects get per-instance ids` (four tabs + two selects: ids unique, each tab's
+   `aria-controls` resolves to a panel whose `aria-labelledby` is that tab, the two listboxes differ,
+   option ids unique), and by SSR assertions that no hard-coded id is emitted.
+
+   **Class/style values are trimmed, blank parts dropped (2026-11-23).** `class=" rC8G1vp"`
+   (153 tags in e2e): `renderHtmlAttrs` joined class parts with a space unconditionally, and a
+   component that builds `user_class + " " + own_class` passes a *single* value with a leading space
+   when the user class is unset. `page::join_attr_parts` now serializes each part, trims it, skips it
+   when blank, and drops the whole attribute when nothing is left — so
+   `style={active == i ? "" : "display:none;"}` emits no `style` on the active tab panel instead of
+   `style=""`. The client trims identically (`$__uni_class_part` and the class setter), so server
+   markup and the hydrated DOM agree.
 4. [x] **Hydration-safety analysis** (§3.15b): **landed** — render bodies may not read the clock, a
    random number, or browser-only state (`document`/`window`/`localStorage`/`fetch`/…); lambdas are
    exempt because the framework only passes them to handlers and effects. Negative tests cover a

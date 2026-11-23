@@ -504,7 +504,16 @@ public #universal Tabs(props : TabsProps) {
     var variant = props.variant || "line"
     var orientation = props.orientation || "horizontal"
     var disabled = props.disabled || false
-    var baseId = props.id || "tabs"
+    // A per-instance base id: two <Tabs> on one page used to share `tabs-tab-0`,
+    // `tabs-panel-0`, … so every `aria-controls`/`aria-labelledby` pointed at the
+    // first instance. Without an explicit `id`, the id is assigned after mount
+    // (`$__uni_uid`) and the aria attributes are omitted until then — that keeps
+    // SSR and the hydrating first render identical, and makes them unique.
+    state uid = ""
+    useEffect(() => {
+        if(uid == "") { uid = window.$__uni_uid("tabs") }
+    }, [])
+    var baseId = props.id ? props.id : uid
     const tabListRef = useRef(null)
 
     var select = (val) => {
@@ -561,12 +570,12 @@ public #universal Tabs(props : TabsProps) {
                 // shadows it — the emitted `class={tab}` then used the *label*, so
                 // every tab rendered as `class="Alpha"` and lost its styling.
                 {props.tabs.map((label, i) => (
-                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} data-active={active == i ? "true" : "false"} class={tab} role="tab" aria-selected={active == i ? "true" : "false"}>{label}</button>
+                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId != "" ? baseId + "-tab-" + i : null} aria-controls={baseId != "" ? baseId + "-panel-" + i : null} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} data-active={active == i ? "true" : "false"} class={tab} role="tab" aria-selected={active == i ? "true" : "false"}>{label}</button>
                 ))}
             </div>
             <div>
                 {props.panels.map((panel, i) => (
-                    <div role="tabpanel" id={baseId + "-panel-" + i} aria-labelledby={baseId + "-tab-" + i} class={tab_panel} style={active == i ? "" : "display:none;"} tabindex={0}>{panel}</div>
+                    <div role="tabpanel" id={baseId != "" ? baseId + "-panel-" + i : null} aria-labelledby={baseId != "" ? baseId + "-tab-" + i : null} class={tab_panel} style={active == i ? "" : "display:none;"} tabindex={0}>{panel}</div>
                 ))}
             </div>
         </div>

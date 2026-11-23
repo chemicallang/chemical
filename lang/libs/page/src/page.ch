@@ -1539,7 +1539,7 @@ public struct HtmlPage {
     // nothing instead of the literal "false"/"null").
     window.$__uni_class_part = ((v) => {
         const x = window.$__uni_value(v);
-        return (x == null || x === false || x === "") ? "" : "" + x;
+        return (x == null || x === false) ? "" : ("" + x).trim();
     })
     // Merges two class bindings. When either side is a state/computed signal the
     // result is a combined computed so the binding stays live after the spread
@@ -1595,6 +1595,15 @@ public struct HtmlPage {
         }
         return out;
     })
+    // Per-instance DOM id source for components that need ids for aria wiring
+    // (tabs, listboxes). Ids are assigned *after mount*: SSR cannot hand out
+    // stable per-instance ids, so the server markup and the first client render
+    // carry none (no duplicates, no broken `aria-controls`), and this hands out
+    // one id per instance on the effect that follows.
+    window.$__uni_uid = (() => {
+        let n = 0;
+        return (prefix) => (prefix || "chx") + "-" + (++n);
+    })()
     window.$_ur = {
         Fragment: {},
         createElement: (t, p, ...c) => ({ t, p: p || {}, c })
@@ -2296,8 +2305,16 @@ public struct HtmlPage {
             return;
         }
         if(key === "className" || key === "class") {
+            // Trimmed, and dropped when blank: a component that builds
+            // `user_class + " " + own_class` passes `" rC8G1vp"` when the user class
+            // is unset. SSR trims the same way (`page::join_attr_parts`), so the
+            // server markup and the hydrated DOM match.
             if(v == null || v === false) el.removeAttribute("class");
-            else el.setAttribute("class", "" + v);
+            else {
+                const s = ("" + v).trim();
+                if(s) el.setAttribute("class", s);
+                else el.removeAttribute("class");
+            }
             return;
         }
         if(key === "htmlFor" || key === "for") {

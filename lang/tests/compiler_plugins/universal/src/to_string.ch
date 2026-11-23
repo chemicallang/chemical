@@ -766,7 +766,9 @@ public func universal_ssr_state_index_compare(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrStateIndexCompare items={["A", "B", "C"]} /> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><button style="">A</button><button style="active">B</button><button style="">C</button></div></span>`)
+    // A blank style contributes nothing: an empty attribute is dropped rather than
+    // rendered as `style=""` (the client sets/removes the same way).
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div><button>A</button><button style="active">B</button><button>C</button></div></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 

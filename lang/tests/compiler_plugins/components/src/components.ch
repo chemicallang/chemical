@@ -581,9 +581,12 @@ public func components_stateful_tabs_ssr(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("data-orientation="))
     // Only the active panel is visible
     contains_string_assert(env, html.to_view(), std::string_view(">Panel 2</div>"))
-    // Panels 1 and 3 are hidden (display:none), matching the hydrated first render
-    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\" role=\"tabpanel\" id=\"tabs-panel-0\""))
-    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\" role=\"tabpanel\" id=\"tabs-panel-2\""))
+    // Panels 1 and 3 are hidden (display:none), matching the hydrated first render.
+    // No `id`: the tab/panel ids are per instance and assigned after mount, so that
+    // two <Tabs> on one page cannot share `tabs-panel-0` (see the universal WebView
+    // test `tabs and selects get per-instance ids`).
+    contains_string_assert(env, html.to_view(), std::string_view("style=\"display:none;\" role=\"tabpanel\" tabindex=\"0\"") )
+    not_contains_string_assert(env, html.to_view(), std::string_view("tabs-panel-0"))
 }
 
 @test
@@ -1257,11 +1260,18 @@ public func components_select_listbox_pattern(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view("aria-expanded=\"false\""))
     contains_string_assert(env, html.to_view(), std::string_view("role=\"listbox\""))
     contains_string_assert(env, html.to_view(), std::string_view("role=\"option\""))
-    contains_string_assert(env, html.to_view(), std::string_view("id=\"chx-select-opt-0\""))
+    // Ids are per instance and assigned after mount (`$__uni_uid`), so the server
+    // markup carries none: a hardcoded `chx-select-listbox`/`chx-select-opt-0`
+    // collided as soon as a page had two selects. The universal WebView test
+    // `tabs and selects get per-instance ids` asserts the mounted result.
+    not_contains_string_assert(env, html.to_view(), std::string_view("chx-select-listbox"))
+    not_contains_string_assert(env, html.to_view(), std::string_view("chx-select-opt-0"))
     var js = std::string()
     js.append_view(page.getJs())
-    // the highlighted option id must stay reactive (updates with keyboard nav)
-    contains_string_assert(env, js.to_view(), std::string_view("chx-select-opt-\" + highlight.value"))
+    // the id base comes from the per-instance counter and the highlighted option id
+    // must stay reactive (updates with keyboard nav)
+    contains_string_assert(env, js.to_view(), std::string_view("$__uni_uid(\"chx-select\")"))
+    contains_string_assert(env, js.to_view(), std::string_view("baseId.value + \"-opt-\" + highlight.value"))
 }
 
 // Dialog/Sheet expose a proper modal dialog: role="dialog", aria-modal, an
@@ -1316,11 +1326,12 @@ public func components_portal_emission(env : &mut TestEnv) {
     contains_string_assert(env, js.to_view(), std::string_view("$_r.createPortal"))
     // the menu keeps its data-open driven visibility (no inline style wipe)
     contains_string_assert(env, js.to_view(), std::string_view("\"data-open\": $_ucs"))
-    // SSR still renders the menu inline (content must exist for no-JS + hydration)
+    // SSR still renders the menu inline (content must exist for no-JS + hydration).
+    // Its id is per instance and assigned after mount, so it is not in the markup.
     var html = std::string()
     html.append_view(page.getHtml())
     contains_string_assert(env, html.to_view(), std::string_view("role=\"listbox\""))
-    contains_string_assert(env, html.to_view(), std::string_view("chx-select-listbox"))
+    contains_string_assert(env, js.to_view(), std::string_view("$__uni_uid(\"chx-select\")"))
 }
 
 @test

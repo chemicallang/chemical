@@ -90,6 +90,18 @@
 // ---------------------------------------------------------------------------
 // Select (custom dropdown, options mode)
 // ---------------------------------------------------------------------------
+// Two instances of each id-bearing control on one page. Their DOM ids must not
+// collide: the tabs/select wiring used to hardcode `tabs-tab-0` / `chx-select-listbox`,
+// so the second instance's aria references pointed at the first one's nodes.
+#universal DuplicateIdsFixture(props) {
+    return <div data-testid="dupids-fixture">
+        <Tabs tabs={["A", "B"]} panels={["PA", "PB"]} />
+        <Tabs tabs={["C", "D"]} panels={["PC", "PD"]} />
+        <Select data-testid="dupids-select-1" options={["One", "Two"]} placeholder="First" />
+        <Select data-testid="dupids-select-2" options={["Three", "Four"]} placeholder="Second" />
+    </div>
+}
+
 #universal SelectFixture(props) {
     state value = ""
     return <div data-testid="select-fixture">

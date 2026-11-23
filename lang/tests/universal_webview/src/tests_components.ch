@@ -109,6 +109,53 @@
     </script>
 }
 
+// ---- Per-instance DOM ids ---------------------------------------------------
+
+// Tabs and Select need DOM ids to wire `aria-controls`/`aria-labelledby`/
+// `aria-activedescendant`. Two instances on one page used to share them
+// (`tabs-tab-0`, `chx-select-listbox`), so the second instance's aria references
+// resolved to the first instance's nodes. The ids are assigned after mount, one
+// per instance.
+#universal_test("tabs and selects get per-instance ids") {
+    <DuplicateIdsFixture />
+    <script>
+        const root = document.querySelector('[data-testid="dupids-fixture"]')
+        const tabs = root.querySelectorAll('[role=tab]')
+        expect(tabs.length).toBe(4)
+        const tabIds = []
+        for(let i = 0; i < tabs.length; i++) {
+            const id = tabs[i].getAttribute('id')
+            const ac = tabs[i].getAttribute('aria-controls')
+            expect(id != null).toBe(true)
+            expect(ac != null).toBe(true)
+            // each tab controls a panel of its own instance
+            const panel = document.getElementById(ac)
+            expect(panel != null).toBe(true)
+            expect(panel.getAttribute('aria-labelledby')).toBe(id)
+            tabIds.push(id)
+        }
+        expect(new Set(tabIds).size).toBe(4)
+        // the two selects must not share a listbox (or its option ids)
+        const listboxIds = []
+        const selectIds = ['dupids-select-1', 'dupids-select-2']
+        for(let i = 0; i < selectIds.length; i++) {
+            // `data-testid` is on the Select's root div; the wiring is on the trigger.
+            const ac = byTestId(selectIds[i]).find('[aria-haspopup=listbox]').attr('aria-controls')
+            expect(ac != null).toBe(true)
+            const listbox = document.getElementById(ac)
+            expect(listbox != null).toBe(true)
+            expect(listbox.getAttribute('role')).toBe('listbox')
+            listboxIds.push(ac)
+        }
+        expect(listboxIds[0] === listboxIds[1]).toBe(false)
+        const opts = document.querySelectorAll('[role=option]')
+        expect(opts.length > 0).toBe(true)
+        const optIds = []
+        for(let i = 0; i < opts.length; i++) optIds.push(opts[i].getAttribute('id'))
+        expect(new Set(optIds).size).toBe(optIds.length)
+    </script>
+}
+
 // ---- Accordion -------------------------------------------------------------
 
 #universal_test("accordion opens and closes") {

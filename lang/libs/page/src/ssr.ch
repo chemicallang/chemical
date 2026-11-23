@@ -584,29 +584,67 @@ func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
         }
     }
 
+// Serializes one part of a merged attribute (`class`/`style`) into `into`.
+//
+// Kept separate from the join so a *blank* part can be skipped: an unset
+// `className` prop reaches the attribute list as `class=""`, and joining it with a
+// space left `class=" rC8G1vp"` in the markup. The client already drops blank
+// parts (`$__uni_class_merge` returns `as || bs`), so the server and the hydrated
+// page disagreed about the attribute.
+func attr_part_into(page : &mut HtmlPage, part : &SsrAttributeValue, to_js : bool, into : &mut std::string) {
+    into.resize(0)
+    if(to_js) {
+        writeJsPrimitiveAttrValue(page, into, part)
+    } else {
+        writePrimitiveAttrValue(page, into, part)
+    }
+}
+
+// Joins the parts of one merged attribute with `sep`, skipping blank parts and
+// trimming each part: a component that builds `user_class + " " + own_class`
+// writes `class=" rC8G1vp"` when the user class is unset, which a single join
+// step cannot see as a blank *part*.
+// `base` (the generated class of a `#styled` component, possibly absent) is written
+// first, without a separator, and never escapes.
+func join_attr_parts(page : &mut HtmlPage, parts : &std::vector<*SsrAttributeValue>, sep : char, to_js : bool, base_data : *char, base_size : size_t) : std::string {
+        unsafe {
+        var out = std::string()
+        if(base_size > 0 && base_data != null) {
+            out.append_with_len(base_data, base_size)
+        }
+        var scratch = std::string()
+        for(var i : size_t = 0; i < parts.size(); i++) {
+            attr_part_into(page, &*parts.at(i), to_js, &mut scratch)
+            var raw = scratch.to_view()
+            var text = raw.trim()
+            if(text.size() == 0) continue
+            if(out.size() > 0) out.append(sep)
+            out.append_view(&text)
+        }
+        return out
+
+        }
+    }
+
 public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsafe {
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
+    var classes = join_attr_parts(page, &special.classes, ' ', false, null, 0)
+    var styles = join_attr_parts(page, &special.styles, ';', false, null, 0)
     var output = &mut page.pageHtml
 
     // 1. Render merged classes
-    if (special.classes.size() > 0) {
+    if (classes.size() > 0) {
         output.append_view(" class=\"")
-        for (var i : size_t = 0; i < special.classes.size(); i++) {
-            if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(page, output, &*special.classes.at(i))
-        }
+        output.append_string(&classes)
         output.append_view("\"")
     }
 
     // 2. Render merged styles
-    if (special.styles.size() > 0) {
+    if (styles.size() > 0) {
         output.append_view(" style=\"")
-        for (var i : size_t = 0; i < special.styles.size(); i++) {
-            if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
-        }
+        output.append_string(&styles)
         output.append_view("\"")
     }
 
@@ -627,31 +665,21 @@ public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeLi
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
+    var classes = join_attr_parts(page, &special.classes, ' ', false, baseClass.data, baseClass.size)
+    var styles = join_attr_parts(page, &special.styles, ';', false, null, 0)
     var output = &mut page.pageHtml
 
     // 1. Render merged classes (baseClass first, then user classes)
-    if (special.classes.size() > 0 || baseClass.size > 0) {
+    if (classes.size() > 0) {
         output.append_view(" class=\"")
-        var first = true
-        if (baseClass.size > 0) {
-            output.append_with_len(baseClass.data, baseClass.size)
-            first = false
-        }
-        for (var i : size_t = 0; i < special.classes.size(); i++) {
-            if (!first) output.append(' ') // Space-separated classes
-            first = false
-            writePrimitiveAttrValue(page, output, &*special.classes.at(i))
-        }
+        output.append_string(&classes)
         output.append_view("\"")
     }
 
     // 2. Render merged styles
-    if (special.styles.size() > 0) {
+    if (styles.size() > 0) {
         output.append_view(" style=\"")
-        for (var i : size_t = 0; i < special.styles.size(); i++) {
-            if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
-        }
+        output.append_string(&styles)
         output.append_view("\"")
     }
 
@@ -669,29 +697,25 @@ public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) { unsa
     var special = make_special_attrs()
     accumulateAttrs(list, &mut special)
 
+    var classes = join_attr_parts(page, &special.classes, ' ', true, null, 0)
+    var styles = join_attr_parts(page, &special.styles, ';', true, null, 0)
     var output = &mut page.pageJs
     var is_first = true
 
     // 1. Render merged classes
-    if (special.classes.size() > 0) {
+    if (classes.size() > 0) {
         if (!is_first) output.append_view(", ")
         output.append_view("class:\"")
-        for (var i : size_t = 0; i < special.classes.size(); i++) {
-            if (i > 0) output.append(' ')
-            writeJsPrimitiveAttrValue(page, &mut *output, &*special.classes.at(i))
-        }
+        output.append_string(&classes)
         output.append('"')
         is_first = false
     }
 
     // 2. Render merged styles
-    if (special.styles.size() > 0) {
+    if (styles.size() > 0) {
         if (!is_first) output.append_view(", ")
         output.append_view("style:\"")
-        for (var i : size_t = 0; i < special.styles.size(); i++) {
-            if (i > 0) output.append(';')
-            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles.at(i))
-        }
+        output.append_string(&styles)
         output.append('"')
         is_first = false
     }

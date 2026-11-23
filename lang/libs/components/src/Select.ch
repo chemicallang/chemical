@@ -169,6 +169,15 @@ public #universal Select(props : SelectProps) {
         }
     }
     state open = false
+    // Per-instance id base for the listbox wiring: a hardcoded `chx-select-listbox`
+    // meant two <Select>s on one page shared it, so the second trigger's
+    // `aria-controls`/`aria-activedescendant` pointed at the first menu's options.
+    // Assigned after mount (`$__uni_uid`) — SSR emits no ids, the hydrating first
+    // render matches it, then one id per instance is filled in.
+    state uid = ""
+    useEffect(() => {
+        if(uid == "") { uid = window.$__uni_uid("chx-select") }
+    }, [])
     state selected = props.defaultValue || ""
     state highlight = 0
     state typed = ""
@@ -311,16 +320,19 @@ public #universal Select(props : SelectProps) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var placeholder = props.placeholder || "Select..."
+    // `props.id` (implicit) makes the wiring predictable for callers; otherwise the
+    // post-mount uid is used.
+    var baseId = props.id ? props.id : uid
     return <div {...props} class={classes} style="position:relative;display:inline-block;width:100%;">
         <div onClick={close} style={open ? "position:fixed;inset:0;z-index:10;" : "display:none;"}></div>
-        <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={select_trigger} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel || placeholder}>
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={select_trigger} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls={baseId != "" ? baseId + "-listbox" : null} aria-activedescendant={baseId != "" && open && props.options && props.options[highlight] != null ? baseId + "-opt-" + highlight : null} aria-label={props.ariaLabel || placeholder}>
             <span class={current != "" ? "chx-select-value" : "chx-select-value chx-select-placeholder"}>{current ? current : placeholder}</span>
             <span class="chx-select-chevron">▾</span>
         </button>
         {createPortal(
-            <div ref={menuRef} class={select_menu} data-open={open ? "true" : "false"} role="listbox" id="chx-select-listbox" onClick={handleMenuClick}>
+            <div ref={menuRef} class={select_menu} data-open={open ? "true" : "false"} role="listbox" id={baseId != "" ? baseId + "-listbox" : null} onClick={handleMenuClick}>
                 {props.options ? props.options.map((opt, i) => (
-                    <button type="button" role="option" id={"chx-select-opt-" + i} aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} data-highlighted={highlight == i ? "true" : "false"} class={select_item}>{opt}</button>
+                    <button type="button" role="option" id={baseId != "" ? baseId + "-opt-" + i : null} aria-selected={current == opt ? "true" : "false"} data-select-value={opt} data-selected={current == opt ? "true" : "false"} data-highlighted={highlight == i ? "true" : "false"} class={select_item}>{opt}</button>
                 )) : props.children}
             </div>
         )}

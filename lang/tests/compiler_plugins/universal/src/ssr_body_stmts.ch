@@ -18,7 +18,10 @@ public func universal_ssr_local_var_defaults(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <SsrLocalVariant>Hi</SsrLocalVariant> }
     var html = std::string()
-    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class=" base-cls" data-variant="default" data-size="md">Hi</span></span>`)
+    // The body's `classes + " " + "base-cls"` is one class *value*, so the empty
+    // `classes` leaves a leading space that the renderer trims (a class part is
+    // never emitted with the join separator of a blank neighbour).
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span class="base-cls" data-variant="default" data-size="md">Hi</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
 

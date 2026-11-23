@@ -58,9 +58,59 @@ if diff -u "$out_root/native.txt" "$out_root/js.txt"; then
     # The source map is decoded, not just checked for existence: every mapping
     # must be in range and one must land on the line that produced the output.
     node scripts/js_backend/sourcemap_check.mjs "$out_root/bundle" main.ch printf | tail -2
-    exit 0
+else
+    echo
+    echo "FAIL: the JS backend does not reproduce the native output" >&2
+    exit 1
 fi
 
-echo
-echo "FAIL: the JS backend does not reproduce the native output" >&2
-exit 1
+# ── release mode: the same program, compacted ────────────────────────────────
+# A release build strips comments and formatting from every emitted module and
+# from the runtime. That is only worth having if the program still behaves
+# identically, so this runs the *same* differential comparison again and then
+# checks the two things minification must never produce: a comment, or a source
+# map that would point at the wrong line.
+echo "== release mode (minified)"
+"$compiler" "$fixture_dir/chemical.mod" --mode release_small \
+    -o "$out_root/$fixture.release.exe" > "$out_root/native-release.log" 2>&1 || {
+    echo "js-backend-test: native release build failed, see $out_root/native-release.log" >&2
+    tail -20 "$out_root/native-release.log" >&2
+    exit 1
+}
+"$out_root/$fixture.release.exe" | tr -d '\r' > "$out_root/native-release.txt"
+
+rm -rf "$out_root/bundle-release"
+CHX_JS_RUNTIME="$root/scripts/js_backend/runtime.mjs" \
+    "$compiler" "$fixture_dir/chemical.mod" --mode release_small --emit-js "$out_root/bundle-release" \
+    > "$out_root/js-release-build.log" 2>&1 || {
+    echo "js-backend-test: JS release build failed, see $out_root/js-release-build.log" >&2
+    tail -20 "$out_root/js-release-build.log" >&2
+    exit 1
+}
+node scripts/js_backend/run.mjs "$out_root/bundle-release" > "$out_root/js-release.txt" || {
+    echo "js-backend-test: the minified program failed to run" >&2
+    cat "$out_root/js-release.txt" >&2
+    exit 1
+}
+diff -u "$out_root/native-release.txt" "$out_root/js-release.txt" || {
+    echo "FAIL: minification changed the program's behaviour" >&2
+    exit 1
+}
+
+rel_bytes=$(cat "$out_root/bundle-release"/*.mjs | wc -c)
+if [ "$rel_bytes" -ge "$bytes" ]; then
+    echo "FAIL: release bundle ($rel_bytes B) is not smaller than debug ($bytes B)" >&2
+    exit 1
+fi
+if grep -lE '^\s*//|/\*' "$out_root/bundle-release"/*.mjs >/dev/null 2>&1; then
+    echo "FAIL: a comment survived minification:" >&2
+    grep -lE '^\s*//|/\*' "$out_root/bundle-release"/*.mjs >&2
+    exit 1
+fi
+if ls "$out_root/bundle-release"/*.map >/dev/null 2>&1; then
+    echo "FAIL: a minified module still emitted a source map" >&2
+    exit 1
+fi
+pct=$(python3 -c "print(f'{$rel_bytes * 100 / $bytes:.1f}')" 2>/dev/null || echo "?")
+echo "PASS: minified and identical — $bytes B -> $rel_bytes B (${pct}% of debug)"
+exit 0

@@ -35,7 +35,24 @@ struct MIREmitJsOptions {
      * (`MIR_C_DUMP`) is the debugging tool, not the generated JS.
      */
     bool instruction_comments = false;
+    /**
+     * Write compact JavaScript: comments, indentation and every whitespace run
+     * that no token pair needs are removed. This is a *formatting* pass only —
+     * identifiers keep their names, so a stack trace from a release bundle still
+     * reads like the MIR (`$f22`, `$g27`) instead of `a`, `b`, `c`.
+     *
+     * No source map is produced with it: line and column numbers no longer
+     * correspond, and a map that points at the wrong line is worse than none.
+     */
+    bool minify = false;
 };
+
+/**
+ * Strip comments and formatting from emitted JavaScript. String and template
+ * literals are copied byte for byte, and a single space is kept wherever two
+ * tokens would otherwise merge (`return x`, `a + +b`).
+ */
+std::string minify_js_source(const std::string& source);
 
 /**
  * Emit `module` as one ES module. On failure returns false and sets `error`

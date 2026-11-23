@@ -399,3 +399,40 @@ them), a scheduler, and the `FutureHandle` representation — which is why the p
 Phase 6 rather than to the v1 backend. Until then the diagnostic is per-site and names the
 function and position, so a client module that reaches for `await` fails loudly instead of
 silently doing the wrong thing.
+
+## 16. Formatting minification (release builds) — landed 2026-11-23
+
+A release build (`--mode release_fast|release_small|release_safe`) writes compact modules; a
+debug build keeps the formatting and the source map. The rule is deliberately crude so it cannot
+surprise anybody: **release means no formatting, and therefore no map** — a map whose lines no
+longer match the file is worse than no map at all.
+
+- `mir::minify_js_source` is a scanner, not a regex: strings and template literals are copied byte
+  for byte (so `"// not a comment"` survives), `//` and `/* */` comments are dropped, and a run of
+  whitespace becomes **one space only where two tokens would otherwise merge** — two word
+  characters (`return x`), or `+ +` / `- -`. Everything else collapses to nothing (`a = 1;` →
+  `a=1;`).
+- It is applied to every emitted module, to `index.mjs`, and to `runtime.mjs`. The runtime is
+  scanned safely because it has no regex literals (the one construct this pass cannot classify);
+  that property is worth keeping in mind when the runtime grows.
+- **Identifiers keep their names.** This is formatting only; renaming locals (`$f22` → `a`) is the
+  plan's separate "identifier mangling" item, and it is what a debugger needs to see.
+- The release build must still *behave* identically, so `scripts/js-backend-test.sh` runs the
+  whole differential comparison a second time in `release_small` and then asserts three things
+  about the result: no comment survived, no source map was written, and the bundle is smaller.
+
+Measured with the gate on the six fixtures (bundle = emitted modules + `index.mjs` + runtime):
+
+| fixture | debug | release (minified) | ratio |
+|---|---|---|---|
+| `js_backend` | 42,293 B | 24,931 B | 58.9% |
+| `js_backend_dyn` | 39,994 B | 23,331 B | 58.3% |
+| `js_backend_std` | 198,075 B | 154,861 B | 78.2% |
+| `js_backend_closure` | 197,975 B | 155,293 B | 78.4% |
+| `js_backend_iter` | 141,140 B | 119,817 B | 84.9% |
+| `js_backend_json` | 508,779 B | 374,613 B | 73.6% |
+
+The fixtures that shrink least are the ones dominated by table data already written without
+formatting; the modules themselves still shed ~40% (e.g. `main.mjs` 2,135 → 1,229 B). The dom
+client in release mode was also run against its host harness (clicks, fetch) with the minified
+runtime — same output, `runtime.mjs` 28,162 → 16,458 B.

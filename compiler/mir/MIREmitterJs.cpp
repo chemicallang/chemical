@@ -30,6 +30,79 @@
 #include <vector>
 
 namespace mir {
+
+std::string minify_js_source(const std::string& source) {
+    std::string out;
+    out.reserve(source.size());
+    const size_t n = source.size();
+
+    // Whitespace is decided when the *next* token is known: a run of spaces
+    // becomes one space only where two word tokens (or `+ +` / `- -`) would
+    // otherwise merge into a different token.
+    bool pending_space = false;
+    auto is_word = [](char ch) {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+               (ch >= '0' && ch <= '9') || ch == '_' || ch == '$';
+    };
+    auto flush_space = [&](char next) {
+        if (!pending_space) return;
+        pending_space = false;
+        if (out.empty()) return;
+        const char prev = out.back();
+        if ((is_word(prev) && is_word(next)) ||
+            ((prev == '+' || prev == '-') && prev == next)) {
+            out += ' ';
+        }
+    };
+
+    size_t i = 0;
+    while (i < n) {
+        const char c = source[i];
+        // Comments are dropped entirely. `//# sourceMappingURL` is not special:
+        // a minified module has no map (see MIREmitJsOptions::minify).
+        if (c == '/' && i + 1 < n && source[i + 1] == '/') {
+            while (i < n && source[i] != '\n') ++i;
+            pending_space = true;
+            continue;
+        }
+        if (c == '/' && i + 1 < n && source[i + 1] == '*') {
+            i += 2;
+            while (i + 1 < n && !(source[i] == '*' && source[i + 1] == '/')) ++i;
+            i = i + 2 < n ? i + 2 : n;
+            pending_space = true;
+            continue;
+        }
+        // Strings, template literals: byte for byte, whitespace and `//` included.
+        if (c == '"' || c == '\'' || c == '`') {
+            flush_space(c);
+            out += c;
+            ++i;
+            while (i < n) {
+                const char s = source[i];
+                if (s == '\\' && i + 1 < n) {
+                    out += s;
+                    out += source[i + 1];
+                    i += 2;
+                    continue;
+                }
+                out += s;
+                ++i;
+                if (s == c) break;
+            }
+            continue;
+        }
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            pending_space = true;
+            ++i;
+            continue;
+        }
+        flush_space(c);
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
 namespace {
 
 // ── type facts, computed once per TypeId ────────────────────────────────────
@@ -624,13 +697,15 @@ bool ModuleEmitter::run(std::string& out, std::string* source_map) {
     }
     out += "};\n";
 
-    if (source_map != nullptr) {
+    if (source_map != nullptr && !options_.minify) {
         const std::string file_name = js_module_file_stem(options_.module_name) + ".mjs";
         *source_map = build_source_map(module_, mappings_, preamble_lines, file_name);
         out += "//# sourceMappingURL=";
         out += file_name;
         out += ".map\n";
     }
+    // Formatting last, so every section above is minified by the same rules.
+    if (options_.minify) out = minify_js_source(out);
     return true;
 }
 

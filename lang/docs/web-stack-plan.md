@@ -421,7 +421,7 @@ minifier and asset pipeline are build-time work and live in a Chemical library/b
 
 | stage | technique |
 |---|---|
-| minify JS | whitespace/comments; identifier mangling for emitter output (scope table) and for the runtime (needs the shared JS parser — budget 45 KB min for the runtime until then) |
+| minify JS | **whitespace/comments landed in the emitter** (§Phase 1, `js-backend-abi.md` §16 — release mode only, no map); identifier mangling for emitter output (scope table) and for the runtime (needs the shared JS parser — budget 45 KB min for the runtime until then) |
 | minify CSS | existing parser → compact re-emit; hashed classes preserved |
 | tree-shake | reachability from entry + dynamic boundaries (we know every export) |
 | split | route table + lazy boundaries (§3.5) |
@@ -1109,9 +1109,18 @@ What that first version proves and what it does not:
   index is resolved from MIR's vtable *type* record, and `reachable_functions` now seeds from slot
   targets (an impl method reachable only through `dyn` had no call instruction pointing at it). New
   fixture `js_backend_dyn` runs differentially: identical output under both backends.
+- **Formatting minification landed 2026-11-23.** A release build (`is_release(job->mode)`) writes
+  compact modules, a compact `index.mjs`, and a compact `runtime.mjs`; a debug build keeps its
+  formatting *and* its source map, because the pass makes line numbers meaningless. `mir::minify_js_source`
+  is a scanner rather than a regex — strings/template literals are copied byte for byte and a space
+  is kept only where two tokens would merge — which is why it can safely compact the runtime. The gate
+  runs the whole differential comparison again in `release_small` and then asserts no comment, no map,
+  and a smaller bundle: 58.3–84.9% of debug bytes across the six fixtures, with identical output
+  (see `js-backend-abi.md` §16 for the table). Identifiers keep their names; renaming is the separate
+  mangling item below.
 - **Not yet:** async (see `js-backend-abi.md` §15 — Promise-based vs poll-based is an open semantic
   choice, plus a scheduler and the `FutureHandle` representation), atomics, inline asm, and
-  minification.
+  identifier mangling (`$f22` → short names, needs a scope table).
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 

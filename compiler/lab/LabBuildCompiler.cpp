@@ -5446,6 +5446,9 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
 
     mir::MIREmitJsOptions js_options;
     js_options.module_name = job->name.to_std_string();
+    // A release build ships compact modules; a debug build keeps the formatting
+    // it needs to read (and the source map, which a minified file cannot have).
+    js_options.minify = is_release(job->mode);
     // One `.mjs` per Chemical module, so a browser caches each separately and a
     // change to one module invalidates only that file. The build-level module
     // split (shared/server/client) already decided *which* modules are in this
@@ -5544,6 +5547,8 @@ export function $run() {
   return typeof rc === "number" ? rc : 0;
 }
 )JS";
+    // The entry module ships too, so it is compacted by the same pass.
+    if (js_options.minify) index = mir::minify_js_source(index);
     writeToFile(resolve_rel_child_path_str(out_dir, "index.mjs"), index);
 
     // ── the runtime ─────────────────────────────────────────────────────────
@@ -5568,6 +5573,11 @@ export function $run() {
             break;
         }
         if (!runtime_source.empty()) {
+            // The runtime is part of the shipped bundle, so a release build
+            // compacts it with the same pass as the emitted modules. It has no
+            // regex literals (checked when the pass was added), which is the one
+            // construct a formatting minifier cannot scan safely.
+            if (js_options.minify) runtime_source = mir::minify_js_source(runtime_source);
             writeToFile(resolve_rel_child_path_str(out_dir, "runtime.mjs"), runtime_source);
         } else {
             std::cerr << "[lab] " << rang::fg::yellow << "warning: " << rang::fg::reset

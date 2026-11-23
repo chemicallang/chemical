@@ -595,7 +595,10 @@ public func components_stateful_tabs_js(env : &mut TestEnv) {
     // Reactive active state + index-driven comparison in the emitted JS
     contains_string_assert(env, js.to_view(), std::string_view("$_us((window.$__uni_value(props.defaultIndex)"))
     contains_string_assert(env, js.to_view(), std::string_view("active.value = val"))
-    contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.tabs).map((tab, i)"))
+    // The map callback parameter is `label`, not `tab`: naming it `tab` shadowed the
+    // tab button's style class (the outer `var tab`), so `class={tab}` emitted the
+    // label and every tab rendered as `class="A"` with no styling.
+    contains_string_assert(env, js.to_view(), std::string_view("window.$__uni_value(props.tabs).map((label, i)"))
 }
 
 @test

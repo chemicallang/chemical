@@ -556,8 +556,12 @@ public #universal Tabs(props : TabsProps) {
     if(props.tabs) {
         return <div {...props} class={tabs} data-orientation={orientation}>
             <div ref={tabListRef} class={tab_list} data-variant={variant} data-orientation={orientation} role="tablist" aria-label={props.ariaLabel} aria-orientation={orientation} onKeyDown={handleTabKeyDown}>
-                {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} data-active={active == i ? "true" : "false"} class={tab} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                // The callback parameter must not be named `tab`: the tab button's
+                // style class is the outer `var tab`, and a parameter of the same name
+                // shadows it — the emitted `class={tab}` then used the *label*, so
+                // every tab rendered as `class="Alpha"` and lost its styling.
+                {props.tabs.map((label, i) => (
+                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} data-active={active == i ? "true" : "false"} class={tab} role="tab" aria-selected={active == i ? "true" : "false"}>{label}</button>
                 ))}
             </div>
             <div>

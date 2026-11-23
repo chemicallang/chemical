@@ -347,3 +347,55 @@ generated JavaScript.
   ~10 diagnosed ones), ~350 of type/declarator printing (JS-shaped, so much simpler: no declarator
   syntax, just `{size, align, fields[]}` descriptors), ~60 of constants, ~100 of naming.
 - No AST access anywhere; no re-derivation of layout or ABI (that is the whole point of Route A).
+
+## 14. Interface dispatch (`dyn`) — landed 2026-11-23
+
+`dyn I` is a fat pointer `{ first: self, second: vtable }` in the same layout the C backend
+uses, so nothing about the value model changed — only where the vtable's bytes come from.
+
+- **Tables are heap blocks of function addresses.** For every `MIRModule::vtables.defs` record
+  the emitter allocates `ptr_size * slots` bytes and stores each slot's *symbol id* (a function
+  address is a MIR symbol id; see §12). `$g<sym>` names that block, so `&vtable` — which the
+  lowerer writes into `second` — is an ordinary address.
+- **The slot index comes from MIR, not from the call site.** `MIRVtableRecord::slots` hold the
+  method name per slot; `dynamic_call`'s operands carry the vtable *type* name and the method name,
+  so the emitter resolves the index and reports a clear diagnostic when a method is not a slot of
+  that interface (rather than emitting a call to slot 0).
+- **The call is `rt.indirect(rt.fns, <vtable[slot]>)(self, args…)`** — the same indirect-call path
+  closures use, so a null slot fails with the runtime's "unresolved function address (0)" instead
+  of `undefined is not a function`.
+- **Reachability follows the tables.** An impl method that is only ever named by a vtable slot has
+  no call instruction pointing at it; `reachable_functions` seeds its work list from the slot
+  targets, otherwise the bundle would omit the method and the table would name a function the
+  emitter never printed.
+
+Verified differentially by `lang/tests/web/fixtures/js_backend_dyn` (one interface, two impls, a
+method returning `*char` and one returning `int`, both dispatched call sites): identical output
+under both backends.
+
+## 15. Async — why it is not a switch to flip
+
+MIR carries the *lowered* coroutine: a frame struct, a state number per `await` site, spill lists
+of live locals, a poll protocol (`Ready`/`Pending`), and a `FutureHandle<T>` vtable
+(`AsyncFrameAlloc`, `AsyncAwait`, `AsyncFinish`, `AsyncRampFinish`). The native backends hand that
+to LLVM's `CoroSplit`, or (for C) emit the equivalent by hand; the JS backend has nothing to hand
+it to.
+
+Two designs are open, and the choice is a semantic one, not an implementation detail:
+
+1. **Promise-based.** `await x` becomes `x.then(...)`; an `async func` becomes an `async function`.
+   This is what the browser wants (microtask ordering, `fetch`, `setTimeout`), and it makes
+   `web::Client`'s completion handlers redundant rather than the only option. It requires the
+   *front end* to keep an await-bearing function as structured control flow (or a JS state machine
+   over the existing frame), because the poll protocol cannot be expressed with `async/await` without
+   re-deriving the source shape.
+2. **Poll-based, in JS.** Emit the frame as a heap object, each resume pass as a switch on the state,
+   and an executor that drives polls. Faithful to the MIR, but it also means porting the `async`
+   library's epoll/kqueue reactor to JS — which has no file descriptors. A browser deployment wants
+   (1) here regardless.
+
+Either way the work is: a lowering of the four `Async*` opcodes (or a front-end path that avoids
+them), a scheduler, and the `FutureHandle` representation — which is why the plan defers it to
+Phase 6 rather than to the v1 backend. Until then the diagnostic is per-site and names the
+function and position, so a client module that reaches for `await` fails loudly instead of
+silently doing the wrong thing.

@@ -8,8 +8,6 @@ namespace mir {
         // them: "<thing> is not supported by the <target> backend".
         const MIRTargetRule kRules[] = {
             // ── JavaScript ────────────────────────────────────────────────────
-            { MIRTargetKind::JS, MIROpcode::DynamicCall,
-              "interface dispatch (dynamic_call) is not supported by the JS backend yet" },
             { MIRTargetKind::JS, MIROpcode::Throw,
               "exceptions are not supported by the JS backend" },
             { MIRTargetKind::JS, MIROpcode::InlineAsm,

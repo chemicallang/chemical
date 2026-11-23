@@ -6,7 +6,7 @@ root="$(dirname "$here")"
 cd "$root"
 
 fail=0
-for fixture in js_backend js_backend_std js_backend_closure js_backend_iter js_backend_json; do
+for fixture in js_backend js_backend_std js_backend_closure js_backend_iter js_backend_json js_backend_dyn; do
     echo
     echo "############ $fixture"
     if ./scripts/js-backend-test.sh "$fixture" 2>&1 | tail -4; then

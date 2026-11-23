@@ -191,6 +191,19 @@ private:
     void collect();
     bool emit_all_functions();
     void emit_preamble(std::string& out);
+    /**
+     * Emit one table per interface vtable definition, as a block of function
+     * addresses in the heap, and bind its MIR global symbol (`$g<sym>`) to that
+     * block — `dyn I` stores the address in the fat pointer's `second` field.
+     */
+    bool emit_vtables();
+    /** The symbol interned under `name` (mangled), or MIR_INVALID_ID. */
+    SymbolId symbol_for_name(std::string_view name);
+    /** Raw text of a string constant operand. */
+    bool constant_text_of(ConstantId id, std::string& out) const;
+    /** The slot index of `method` in interface `vt_name`'s vtable type. */
+    bool vtable_slot_of(const std::string& vt_name, const std::string& method,
+                        uint32_t& slot) const;
 
     // ── per-function emission ───────────────────────────────────────────────
     bool emit_function(const MIRFunction& fn, std::string& out);
@@ -327,6 +340,13 @@ private:
     const std::unordered_map<SymbolId, std::string>* symbol_stems_ = nullptr;
     std::map<std::string, std::vector<std::string>>* imports_ = nullptr;
 
+    /** Global symbols whose address the emitted code takes (`dyn I` takes a vtable's). */
+    std::unordered_set<SymbolId> addressed_symbols_;
+
+    /** Mangled name -> symbol id, built once (the symbol table is append-only). */
+    std::unordered_map<std::string, SymbolId> symbol_by_name_;
+    bool symbol_index_built_ = false;
+
     std::unordered_map<SymbolId, std::string> defined_js_name_;
     std::unordered_map<std::string, SymbolId> defined_by_name_;
     /** Every lowered function in the program, by mangled name (not just the
@@ -373,6 +393,80 @@ bool ModuleEmitter::emit_all_functions() {
         // A failed function contributes no body, but the rest still emit so one
         // build reports every unsupported construct.
         emit_function(fn, body_);
+    }
+    return true;
+}
+
+SymbolId ModuleEmitter::symbol_for_name(std::string_view name) {
+    if (!symbol_index_built_) {
+        symbol_index_built_ = true;
+        for (SymbolId s = 0; s < module_.symbols.size(); ++s) {
+            symbol_by_name_.emplace(module_.symbols.mangled_name(module_.symbols.get(s)), s);
+        }
+    }
+    auto it = symbol_by_name_.find(std::string(name));
+    return it == symbol_by_name_.end() ? static_cast<SymbolId>(MIR_INVALID_ID) : it->second;
+}
+
+bool ModuleEmitter::constant_text_of(ConstantId id, std::string& out) const {
+    if (id >= module_.constants.size()) return false;
+    const MIRConstant& c = module_.constants.get(id);
+    if (c.kind != MIRConstantKind::String) return false;
+    out.assign(module_.constants.data.data_at(c.data_offset), c.data_count);
+    return true;
+}
+
+bool ModuleEmitter::vtable_slot_of(const std::string& vt_name, const std::string& method,
+                                   uint32_t& slot) const {
+    for (const MIRVtableRecord& t : module_.vtables.types) {
+        if (t.name != vt_name && t.type_name != vt_name) continue;
+        for (uint32_t k = 0; k < t.slots.size(); ++k) {
+            if (t.slots[k].name == method) {
+                slot = k;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ModuleEmitter::emit_vtables() {
+    if (module_.vtables.defs.empty()) return true;
+    const std::string ptr = std::to_string(ptr_size_);
+    for (const MIRVtableRecord& def : module_.vtables.defs) {
+        const SymbolId sym = symbol_for_name(def.name);
+        if (sym == MIR_INVALID_ID) continue;
+        // Only a table whose address the program actually takes exists in the
+        // bundle: an impl that is never used through `dyn` would otherwise pull
+        // its methods in (and, for a library, its whole hierarchy).
+        if (addressed_symbols_.count(sym) == 0) continue;
+        // Split mode: exactly one module allocates a table's storage (the module
+        // that owns the implementation); the rest import `$g<sym>`.
+        if (!owns_symbol(sym)) continue;
+        const uint32_t slot_count = def.slots.empty() ? 1u : static_cast<uint32_t>(def.slots.size());
+        const std::string decl = "$g" + std::to_string(sym);
+        globals_ += "// vtable " + def.name + "\n";
+        globals_ += "export const " + decl + " = rt.alloc(" +
+                    std::to_string(ptr_size_ * slot_count) + ", " + ptr + ");\n";
+        for (uint32_t k = 0; k < slot_count; ++k) {
+            // A slot with no target stays a null function address: the dispatcher
+            // reports it by name instead of calling whatever is at address 0.
+            std::string addr = "0";
+            if (k < def.slots.size() && !def.slots[k].target.empty()) {
+                const SymbolId callee = symbol_for_name(def.slots[k].target);
+                if (callee == MIR_INVALID_ID) {
+                    return fail_at("vtable '" + def.name + "' slot '" + def.slots[k].name +
+                                   "' names a callee ('" + def.slots[k].target +
+                                   "') that has no symbol in this program");
+                }
+                // A function address is the symbol id (see `function_address_expr`).
+                std::string callee_js;
+                if (!function_address_expr(callee, callee_js)) return false;
+                addr = std::to_string(static_cast<unsigned long long>(callee));
+            }
+            globals_ += "rt.st(" + decl + " + " + std::to_string(k * ptr_size_) + ", " + ptr +
+                        ", 0, " + addr + ");\n";
+        }
     }
     return true;
 }
@@ -478,7 +572,12 @@ bool ModuleEmitter::run(std::string& out, std::string* source_map) {
         }
     }
 
+    // Bodies first: a vtable is only emitted when the emitted code takes its
+    // address (`dyn I`), and only then does the emitter know which slots are
+    // needed. The preamble (which carries `globals_`) is assembled afterwards.
     if (!emit_all_functions()) return false;
+
+    if (!emit_vtables()) return false;
 
     if (!errors_.empty()) {
         std::string all;
@@ -1213,6 +1312,7 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             const MIROperand* s = op(0);
             if (s == nullptr) return fail_at("global_addr without a symbol");
             const std::string decl = "$g" + std::to_string(s->id);
+            addressed_symbols_.insert(s->id);
             std::string foreign;
             if (foreign_stem(s->id, foreign)) note_import(foreign, decl);
             out = result() + " = " + decl + ";";
@@ -1710,6 +1810,56 @@ bool ModuleEmitter::emit_instruction(const MIRInstruction& ins, std::string& out
             out = sret ? call : result() + " = " + call;
             return true;
         }
+        case MIROpcode::DynamicCall: {
+            // `dyn I` is a fat pointer `{ first: self, second: vtable }`, exactly as
+            // the C backend spells it (`((vt_t*)fat->second)->m(fat->first, ...)`).
+            // The vtable is a block of function addresses emitted by
+            // `emit_vtables`, so the dispatch is: load `second`, load the slot's
+            // address from it, and call through the runtime's table.
+            const MIROperand* fat = op(0);
+            const MIROperand* vt = op(1);
+            const MIROperand* meth = op(2);
+            if (fat == nullptr || vt == nullptr || meth == nullptr) {
+                return fail_at("dynamic_call missing operands");
+            }
+            std::string vt_name, method;
+            if (!constant_text_of(vt->id, vt_name) || !constant_text_of(meth->id, method)) {
+                return fail_at("dynamic_call has non-string vtable/method operands");
+            }
+            uint32_t slot = 0;
+            if (!vtable_slot_of(vt_name, method, slot)) {
+                return fail_at("'" + method + "' is not a slot of interface vtable '" + vt_name +
+                               "' (the dispatch cannot be resolved from MIR)");
+            }
+            // A fat pointer reached through a pointer/&dyn parameter is the value
+            // itself (an address); a by-value aggregate place is its storage.
+            std::string fat_addr;
+            const bool fat_is_ptr =
+                fat->type() < module_.types.size() &&
+                (module_.types.get(fat->type()).kind == MIRTypeKind::Pointer ||
+                 module_.types.get(fat->type()).kind == MIRTypeKind::Reference);
+            if (fat_is_ptr) {
+                if (!operand_expr(*fat, fat_addr)) return fail_at("bad dynamic_call receiver");
+            } else {
+                if (!base_addr_expr(*fat, fat_addr)) return fail_at("bad dynamic_call receiver");
+            }
+            const std::string ptr = std::to_string(ptr_size_);
+            const std::string self = "rt.ld(" + fat_addr + ", " + ptr + ", 0)";
+            const std::string table = "rt.ld((" + fat_addr + " + " + ptr + "), " + ptr + ", 0)";
+            const std::string addr = "rt.ld((" + table + " + " + std::to_string(slot * ptr_size_) +
+                                     "), " + ptr + ", 0)";
+            std::string call = "rt.indirect(rt.fns, " + addr + ")(" + self;
+            // Operands 3.. are the arguments; `self` is implicit (operand 0).
+            for (uint32_t i = 3; i < ins.operand_count; ++i) {
+                std::string arg;
+                if (!operand_expr(*op(i), arg)) return fail_at("bad dynamic_call argument");
+                call += ", " + arg;
+            }
+            call += ");";
+            out = result() + " = " + call;
+            return true;
+        }
+
         case MIROpcode::CallIndirect: {
             const MIROperand* callee = op(0);
             if (callee == nullptr) return fail_at("call_indirect without a callee");
@@ -1937,6 +2087,39 @@ bool emit_modules_js(const MIRModule& module, const std::vector<const MIRFunctio
         symbol_stems[global.symbol] = stem_for(owner.empty() ? fallback_label : owner);
     }
 
+    // Vtables: a table belongs to the module that owns its implementation (the
+    // first slot's callee), so exactly one file allocates it and the callers
+    // import `$g<sym>`. Without this a table would be emitted by every module.
+    if (!module.vtables.defs.empty()) {
+        std::unordered_map<std::string, SymbolId> by_name;
+        for (SymbolId s = 0; s < module.symbols.size(); ++s) {
+            by_name.emplace(module.symbols.mangled_name(module.symbols.get(s)), s);
+        }
+        for (const MIRVtableRecord& def : module.vtables.defs) {
+            auto self = by_name.find(def.name);
+            if (self == by_name.end()) continue;
+            if (symbol_stems.count(self->second)) continue;
+            std::string owner;
+            for (const MIRVtableSlot& slot : def.slots) {
+                if (slot.target.empty()) continue;
+                auto callee = by_name.find(slot.target);
+                if (callee == by_name.end()) continue;
+                auto stem = symbol_stems.find(callee->second);
+                if (stem != symbol_stems.end()) {
+                    owner = stem->second;
+                    break;
+                }
+            }
+            const std::string stem = owner.empty() ? fallback_stem : owner;
+            symbol_stems[self->second] = stem;
+            groups[stem]; // a vtable-only module still gets a file
+            if (label_of_stem.find(stem) == label_of_stem.end()) {
+                label_of_stem[stem] = stem;
+                order.push_back(stem);
+            }
+        }
+    }
+
     for (const std::string& stem : order) {
         auto group = groups.find(stem);
         if (group == groups.end()) {
@@ -2012,6 +2195,22 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
         collect_global_function_refs(module, global.init, work);
     }
 
+    // An interface method is only ever named by a vtable slot: the call site says
+    // `dynamic_call`, not the callee. So a `GlobalAddr` of a vtable global (the
+    // `dyn I` conversion taking `&vtable`) makes that table's slots reachable.
+    // Only referenced tables count: seeding from *every* definition would drag a
+    // whole library's interface hierarchy into a program that uses none of it.
+    std::unordered_map<std::string, std::vector<std::string>> vtable_targets;
+    if (!module.vtables.defs.empty()) {
+        for (const MIRVtableRecord& def : module.vtables.defs) {
+            std::vector<std::string> targets;
+            for (const MIRVtableSlot& slot : def.slots) {
+                if (!slot.target.empty()) targets.push_back(slot.target);
+            }
+            if (!targets.empty()) vtable_targets.emplace(def.name, std::move(targets));
+        }
+    }
+
     while (!work.empty()) {
         std::string name = std::move(work.back());
         work.pop_back();
@@ -2027,6 +2226,7 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
                 case MIROpcode::Init:
                 case MIROpcode::Drop:
                 case MIROpcode::Destroy:
+                case MIROpcode::GlobalAddr:
                 case MIROpcode::FunctionAddr: {
                     // Any symbol operand is a reference: `Call` puts the callee
                     // first, but `Init`/`Drop`/`Destroy` put the destination place
@@ -2035,7 +2235,14 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
                         const MIROperand& op = fn->operands[ins.operand_offset + i];
                         if (op.kind() != MIROperandKind::Symbol) continue;
                         if (op.id >= module.symbols.size()) continue;
-                        work.push_back(module.symbols.mangled_name(module.symbols.get(op.id)));
+                        const std::string name = module.symbols.mangled_name(module.symbols.get(op.id));
+                        work.push_back(name);
+                        // Taking a vtable's address makes its slot methods
+                        // reachable — they have no call site naming them.
+                        auto vt = vtable_targets.find(name);
+                        if (vt != vtable_targets.end()) {
+                            for (const std::string& target : vt->second) work.push_back(target);
+                        }
                     }
                     break;
                 }

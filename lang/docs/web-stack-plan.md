@@ -1103,7 +1103,15 @@ What that first version proves and what it does not:
   modules with `rt.indirect` resolving through the merged table — a closure created in one module and
   called from another was the case that proved it (see `js_backend_closure`). Verified by the same
   differential gate: every fixture still agrees with the native backend byte for byte.
-- **Not yet:** interface dispatch (`dynamic_call`), async, atomics, inline asm, and minification.
+- **Interface dispatch (`dynamic_call`) landed 2026-11-23.** `dyn I` is the same fat pointer the C
+  backend uses; the vtable is a heap block of function addresses emitted from
+  `MIRModule::vtables.defs`, and the call is `rt.indirect(rt.fns, vtable[slot])(self, …)`. The slot
+  index is resolved from MIR's vtable *type* record, and `reachable_functions` now seeds from slot
+  targets (an impl method reachable only through `dyn` had no call instruction pointing at it). New
+  fixture `js_backend_dyn` runs differentially: identical output under both backends.
+- **Not yet:** async (see `js-backend-abi.md` §15 — Promise-based vs poll-based is an open semantic
+  choice, plus a scheduler and the `FutureHandle` representation), atomics, inline asm, and
+  minification.
 
 Two design corrections the emitter forced, both now recorded in `js-backend-abi.md`:
 

@@ -1,5 +1,6 @@
-// Typed props (Phase 2). `Collapsible` stays untyped while `open`/`defaultOpen` are
-// controlled-vs-uncontrolled axis props (see Sheet.ch).
+// Typed props (Phase 2). `open`/`defaultOpen` are the controlled-vs-uncontrolled
+// axis, so both are `@optional` and the absence of `open` is what tells the body to
+// own the state (see Sheet.ch for the same axis pattern).
 
 // Shadcn-style Collapsible: a stateful show/hide region.
 //
@@ -7,7 +8,8 @@
 //   open              controlled open state (bool)
 //   defaultOpen       uncontrolled initial state (SSR uses this)
 //   onOpenChange      fired with the next state when toggled
-//   trigger           required — the always-visible control (text or JSX)
+//   trigger           the always-visible control's text (a JSX trigger is not
+//                     SSR-serialized)
 //   disabled          locks the trigger
 //   className         merged with the root style class
 //   children          the collapsible content (hidden when closed)
@@ -15,10 +17,19 @@
 // Works in both controlled (`open` set) and uncontrolled modes, matching
 // the Dialog/Dropdown conventions used elsewhere in the library.
 
-// Untyped: `trigger` is a JSX element, which has no Chemical value type to declare
-// (the same blocker as Suspense's `fallback`). Every other prop here is a plain value,
-// so this is the only reason the component stays untyped.
-public #universal Collapsible(props) {
+public struct CollapsibleProps {
+    // uncontrolled initial open state
+    @optional var defaultOpen : bool
+    // controlled open state; absent means the component owns it
+    @optional var open : bool
+    @optional var disabled : bool
+    // the clickable header label (text); children are the content
+    @optional var trigger : std::string_view
+    // merged into the trigger button's class
+    @optional var triggerClassName : std::string_view
+}
+
+public #universal Collapsible(props : CollapsibleProps) {
     var collapsible = style {
         display: grid;
         gap: 0;

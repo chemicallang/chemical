@@ -1009,9 +1009,32 @@ bool BoolValuegetValue(BoolValue* value) {
 // The type checker's own value-vs-type rule, exposed so a plugin can validate a
 // value against a declared field type without re-implementing conversion rules.
 // Fails open on null inputs (callers treat a null type as "unknown").
+//
+// This mirrors what `TypeVerifier` accepts for a *member / parameter* value
+// (`VisitStructValue`, `VisitArrayValue`), which is more than `satisfies` alone:
+//
+//   1. an implicit constructor on the field type (`P{ s: "x" }` with
+//      `s : std::string` — `StructDefinition::implicit_constructor_func`), and
+//   2. an **inline array literal** in an array/slice slot, where the literal is
+//      typed from context and each element is checked against the element type
+//      (`options: ["a", "b"]` for `options : []std::string`). A `[2]string`
+//      *variable* still does not satisfy `[]std::string`, exactly as in the
+//      type checker.
 bool BaseTypesatisfies_value(BaseType* type, Value* value, bool assignment) {
     if (type == nullptr || value == nullptr) return true;
-    return type->satisfies(value, assignment);
+    if (type->implicit_constructor_for(value) != nullptr) return true;
+    if (type->satisfies(value, assignment)) return true;
+    if (type->kind() == BaseTypeKind::Array && value->val_kind() == ValueKind::ArrayValue) {
+        BaseType* elem = type->as_array_type_unsafe()->elem_type;
+        if (elem == nullptr) return true;
+        for (auto* element : value->as_array_value_unsafe()->values) {
+            if (element == nullptr) return false;
+            if (elem->implicit_constructor_for(element) != nullptr) continue;
+            if (!elem->satisfies(element, false)) return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 // Type spelling ("int", "std::string_view") for diagnostics. Writes at most

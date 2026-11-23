@@ -1,7 +1,11 @@
-// Typed props (Phase 2). Slots take the shared `SlotProps` (Input.ch). Three
-// components stay untyped because they take a JSX/array surface that has no Chemical
-// value type: `Tabs` (`tabs`/`panels` arrays of JSX), `AccordionItem` (`trigger`) and
-// `Pagination` (`pages` is an array of page descriptors).
+// Typed props (Phase 2). Slots take the shared `SlotProps` (Input.ch). The three
+// array/trigger components are typed too: an inline array literal is a valid value
+// for a `[]T` field (the literal is typed from context and each element is checked
+// against the element type, exactly as in a struct literal), so `tabs`/`panels` are
+// `[]std::string` and `pages` is `[]int`. Every field is `@optional` because these
+// components substitute their own defaults in the body (`props.variant || "line"`,
+// `props.value || ""`), and a declared default would be injected into the SSR
+// attributes that `{...props}` spreads onto the DOM.
 
 public struct ProgressProps {
     // 0..max; the bar width
@@ -205,12 +209,23 @@ public #universal Accordion(props : AccordionProps) {
 
 // AccordionItem: self-contained item with trigger + content.
 // Manages its own open/close state. Accepts:
-//   trigger     - label text or JSX for the clickable header
+//   trigger     - label text for the clickable header
 //   defaultOpen - initial open state (default false)
 //   disabled    - disables toggle
 //   value       - identifier for external querying
 //   children    - collapsible content
-public #universal AccordionItem(props) {
+public struct AccordionItemProps {
+    // identifier for external querying (empty when absent)
+    @optional var value : std::string_view
+    // the clickable header label (text); children are the collapsible content
+    @optional var trigger : std::string_view
+    // initial open state
+    @optional var defaultOpen : bool
+    // disables toggling
+    @optional var disabled : bool
+}
+
+public #universal AccordionItem(props : AccordionItemProps) {
     var accordion_item = style {
         border-bottom: 1px solid hsl(var(--border));
     }
@@ -362,7 +377,23 @@ public #universal AccordionContent(props : SlotProps) {
 // 3. Fallback: <Tabs><TabList>...</TabList><TabPanel>...</TabPanel></Tabs>
 // Variant: "line" (default) | "pills"
 // Orientation: "horizontal" (default) | "vertical"
-public #universal Tabs(props) {
+public struct TabsProps {
+    // array mode: tab labels and their panels, in display order. Absent in
+    // children mode (`<Tabs><TabList>…</TabList><TabPanel>…</TabPanel></Tabs>`).
+    @optional var tabs : []std::string
+    @optional var panels : []std::string
+    // initial active index (defaultIndex wins over defaultValue)
+    @optional var defaultIndex : int
+    // declarative-mode initial selection, by tab value
+    @optional var defaultValue : std::string_view
+    // "line" | "pills"
+    @optional var variant : std::string_view
+    // "horizontal" | "vertical"
+    @optional var orientation : std::string_view
+    @optional var disabled : bool
+}
+
+public #universal Tabs(props : TabsProps) {
     var tabs = style {
         display: grid;
         gap: 1rem;
@@ -726,7 +757,17 @@ public #universal TabPanel(props : SlotProps) {
 //   "‹"/"›") override the arrows; `onChange` fires with the new page.
 // - Otherwise it degrades to the plain styled wrapper for explicit
 //   <PageItem>/<PageItemActive> children.
-public #universal Pagination(props) {
+public struct PaginationProps {
+    // the page numbers to render; absent renders children instead
+    @optional var pages : []int
+    // initial page (1 when absent)
+    @optional var defaultPage : int
+    // the prev/next button labels ("‹" / "›" when absent)
+    @optional var prevLabel : std::string_view
+    @optional var nextLabel : std::string_view
+}
+
+public #universal Pagination(props : PaginationProps) {
     var pagination = style {
         display: inline-flex;
         align-items: center;

@@ -1238,15 +1238,17 @@ of the breaking changes in §3.17.
    proves declared props and implicit props render. Raw JS literals in a JSX body are
    now kind-checked too (`append_unknown_prop_errors`, negative test
    `neg_universal_prop_literal_kind_mismatch`). Remaining: the generated serializer for
-   **struct/vector props** (no client representation yet) — which is also why Gap B's array props
-   cannot be typed.
-   **Rollout state (2026-11-18, end of batch): 172 of 184 components typed.** (The plan's "196"
-   was an estimate; the library has 184 `#universal` declarations.) The 12 left are blocked on a
-   feature, not on effort — see Gap B below. Coverage by family: Card, Button (12), Badge
-   (15), Alert (13), Avatar (7), Separator, ErrorOverlay, Input/TextArea/NativeSelect + Field
-   family + InputGroup/Icon/Addon + 7 wrappers (17), Typography (23 incl. aliases), Surface (35),
-   Data (17), Utilities (14), ToggleGroupItem, RadioGroupItem, SelectItem, Sheet slots (7),
-   Toast slots (2), Collapsible slots (2).
+   **struct/vector props** (no client representation yet), so a struct-valued prop is still
+   unchecked past "unknown prop" — the array props Gap B was blocked on are typed now, since an
+   inline array literal is a valid `[]T` value.
+   **Rollout state (2026-11-23): 195 of 196 components typed.** (The plan's "196" is the real
+   count of `#universal` declarations in `lang/libs/components`.) The one left is `ToggleGroup`,
+   blocked on a genuine type union, not on effort — see Gap B below. Coverage by family: Card,
+   Button (12), Badge (15), Alert (13), Avatar (7), Separator, ErrorOverlay,
+   Input/TextArea/NativeSelect + Field family + InputGroup/Icon/Addon + 7 wrappers (17),
+   Typography (23 incl. aliases), Surface (35), Data (17), Utilities (14), ToggleGroupItem,
+   RadioGroupItem, SelectItem, Sheet slots (7), Toast slots (2), Collapsible slots (2), plus the
+   twelve stateful/array surfaces from Gap B (below).
 
    **Gap A — controlled/uncontrolled axis props — CLOSED (2026-11-18).** `@optional` gives typed
    props the missing third state (see the §3.15a bullet), and the ten components it blocked are
@@ -1255,13 +1257,43 @@ of the breaking changes in §3.17.
    `Toast` to Gap B (`action` is an element). `Collapsible` also moved to Gap B: its `trigger` is a
    JSX element, not the `open` axis.
 
-   **Gap B — JSX element and array props (12 components: `Popover`, `Dialog`, `Dropdown`, `Tooltip`
-   (`trigger`/`content`), `AccordionItem` (`trigger`), `Collapsible` (`trigger`), `Suspense`
-   (`fallback`), `Toast` (`action`), `Tabs` (`tabs`/`panels`), `Pagination` (`pages`), `Select`
-   (`options`), `ToggleGroup` (`value`/`defaultValue` are arrays in "multiple" mode)).** A JSX element or an array of JSX/descriptors has
-   no Chemical value type to declare, so there is nothing to type-check against. These need either
-   an element type in the JSX surface or for the component to take those parts as `children`
-   slots; not part of the prop-typing work.
+   **Gap B — JSX element and array props — CLOSED for 11 of 12 (2026-11-23).** Eleven components
+   (`Popover`, `Dialog`, `Dropdown`, `Tooltip`, `AccordionItem`, `Collapsible`, `Suspense`, `Toast`,
+   `Tabs`, `Pagination`, `Select`) are typed. The gap's premise was wrong: the props it called
+   "JSX elements" are **text** at every real call site (`trigger="Actions"`,
+   `fallback="Loading…"`, `action="Undo"`, `content`/`label`), and the "arrays of JSX/descriptors"
+   are **arrays of literals** (`options={["One","Two"]}`, `tabs={["Alpha","Beta"]}`,
+   `pages={[1,2,3,4,5]}`) — both expressible as `std::string_view` and `[]std::string`/`[]int`.
+   Matching the field types:
+
+   - **Every field is `@optional`**, not defaulted. Absence is load-bearing in these components
+     (`props.open != null` is the controlled/uncontrolled axis; `props.value || ""` and
+     `props.variant || "line"` are body fallbacks), and a declared default is injected into the
+     SSR attribute list these components `{...props}`-spread onto DOM elements, so the default
+     would leak a non-DOM attribute (`delay="200"`) into the markup. `@optional` defers the
+     fallback to the body, which both SSR and the client already evaluate.
+   - **`Toast`'s `actionClick` was renamed `onActionClick`.** Typing surfaced it: `on*` is the
+     library's event convention (and an implicit prop the check never requires declaring), so
+     `actionClick` was the only event prop in the library that needed a struct field. Four call
+     sites updated (universal fixtures + the e2e app).
+
+   The one remaining blocker is real and is `ToggleGroup`: in `type="multiple"` mode
+   `value`/`defaultValue` are `[]string`, in `type="single"` mode they are strings, so a single
+   field would need `string | []string`. A props struct cannot express that union and the JSX
+   surface has no element/union type, so `ToggleGroup` stays untyped with a comment saying why.
+
+   **The array-typing blocker was a check bug, not a language limitation.** An inline array
+   literal in a slice field is legal in Chemical — `P{ o: ["a","b"] }` with `o : []std::string`
+   compiles, because the literal is typed from context and each element is checked against the
+   element type (with implicit constructors, so `"a"` → `std::string`) — but the props check
+   called `BaseType::satisfies` directly, which compares the *declared* element type against the
+   literal element type and rejected `[2]string` for `[]string`. `BaseTypesatisfies_value`
+   (`compiler/cbi/bindings/ASTBuilderCBI.cpp`, shared by the `#html` and JSX paths) now applies
+   the type checker's member-initialization rule: implicit constructor, then `satisfies`, then —
+   for an inline array literal in an array/slice slot — per-element checking against the element
+   type. A `[2]string` *variable* is still rejected for `[]std::string`, exactly as in the type
+   checker, so the check stayed strict where the language is strict. Gate: the plugins suite
+   (1318 tests) fails without the change.
 
    **Wrapper rule (applies to all 40+ `ButtonSuccess`-style delegates).** A wrapper renders
    `<Parent {...props} pinned="value">`, and a **defaulted** wrapper field is injected at the
@@ -1922,8 +1954,9 @@ nothing that only the static export needs outranks work that makes a served app 
 capable, and the route-mode work (#2, then #5–#7) precedes the export extras (#3).
 
 1. ~~**Optional-without-default props**~~ — **done 2026-11-18** (`@optional`, §3.15a). The control
-   components it unblocked are typed; what remains untyped is Gap B (JSX element / array props),
-   which needs an element type in the JSX surface rather than a props feature.
+   components it unblocked are typed, and Gap B is closed too (2026-11-23, §3.15a): only
+   `ToggleGroup` stays untyped, because its `value`/`defaultValue` are `string | []string`
+   depending on `type`, a union a props struct cannot express.
 2. ~~**Per-request routes on the current stack**~~ — **done 2026-11-18** (the §3.12 bridge:
    `StaticSite.attach_dynamic` / `render_dynamic` / `dynamic_response` / `dynamic_error_message`). A project that pre-renders some routes and renders others per request — the
    normal shape of a real app — could not be expressed before this: `StaticSite` could only serve

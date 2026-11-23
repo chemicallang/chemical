@@ -1,6 +1,6 @@
-// Typed props (Phase 2). `Toast` stays untyped while `visible`/`defaultVisible`/
-// `duration` are controlled-vs-uncontrolled axis props (see Sheet.ch) and `action` is a
-// JSX element with no Chemical value type.
+// Typed props (Phase 2). `visible`/`defaultVisible` are the controlled-vs-uncontrolled
+// axis and `duration` is "absent means 4000ms", so all three are `@optional` (see
+// Sheet.ch for the axis pattern). `action` is a text label, not a JSX slot.
 
 // Shadcn-style Toast system: ToastViewport + Toast (+ Toaster helper).
 //
@@ -10,7 +10,7 @@
 //   variant      "default" (neutral) | "success" | "destructive" | "info" | "warning"
 //   duration     auto-dismiss after N ms (default 4000); pass 0 to disable
 //   onClose      fired when the toast is dismissed (manually or by timer)
-//   action       optional JSX slot rendered on the right (buttons)
+//   action       optional "Undo"-style label rendered on the right; onActionClick fires
 //   defaultVisible  uncontrolled initial visibility (default true)
 //
 // The Toast owns its visibility (uncontrolled) so a parent can simply render
@@ -37,7 +37,24 @@ public #universal ToastViewport(props : SlotProps) {
     return <div {...props} class={toast_viewport}>{props.children}</div>
 }
 
-public #universal Toast(props) {
+public struct ToastProps {
+    // uncontrolled initial visibility (visible when absent)
+    @optional var defaultVisible : bool
+    // controlled visibility; absent means the component owns it
+    @optional var visible : bool
+    // "default" | "success" | "destructive" | "info" | "warning"
+    @optional var variant : std::string_view
+    // auto-dismiss after N ms (4000 when absent); 0 disables it
+    @optional var duration : int
+    // optional bold title line / secondary line
+    @optional var title : std::string_view
+    @optional var description : std::string_view
+    // optional action label rendered on the right (the implicit `onActionClick` fires
+    // on click; event props are `on*` by convention and never declared)
+    @optional var action : std::string_view
+}
+
+public #universal Toast(props : ToastProps) {
     var toast = style {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -143,7 +160,7 @@ public #universal Toast(props) {
             {props.description ? <div class={toast_description}>{props.description}</div> : null}
             {props.children}
         </div>
-        {props.action ? <div class={toast_action} onClick={props.actionClick}>{props.action}</div> : null}
+        {props.action ? <div class={toast_action} onClick={props.onActionClick}>{props.action}</div> : null}
         <button type="button" aria-label="Close" class={toast_close} onClick={dismiss}>×</button>
     </div>
 }

@@ -1,6 +1,28 @@
-// Typed props (Phase 2). `Select` stays untyped while `value`/`defaultValue` are
-// controlled-vs-uncontrolled axis props and `options` is an array of descriptors
-// (see Sheet.ch).
+// Typed props (Phase 2). `Select` used to stay untyped because `options` was an
+// array and `value`/`defaultValue` are the controlled-vs-uncontrolled axis; an
+// inline array literal is a valid `[]T` value, so `options` is `[]std::string` and
+// the axis props are `@optional`. Only the "string or array" union in `ToggleGroup`
+// is still out of reach.
+//
+// Every field is `@optional` on purpose: the root spreads `{...props}` onto its div,
+// so a declared default would be injected into the SSR attributes and leak there
+// (`size="default"`), and a default value would also make the prop look supplied in
+// the client payload. The body's `props.x || fallback` is the single source of the
+// default, on both SSR and the client.
+public struct SelectProps {
+    // options mode: the option labels, in display order. Absent in children mode
+    // (`<Select><SelectItem/></Select>`), which is why it is `@optional`.
+    @optional var options : []std::string
+    @optional var placeholder : std::string_view
+    // "sm" | "default" | "lg"
+    @optional var size : std::string_view
+    @optional var disabled : bool
+    // uncontrolled initial selection
+    @optional var defaultValue : std::string_view
+    // controlled selection; absent means the component owns the state
+    @optional var value : std::string_view
+    @optional var ariaLabel : std::string_view
+}
 
 public struct SelectItemProps {
     var selected : bool = false
@@ -25,7 +47,7 @@ public struct SelectItemProps {
 // opens below, closes on outside click or Escape. `disabled` locks it,
 // `size` mirrors the Input sizes, and `className` merges with the trigger.
 
-public #universal Select(props) {
+public #universal Select(props : SelectProps) {
     var select_trigger = style {
         display: inline-flex;
         align-items: center;

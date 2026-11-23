@@ -1,9 +1,13 @@
 // Typed props (Phase 2). Most of this file is structural slots that only accept
 // `children` and the implicit class/aria/DOM attributes, so they take the shared
-// `SlotProps` (declared in Input.ch). Four components stay untyped because they take a
-// JSX *element* prop — Popover (`trigger`), Dialog (`trigger`), Tooltip (`content`)
-// and Dropdown (`trigger`) — and a JSX element has no Chemical value type to declare
-// (same reason as Suspense's `fallback`).
+// `SlotProps` (declared in Input.ch). The stateful surfaces (Popover, Dialog,
+// Tooltip, Dropdown) declare their real prop surface: every field is `@optional`
+// because absence is meaningful here — a controlled/uncontrolled axis prop
+// (`open`, `visible`), an absent label, or a value the component substitutes with
+// its own default in the body (`props.variant || "default"`). A default would be
+// injected into the SSR attributes and the client payload, and these components
+// spread `{...props}` onto DOM elements, so a default would also leak a
+// non-DOM attribute into the markup.
 
 public #universal Paper(props : SlotProps) {
     var paper = style {
@@ -89,10 +93,20 @@ public #universal MenuItem(props : SlotProps) {
 
 // Shadcn-style Popover with trigger + content composition.
 // Modes:
-// 1. Trigger mode: <Popover trigger={<Button>Open</Button>}><PopoverHeader>...</PopoverHeader></Popover>
+// 1. Trigger mode: <Popover trigger="Open"><PopoverHeader>...</PopoverHeader></Popover>
 // 2. Simple mode: <Popover>content here</Popover>
-// Props: open, defaultOpen, onClose, side (top/bottom/left/right), align (start/center/end), className
-public #universal Popover(props) {
+// Props: `trigger` (text; a JSX trigger is not SSR-serialized), `open`/`defaultOpen`
+// (the controlled/uncontrolled axis), the implicit `onClose`, and class.
+public struct PopoverProps {
+    // uncontrolled initial open state
+    @optional var defaultOpen : bool
+    // controlled open state; absent means the component owns it
+    @optional var open : bool
+    // the clickable trigger (text); children render inside the panel
+    @optional var trigger : std::string_view
+}
+
+public #universal Popover(props : PopoverProps) {
     var popover = style {
         width: 280px;
         max-width: 100%;
@@ -213,7 +227,18 @@ public #universal PopoverDescription(props : SlotProps) {
 // - Uncontrolled: `defaultOpen` sets the initial (and SSR) state; backdrop
 //   click and the Escape key dismiss via internal state.
 // Both modes fire `props.onClose` on dismissal.
-public #universal Dialog(props) {
+public struct DialogProps {
+    // uncontrolled initial open state
+    @optional var defaultOpen : bool
+    // controlled open state; absent means the component owns it
+    @optional var open : bool
+    // forwarded to DialogContent: false hides the panel's close button
+    @optional var showCloseButton : bool
+    // inline style forwarded to DialogContent's panel
+    @optional var contentStyle : std::string_view
+}
+
+public #universal Dialog(props : DialogProps) {
     var dialog_overlay = style {
         position: fixed;
         inset: 0;
@@ -492,7 +517,7 @@ public #universal Snackbar(props : SlotProps) {
 
 // Shadcn-style Tooltip: shows a tooltip bubble on hover/focus.
 // Props:
-//   content   tooltip text or JSX (shadcn uses children on TooltipContent)
+//   content   the tooltip text (shadcn uses children on TooltipContent)
 //   label     alias for content (backward compat)
 //   side      "top" (default) | "bottom" | "left" | "right"
 //   delay     hover delay in ms (default 200)
@@ -504,7 +529,18 @@ public #universal Snackbar(props : SlotProps) {
 // Usage:
 //   <Tooltip content="Add to library"><Button>Hover</Button></Tooltip>
 //   <Tooltip label="Save" side="right"><IconButton /></Tooltip>
-public #universal Tooltip(props) {
+public struct TooltipProps {
+    // the tooltip body (text); `label` is the older spelling of the same thing
+    @optional var content : std::string_view
+    @optional var label : std::string_view
+    // "top" (default) | "bottom" | "left" | "right"; `position` is the alias
+    @optional var side : std::string_view
+    @optional var position : std::string_view
+    // hover delay in ms (200 when absent)
+    @optional var delay : int
+}
+
+public #universal Tooltip(props : TooltipProps) {
     var tooltip = style {
         display: inline-flex;
         align-items: center;
@@ -644,9 +680,22 @@ public #universal StatCard(props : SlotProps) {
 // - Uncontrolled: `defaultOpen` sets the initial (and SSR) state; the
 //   trigger toggles it.
 // A fixed overlay behind the menu closes it on outside click; the Escape key
-// dismisses too. `props.trigger` may be text or JSX; children are items.
+// dismisses too. `props.trigger` is the trigger button's text (a JSX trigger is not
+// SSR-serialized); children are the menu items.
 // `props.menuStyle`/`props.itemClassName` allow per-use styling tweaks.
-public #universal Dropdown(props) {
+public struct DropdownProps {
+    // uncontrolled initial open state
+    @optional var defaultOpen : bool
+    // controlled open state; absent means the component owns it
+    @optional var open : bool
+    // the trigger button's label (text); children are the menu items
+    @optional var trigger : std::string_view
+    // per-use styling of the portaled menu
+    @optional var menuStyle : std::string_view
+    @optional var itemClassName : std::string_view
+}
+
+public #universal Dropdown(props : DropdownProps) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
     const triggerRef = useRef(null)

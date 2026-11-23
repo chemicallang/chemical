@@ -20,7 +20,17 @@
 //             since JSX-as-prop is not SSR-serialized)
 //   children  content shown once loaded
 
-public #universal Suspense(props) {
+// Typed props (Phase 2). Both fields are `@optional`: a missing `loading` is
+// falsy (render children) and a missing `fallback` renders nothing, which is what
+// the untyped version did with `undefined`.
+public struct SuspenseProps {
+    // true while the data is loading (usually a state signal)
+    @optional var loading : bool
+    // the text shown while loading
+    @optional var fallback : std::string_view
+}
+
+public #universal Suspense(props : SuspenseProps) {
     return <div data-suspense="" data-loading={props.loading ? "true" : "false"}>
         {props.loading ? <span class="chx-suspense-fallback">{props.fallback}</span> : props.children}
     </div>

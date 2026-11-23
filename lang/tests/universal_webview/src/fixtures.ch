@@ -671,7 +671,7 @@
         <ToastViewport data-testid="toast-edge-viewport">
             {showSuccess ? <Toast data-testid="toast-success" title="Success toast" variant="success" duration={800} onClose={() => showSuccess = false} /> : null}
             {showDestructive ? <Toast data-testid="toast-destructive" title="Error toast" variant="destructive" duration={800} onClose={() => showDestructive = false} /> : null}
-            {showPersistent ? <Toast data-testid="toast-persistent" title="Persistent" description="No auto-dismiss" duration={0} action="Undo" actionClick={() => showPersistent = false} onClose={() => showPersistent = false} /> : null}
+            {showPersistent ? <Toast data-testid="toast-persistent" title="Persistent" description="No auto-dismiss" duration={0} action="Undo" onActionClick={() => showPersistent = false} onClose={() => showPersistent = false} /> : null}
         </ToastViewport>
     </div>
 }
@@ -925,7 +925,7 @@
     return <div data-testid="toast-params-fixture">
         <ToastViewport />
         <Toast data-testid="toast-nodismiss" duration={0} title="Persistent" description="Should not auto-dismiss" />
-        <Toast data-testid="toast-action" title="Action toast" description="Has action" action="Undo" actionClick={() => {}} />
+        <Toast data-testid="toast-action" title="Action toast" description="Has action" action="Undo" onActionClick={() => {}} />
         <Toast data-testid="toast-withtitle" title="Title only" />
         <Toast data-testid="toast-withdesc" description="Description only" />
     </div>

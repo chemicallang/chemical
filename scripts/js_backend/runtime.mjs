@@ -735,6 +735,62 @@ export const dom = {
   },
   focus: (handle) => { element(handle).focus(); },
 
+  // The class attribute as a token set. A real `DOMTokenList` has
+  // add/remove/toggle/contains; the DOM harness models the same set with a `Set`
+  // (add/delete/has), so each operation asks for the DOM spelling first. Reading
+  // the attribute is never the fallback: splicing a class name into a string
+  // breaks when another piece of code touches the same element.
+  has_class: (handle, name) => {
+    const list = element(handle).classList;
+    const token = text_at(name);
+    return ((list && (list.contains ? list.contains(token) : list.has(token))) ? 1 : 0);
+  },
+  add_class: (handle, name) => {
+    const list = element(handle).classList;
+    const token = text_at(name);
+    if (list && list.add) list.add(token);
+    else element(handle).className = (element(handle).className + " " + token).trim();
+  },
+  remove_class: (handle, name) => {
+    const list = element(handle).classList;
+    const token = text_at(name);
+    if (!list) return;
+    if (list.remove) list.remove(token);
+    else list.delete(token);
+  },
+  toggle_class: (handle, name) => {
+    const el = element(handle);
+    const list = el.classList;
+    const token = text_at(name);
+    if (!list) return 0;
+    const has = list.contains ? list.contains(token) : list.has(token);
+    if (has) {
+      if (list.remove) list.remove(token);
+      else list.delete(token);
+      return 0;
+    }
+    list.add(token);
+    return 1;
+  },
+
+  parent: (handle) => retain(element(handle).parentElement ?? null),
+  child_count: (handle) => element(handle).children.length,
+  child_at: (handle, index) => {
+    const kids = element(handle).children;
+    const i = Number(index);
+    return (i >= 0 && i < kids.length) ? retain(kids[i]) : 0;
+  },
+  matches: (handle, selector) => (element(handle).matches(text_at(selector)) ? 1 : 0),
+  closest: (handle, selector) => {
+    const sel = text_at(selector);
+    let node = element(handle);
+    while (node) {
+      if (node.matches && node.matches(sel)) return retain(node);
+      node = node.parentElement ?? null;
+    }
+    return 0;
+  },
+
   // A listener receives a pointer to a one-field `Event { handle }` slot: MIR passes
   // an aggregate by address, so the Chemical callback reads its handle from there.
   on: (handle, event, fn) => {

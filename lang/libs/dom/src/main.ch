@@ -97,6 +97,33 @@ public namespace raw {
     func chx_dom_focus(handle : usize)
 
     @extern @no_mangle
+    func chx_dom_has_class(handle : usize, name : string_view) : int
+
+    @extern @no_mangle
+    func chx_dom_add_class(handle : usize, name : string_view)
+
+    @extern @no_mangle
+    func chx_dom_remove_class(handle : usize, name : string_view)
+
+    @extern @no_mangle
+    func chx_dom_toggle_class(handle : usize, name : string_view) : int
+
+    @extern @no_mangle
+    func chx_dom_parent(handle : usize) : usize
+
+    @extern @no_mangle
+    func chx_dom_child_count(handle : usize) : int
+
+    @extern @no_mangle
+    func chx_dom_child_at(handle : usize, index : int) : usize
+
+    @extern @no_mangle
+    func chx_dom_matches(handle : usize, selector : string_view) : int
+
+    @extern @no_mangle
+    func chx_dom_closest(handle : usize, selector : string_view) : usize
+
+    @extern @no_mangle
     func chx_dom_on(handle : usize, event : string_view, handler : (e : &Event) => void)
 
     @extern @no_mangle
@@ -248,6 +275,66 @@ public struct Element {
 
     public func query_selector(&self, selector : string_view) : Option<Element> {
         var h = unsafe(raw::chx_dom_query_selector(handle, selector))
+        if(h == 0) {
+            return Option.None<Element>()
+        }
+        return Option.Some<Element>(Element { handle : h })
+    }
+
+    // ── Classes ─────────────────────────────────────────────────────────────
+    // The `class` attribute as a token set, so a class name is never spliced into a
+    // string: `toggle_class` is what a `class="…"` read-modify-write would break
+    // whenever two pieces of code touch the same element.
+    public func has_class(&self, name : string_view) : bool {
+        return unsafe(raw::chx_dom_has_class(handle, name)) != 0
+    }
+
+    public func add_class(&self, name : string_view) {
+        unsafe { raw::chx_dom_add_class(handle, name) }
+    }
+
+    public func remove_class(&self, name : string_view) {
+        unsafe { raw::chx_dom_remove_class(handle, name) }
+    }
+
+    /// Adds `name` when absent, removes it when present; returns whether it is now set.
+    public func toggle_class(&self, name : string_view) : bool {
+        return unsafe(raw::chx_dom_toggle_class(handle, name)) != 0
+    }
+
+    // ── Traversal ───────────────────────────────────────────────────────────
+    /// The parent element (`None` for the document element or a detached node).
+    public func parent(&self) : Option<Element> {
+        var h = unsafe(raw::chx_dom_parent(handle))
+        if(h == 0) {
+            return Option.None<Element>()
+        }
+        return Option.Some<Element>(Element { handle : h })
+    }
+
+    /// Number of *element* children (text nodes are not counted, matching `children`).
+    public func child_count(&self) : int {
+        return unsafe(raw::chx_dom_child_count(handle))
+    }
+
+    /// The element child at `index`, or `None` when there is none.
+    public func child_at(&self, index : int) : Option<Element> {
+        var h = unsafe(raw::chx_dom_child_at(handle, index))
+        if(h == 0) {
+            return Option.None<Element>()
+        }
+        return Option.Some<Element>(Element { handle : h })
+    }
+
+    /// Whether this element matches a CSS selector (the element itself, not its
+    /// descendants — `query_selector` is the descendant search).
+    public func matches(&self, selector : string_view) : bool {
+        return unsafe(raw::chx_dom_matches(handle, selector)) != 0
+    }
+
+    /// The nearest ancestor-or-self matching `selector`.
+    public func closest(&self, selector : string_view) : Option<Element> {
+        var h = unsafe(raw::chx_dom_closest(handle, selector))
         if(h == 0) {
             return Option.None<Element>()
         }

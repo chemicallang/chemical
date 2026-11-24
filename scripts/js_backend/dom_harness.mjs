@@ -31,6 +31,13 @@ class FakeElement {
     if (key === "id") this.ownerDocument.index.set(String(value), this);
   }
 
+  // `parentElement` skips a document node, and the document is what `body`
+  // hangs from, so the distinction only matters there (`dom` maps it straight
+  // through).
+  get parentElement() {
+    return this.parentNode && this.parentNode.tagName ? this.parentNode : null;
+  }
+
   getAttribute(name) {
     const key = String(name);
     return this.attributes.has(key) ? this.attributes.get(key) : null;

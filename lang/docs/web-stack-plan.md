@@ -1867,6 +1867,16 @@ with `await` and with handlers.
 
 1. Complete proposal 0008 (`dom` submodules, host-handle borrow rule — a language change, not a
    library), DOM event typing in `#universal`, `--check` rejects unknown DOM members.
+   **Progress 2026-11-24:** the element surface now covers what a tree walk needs without
+   `#js` — `class` tokens (`has_class`/`add_class`/`remove_class`/`toggle_class`, never a
+   read-modify-write of the attribute string) and traversal (`parent`, `child_count`,
+   `child_at`, `matches`, `closest`), each a typed wrapper over a `chx_dom_*` host call that the
+   C/LLVM backends refuse at translation time. Wired in all four places a DOM operation needs
+   (`lang/libs/dom` raw + safe, the `MIREmitterJs` host table, `scripts/js_backend/runtime.mjs`,
+   and the harness's `parentElement`), and gated by `web-dom-test.sh`, whose exact-line diff over
+   the harness output means an unimplemented or mis-marshalled call fails the suite. Still open in
+   item 1: the `dom` submodule split, the host-handle borrow rule (a language change), DOM event
+   typing in `#universal`, and `--check`'s unknown-member rejection.
 2. Canvas/pointer surface: `CanvasRenderingContext2D`, `PointerEvent`, `requestAnimationFrame`,
    `ImageData`, transforms — the sketchable/123mind requirement; the typed wrapper that apps wrote
    over `#js` in v1 becomes a thin alias, so no call-site migration.

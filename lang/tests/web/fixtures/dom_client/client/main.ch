@@ -74,6 +74,27 @@ public func main() : int {
                 card.has_attribute("data-role") as int)
         }
 
+        // Class tokens and traversal: the element surface a client module needs to
+        // move around the tree without `#js`.
+        var had_none = card.has_class("card") as int
+        card.add_class("card")
+        card.add_class("card")
+        var added = card.has_class("card") as int
+        var toggled = card.toggle_class("active") as int
+        var matches_self = card.matches(".active") as int
+        var closest_self = flag_helper(card.closest(".active"))
+        var parent_flag = flag_helper(card.parent())
+        var kids = app.child_count()
+        var first_kid = flag_helper(app.child_at(0))
+        var past_end = flag_helper(app.child_at(kids))
+        card.remove_class("card")
+        var removed_class = card.has_class("card") as int
+        unsafe {
+            printf("dom classes none=%d added=%d toggled=%d matches=%d closest=%d parent=%d kids=%d first=%d past_end=%d removed=%d\n",
+                had_none, added, toggled, matches_self, closest_self, parent_flag, kids,
+                first_kid, past_end, removed_class)
+        }
+
         var input = doc.get_element_by_id("name")
         if(input is Option.Some) {
             var Some(field) = input else unsafe { unreachable }

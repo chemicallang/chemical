@@ -108,6 +108,7 @@ expected="$out/expected.txt"
 cat > "$expected" <<'EOF'
 dom found=1 missing=0
 dom text=Hello dom role=card has=1
+dom classes none=0 added=1 toggled=1 matches=1 closest=1 parent=1 kids=5 first=1 past_end=0 removed=0
 dom value=typed
 dom storage=dark removed=1
 dom url origin=https://example.com path=/a/b q=7

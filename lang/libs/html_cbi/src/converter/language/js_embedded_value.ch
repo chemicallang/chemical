@@ -149,6 +149,82 @@ func (converter : &mut ASTConverter) put_by_node_js(type : *mut BaseType, node :
         }
     }
 
+// The struct a declaration type names, or "" when the type is not a struct/class.
+// `std::string` and `std::string_view` are structs, so their names are how the
+// aggregate path tells "a list of strings" from "a list of something else".
+func (converter : &mut ASTConverter) declared_struct_name(type : *mut BaseType) : std::string_view {
+        unsafe {
+        if(type == null || type.getKind() != BaseTypeKind.Linked) { return std::string_view("") }
+        const linked = type as *mut LinkedType
+        const node = linked.getLinkedNode()
+        if(node == null || node.getKind() != ASTNodeKind.StructDecl) { return std::string_view("") }
+        return (node as *mut StructDefinition).getName()
+
+        }
+}
+
+// Emits `page.<method>(&value)`: one statement that serializes the aggregate into
+// the props payload at render time.
+func (converter : &mut ASTConverter) emit_js_aggregate(value : *mut Value, method : std::string_view) {
+        unsafe {
+        const builder = converter.builder
+        const location = intrinsics::get_raw_location()
+        const fnPtr = converter.support.pageNode.child(&method)
+        if(fnPtr == null) {
+            converter.js_unsupported(value, std::string_view("this page library has no writer for aggregate props"))
+            return
+        }
+        var pageIdent = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var id = builder.make_identifier(&method, fnPtr, false, location)
+        const chain = builder.make_access_chain(&std::span<*mut Value>([ pageIdent, id ]), location)
+        var call = builder.make_function_call_node(chain, converter.parent, location)
+        const refValue = builder.make_reference_of_value(value, false, location)
+        call.get_args().push(refValue as *mut Value)
+        converter.vec.push(call as *mut ASTNode)
+
+        }
+}
+
+// Aggregate props: a `vector<std::string>` (or `vector<std::string_view>`) prop is
+// an aggregate the client can rebuild, so it is written as a JSON array of JS
+// strings. Other aggregates keep the "no JS serialization" diagnostic: a prop the
+// client cannot reconstruct is a build failure, not a silent `null`.
+func (converter : &mut ASTConverter) put_string_vector_js(value : *mut Value, generic : *mut GenericType, node : *mut ASTNode) : bool {
+        unsafe {
+        if(node == null) { return false }
+        // `vector` is an ordinary generic struct, but a declaration reached through
+        // a generic instantiation can also arrive as a `GenericStructDecl`; both
+        // spellings name the same declaration.
+        var declName = std::string_view("")
+        if(node.getKind() == ASTNodeKind.StructDecl) {
+            declName = (node as *mut StructDefinition).getName()
+        } else if(node.getKind() == ASTNodeKind.GenericStructDecl) {
+            const master = (node as *mut GenericStructDecl).getMasterImpl()
+            if(master == null) { return false }
+            declName = master.getName()
+        } else {
+            return false
+        }
+        const vectorName = std::string_view("vector")
+        if(!declName.equals(&vectorName)) { return false }
+        if(generic.getArgumentCount() < 1) { return false }
+        const element = generic.getArgumentType(0)
+        const elementName = converter.declared_struct_name(element)
+        const stringName = std::string_view("string")
+        const viewName = std::string_view("string_view")
+        if(elementName.equals(&stringName)) {
+            converter.emit_js_aggregate(value, std::string_view("append_js_string_array"))
+            return true
+        }
+        if(elementName.equals(&viewName)) {
+            converter.emit_js_aggregate(value, std::string_view("append_js_string_view_array"))
+            return true
+        }
+        return false
+
+        }
+}
+
 func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
         unsafe {
         const type = value.getType();
@@ -226,6 +302,7 @@ func (converter : &mut ASTConverter) put_js_value_in(value : *mut Value) {
                 const generic = type as *mut GenericType;
                 const linked = generic.getLinkedType();
                 const node = linked.getLinkedNode();
+                if(converter.put_string_vector_js(value, generic, node)) { return }
                 converter.put_by_node_js(type, node, value);
             }
             default => {

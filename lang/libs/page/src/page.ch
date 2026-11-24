@@ -1112,6 +1112,50 @@ public struct HtmlPage {
         }
     }
 
+    // Serializes a `vector` of strings (or string views) as a JSON array of JS
+    // string literals, for **aggregate props**: `<List items={fruits} />` used to
+    // fail the build ("its type has no JS serialization"), so a component that
+    // rendered a list on the server could not receive that list on the client.
+    // Escaping is the scalar-string rule, so SSR and hydration read the same value
+    // back. Aggregates without a JSON spelling (`vector<MyStruct>`) are still
+    // rejected at conversion time rather than silently dropped.
+    public func append_js_string_array(&mut self, items : &std::vector<std::string>) {
+        unsafe {
+            var out = std::string()
+            out.append('[')
+            var i : size_t = 0
+            while(i < items.size()) {
+                if(i > 0) { out.append(',') }
+                const item = items.get_ptr(i)
+                const view = item.to_view()
+                out.append('\'')
+                append_js_single_quoted_escaped(&mut out, view.data(), view.size())
+                out.append('\'')
+                i++
+            }
+            out.append(']')
+            self.append_js_raw(out.data(), out.size())
+        }
+    }
+
+    public func append_js_string_view_array(&mut self, items : &std::vector<std::string_view>) {
+        unsafe {
+            var out = std::string()
+            out.append('[')
+            var i : size_t = 0
+            while(i < items.size()) {
+                if(i > 0) { out.append(',') }
+                const item = items.get_ptr(i)
+                out.append('\'')
+                append_js_single_quoted_escaped(&mut out, item.data(), item.size())
+                out.append('\'')
+                i++
+            }
+            out.append(']')
+            self.append_js_raw(out.data(), out.size())
+        }
+    }
+
     func append_js_char_ptr(&mut self, value : *char) {
         unsafe {
             if(shared != null && local_js_depth == 0) { shared.js_data.append_char_ptr(value); return }

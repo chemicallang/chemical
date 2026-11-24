@@ -757,6 +757,18 @@ Still to land for typed props (Phase 2 remainder):
   (`{"text":"it's a \\ backslash"}` / `{"text":'it\'s a \\ backslash'}`, `node --check` clean),
   and defaults now work. What remains real is **struct/vector props**, which have no client
   representation yet, so the serializer is justified by those rather than by escaping or defaults.*
+  **Vector props landed 2026-11-24:** `vector<std::string>` and `vector<std::string_view>` props are
+  written into the payload as a JSON array (`page.append_js_string_array` /
+  `append_js_string_view_array`, chosen by `html_cbi` from the element type), with the scalar-string
+  escaping rule, so `{"items":['apple','it\'s \u003C/script>']}` is emitted and `node --check` is
+  clean. This closes the runtime-vector half of the "no client representation" gap — a literal
+  `options={["a","b"]}` array already shipped — and keeps the build error for aggregates with no
+  JSON spelling (`vector<MyStruct>`), because a prop the client cannot rebuild must fail loudly.
+  Still open: **deriving the struct serializer** (today a struct prop needs a hand-written
+  `writeToPageJs` on the type; `#json` already generates `std::Serializer`, so the route is to emit
+  the payload from that impl), and **SSR rendering of `props.<array>.map(...)`** — pre-existing and
+  unchanged by this: even a literal array prop renders no list items at SSR today (the client fills
+  them on hydration), which is why the fixtures that map over props use `state` arrays.
 
 **(b) Hydration-safety analysis (landed).** SSR and the client must agree, so render bodies may not
 read nondeterministic or browser-only state. The pass (`universal_cbi/sym_res/hydration_safety.ch`)

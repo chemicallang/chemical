@@ -763,6 +763,7 @@ All intrinsics are called via `intrinsics::name()`. Load the `intrinsics_compile
 |-----------|---------|---------|
 | `intrinsics::get_module_name()` | `string` | Module name |
 | `intrinsics::get_module_dir()` | `string` | Module directory path |
+| `intrinsics::embed_file(path)` | `string` | Read a file at compile time, relative to the calling source file (asset embedding, e.g. `lang/libs/page/src/runtime/*.js`) |
 | `intrinsics::get_build_dir()` | `string` | Build output directory |
 | `intrinsics::get_compiler_path()` | `*char` | Path to compiler binary |
 | `intrinsics::get_target()` | `string` | Target triple (e.g., "x86_64-linux-gnu") |

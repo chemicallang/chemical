@@ -8,6 +8,9 @@
 #include "sstream"
 #include <iostream>
 #include <utility>
+#include <fstream>
+#include <memory>
+#include <filesystem>
 #include "ast/types/VoidType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
@@ -1334,6 +1337,85 @@ public:
         }
         return new (allocator.allocate<StringValue>()) StringValue(container->paths[0].to_chem_view(), call_scope->global->typeBuilder.getStringType(), call->encoded_location());
     }
+};
+
+// Reads a file at compile time and yields its bytes as a string constant.
+//
+// This is the asset-embed step the web runtime needs: a `.js` file stays a `.js`
+// file (syntax highlighting, formatters, `node --check` in CI) while a library can
+// publish it as a string without a generated `.ch` copy in the tree. The path is
+// resolved relative to the directory of the *calling source file*, so a library
+// says `intrinsics::embed_file("runtime/universal.js")` and always means its own
+// directory, wherever the library was imported from.
+//
+// The bytes are copied into `storage`, which lives as long as the intrinsics
+// scope: `StringValue` holds a view, so the buffer has to outlive the value.
+class InterpretEmbedFile : public FunctionDeclaration {
+public:
+
+    FunctionParam pathParam;
+
+    explicit InterpretEmbedFile(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "embed_file",
+            {cache.getStringType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ), pathParam("path", {cache.getStringType(), ZERO_LOC}, 0, nullptr, false, this, ZERO_LOC) {
+        set_compiler_decl(true);
+        params = { &pathParam };
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final {
+        if(call->values.size() != 1) {
+            call_scope->error("embed_file expects a single path argument", call);
+            return nullptr;
+        }
+        const auto eval_value = call->values[0]->evaluated_value(*call_scope);
+        if(eval_value == nullptr || eval_value->val_kind() != ValueKind::String) {
+            call_scope->error("embed_file needs a string literal path relative to the calling file", call);
+            return nullptr;
+        }
+        const auto relative = eval_value->get_the_string().str();
+
+        auto& loc_man = call_scope->global->loc_man;
+        auto location = loc_man.getLocation(call->encoded_location());
+        auto fileId = loc_man.getPathForFileId(location.fileId);
+        if(fileId.empty()) {
+            call_scope->error("embed_file cannot resolve the calling file's path", call);
+            return nullptr;
+        }
+
+        std::error_code ec;
+        const std::filesystem::path source(fileId);
+        const std::filesystem::path target = source.parent_path() / std::filesystem::path(relative);
+        std::ifstream in(target, std::ios::binary);
+        if(!in) {
+            call_scope->error(call) << "embed_file cannot read '" << target.string() << "' (relative to '" << source.string() << "')";
+            return nullptr;
+        }
+        auto bytes = std::make_shared<chem::string>();
+        char buffer[16384];
+        while(in) {
+            in.read(buffer, sizeof(buffer));
+            const auto read = in.gcount();
+            if(read > 0) { bytes->append(chem::string_view(buffer, (std::size_t) read)); }
+        }
+        if(in.bad()) {
+            call_scope->error(call) << "embed_file failed while reading '" << target.string() << "'";
+            return nullptr;
+        }
+        storage.emplace_back(bytes);
+        return new (allocator.allocate<StringValue>()) StringValue(bytes->to_chem_view(), call_scope->global->typeBuilder.getStringType(), call->encoded_location());
+    }
+
+private:
+
+    // The bytes every returned `StringValue` points into. Held for the lifetime of
+    // this object (the intrinsics scope, i.e. one compilation).
+    std::vector<std::shared_ptr<chem::string>> storage;
 };
 
 // only direct child functions are supported at the moment
@@ -3056,6 +3138,7 @@ public:
     InterpretGetModuleScope get_module_scope;
     InterpretGetModuleName get_module_name;
     InterpretGetModuleDir get_module_dir;
+    InterpretEmbedFile embed_file;
 
     InterpretGetLambdaFnPtr get_lambda_fn_ptr;
     InterpretGetLambdaCapPtr get_lambda_cap_ptr;
@@ -3093,7 +3176,7 @@ public:
         sizeFn(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
         get_target_fn(cache, this), get_build_dir(cache, this), get_compiler_path(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
-        get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
+        get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this), embed_file(cache, this),
         get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_universal_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this),
@@ -3108,7 +3191,7 @@ public:
             &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_compiler_path, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_universal_tests_fn,
-            &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
+            &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &embed_file, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
             &expr_str_blk_val, &exprPrintFn, &exprPrintlnFn,
             &get_backend_name, &emit_raw, &raw_literal,

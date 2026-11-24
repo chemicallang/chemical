@@ -159,6 +159,7 @@ The `intrinsics` namespace is **not** declared in a `.ch` file — it is built i
 | `intrinsics::get_libs_dir()` | `InterpretGetLibsDir` (`:2130`) | Returns `PROJECT_SOURCE_DIR/lang/libs` (source build) or `<exe>/../libs` |
 | `intrinsics::version()` | `InterpretCompilerVersion` (`:546`) | Returns the compiler version string (`VERSION_STRING`) |
 | `intrinsics::get_backend_name()` | `InterpretGetBackendName` (`:1995`) | Returns `"C"` (TCC backend) or `"LLVM"` |
+| `intrinsics::embed_file(path)` | `InterpretEmbedFile` (`:1353`) | Reads a file at compile time, resolved against the **calling source file's** directory, and yields its bytes as a string constant |
 
 **Key implementation details:**
 - Module information is retrieved via `call_scope->global->current_func_type->get_parent()` → `get_mod_scope()` (`:1389-1397`, `:1416-1424`). All return `""` if there is no current function/module (`:1390`, `:1417`, `:1444`).
@@ -166,6 +167,7 @@ The `intrinsics` namespace is **not** declared in a `.ch` file — it is built i
 - `get_build_dir()` reads `build_compiler->options->build_dir`; `get_compiler_path()` reads `options->exe_path` (`:1324`, `:1347`). Both fall back to `""` when there is no build compiler (e.g. LSP).
 - Target triple is from `build_compiler->current_job->target_triple` (`:1265`).
 - `get_backend_name()` is `global->backend_context->name()` — used heavily by `std::atomic` to choose inline asm vs. LLVM atomics (see `lang/libs/atomic/src/atomic.ch:692` etc.).
+- `embed_file(path)` is the asset-embed step: `page` uses it for its hydration runtime (`lang/libs/page/src/runtime/universal*.js`), so that JavaScript stays JavaScript instead of a two-thousand-line string literal in `page.ch`. The path argument must fold to a string literal; the bytes are kept in the intrinsic's own `storage` (a `StringValue` holds a *view*), so they live as long as the intrinsics scope. Like every intrinsic that returns a string, the result is a `str`, which has **no member functions** at the call site: convert with `std::string(intrinsics::embed_file(..))` before calling `.to_view()`/`.size()`.
 
 ### 6. Function / Annotation / Test Reflection
 

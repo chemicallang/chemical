@@ -1663,7 +1663,9 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `modulepreload` (item 6).
 5. Runtime extracted from `page.ch` into `lang/libs/page/runtime/*.js`, embedded at build time
    (a LabBuildCompiler asset-embed step — owned here, with a byte budget). Also removes a constant
-   compile-time cost from every `page` consumer (§3.16). — **partially landed, by a different route**:
+   compile-time cost from every `page` consumer (§3.16). — **the extraction landed 2026-11-24** as
+   the `intrinsics::embed_file` asset-embed step (see below); the serving half had already landed
+   earlier, by a different route:
    `page.StaticSite` (new, `lang/libs/page/src/static_site.ch`) writes the shared runtime, component
    definitions and global CSS as **one content-hashed asset** and gives every page a
    `<script src>`/`<link>` to it, so no page inlines the runtime any more. That removes the *serving*
@@ -1674,6 +1676,19 @@ compiled to JS, and works in the browser with source maps and a terminal-reporte
    `fixtures/static_site_baseline`, `scripts/static-site-test.sh`):
    per-page HTML **109,317 B → 424 B / 409 B**, one bundle of 108,816 B served once and cached by the
    browser, **2 inline `<script>` per page → 0**, CSP clean. Nested routes get `../assets/…`.
+
+   **The extraction (2026-11-24):** the runtime is now three real assets —
+   `lang/libs/page/src/runtime/universal_head.js` (the `<head>` bootstrap), `universal.js` (the rest)
+   and `universal.css` (the `[data-chx-i]` rule) — embedded by a new compiler intrinsic,
+   `intrinsics::embed_file(path)`, which reads the file at compile time relative to the *calling*
+   source file and yields its bytes as a string constant. `defaultUniversalSetup` appends those, so
+   the runtime is edited as JavaScript (highlighting, formatters, `node --check` in
+   `scripts/web-golden-test.sh`) instead of as a Chemical string literal, and the front end no longer
+   lexes/parses 111,317 B of literal in `page.ch` for every build that imports `page`. The move is
+   checked to be behaviour-preserving: the extracted files are byte-identical to the old literals
+   apart from line endings and the block indent, and the fixture app bundle is **whitespace-identical
+   (110,143 B → 99,706 B)**; `--universal` 369/369, `--plugins` 1320/1320, `--libs` 937/937, and the
+   web goldens (hash-only diff).
    The build is available **in memory**: `build()` produces the whole artifact set (pages, bundle,
    per-page chunks) with no filesystem access and `respond(path)` answers from it — `/` and `/about/`
    resolve to their `index.html` (bare `/about` too), missing paths and traversal attempts get a 404
@@ -1870,7 +1885,7 @@ corpus (a `#js` block without a typed wrapper is a lint finding).
 | Bundle build | `lang/libs/web_build/*` (new module, Chemical: graph, manifest, minifier, two-phase build, `--profile`) |
 | App/serve | `lang/libs/web/*` (**new module**: `App`, `Bundle`, `Shell`, `Static`, `Client`, asset map) — do not graft onto `http`'s `web` namespace |
 | Shell/slots | `lang/libs/page/src/page.ch` (`slot`), `lang/libs/web/src/shell.ch` |
-| Runtime | `lang/libs/page/runtime/*.js` + build-time embedding |
+| Runtime | `lang/libs/page/src/runtime/*.js` + build-time embedding (`intrinsics::embed_file`) |
 | Components | `universal_cbi/src/react/ast_replace.ch`, `emit_js.ch`, `converter/*` (units instead of `pageJs`), `macro.ch` (`@props` parsing) |
 | Hydration | `lang/libs/page/src/page.ch`, `ssr.ch`, `html_cbi/.../component.ch`, `main.ch` |
 | Router | `lang/libs/router/*`, `page/src/router_runtime.ch`, `http/src/router.ch` (typed `Head`) |
@@ -2075,7 +2090,8 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
    `StaticSite.write_assets_module` emits it as source (two-phase build proven end-to-end by
    `web-embedded-test.sh`), and `app.shell_variant(..., when)` picks between frozen shells per
    request. Still open: a `web_build` *command* for that orchestration, CSS chunks +
-   `modulepreload`, `Bundle` loading from disk, lazy chunking, and item 5's runtime extraction. Step 5 and 7's static half
+   `modulepreload`, `Bundle` loading from disk, lazy chunking, and aggregate props. (Item 5's runtime extraction
+   landed 2026-11-24 as `intrinsics::embed_file`.) Step 5 and 7's static half
    are satisfied by `page.StaticSite` and the probe script.
 8. ~~**Sessions + CSRF**~~ — **done 2026-11-18** (`http.CookieJar`/`CookieOptions`/
    `set_cookie_value`/`Response.cookie`, `web::SessionStore` + constant-time CSRF, gated by

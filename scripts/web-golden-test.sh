@@ -43,6 +43,18 @@ compiler="$(cd "$(dirname "$compiler")" && pwd)/$(basename "$compiler")"
 
 golden_root="lang/tests/web/golden"
 fail=0
+
+# The universal hydration runtime is real JavaScript now (embedded into the compiler by
+# `intrinsics::embed_file`), so it can be syntax-checked on its own. Skipped when node is
+# unavailable: this gate is about the fixtures, the runtime check is a bonus.
+if command -v node >/dev/null 2>&1; then
+    for runtime_js in lang/libs/page/src/runtime/*.js; do
+        if ! node --check "$runtime_js" >/dev/null 2>&1; then
+            echo "FAIL runtime: $runtime_js is not valid JavaScript (node --check)" >&2
+            fail=1
+        fi
+    done
+fi
 check() {
     if [ "$2" = "1" ]; then
         echo "ok   $1"

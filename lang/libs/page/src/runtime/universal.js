@@ -1985,7 +1985,12 @@ window.$__uni_cleanup_observer = (() => {
             }
         }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    // A bundle may be emitted in <head> (StaticSite/web::App) where
+    // document.body is still null. Observing documentElement is equivalent
+    // for subtree childList mutations and keeps the runtime defined; a guard
+    // that returned early here would leave $__uni_track_instance undefined
+    // and break every mount on the page.
+    observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
     return { observer, observed };
 })()
 window.$__uni_track_instance = ((host, inst) => {

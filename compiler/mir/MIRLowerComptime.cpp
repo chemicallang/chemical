@@ -258,7 +258,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         if (pt == MIR_INVALID_ID) pt = r.type;
         if (pt == MIR_INVALID_ID) return false;
         const bool agg = abi::is_aggregate(module_, pt);
-        PlaceId place = builder_->alloca(pt, MIRStorageClass::Temporary);
+        PlaceId place = builder_->alloc_place(pt, MIRStorageClass::Temporary);
         if (place == MIR_INVALID_ID) return false;
         if (r.kind == MIRExprKind::Place) {
             const PlaceId sp = static_cast<PlaceId>(r.id);
@@ -337,7 +337,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         frame.dmark = dmark;
         frame.fn = fd;
         if (!is_void) {
-            frame.result_place = builder_->alloca(ret, MIRStorageClass::Temporary);
+            frame.result_place = builder_->alloc_place(ret, MIRStorageClass::Temporary);
             if (frame.result_place == MIR_INVALID_ID) {
                 error = "failed to allocate comptime template result";
                 ok = false;

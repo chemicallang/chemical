@@ -21,14 +21,11 @@
 #include <map>
 #include <tuple>
 
-// glibc exposes `alloca` as a function-like macro (pulled in by <alloca.h> via
-// <stdlib.h>), which collides with the `MIRBuilder::alloca` method declared
-// below. Nothing in the MIR code uses libc `alloca`, so drop the macro for this
-// translation unit. (MSVC defines it in <malloc.h>; not including it there is
-// why this only surfaced on Linux.)
-#ifdef alloca
-#undef alloca
-#endif
+// The place allocator is called `alloc_place`, not `alloca`: glibc (via
+// <alloca.h> from <stdlib.h>) and MinGW (in <malloc.h>) both define `alloca` as
+// a function-like macro, so a method of that name cannot be portably used. An
+// `#undef alloca` here is not enough — a later include can define it again, and
+// it did on MinGW, where `malloc.h` arrives after this header.
 
 namespace mir {
 
@@ -113,7 +110,7 @@ public:
     ValueId global_addr(SymbolId symbol, TypeId pointer_type);
     /** Address of a function (function pointer): `symbol`. */
     ValueId function_addr(SymbolId symbol, TypeId pointer_type);
-    PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
+    PlaceId alloc_place(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
     /** A coroutine frame field: `__chx__af-><field>`, declared by the frame struct. */
     PlaceId alloca_frame(TypeId type, ConstantId field_name);
     /** Allocate the coroutine frame; result is a `frame_type*`. */

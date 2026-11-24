@@ -324,7 +324,7 @@ ValueId MIRBuilder::function_addr(SymbolId symbol, TypeId pointer_type) {
     return v;
 }
 
-PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {
+PlaceId MIRBuilder::alloc_place(TypeId type, MIRStorageClass sc) {
     PlaceId p = new_place(type, sc);
     emit(MIROpcode::Alloca, p, {MIROperand::type(type)});
     return p;

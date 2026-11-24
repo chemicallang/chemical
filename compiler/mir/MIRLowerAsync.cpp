@@ -922,20 +922,20 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     fn.entry_block = entry;
 
     ValueId p0 = b.param(poll_ptr);
-    PlaceId ret_place = b.alloca(poll_ptr, MIRStorageClass::Parameter);
+    PlaceId ret_place = b.alloc_place(poll_ptr, MIRStorageClass::Parameter);
     b.store(ret_place, p0);
     ValueId p1 = b.param(void_ptr);
-    PlaceId frame_arg = b.alloca(void_ptr, MIRStorageClass::Parameter);
+    PlaceId frame_arg = b.alloc_place(void_ptr, MIRStorageClass::Parameter);
     b.store(frame_arg, p1);
     ValueId p2 = b.param(ctx_ptr);
-    PlaceId cx_place = b.alloca(ctx_ptr, MIRStorageClass::Parameter);
+    PlaceId cx_place = b.alloc_place(ctx_ptr, MIRStorageClass::Parameter);
     b.store(cx_place, p2);
     async_poll_ret_ = ret_place;
     async_poll_cx_ = cx_place;
 
     ValueId fv = b.load(frame_arg, void_ptr);
     ValueId af = b.cast(fv, async_frame_ptr_type_);
-    PlaceId af_place = b.alloca(async_frame_ptr_type_, MIRStorageClass::FramePtr);
+    PlaceId af_place = b.alloc_place(async_frame_ptr_type_, MIRStorageClass::FramePtr);
     b.store(af_place, af);
     async_poll_frame_ = af_place;
     async_poll_af_val_ = af;
@@ -1012,7 +1012,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
                 }
             }
         } else {
-            PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+            PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
             // load the spilled value from the frame slot
             auto it = std::find_if(async_plan_.slots.begin(), async_plan_.slots.end(),
                                    [&](const AsyncFrameSlot& s) { return s.node == p; });
@@ -1153,12 +1153,12 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
     fn.entry_block = entry;
 
     const ValueId p0 = b.param(void_ptr);
-    const PlaceId frame_arg = b.alloca(void_ptr, MIRStorageClass::Parameter);
+    const PlaceId frame_arg = b.alloc_place(void_ptr, MIRStorageClass::Parameter);
     b.store(frame_arg, p0);
 
     const ValueId fv = b.load(frame_arg, void_ptr);
     const ValueId af = b.cast(fv, async_frame_ptr_type_);
-    const PlaceId af_place = b.alloca(async_frame_ptr_type_, MIRStorageClass::FramePtr);
+    const PlaceId af_place = b.alloc_place(async_frame_ptr_type_, MIRStorageClass::FramePtr);
     b.store(af_place, af);
 
     const ConstantId state_fc = module_.constants.add_string(MIR_INVALID_ID, "__state", 7);
@@ -1254,7 +1254,7 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
         const MIRNumberedName child_name = async_child_field(static_cast<unsigned>(i));
         const ConstantId cfc = module_.constants.add_string(
             MIR_INVALID_ID, child_name.data(), static_cast<uint32_t>(child_name.size()));
-        const PlaceId child_temp = b.alloca(handle_ty, MIRStorageClass::Local);
+        const PlaceId child_temp = b.alloc_place(handle_ty, MIRStorageClass::Local);
         const ValueId hv = b.field_load_ptr(af, cfc, handle_ty);
         b.store(child_temp, hv);
         const ConstantId frame_fc =
@@ -1398,7 +1398,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     // The body of an async function lives in this ramp; a backend with native
     // promises emits it as a single async function instead of a coroutine.
     func.async_body = true;
-    const PlaceId sret_place = b.alloca(sret_ptr_type_, MIRStorageClass::Parameter);
+    const PlaceId sret_place = b.alloc_place(sret_ptr_type_, MIRStorageClass::Parameter);
     b.store(sret_place, sret_ptr_);
 
     var_places_.clear();
@@ -1415,7 +1415,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
 
     // frame alloc
     ValueId af = b.async_frame_alloc(async_frame_type_, async_frame_ptr_type_);
-    PlaceId af_place = b.alloca(async_frame_ptr_type_, MIRStorageClass::FramePtr);
+    PlaceId af_place = b.alloc_place(async_frame_ptr_type_, MIRStorageClass::FramePtr);
     b.store(af_place, af);
     async_ramp_af_ = af_place;
     async_ramp_af_val_ = af;
@@ -1437,7 +1437,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         const MIRNumberedName cf = async_slot_field(async_capture_slot_);
         const ConstantId cap_fc = module_.constants.add_string(
             MIR_INVALID_ID, cf.data(), static_cast<uint32_t>(cf.size()));
-        const PlaceId cap_tmp = b.alloca(inst_t, MIRStorageClass::Temporary);
+        const PlaceId cap_tmp = b.alloc_place(inst_t, MIRStorageClass::Temporary);
         b.copy_ptr_to_place(cap_tmp, capture_src);
         b.field_store_ptr(af, cap_fc, b.load(cap_tmp, inst_t));
         const MIRNumberedName ff = async_drop_flag_field(async_capture_slot_);
@@ -1462,7 +1462,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
         b.store(place, pv);
         bind(self_param, place);
         bind_name(self_param->name, place);
@@ -1475,7 +1475,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
         b.store(place, pv);
         bind(p, place);
         bind_name(p->name, place);
@@ -1661,7 +1661,7 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
     // call the ramp: it writes the FutureHandle<T> through its explicit sret
     // pointer argument. Zero the slot first so the MIR dataflow sees a defined
     // value on every path (the ramp overwrites it immediately).
-    const PlaceId handle_place = b.alloca(handle_t, MIRStorageClass::Local);
+    const PlaceId handle_place = b.alloc_place(handle_t, MIRStorageClass::Local);
     b.zero_init(handle_place);
     {
         MIRArgScope _ag_scope(*this);
@@ -1678,8 +1678,8 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
         b.mark_initialized(handle_place);
     }
 
-    const PlaceId poll_place = b.alloca(poll_t, MIRStorageClass::Local);
-    const PlaceId cx_place = b.alloca(ctx_val_t, MIRStorageClass::Local);
+    const PlaceId poll_place = b.alloc_place(poll_t, MIRStorageClass::Local);
+    const PlaceId cx_place = b.alloc_place(ctx_val_t, MIRStorageClass::Local);
     // a zeroed context is the "no waker" executor context, matching block_on
     b.zero_init(cx_place);
 

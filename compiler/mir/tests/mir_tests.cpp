@@ -225,7 +225,7 @@ static bool test_builder() {
     const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
     const ValueId zero = b.const_int(i32, module.constants.add_int(i32, 0));
     const ValueId cond = b.compare(ten, zero, module.constants.add_int(i32, 1), bool_t);
-    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    const PlaceId p = b.alloc_place(i32, MIRStorageClass::Local);
     b.cond_br(cond, then_b, else_b);
 
     b.set_block(then_b);
@@ -297,10 +297,10 @@ static bool test_emitter() {
     fn.entry_block = entry;
 
     const ValueId pa = b.param(i32);
-    const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+    const PlaceId ppa = b.alloc_place(i32, MIRStorageClass::Parameter);
     b.store(ppa, pa);
     const ValueId pb = b.param(i32);
-    const PlaceId ppb = b.alloca(i32, MIRStorageClass::Parameter);
+    const PlaceId ppb = b.alloc_place(i32, MIRStorageClass::Parameter);
     b.store(ppb, pb);
 
     const ValueId la = b.load(ppa, i32);
@@ -370,7 +370,7 @@ static bool test_borrow_opcodes() {
     const BlockId entry = b.create_block();
     fn.entry_block = entry;
     b.set_block(entry);
-    const PlaceId x = b.alloca(i32);
+    const PlaceId x = b.alloc_place(i32);
     b.store(x, b.const_int(i32, module.constants.add_int(i32, 7)));
     fn.places[x].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
     const ValueId addr = b.address_of(x, ptr_t);
@@ -436,7 +436,7 @@ static bool test_control_flow_emitter() {
     const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
     const ValueId zero = b.const_int(i32, module.constants.add_int(i32, 0));
     const ValueId cond = b.compare(ten, zero, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)), bool_t);
-    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    const PlaceId p = b.alloc_place(i32, MIRStorageClass::Local);
     b.cond_br(cond, then_b, else_b);
     b.set_block(then_b);
     b.store(p, ten);
@@ -912,10 +912,10 @@ static bool test_function_facts() {
         fn.entry_block = entry;
 
         const ValueId pa = b.param(i32);
-        const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+        const PlaceId ppa = b.alloc_place(i32, MIRStorageClass::Parameter);
         b.store(ppa, pa);
         const ValueId pb = b.param(i32);
-        const PlaceId ppb = b.alloca(i32, MIRStorageClass::Parameter);
+        const PlaceId ppb = b.alloc_place(i32, MIRStorageClass::Parameter);
         b.store(ppb, pb);
         const ValueId la = b.load(ppa, i32);
         const ValueId lb = b.load(ppb, i32);
@@ -973,7 +973,7 @@ static bool test_function_facts() {
         const ValueId cond = b.compare(
             ten, zero, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)),
             bool_t);
-        const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+        const PlaceId p = b.alloc_place(i32, MIRStorageClass::Local);
         b.cond_br(cond, then_b, else_b);
         b.set_block(then_b);
         b.store(p, ten);
@@ -1035,8 +1035,8 @@ static bool test_function_facts() {
         fn.entry_block = entry;
 
         const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
-        const PlaceId escaped = b.alloca(i32, MIRStorageClass::Local);
-        const PlaceId plain = b.alloca(i32, MIRStorageClass::Local);
+        const PlaceId escaped = b.alloc_place(i32, MIRStorageClass::Local);
+        const PlaceId plain = b.alloc_place(i32, MIRStorageClass::Local);
         b.store(plain, ten);
         const ValueId l = b.load(plain, i32);
         b.store(plain, l); // a write after the load
@@ -1093,7 +1093,7 @@ static bool test_value_facts() {
     fn.entry_block = entry;
 
     const ValueId pa = b.param(i32);
-    const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+    const PlaceId ppa = b.alloc_place(i32, MIRStorageClass::Parameter);
     b.store(ppa, pa);
     const ValueId la = b.load(ppa, i32);
     // `la` is read twice, so it is not a single-use candidate
@@ -1176,7 +1176,7 @@ static bool test_traversal_helpers() {
     const BlockId entry = b.create_block();
     b.set_block(entry);
     fn.entry_block = entry;
-    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    const PlaceId p = b.alloc_place(i32, MIRStorageClass::Local);
     const ValueId n = b.const_int(i32, module.constants.add_int(i32, 1));
     b.store(p, n);
     b.ret(b.load(p, i32));
@@ -1808,7 +1808,7 @@ static bool test_move_paths() {
         const BlockId uentry = ub.create_block();
         ufn.entry_block = uentry;
         ub.set_block(uentry);
-        const PlaceId up = ub.alloca(union_dtor_id);
+        const PlaceId up = ub.alloc_place(union_dtor_id);
         CHECK(ufn.places[up].move_path_id != MIR_INVALID_ID);
         CHECK(ufn.move_paths[ufn.places[up].move_path_id].first_child ==
               MIR_INVALID_ID);
@@ -1837,7 +1837,7 @@ static bool test_move_paths() {
         const BlockId ventry = vb.create_block();
         vfn.entry_block = ventry;
         vb.set_block(ventry);
-        const PlaceId vp = vb.alloca(variant_id);
+        const PlaceId vp = vb.alloc_place(variant_id);
         CHECK(vfn.places[vp].move_path_id != MIR_INVALID_ID);
         CHECK(vfn.move_paths[vfn.places[vp].move_path_id].first_child ==
               MIR_INVALID_ID);
@@ -1866,8 +1866,8 @@ static bool test_move_paths() {
     fn.entry_block = entry;
     b.set_block(entry);
 
-    const PlaceId src = b.alloca(outer_id);
-    const PlaceId dst = b.alloca(outer_id);
+    const PlaceId src = b.alloc_place(outer_id);
+    const PlaceId dst = b.alloc_place(outer_id);
     CHECK(fn.places[src].move_path_id != MIR_INVALID_ID);
     CHECK(fn.places[dst].move_path_id != MIR_INVALID_ID);
     // each place gets root + owned + array + three array elements
@@ -1957,14 +1957,14 @@ static bool test_borrow_check() {
         MIRFunction fn;
         MIRArena arena;
         make_builder(fn, arena, [&](MIRBuilder& b) {
-            const PlaceId x = b.alloca(i32);
+            const PlaceId x = b.alloc_place(i32);
             b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
             const ValueId addr = b.address_of(x, ptr_t);
             const ValueId b1 = b.borrow(addr, region, ref_t, true);
-            const PlaceId p1 = b.alloca(ref_t);
+            const PlaceId p1 = b.alloc_place(ref_t);
             b.store(p1, b1);
             const ValueId b2 = b.borrow(addr, region, ref_t, true);
-            const PlaceId p2 = b.alloca(ref_t);
+            const PlaceId p2 = b.alloc_place(ref_t);
             b.store(p2, b2);
             (void) b.load(p1, ref_t);
             (void) b.load(p2, ref_t);
@@ -1980,15 +1980,15 @@ static bool test_borrow_check() {
         MIRFunction fn;
         MIRArena arena;
         make_builder(fn, arena, [&](MIRBuilder& b) {
-            const PlaceId x = b.alloca(i32);
+            const PlaceId x = b.alloc_place(i32);
             b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
             const ValueId addr = b.address_of(x, ptr_t);
             const ValueId b1 = b.borrow(addr, region, ref_t, true);
-            const PlaceId p1 = b.alloca(ref_t);
+            const PlaceId p1 = b.alloc_place(ref_t);
             b.store(p1, b1);
             (void) b.load(p1, ref_t);
             const ValueId b2 = b.borrow(addr, region, ref_t, true);
-            const PlaceId p2 = b.alloca(ref_t);
+            const PlaceId p2 = b.alloc_place(ref_t);
             b.store(p2, b2);
             (void) b.load(p2, ref_t);
         });
@@ -2011,7 +2011,7 @@ static bool test_borrow_check() {
         const BlockId merge = b.create_block();
         fn.entry_block = entry;
         b.set_block(entry);
-        const PlaceId x = b.alloca(i32);
+        const PlaceId x = b.alloc_place(i32);
         b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
         const ValueId addr = b.address_of(x, ptr_t);
         const ValueId cond = b.const_bool(
@@ -2022,7 +2022,7 @@ static bool test_borrow_check() {
         auto branch = [&](BlockId block) {
             b.set_block(block);
             const ValueId loan = b.borrow(addr, region, ref_t, true);
-            const PlaceId p = b.alloca(ref_t);
+            const PlaceId p = b.alloc_place(ref_t);
             b.store(p, loan);
             (void) b.load(p, ref_t);
             b.br(merge);
@@ -2044,14 +2044,14 @@ static bool test_borrow_check() {
         MIRFunction fn;
         MIRArena arena;
         make_builder(fn, arena, [&](MIRBuilder& b) {
-            const PlaceId x = b.alloca(i32);
+            const PlaceId x = b.alloc_place(i32);
             b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
             const ValueId addr = b.address_of(x, ptr_t);
             const ValueId b1 = b.borrow(addr, region, ref_t, false);
-            const PlaceId p1 = b.alloca(ref_t);
+            const PlaceId p1 = b.alloc_place(ref_t);
             b.store(p1, b1);
             const ValueId b2 = b.borrow(addr, region, ref_t, false);
-            const PlaceId p2 = b.alloca(ref_t);
+            const PlaceId p2 = b.alloc_place(ref_t);
             b.store(p2, b2);
             (void) b.load(p1, ref_t);
             (void) b.load(p2, ref_t);
@@ -2065,12 +2065,12 @@ static bool test_borrow_check() {
         MIRFunction fn;
         MIRArena arena;
         make_builder(fn, arena, [&](MIRBuilder& b) {
-            const PlaceId x = b.alloca(i32);
+            const PlaceId x = b.alloc_place(i32);
             b.storage_live(x);
             b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
             const ValueId addr = b.address_of(x, ptr_t);
             const ValueId loan = b.borrow(addr, region, ref_t, false);
-            const PlaceId p = b.alloca(ref_t);
+            const PlaceId p = b.alloc_place(ref_t);
             b.store(p, loan);
             b.storage_dead(x);
             // A use after the storage ends keeps the loan live across the marker.
@@ -2103,7 +2103,7 @@ static bool test_borrow_check() {
         const BlockId entry = b.create_block();
         fn.entry_block = entry;
         b.set_block(entry);
-        const PlaceId px = b.alloca(ref_t, MIRStorageClass::Parameter);
+        const PlaceId px = b.alloc_place(ref_t, MIRStorageClass::Parameter);
         fn.places[px].param_index = 0;
         const ValueId rx = b.load(px, ref_t);
         b.ret(rx);
@@ -2120,7 +2120,7 @@ static bool test_borrow_check() {
         const BlockId oentry = ob.create_block();
         ok.entry_block = oentry;
         ob.set_block(oentry);
-        const PlaceId opx = ob.alloca(ref_t, MIRStorageClass::Parameter);
+        const PlaceId opx = ob.alloc_place(ref_t, MIRStorageClass::Parameter);
         ok.places[opx].param_index = 0;
         const ValueId orx = ob.load(opx, ref_t);
         ob.ret(orx);
@@ -2152,8 +2152,8 @@ static bool test_borrow_check() {
         const BlockId entry = b.create_block();
         fn.entry_block = entry;
         b.set_block(entry);
-        const PlaceId x = b.alloca(i32);
-        const PlaceId y = b.alloca(i32);
+        const PlaceId x = b.alloc_place(i32);
+        const PlaceId y = b.alloc_place(i32);
         b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
         b.store(y, b.const_int(i32, module.constants.add_int(i32, 2)));
         const ValueId ax = b.address_of(x, ptr_t);
@@ -2211,8 +2211,8 @@ static bool test_borrow_check() {
         const BlockId entry = b.create_block();
         fn.entry_block = entry;
         b.set_block(entry);
-        const PlaceId x = b.alloca(i32);
-        const PlaceId y = b.alloca(i32);
+        const PlaceId x = b.alloc_place(i32);
+        const PlaceId y = b.alloc_place(i32);
         b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
         b.store(y, b.const_int(i32, module.constants.add_int(i32, 2)));
         const ValueId ax = b.address_of(x, ptr_t);
@@ -2273,10 +2273,10 @@ static bool test_borrow_check() {
         fn.entry_block = entry;
         b.set_block(entry);
         const ValueId sret = b.param(ptr_t);
-        const PlaceId px = b.alloca(ref_t, MIRStorageClass::Parameter);
+        const PlaceId px = b.alloc_place(ref_t, MIRStorageClass::Parameter);
         fn.places[px].param_index = 0;
         const ValueId rv = b.load(px, ref_t);
-        const PlaceId holder = b.alloca(agg_t);
+        const PlaceId holder = b.alloc_place(agg_t);
         b.field_store(holder, field, rv);
         b.emit(MIROpcode::Store, MIR_NULL,
                {MIROperand::value(sret, ptr_t),
@@ -2298,10 +2298,10 @@ static bool test_borrow_check() {
         ok.entry_block = oentry;
         ob.set_block(oentry);
         const ValueId osret = ob.param(ptr_t);
-        const PlaceId opx = ob.alloca(ref_t, MIRStorageClass::Parameter);
+        const PlaceId opx = ob.alloc_place(ref_t, MIRStorageClass::Parameter);
         ok.places[opx].param_index = 0;
         const ValueId orv = ob.load(opx, ref_t);
-        const PlaceId oholder = ob.alloca(agg_t);
+        const PlaceId oholder = ob.alloc_place(agg_t);
         ob.field_store(oholder, field, orv);
         ob.emit(MIROpcode::Store, MIR_NULL,
                 {MIROperand::value(osret, ptr_t),
@@ -2318,11 +2318,11 @@ static bool test_borrow_check() {
         local.entry_block = lentry;
         lb.set_block(lentry);
         const ValueId lsret = lb.param(ptr_t);
-        const PlaceId lx = lb.alloca(i32);
+        const PlaceId lx = lb.alloc_place(i32);
         lb.store(lx, lb.const_int(i32, module.constants.add_int(i32, 1)));
         const ValueId laddr = lb.address_of(lx, ptr_t);
         const ValueId lloan = lb.borrow(laddr, region, ref_t, false);
-        const PlaceId lholder = lb.alloca(agg_t);
+        const PlaceId lholder = lb.alloc_place(agg_t);
         lb.field_store(lholder, field, lloan);
         lb.emit(MIROpcode::Store, MIR_NULL,
                 {MIROperand::value(lsret, ptr_t),
@@ -2348,10 +2348,10 @@ static bool test_borrow_check() {
         const BlockId dentry = db.create_block();
         direct.entry_block = dentry;
         db.set_block(dentry);
-        const PlaceId dpx = db.alloca(ref_t, MIRStorageClass::Parameter);
+        const PlaceId dpx = db.alloc_place(ref_t, MIRStorageClass::Parameter);
         direct.places[dpx].param_index = 0;
         const ValueId drv = db.load(dpx, ref_t);
-        const PlaceId dholder = db.alloca(agg_t);
+        const PlaceId dholder = db.alloc_place(agg_t);
         db.field_store(dholder, field, drv);
         const ValueId df = db.field_load(dholder, field, ref_t);
         db.ret(df);
@@ -2375,7 +2375,7 @@ static bool test_borrow_check() {
         const BlockId entry = b.create_block();
         fn.entry_block = entry;
         b.set_block(entry);
-        const PlaceId x = b.alloca(i32);
+        const PlaceId x = b.alloc_place(i32);
         b.store(x, b.const_int(i32, module.constants.add_int(i32, 1)));
         const ValueId addr = b.address_of(x, ptr_t);
         const ValueId loan = b.borrow(addr, region, ref_t, false);
@@ -2505,8 +2505,8 @@ static bool test_move_check() {
     {
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId a = b.alloca(owned_id);
-            const PlaceId c = b.alloca(owned_id);
+            const PlaceId a = b.alloc_place(owned_id);
+            const PlaceId c = b.alloc_place(owned_id);
             b.init(a, ctor, nullptr, 0);
             b.move_init(c, a, owned_id);
         });
@@ -2523,9 +2523,9 @@ static bool test_move_check() {
     {
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId a = b.alloca(owned_id);
-            const PlaceId c = b.alloca(owned_id);
-            const PlaceId d = b.alloca(owned_id);
+            const PlaceId a = b.alloc_place(owned_id);
+            const PlaceId c = b.alloc_place(owned_id);
+            const PlaceId d = b.alloc_place(owned_id);
             b.init(a, ctor, nullptr, 0);
             b.move_init(c, a, owned_id);
             b.move_init(d, a, owned_id);
@@ -2539,7 +2539,7 @@ static bool test_move_check() {
     {
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId a = b.alloca(owned_id);
+            const PlaceId a = b.alloc_place(owned_id);
             b.drop(a, dtor);
         });
         MIRMoveCheckResult r = check_function_moves(module, fn);
@@ -2550,8 +2550,8 @@ static bool test_move_check() {
     {
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId a = b.alloca(owned_id);
-            const PlaceId flag = b.alloca(bool_t);
+            const PlaceId a = b.alloc_place(owned_id);
+            const PlaceId flag = b.alloc_place(bool_t);
             b.set_drop(flag, false);
             b.drop(a, dtor, b.load(flag, bool_t));
         });
@@ -2590,9 +2590,9 @@ static bool test_move_check() {
         // alloca: the aggregate becomes initialized once every owned child is.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId temp = b.alloca(outer2_id, MIRStorageClass::Temporary);
-            const PlaceId dst = b.alloca(outer2_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId temp = b.alloc_place(outer2_id, MIRStorageClass::Temporary);
+            const PlaceId dst = b.alloc_place(outer2_id);
             b.init(src, ctor, nullptr, 0);
             b.field_store(temp, fa, b.load(src, owned_id));
             b.field_store(temp, fb, b.load(src, owned_id));
@@ -2614,9 +2614,9 @@ static bool test_move_check() {
         // every owned child is initialized.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
-            const PlaceId dst = b.alloca(outer2_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer2_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloc_place(outer2_id);
             fn.places[local].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
@@ -2626,9 +2626,9 @@ static bool test_move_check() {
 
         MIRFunction partial_move;
         build(partial_move, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer2_id, MIRStorageClass::Local);
-            const PlaceId dst = b.alloca(outer2_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer2_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloc_place(outer2_id);
             partial_move.places[local].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
@@ -2661,8 +2661,8 @@ static bool test_move_check() {
         });
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer3_id, MIRStorageClass::Local);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer3_id, MIRStorageClass::Local);
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
         });
@@ -2670,9 +2670,9 @@ static bool test_move_check() {
 
         MIRFunction partial_move;
         build(partial_move, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer3_id, MIRStorageClass::Local);
-            const PlaceId dst = b.alloca(outer3_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer3_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloc_place(outer3_id);
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
             b.move_init(dst, local, outer3_id);
@@ -2696,9 +2696,9 @@ static bool test_move_check() {
         // constant index, but is only movable once every element is live.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
-            const PlaceId dst = b.alloca(owned_arr_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId arr = b.alloc_place(owned_arr_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloc_place(owned_arr_id);
             fn.places[arr].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
@@ -2712,9 +2712,9 @@ static bool test_move_check() {
     {
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
-            const PlaceId dst = b.alloca(owned_arr_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId arr = b.alloc_place(owned_arr_id, MIRStorageClass::Local);
+            const PlaceId dst = b.alloc_place(owned_arr_id);
             fn.places[arr].field_wise_drop = true;
             b.init(src, ctor, nullptr, 0);
             b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
@@ -2736,8 +2736,8 @@ static bool test_move_check() {
         // rejected (the whole array must be initialized first).
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId arr = b.alloca(owned_arr_id, MIRStorageClass::Local);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId arr = b.alloc_place(owned_arr_id, MIRStorageClass::Local);
             b.init(src, ctor, nullptr, 0);
             b.element_store(arr, b.const_int(i32, ci0), b.load(src, owned_id));
         });
@@ -2748,8 +2748,8 @@ static bool test_move_check() {
         // Overwriting an initialized field of a fully initialized value is fine.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer2_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer2_id);
             b.init(src, ctor, nullptr, 0);
             b.init(local, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
@@ -2763,8 +2763,8 @@ static bool test_move_check() {
         // nothing to prove, so the value becomes usable and drop is allowed.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(owned_id, MIRStorageClass::Local);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(owned_id, MIRStorageClass::Local);
             b.init(src, ctor, nullptr, 0);
             b.field_store(local, fa, b.load(src, owned_id));
             b.drop(local, dtor);
@@ -2783,9 +2783,9 @@ static bool test_move_check() {
         // A field write into a moved value is a use-after-move.
         MIRFunction fn;
         build(fn, [&](MIRBuilder& b) {
-            const PlaceId src = b.alloca(owned_id);
-            const PlaceId local = b.alloca(outer2_id);
-            const PlaceId dst = b.alloca(outer2_id);
+            const PlaceId src = b.alloc_place(owned_id);
+            const PlaceId local = b.alloc_place(outer2_id);
+            const PlaceId dst = b.alloc_place(outer2_id);
             b.init(src, ctor, nullptr, 0);
             b.init(local, ctor, nullptr, 0);
             b.move_init(dst, local, outer2_id);

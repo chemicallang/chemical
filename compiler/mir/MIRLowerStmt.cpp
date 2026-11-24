@@ -75,7 +75,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     place = builder_->alloca_frame(vt, fc);
                 }
             }
-            if (place == MIR_INVALID_ID) place = builder_->alloca(vt, MIRStorageClass::Local);
+            if (place == MIR_INVALID_ID) place = builder_->alloc_place(vt, MIRStorageClass::Local);
             if (place == MIR_INVALID_ID) {
                 error = "failed to allocate place for variable";
                 return false;
@@ -1958,7 +1958,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                     ? builder_->load(static_cast<PlaceId>(cv.id), u64t)
                                     : static_cast<ValueId>(cv.id);
                     }
-                    const PlaceId iv = builder_->alloca(u64t, MIRStorageClass::Local);
+                    const PlaceId iv = builder_->alloc_place(u64t, MIRStorageClass::Local);
                     builder_->store(iv, count);
                     const BlockId head = builder_->create_block();
                     const BlockId body = builder_->create_block();
@@ -2491,7 +2491,7 @@ bool MIRLowerer::lower_switch_dispatch(SwitchStatement& sw,
 MIRExprResult MIRLowerer::lower_switch_value(SwitchValue* value, std::string& error) {
     SwitchStatement& sw = value->stmt;
     const TypeId vt = types_.map(value->getType());
-    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    const PlaceId dest = builder_->alloc_place(vt, MIRStorageClass::Temporary);
     if (!lower_switch_into(sw, dest, vt, error)) return MIRExprResult::error();
     if (abi::is_aggregate(module_, vt)) {
         return MIRExprResult::place(dest, vt);
@@ -2519,7 +2519,7 @@ bool MIRLowerer::lower_switch_into(SwitchStatement& sw, PlaceId dest, TypeId vt,
 
 MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
     const TypeId vt = types_.map(value->getType());
-    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    const PlaceId dest = builder_->alloc_place(vt, MIRStorageClass::Temporary);
     if (!lower_if_stmt_into(value->stmt, dest, vt, error)) return MIRExprResult::error();
     // for aggregates the caller wants the temp's address; for scalars the value
     if (abi::is_aggregate(module_, vt)) {
@@ -2570,7 +2570,7 @@ bool MIRLowerer::lower_if_stmt_into(IfStatement& stmt, PlaceId dest, TypeId vt,
 
 MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error) {
     const TypeId vt = types_.map(value->getType());
-    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    const PlaceId dest = builder_->alloc_place(vt, MIRStorageClass::Temporary);
     if (!lower_loop_block_into(value->stmt, dest, vt, error)) {
         return MIRExprResult::error();
     }
@@ -2810,7 +2810,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
         recv_t = builder_->function().places[recv].type;
     } else if (it.kind == MIRExprKind::Value || it.kind == MIRExprKind::Address) {
         recv_t = it.type;
-        recv = builder_->alloca(recv_t, MIRStorageClass::Temporary);
+        recv = builder_->alloc_place(recv_t, MIRStorageClass::Temporary);
         builder_->store(recv, static_cast<ValueId>(it.id));
     } else {
         error = "for-in iterable does not produce a value";
@@ -2825,7 +2825,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
     const TypeId u32t = types_.u32_type();
 
     // the loop variable holds a pointer to the current element
-    const PlaceId var_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+    const PlaceId var_place = builder_->alloc_place(elem_ptr_t, MIRStorageClass::Temporary);
     bind(loop, var_place);
     bind_name(loop->id, var_place);
 
@@ -2833,7 +2833,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
     TypeId idx_t = MIR_INVALID_ID;
     if (loop->index_init) {
         idx_t = types_.map(loop->index_init->known_type());
-        idx_place = builder_->alloca(idx_t, MIRStorageClass::Temporary);
+        idx_place = builder_->alloc_place(idx_t, MIRStorageClass::Temporary);
         bind(loop->index_init, idx_place);
         bind_name(loop->index_init->id_view(), idx_place);
     }
@@ -2926,7 +2926,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
         }
         const ValueId size_v = builder_->const_int(u64t, module_.constants.add_int(u64t, n));
         const ValueId end_v = builder_->binary(data_v, size_v, add_op, elem_ptr_t);
-        const PlaceId data_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+        const PlaceId data_place = builder_->alloc_place(elem_ptr_t, MIRStorageClass::Temporary);
         builder_->store(data_place, data_v);
         if (idx_place != MIR_INVALID_ID) {
             if (loop->is_reversed_counter()) {
@@ -2982,7 +2982,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
                              : static_cast<ValueId>(sr.id);
         if (data_v != MIR_NULL && dr.type != elem_ptr_t) data_v = builder_->cast(data_v, elem_ptr_t);
         const ValueId end_v = builder_->binary(data_v, size_v, add_op, elem_ptr_t);
-        const PlaceId data_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+        const PlaceId data_place = builder_->alloc_place(elem_ptr_t, MIRStorageClass::Temporary);
         builder_->store(data_place, data_v);
         if (idx_place != MIR_INVALID_ID) {
             if (loop->is_reversed_counter()) {
@@ -3033,7 +3033,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
             resolve_iter_impl(expr_c, reversed ? "previous_chunk" : "next_chunk");
         if (begin_fd && valid_fd && current_fd && next_fd) {
             const TypeId cursor_t = types_.map(begin_fd->returnType);
-            const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
+            const PlaceId cursor_place = builder_->alloc_place(cursor_t, MIRStorageClass::Temporary);
             const MIRNumberedName cursor_name("__chx_forin_chunk_cursor_", uniq);
             bind_name(cursor_name.view(), cursor_place);
             MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);
@@ -3082,7 +3082,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
                 if (cr.kind == MIRExprKind::Place) {
                     chunk_place = static_cast<PlaceId>(cr.id);
                 } else {
-                    chunk_place = builder_->alloca(chunk_t, MIRStorageClass::Temporary);
+                    chunk_place = builder_->alloc_place(chunk_t, MIRStorageClass::Temporary);
                     builder_->store(chunk_place, static_cast<ValueId>(cr.id));
                 }
                 const ConstantId fc_ptr = module_.constants.add_string(MIR_INVALID_ID, "ptr", 3);
@@ -3091,7 +3091,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
                 const ValueId clen = builder_->field_load(chunk_place, fc_len, u64t);
                 const ValueId inner_end_v = builder_->binary(cptr, clen, add_op, elem_ptr_t);
                 const PlaceId inner_end_place =
-                    builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+                    builder_->alloc_place(elem_ptr_t, MIRStorageClass::Temporary);
                 if (reversed) {
                     builder_->store(inner_end_place, cptr);
                     builder_->store(var_place, inner_end_v);
@@ -3169,7 +3169,7 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
             return false;
         }
         const TypeId cursor_t = types_.map(begin_fd->returnType);
-        const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
+        const PlaceId cursor_place = builder_->alloc_place(cursor_t, MIRStorageClass::Temporary);
         const MIRNumberedName cursor_name("__chx_forin_cursor_", uniq);
         bind_name(cursor_name.view(), cursor_place);
         MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);

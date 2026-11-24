@@ -187,7 +187,7 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             if (rk != MIRTypeKind::Pointer && rk != MIRTypeKind::Reference) {
                 BaseType* inner = param_type->as_reference_type()->type;
                 const TypeId it = types_.map(inner);
-                const PlaceId tmp = builder_->alloca(it, MIRStorageClass::Temporary);
+                const PlaceId tmp = builder_->alloc_place(it, MIRStorageClass::Temporary);
                 builder_->store(tmp, r.id);
                 const TypeId ptrt = types_.pointer_type(it, true);
                 r = MIRExprResult::value(builder_->address_of(tmp, ptrt), ptrt);
@@ -587,7 +587,7 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type,
         }
     }
     if (flag == MIR_INVALID_ID) {
-        flag = builder_->alloca(types_.bool_type(), MIRStorageClass::Local);
+        flag = builder_->alloc_place(types_.bool_type(), MIRStorageClass::Local);
     }
     // The root flag starts armed only when the declaration actually constructs
     // the value. An uninitialized bare declaration leaves it false, so an
@@ -764,7 +764,7 @@ MIRLowerer::MIRDropFlagRef MIRLowerer::dynamic_scalar_flag(
     const TypeId table_t = types_.sized_array_type(
         ptr_t, static_cast<uint32_t>(elements.size())
     );
-    const PlaceId table = builder_->alloca(table_t, MIRStorageClass::Local);
+    const PlaceId table = builder_->alloc_place(table_t, MIRStorageClass::Local);
     if (table == MIR_INVALID_ID) return {};
     for (const MIRDropField* element : elements) {
         const ValueId slot_index = builder_->const_int(
@@ -1019,7 +1019,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
             const TypeId table_t = types_.sized_array_type(
                 ptr_t, static_cast<uint32_t>(n)
             );
-            const PlaceId table = builder_->alloca(
+            const PlaceId table = builder_->alloc_place(
                 table_t, MIRStorageClass::Local
             );
             if (table == MIR_INVALID_ID) return {};
@@ -1208,7 +1208,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
                 const TypeId table_t = types_.sized_array_type(
                     ptr_t, static_cast<uint32_t>(n)
                 );
-                const PlaceId table = builder_->alloca(
+                const PlaceId table = builder_->alloc_place(
                     table_t, MIRStorageClass::Local
                 );
                 if (table == MIR_INVALID_ID) return {};
@@ -1365,7 +1365,7 @@ MIRLowerer::MIRDropElementRef MIRLowerer::drop_flag_for_two_dynamic_indices(
     const TypeId table_t = types_.sized_array_type(
         ptr_t, static_cast<uint32_t>(n * m)
     );
-    const PlaceId table = builder_->alloca(table_t, MIRStorageClass::Local);
+    const PlaceId table = builder_->alloc_place(table_t, MIRStorageClass::Local);
     if (table == MIR_INVALID_ID) return {};
     for (size_t i = 0; i < flags.size(); ++i) {
         const ValueId slot_index = builder_->const_int(
@@ -3385,7 +3385,7 @@ MIRLowerer::MIRDropField MIRLowerer::build_drop_field(const chem::string_view& n
             );
         }
     } else {
-        f.flag = builder_->alloca(types_.bool_type(), MIRStorageClass::Local);
+        f.flag = builder_->alloc_place(types_.bool_type(), MIRStorageClass::Local);
         if (f.flag != MIR_INVALID_ID) builder_->set_drop(f.flag, false);
     }
     return f;
@@ -3430,7 +3430,7 @@ PlaceId MIRLowerer::make_drop_flag_array(uint64_t count) {
     const TypeId bool_array = types_.sized_array_type(
         types_.bool_type(), static_cast<uint32_t>(count)
     );
-    const PlaceId flags = builder_->alloca(bool_array, MIRStorageClass::Local);
+    const PlaceId flags = builder_->alloc_place(bool_array, MIRStorageClass::Local);
     set_flag_array(flags, count, false);
     return flags;
 }
@@ -3504,7 +3504,7 @@ void MIRLowerer::destroy_flag_array_from(ValueId array_ptr,
     // A runtime loop keeps the code size independent of the array length. The
     // index is a local (not a block argument) so the existing move-path data
     // flow does not need a phi for it.
-    const PlaceId index_place = builder_->alloca(u32, MIRStorageClass::Local);
+    const PlaceId index_place = builder_->alloc_place(u32, MIRStorageClass::Local);
     builder_->store(index_place, builder_->const_int(
         u32, module_.constants.add_int(u32, count)
     ));
@@ -3588,7 +3588,7 @@ void MIRLowerer::destroy_flat_leaf_array_from(
     const ConstantId add_op = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)
     );
-    const PlaceId index_place = builder_->alloca(u32, MIRStorageClass::Local);
+    const PlaceId index_place = builder_->alloc_place(u32, MIRStorageClass::Local);
     builder_->store(index_place, builder_->const_int(
         u32, module_.constants.add_int(u32, count)
     ));
@@ -3789,7 +3789,7 @@ void MIRLowerer::destroy_array_template(ValueId array_ptr,
     const ConstantId eq_op = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)
     );
-    const PlaceId index_place = builder_->alloca(u32, MIRStorageClass::Local);
+    const PlaceId index_place = builder_->alloc_place(u32, MIRStorageClass::Local);
     builder_->store(index_place, builder_->const_int(
         u32, module_.constants.add_int(u32, count)
     ));
@@ -7636,7 +7636,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 FunctionDeclaration* ctor = sd->constructor_func(acall->values);
                 if (!ctor && acall->values.empty()) ctor = conv_type->get_def_constructor();
                 const TypeId mt = types_.map(conv_type);
-                const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+                const PlaceId tmp = builder_->alloc_place(mt, MIRStorageClass::Temporary);
                 MIRArgScope _ag_scope(*this);
                 std::vector<MIROperand>& cargs = _ag_scope.v;
                 const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
@@ -7730,7 +7730,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                     if (ev) return lower_expr(ev, error);
                 }
                 const TypeId mt = types_.map(inst);
-                const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+                const PlaceId tmp = builder_->alloc_place(mt, MIRStorageClass::Temporary);
                 MIRArgScope _ag_scope(*this);
                 std::vector<MIROperand>& cargs = _ag_scope.v;
                 std::vector<Value*> one{lambda_arg};
@@ -7759,7 +7759,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 if (ev) return lower_expr(ev, error);
             }
             const TypeId mt = types_.map(conv_type);
-            const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+            const PlaceId tmp = builder_->alloc_place(mt, MIRStorageClass::Temporary);
             MIRArgScope _ag_scope(*this);
             std::vector<MIROperand>& cargs = _ag_scope.v;
             std::vector<Value*> one{arg};
@@ -8450,7 +8450,7 @@ MIRExprResult MIRLowerer::lower_pattern_match_value(PatternMatchExpr* pm, std::s
             return MIRExprResult::error();
         }
         const TypeId pt = types_.map(pm->param_names[0]->member_param->type);
-        const PlaceId res = builder_->alloca(pt, MIRStorageClass::Temporary);
+        const PlaceId res = builder_->alloc_place(pt, MIRStorageClass::Temporary);
         const BlockId then_b = builder_->create_block();
         const BlockId else_b = builder_->create_block();
         const BlockId merge = builder_->create_block();
@@ -8739,7 +8739,7 @@ bool MIRLowerer::lower_array_pattern_node(PatternMatchExpr* pm,
             }
         }
         if (place == MIR_INVALID_ID) {
-            place = builder_->alloca(vt, MIRStorageClass::Local);
+            place = builder_->alloc_place(vt, MIRStorageClass::Local);
         }
         if (place == MIR_INVALID_ID) {
             error = "failed to allocate a place for an array pattern element";
@@ -8836,7 +8836,7 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
         return false;
     }
     const TypeId tuple_vt = types_.map(tuple_type);
-    const PlaceId tuple_place = builder_->alloca(tuple_vt, MIRStorageClass::Local);
+    const PlaceId tuple_place = builder_->alloc_place(tuple_vt, MIRStorageClass::Local);
     if (tuple_place == MIR_INVALID_ID) {
         error = "failed to allocate a place for a tuple pattern value";
         return false;
@@ -8907,7 +8907,7 @@ bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::strin
             }
         }
         if (place == MIR_INVALID_ID) {
-            place = builder_->alloca(vt, MIRStorageClass::Local);
+            place = builder_->alloc_place(vt, MIRStorageClass::Local);
         }
         if (place == MIR_INVALID_ID) {
             error = "failed to allocate a place for a tuple pattern element";
@@ -9429,7 +9429,7 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
             args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), st));
         } else {
             const TypeId rt = recv.type;
-            const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
+            const PlaceId tmp = builder_->alloc_place(rt, MIRStorageClass::Temporary);
             builder_->store(tmp, static_cast<ValueId>(recv.id));
             const TypeId ptrt = types_.pointer_type(rt, true);
             push_receiver_address(builder_->address_of(tmp, ptrt), ptrt);
@@ -9470,7 +9470,7 @@ MIRExprResult MIRLowerer::emit_resolved_call(SymbolId sym, TypeId ret_type,
         return MIRExprResult::void_result();
     }
     if (abi::needs_sret(module_, ret_type)) {
-        const PlaceId res = builder_->alloca(ret_type, MIRStorageClass::Temporary);
+        const PlaceId res = builder_->alloc_place(ret_type, MIRStorageClass::Temporary);
         if (res == MIR_INVALID_ID) {
             error = "failed to allocate call result place";
             return MIRExprResult::error();

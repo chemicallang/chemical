@@ -204,7 +204,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const TypeId bool_t = types_.bool_type();
                 MIRExprResult a = lower_expr(e->firstValue, error);
                 if (!a.ok()) return a;
-                const PlaceId res = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+                const PlaceId res = builder_->alloc_place(bool_t, MIRStorageClass::Temporary);
                 builder_->store(res, a.id);
                 const BlockId rhs_b = builder_->create_block();
                 const BlockId end_b = builder_->create_block();
@@ -263,7 +263,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (type != MIR_INVALID_ID && type < module_.types.size() &&
                 module_.types.get(type).kind == MIRTypeKind::Array) {
                 // casting a pointer to an array: copy the bytes into a temp array
-                const PlaceId tmp = builder_->alloca(type, MIRStorageClass::Temporary);
+                const PlaceId tmp = builder_->alloc_place(type, MIRStorageClass::Temporary);
                 if (in.kind == MIRExprKind::Value || in.kind == MIRExprKind::Address) {
                     builder_->copy_ptr_to_place(tmp, static_cast<ValueId>(in.id));
                 } else if (in.kind == MIRExprKind::Place) {
@@ -296,7 +296,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (raw != MIR_INVALID_ID) {
                         if (raw_type == MIR_INVALID_ID) raw_type = type;
                         const TypeId bool_t = types_.bool_type();
-                        const PlaceId valid = builder_->alloca(
+                        const PlaceId valid = builder_->alloc_place(
                             bool_t, MIRStorageClass::Temporary);
                         builder_->store(
                             valid, builder_->const_bool(
@@ -540,7 +540,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 return nullptr;
             };
-            const PlaceId temp = builder_->alloca(st, MIRStorageClass::Temporary);
+            const PlaceId temp = builder_->alloc_place(st, MIRStorageClass::Temporary);
             if (temp == MIR_INVALID_ID) {
                 error = "failed to allocate struct temporary";
                 return MIRExprResult::error();
@@ -674,7 +674,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                     }
                     const TypeId mt = types_.map(member_type);
-                    const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+                    const PlaceId tmp = builder_->alloc_place(mt, MIRStorageClass::Temporary);
                     MIRArgScope _ag_scope(*this);
                     std::vector<MIROperand>& cargs = _ag_scope.v;
                     std::vector<Value*> one{init.value};
@@ -838,7 +838,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     auto* vm = vleaf->as_variant_member_unsafe();
                     VariantDefinition* vd = vm->parent();
                     const TypeId vt = types_.map(call->getType());
-                    const PlaceId temp = builder_->alloca(vt, MIRStorageClass::Temporary);
+                    const PlaceId temp = builder_->alloc_place(vt, MIRStorageClass::Temporary);
                     // The whole-temp zero defines the bytes the active case does
                     // not write -- but the only bytes ever read for a variant case
                     // are its discriminator and its own payload, so the zero is
@@ -987,7 +987,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (ctor_node) {
                 BaseType* ctype = call->getType();
                 const TypeId st = types_.map(ctype);
-                const PlaceId place = builder_->alloca(st, MIRStorageClass::Temporary);
+                const PlaceId place = builder_->alloc_place(st, MIRStorageClass::Temporary);
                 StructDefinition* sd = nullptr;
                 if (ctype) {
                     ASTNode* cn = ctype->get_direct_linked_canonical_node();
@@ -1075,7 +1075,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         callee_node && callee_node->kind() == ASTNodeKind::StructMember;
                     if (!mfd && !recv_is_place && !callee_is_field &&
                         abi::is_aggregate(module_, ct)) {
-                        const PlaceId place = builder_->alloca(ct, MIRStorageClass::Temporary);
+                        const PlaceId place = builder_->alloc_place(ct, MIRStorageClass::Temporary);
                         FunctionDeclaration* ctor = nullptr;
                         if (call->getType()) {
                             ASTNode* cn = call->getType()->get_direct_linked_canonical_node();
@@ -1235,7 +1235,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 }
                                 if (abi::needs_sret(module_, crt)) {
                                     const PlaceId tmp =
-                                        builder_->alloca(crt, MIRStorageClass::Temporary);
+                                        builder_->alloc_place(crt, MIRStorageClass::Temporary);
                                     builder_->zero_init(tmp);
                                     call_indirect_sret_with_regions(
                                         fnptr, tmp, cargs.data(),
@@ -1287,7 +1287,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             }
                             if (abi::needs_sret(module_, rt)) {
                                 const PlaceId tmp =
-                                    builder_->alloca(rt, MIRStorageClass::Temporary);
+                                    builder_->alloc_place(rt, MIRStorageClass::Temporary);
                                 builder_->zero_init(tmp);
                                 call_indirect_sret_with_regions(
                                     fnptr, tmp, cargs.data(),
@@ -1381,7 +1381,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (abi::needs_sret(module_, rt)) {
                         // aggregate return: use the sret convention (the callee
                         // returns void and writes through a leading pointer)
-                        const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
+                        const PlaceId tmp = builder_->alloc_place(rt, MIRStorageClass::Temporary);
                         builder_->zero_init(tmp);
                         call_indirect_sret_with_regions(
                             fnptr, tmp, cargs.data(),
@@ -1470,7 +1470,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::void_result();
             }
             if (abi::needs_sret(module_, type)) {
-                const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
+                const PlaceId res = builder_->alloc_place(type, MIRStorageClass::Temporary);
                 if (res == MIR_INVALID_ID) {
                     error = "failed to allocate struct-return result place";
                     return MIRExprResult::error();
@@ -1569,7 +1569,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                              static_cast<uint32_t>(arr->values.size()));
                 decay = true;
             }
-            const PlaceId place = builder_->alloca(at, MIRStorageClass::Temporary);
+            const PlaceId place = builder_->alloc_place(at, MIRStorageClass::Temporary);
             // Zero the array so elements not covered by the literal are 0 -- but
             // only when the literal leaves tail elements. A literal that fills
             // the array (the common case, including the decayed unsized form,
@@ -1816,7 +1816,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             Scope* scope = &bv->scope;
             Value* calculated = bv->getCalculatedValue();
             const TypeId vt = type;
-            const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+            const PlaceId dest = builder_->alloc_place(vt, MIRStorageClass::Temporary);
             if (calculated) {
                 const size_t mark = destructibles_.size();
                 for (ASTNode* n : scope->nodes) {
@@ -1854,7 +1854,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             const TypeId bool_t = types_.bool_type();
             MIRExprResult v = lower_expr(in->value, error);
             if (!v.ok()) return v;
-            const PlaceId res = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+            const PlaceId res = builder_->alloc_place(bool_t, MIRStorageClass::Temporary);
             builder_->store(
                 res, builder_->const_bool(
                          bool_t, module_.constants.add_bool(bool_t, in->is_negating)));
@@ -1966,7 +1966,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::ZeroedValue: {
             const TypeId zt = type;
-            const PlaceId tmp = builder_->alloca(zt, MIRStorageClass::Temporary);
+            const PlaceId tmp = builder_->alloc_place(zt, MIRStorageClass::Temporary);
             builder_->zero_init(tmp);
             if (abi::is_aggregate(module_, zt)) return MIRExprResult::place(tmp, zt);
             return MIRExprResult::value(builder_->load(tmp, zt), zt);
@@ -1991,7 +1991,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             const TypeId ft = types_.fat_pointer_type();
             const TypeId voidp = types_.pointer_type(types_.opaque_type(), true);
-            const PlaceId temp = builder_->alloca(ft, MIRStorageClass::Temporary);
+            const PlaceId temp = builder_->alloc_place(ft, MIRStorageClass::Temporary);
             // A fat pointer is `{ void* first; void* second; }` with no padding,
             // and both fields are written just below -- the whole-temp zero was
             // dead bytes (evaluation §1.2, action C1).
@@ -2205,7 +2205,7 @@ ValueId MIRLowerer::lower_float_to_int(ValueId value, TypeId src, TypeId dst) {
     // `Select` is not in the C emitter's straight-line subset, so lower the
     // four outcomes with ordinary blocks. The result place is live across the
     // branches and read after the merge.
-    const PlaceId out = builder_->alloca(dst, MIRStorageClass::Temporary);
+    const PlaceId out = builder_->alloc_place(dst, MIRStorageClass::Temporary);
     const BlockId nan_b = builder_->create_block();
     const BlockId low_check_b = builder_->create_block();
     const BlockId low_b = builder_->create_block();
@@ -2397,7 +2397,7 @@ void MIRLowerer::emit_overflow_check(MIRBinaryOp op, ValueId lhs, ValueId rhs,
     // exactly when `rhs == MIN`; otherwise the wrapped result divided by lhs
     // must equal rhs. The division is only reached when lhs is neither 0 nor
     // -1, so it cannot trap.
-    const PlaceId ok = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+    const PlaceId ok = builder_->alloc_place(bool_t, MIRStorageClass::Temporary);
     builder_->store(ok, builder_->const_bool(
         bool_t, module_.constants.add_bool(bool_t, true)));
     const ValueId lhs_is_zero = builder_->compare(lhs, zero, eq, bool_t);

@@ -1157,7 +1157,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
         b.store(place, pv);
         bind(self_param, place);
         bind_name(self_param->name, place);
@@ -1191,13 +1191,13 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         if (is_aggregate) {
             // the aggregate is passed by a hidden pointer; materialize a
             // by-value copy so the body sees the value, not the pointer
-            place = b.alloca(declared, MIRStorageClass::Parameter);
+            place = b.alloc_place(declared, MIRStorageClass::Parameter);
             ValueId val = b.load_indirect(pv, declared);
             b.store(place, val);
             // remember the argument pointer for escaping addresses (`dyn<T>(p)`)
             aggregate_param_ptrs_[p] = pv;
         } else {
-            place = b.alloca(pt, MIRStorageClass::Parameter);
+            place = b.alloc_place(pt, MIRStorageClass::Parameter);
             b.store(place, pv);
         }
         if (place == MIR_INVALID_ID) {

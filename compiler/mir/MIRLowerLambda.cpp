@@ -205,7 +205,7 @@ MIRExprResult MIRLowerer::lower_moved_captured_variable(CapturedVariable* cap,
         MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));
     if (abi::is_aggregate(module_, ft) && capture_has_drop_flag(cap)) {
         const ValueId src = builder_->field_addr_ptr(env, fc, ft);
-        const PlaceId tmp = builder_->alloca(ft, MIRStorageClass::Temporary);
+        const PlaceId tmp = builder_->alloc_place(ft, MIRStorageClass::Temporary);
         if (tmp == MIR_INVALID_ID) {
             error = "failed to allocate moved capture temporary";
             return MIRExprResult::error();
@@ -363,7 +363,7 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         if (recv.kind == MIRExprKind::Address) {
             const TypeId inst_type = types_.map(inst);
             once_source_ptr = static_cast<ValueId>(recv.id);
-            const PlaceId tmp = builder_->alloca(inst_type, MIRStorageClass::Temporary);
+            const PlaceId tmp = builder_->alloc_place(inst_type, MIRStorageClass::Temporary);
             if (tmp == MIR_INVALID_ID) {
                 error = "failed to allocate moved FnOnce field";
                 return MIRExprResult::error();
@@ -499,7 +499,7 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         return MIRExprResult::void_result();
     }
     if (abi::needs_sret(module_, crt)) {
-        const PlaceId tmp = builder_->alloca(crt, MIRStorageClass::Temporary);
+        const PlaceId tmp = builder_->alloc_place(crt, MIRStorageClass::Temporary);
         builder_->zero_init(tmp);
         // the legacy capturing-function ABI is `(this, sret, params)`, so the
         // sret pointer is a regular leading argument after the data pointer
@@ -1088,7 +1088,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
         if (place == MIR_INVALID_ID) {
             ok = false;
             error = "failed to allocate lambda parameter place";
@@ -1165,7 +1165,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     } // !lamb->isAsync()
 
     // 4. materialize the closure temp in the enclosing function
-    const PlaceId cap_temp = builder_->alloca(cap_type, MIRStorageClass::Temporary);
+    const PlaceId cap_temp = builder_->alloc_place(cap_type, MIRStorageClass::Temporary);
     if (cap_temp == MIR_INVALID_ID) {
         error = "failed to allocate lambda closure";
         return false;
@@ -1235,7 +1235,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
                     ValueId ptr = a.kind == MIRExprKind::Place
                                       ? builder_->address_of(static_cast<PlaceId>(a.id), ptrt)
                                       : builder_->cast(static_cast<ValueId>(a.id), ptrt);
-                    const PlaceId tmp = builder_->alloca(original, MIRStorageClass::Temporary);
+                    const PlaceId tmp = builder_->alloc_place(original, MIRStorageClass::Temporary);
                     if (tmp == MIR_INVALID_ID) {
                         error = "failed to allocate nested closure copy";
                         return false;
@@ -1478,7 +1478,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place = b.alloc_place(pt, MIRStorageClass::Parameter);
         if (place == MIR_INVALID_ID) {
             ok = false;
             error = "failed to allocate lambda parameter place";

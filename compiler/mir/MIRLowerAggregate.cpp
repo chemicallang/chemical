@@ -25,7 +25,7 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
         const ConstantId bfc = module_.constants.add_string(
             MIR_INVALID_ID, bn.data(), static_cast<uint32_t>(bn.size()));
         const TypeId bmt = types_.map(bt);
-        const PlaceId btmp = builder_->alloca(bmt, MIRStorageClass::Temporary);
+        const PlaceId btmp = builder_->alloc_place(bmt, MIRStorageClass::Temporary);
         if (btmp == MIR_INVALID_ID) continue;
         FunctionDeclaration* dc = nullptr;
         if (base->kind() == ASTNodeKind::StructDecl) {
@@ -60,7 +60,7 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
                 auto* msd = mn->as_struct_def_unsafe();
                 FunctionDeclaration* dc = msd->default_constructor_func();
                 const TypeId mtid = types_.map(mt);
-                const PlaceId mtmp = builder_->alloca(mtid, MIRStorageClass::Temporary);
+                const PlaceId mtmp = builder_->alloc_place(mtid, MIRStorageClass::Temporary);
                 // as for the inherited-base temporary: a `return T{...}`
                 // constructor or a fully covering recursive default pass makes
                 // the whole-temp zero dead (action C1)

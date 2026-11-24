@@ -780,6 +780,56 @@ export const dom = {
     const i = Number(index);
     return (i >= 0 && i < kids.length) ? retain(kids[i]) : 0;
   },
+  get_context_2d: (handle) => retain(element(handle).getContext ? element(handle).getContext("2d") : null),
+
+  canvas_fill_rect: (ctx, x, y, w, h) => { element(ctx).fillRect(Number(x), Number(y), Number(w), Number(h)); },
+  canvas_clear_rect: (ctx, x, y, w, h) => { element(ctx).clearRect(Number(x), Number(y), Number(w), Number(h)); },
+  canvas_begin_path: (ctx) => { element(ctx).beginPath(); },
+  canvas_move_to: (ctx, x, y) => { element(ctx).moveTo(Number(x), Number(y)); },
+  canvas_line_to: (ctx, x, y) => { element(ctx).lineTo(Number(x), Number(y)); },
+  canvas_arc: (ctx, x, y, radius, start, end) => {
+    element(ctx).arc(Number(x), Number(y), Number(radius), Number(start), Number(end));
+  },
+  canvas_close_path: (ctx) => { element(ctx).closePath(); },
+  canvas_fill: (ctx) => { element(ctx).fill(); },
+  canvas_stroke: (ctx) => { element(ctx).stroke(); },
+  canvas_save: (ctx) => { element(ctx).save(); },
+  canvas_restore: (ctx) => { element(ctx).restore(); },
+  canvas_set_fill_style: (ctx, value) => { element(ctx).fillStyle = text_at(value); },
+  canvas_set_stroke_style: (ctx, value) => { element(ctx).strokeStyle = text_at(value); },
+  canvas_set_line_width: (ctx, width) => { element(ctx).lineWidth = Number(width); },
+  canvas_set_font: (ctx, font) => { element(ctx).font = text_at(font); },
+  canvas_fill_text: (ctx, text, x, y) => { element(ctx).fillText(text_at(text), Number(x), Number(y)); },
+  canvas_translate: (ctx, x, y) => { element(ctx).translate(Number(x), Number(y)); },
+  canvas_rotate: (ctx, radians) => { element(ctx).rotate(Number(radians)); },
+  canvas_scale: (ctx, x, y) => { element(ctx).scale(Number(x), Number(y)); },
+  canvas_set_transform: (ctx, a, b, c, d, e, f) => {
+    element(ctx).setTransform(Number(a), Number(b), Number(c), Number(d), Number(e), Number(f));
+  },
+
+  request_animation_frame: (fn) => {
+    if (typeof globalThis.requestAnimationFrame !== "function") {
+      throw new Error("js runtime: no requestAnimationFrame available");
+    }
+    return globalThis.requestAnimationFrame((time) => call_chemical(fn, Number(time)));
+  },
+  cancel_animation_frame: (id) => {
+    if (typeof globalThis.cancelAnimationFrame === "function") globalThis.cancelAnimationFrame(Number(id));
+  },
+
+  event_client_x: (event) => Number(resolve_handle(event).clientX ?? 0),
+  event_client_y: (event) => Number(resolve_handle(event).clientY ?? 0),
+  event_button: (event) => Number((resolve_handle(event).button ?? -1)),
+  event_pointer_id: (event) => Number((resolve_handle(event).pointerId ?? -1)),
+  set_pointer_capture: (handle, pointer_id) => {
+    const el = element(handle);
+    if (el.setPointerCapture) el.setPointerCapture(Number(pointer_id));
+  },
+  release_pointer_capture: (handle, pointer_id) => {
+    const el = element(handle);
+    if (el.releasePointerCapture) el.releasePointerCapture(Number(pointer_id));
+  },
+
   matches: (handle, selector) => (element(handle).matches(text_at(selector)) ? 1 : 0),
   closest: (handle, selector) => {
     const sel = text_at(selector);

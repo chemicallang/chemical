@@ -1880,6 +1880,20 @@ with `await` and with handlers.
 2. Canvas/pointer surface: `CanvasRenderingContext2D`, `PointerEvent`, `requestAnimationFrame`,
    `ImageData`, transforms — the sketchable/123mind requirement; the typed wrapper that apps wrote
    over `#js` in v1 becomes a thin alias, so no call-site migration.
+   **Progress 2026-11-24:** `dom::Canvas2D` (`Element.get_context_2d()` → `Option<Canvas2D>`) with
+   rects, paths (`begin_path`/`move_to`/`line_to`/`arc`/`close_path`), fill/stroke, state
+   (`save`/`restore`, `fill_style`/`stroke_style`/`line_width`/`font`, `fill_text`), transforms
+   (`translate`/`rotate`/`scale`/`set_transform`) and `request_animation_frame`/
+   `cancel_animation_frame`; pointer input as `Event.client_x`/`client_y`/`button`/`pointer_id`
+   plus `Element.set_pointer_capture`/`release_pointer_capture`. Coordinates are `f64` CSS pixels,
+   so a v1 `#js` wrapper keeps its arithmetic — the wrapper becomes an alias, no call-site
+   migration. Every call is a `chx_dom_*` host extern, so the surface costs nothing server-side
+   (the prefix rule refuses it at translation time). `web-dom-test.sh` now proves the drawing
+   calls reach the host with their arguments: the harness records a 2D context and the gate
+   compares the full op log (`fillRect(0,0,320,200)`, `stroke(rgb(255, 0, 0),2)`,
+   `setTransform(1,0,0,1,0,0)`, `fillText(chemical,8,24)`, `setPointerCapture(1)`) and the frame
+   timestamp. Still open in item 2: `ImageData`/`put_image_data` and `drawImage` (needs an image
+   source — the `image` library's decode plus a bitmap handle), and `Path2D`/gradients.
 3. Uploads: multipart parsing in `http`, `image` PNG **encode** (today it decodes only).
 4. `BigInt` for `i64/u64` in client code; `dyn`-heavy patterns.
 

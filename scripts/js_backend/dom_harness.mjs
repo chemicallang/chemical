@@ -68,10 +68,16 @@ class FakeElement {
 
   dispatchEvent(type) {
     const key = String(type);
+    // Pointer fields a real event carries: the typed `dom::Event` reads them, so a
+    // harness event without them would silently answer 0 for every coordinate.
     const event = {
       type: key,
       target: this,
       key: "",
+      clientX: 10,
+      clientY: 20,
+      button: 0,
+      pointerId: 1,
       defaultPrevented: false,
       preventDefault() { this.defaultPrevented = true; },
       stopPropagation() {},
@@ -99,6 +105,46 @@ class FakeElement {
   }
 
   focus() { this.ownerDocument.focused = this; }
+
+  setPointerCapture(id) { globalThis.__chx_canvas_ops.push(`setPointerCapture(${id})`); }
+  releasePointerCapture(id) { globalThis.__chx_canvas_ops.push(`releasePointerCapture(${id})`); }
+
+  // A recording 2D context: every drawing call appends its arguments, so the gate
+  // asserts the emitted JavaScript reached the host with the right numbers rather
+  // than only that the Chemical side ran.
+  getContext(kind) {
+    if (String(kind) !== "2d") return null;
+    if (!this.ctx) this.ctx = new FakeContext2D();
+    return this.ctx;
+  }
+}
+
+const canvasOps = [];
+globalThis.__chx_canvas_ops = canvasOps;
+
+class FakeContext2D {
+  constructor() {
+    this.fillStyle = "#000";
+    this.strokeStyle = "#000";
+    this.lineWidth = 1;
+    this.font = "10px sans-serif";
+  }
+  fillRect(x, y, w, h) { canvasOps.push(`fillRect(${x},${y},${w},${h})`); }
+  clearRect(x, y, w, h) { canvasOps.push(`clearRect(${x},${y},${w},${h})`); }
+  beginPath() { canvasOps.push("beginPath"); }
+  moveTo(x, y) { canvasOps.push(`moveTo(${x},${y})`); }
+  lineTo(x, y) { canvasOps.push(`lineTo(${x},${y})`); }
+  arc(x, y, r, s, e) { canvasOps.push(`arc(${x},${y},${r},${s},${e})`); }
+  closePath() { canvasOps.push("closePath"); }
+  fill() { canvasOps.push(`fill(${this.fillStyle})`); }
+  stroke() { canvasOps.push(`stroke(${this.strokeStyle},${this.lineWidth})`); }
+  save() { canvasOps.push("save"); }
+  restore() { canvasOps.push("restore"); }
+  fillText(text, x, y) { canvasOps.push(`fillText(${text},${x},${y})`); }
+  translate(x, y) { canvasOps.push(`translate(${x},${y})`); }
+  rotate(r) { canvasOps.push(`rotate(${r})`); }
+  scale(x, y) { canvasOps.push(`scale(${x},${y})`); }
+  setTransform(a, b, c, d, e, f) { canvasOps.push(`setTransform(${a},${b},${c},${d},${e},${f})`); }
 }
 
 class FakeDocument {
@@ -182,6 +228,16 @@ globalThis.fetch = async (url) => {
   };
 };
 
+const rafQueue = [];
+globalThis.requestAnimationFrame = (fn) => {
+  rafQueue.push(fn);
+  return rafQueue.length;
+};
+
+globalThis.cancelAnimationFrame = (id) => {
+  if (id > 0 && id <= rafQueue.length) rafQueue[id - 1] = () => {};
+};
+
 const entry = pathToFileURL(resolve(dir, "index.mjs")).href;
 let bundle;
 try {
@@ -217,4 +273,12 @@ if (!countBeforeFetch) {
 button.click();
 
 await new Promise((done) => setTimeout(done, 25));
+
+// `requestAnimationFrame` is delivered like a browser would: queued, then run with
+// a frame timestamp. Printing the log proves the Chemical callback ran and that the
+// drawing calls crossed the host boundary with their coordinates intact.
+for (const frame of rafQueue.splice(0)) frame(16);
+if (globalThis.__chx_canvas_ops.length) {
+  console.log(`dom canvas ops=${globalThis.__chx_canvas_ops.join(";")}`);
+}
 console.log("dom-harness: done");

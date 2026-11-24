@@ -123,6 +123,98 @@ public namespace raw {
     @extern @no_mangle
     func chx_dom_closest(handle : usize, selector : string_view) : usize
 
+    // ── Canvas 2D ───────────────────────────────────────────────────────────
+    // A context is a handle like an element: `0` means the element is not a
+    // canvas (or a 2D context is unavailable), so the safe side returns an
+    // `Option`. Coordinates are `f64` — the CSS pixel space the canvas API uses.
+    @extern @no_mangle
+    func chx_dom_get_context_2d(handle : usize) : usize
+
+    @extern @no_mangle
+    func chx_dom_canvas_fill_rect(ctx : usize, x : f64, y : f64, w : f64, h : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_clear_rect(ctx : usize, x : f64, y : f64, w : f64, h : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_begin_path(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_move_to(ctx : usize, x : f64, y : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_line_to(ctx : usize, x : f64, y : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_arc(ctx : usize, x : f64, y : f64, radius : f64, start : f64, end : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_close_path(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_fill(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_stroke(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_save(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_restore(ctx : usize)
+
+    @extern @no_mangle
+    func chx_dom_canvas_set_fill_style(ctx : usize, value : string_view)
+
+    @extern @no_mangle
+    func chx_dom_canvas_set_stroke_style(ctx : usize, value : string_view)
+
+    @extern @no_mangle
+    func chx_dom_canvas_set_line_width(ctx : usize, width : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_set_font(ctx : usize, font : string_view)
+
+    @extern @no_mangle
+    func chx_dom_canvas_fill_text(ctx : usize, text : string_view, x : f64, y : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_translate(ctx : usize, x : f64, y : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_rotate(ctx : usize, radians : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_scale(ctx : usize, x : f64, y : f64)
+
+    @extern @no_mangle
+    func chx_dom_canvas_set_transform(ctx : usize, a : f64, b : f64, c : f64, d : f64, e : f64, f : f64)
+
+    // ── Animation frames and pointer events ─────────────────────────────────
+    @extern @no_mangle
+    func chx_dom_request_animation_frame(callback : (time_ms : f64) => void) : int
+
+    @extern @no_mangle
+    func chx_dom_event_client_x(event : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_event_client_y(event : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_event_button(event : usize) : int
+
+    @extern @no_mangle
+    func chx_dom_event_pointer_id(event : usize) : int
+
+    @extern @no_mangle
+    func chx_dom_cancel_animation_frame(id : int)
+
+    @extern @no_mangle
+    func chx_dom_set_pointer_capture(handle : usize, pointer_id : int)
+
+    @extern @no_mangle
+    func chx_dom_release_pointer_capture(handle : usize, pointer_id : int)
+
     @extern @no_mangle
     func chx_dom_on(handle : usize, event : string_view, handler : (e : &Event) => void)
 
@@ -340,6 +432,132 @@ public struct Element {
         }
         return Option.Some<Element>(Element { handle : h })
     }
+
+    /// The element's 2D drawing context — `None` when this element is not a
+    /// `<canvas>` (or the host has no 2D context for it).
+    public func get_context_2d(&self) : Option<Canvas2D> {
+        var h = unsafe(raw::chx_dom_get_context_2d(handle))
+        if(h == 0) {
+            return Option.None<Canvas2D>()
+        }
+        return Option.Some<Canvas2D>(Canvas2D { handle : h })
+    }
+
+    /// Capture pointer events for `pointer_id` until `release_pointer_capture`
+    /// (a drag that keeps receiving moves when the pointer leaves the element).
+    public func set_pointer_capture(&self, pointer_id : int) {
+        unsafe { raw::chx_dom_set_pointer_capture(handle, pointer_id) }
+    }
+
+    public func release_pointer_capture(&self, pointer_id : int) {
+        unsafe { raw::chx_dom_release_pointer_capture(handle, pointer_id) }
+    }
+}
+
+// ── Canvas 2D ───────────────────────────────────────────────────────────────
+/// A `<canvas>` 2D context, as a host handle.
+///
+/// The drawing surface an app needs instead of `#js`: paths (`begin_path`,
+/// `move_to`, `line_to`, `arc`), state (`save`/`restore`, styles, line width),
+/// transforms and `fill_text`. Coordinates are CSS pixels, matching the browser
+/// API, so a wrapper written over `#js` keeps its arithmetic.
+@direct_init
+public struct Canvas2D {
+    internal var handle : usize
+
+    public func fill_rect(&self, x : f64, y : f64, w : f64, h : f64) {
+        unsafe { raw::chx_dom_canvas_fill_rect(handle, x, y, w, h) }
+    }
+
+    public func clear_rect(&self, x : f64, y : f64, w : f64, h : f64) {
+        unsafe { raw::chx_dom_canvas_clear_rect(handle, x, y, w, h) }
+    }
+
+    public func begin_path(&self) {
+        unsafe { raw::chx_dom_canvas_begin_path(handle) }
+    }
+
+    public func move_to(&self, x : f64, y : f64) {
+        unsafe { raw::chx_dom_canvas_move_to(handle, x, y) }
+    }
+
+    public func line_to(&self, x : f64, y : f64) {
+        unsafe { raw::chx_dom_canvas_line_to(handle, x, y) }
+    }
+
+    public func arc(&self, x : f64, y : f64, radius : f64, start : f64, end : f64) {
+        unsafe { raw::chx_dom_canvas_arc(handle, x, y, radius, start, end) }
+    }
+
+    public func close_path(&self) {
+        unsafe { raw::chx_dom_canvas_close_path(handle) }
+    }
+
+    public func fill(&self) {
+        unsafe { raw::chx_dom_canvas_fill(handle) }
+    }
+
+    public func stroke(&self) {
+        unsafe { raw::chx_dom_canvas_stroke(handle) }
+    }
+
+    /// Push/pop the whole context state (style, transform, line width).
+    public func save(&self) {
+        unsafe { raw::chx_dom_canvas_save(handle) }
+    }
+
+    public func restore(&self) {
+        unsafe { raw::chx_dom_canvas_restore(handle) }
+    }
+
+    /// A CSS color (`"#0af"`, `"rgb(0, 170, 255)"`).
+    public func set_fill_style(&self, value : string_view) {
+        unsafe { raw::chx_dom_canvas_set_fill_style(handle, value) }
+    }
+
+    public func set_stroke_style(&self, value : string_view) {
+        unsafe { raw::chx_dom_canvas_set_stroke_style(handle, value) }
+    }
+
+    public func set_line_width(&self, width : f64) {
+        unsafe { raw::chx_dom_canvas_set_line_width(handle, width) }
+    }
+
+    /// A CSS font shorthand (`"16px sans-serif"`); used by `fill_text`.
+    public func set_font(&self, font : string_view) {
+        unsafe { raw::chx_dom_canvas_set_font(handle, font) }
+    }
+
+    public func fill_text(&self, text : string_view, x : f64, y : f64) {
+        unsafe { raw::chx_dom_canvas_fill_text(handle, text, x, y) }
+    }
+
+    public func translate(&self, x : f64, y : f64) {
+        unsafe { raw::chx_dom_canvas_translate(handle, x, y) }
+    }
+
+    public func rotate(&self, radians : f64) {
+        unsafe { raw::chx_dom_canvas_rotate(handle, radians) }
+    }
+
+    public func scale(&self, x : f64, y : f64) {
+        unsafe { raw::chx_dom_canvas_scale(handle, x, y) }
+    }
+
+    /// Replace the transform with `[a b c d e f]` (the canvas matrix order).
+    public func set_transform(&self, a : f64, b : f64, c : f64, d : f64, e : f64, f : f64) {
+        unsafe { raw::chx_dom_canvas_set_transform(handle, a, b, c, d, e, f) }
+    }
+}
+
+/// Run `callback` before the next paint, with the frame's timestamp in
+/// milliseconds. Returns a cancellation id for `cancel_animation_frame`.
+public func request_animation_frame(callback : (time_ms : f64) => void) : int {
+    return unsafe(raw::chx_dom_request_animation_frame(callback))
+}
+
+public func cancel_animation_frame(id : int) {
+    unsafe { raw::chx_dom_cancel_animation_frame(id) }
 }
 
 // ── Event ───────────────────────────────────────────────────────────────────
@@ -367,6 +585,25 @@ public struct Event {
     /// The key of a keyboard event (empty for other events).
     public func key(&self) : string {
         return owned(unsafe(raw::chx_dom_key(handle)))
+    }
+
+    /// Pointer position in CSS pixels, relative to the viewport.
+    public func client_x(&self) : f64 {
+        return unsafe(raw::chx_dom_event_client_x(handle))
+    }
+
+    public func client_y(&self) : f64 {
+        return unsafe(raw::chx_dom_event_client_y(handle))
+    }
+
+    /// The mouse button (`0` primary, `1` middle, `2` secondary; `-1` for no button).
+    public func button(&self) : int {
+        return unsafe(raw::chx_dom_event_button(handle))
+    }
+
+    /// The pointer that produced the event (`-1` for a non-pointer event).
+    public func pointer_id(&self) : int {
+        return unsafe(raw::chx_dom_event_pointer_id(handle))
     }
 }
 

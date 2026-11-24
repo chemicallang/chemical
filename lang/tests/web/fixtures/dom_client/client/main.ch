@@ -17,6 +17,10 @@ func flag_of(found : Option<dom::Element>) : int {
 // A Chemical callback invoked by the browser. `e` is a real DOM event handle.
 public func on_click(e : &dom::Event) {
     e.prevent_default()
+    unsafe {
+        printf("dom pointer x=%.0f y=%.0f button=%d id=%d\n",
+            e.client_x(), e.client_y(), e.button(), e.pointer_id())
+    }
     var doc = dom.document()
     var node = doc.get_element_by_id("count")
     if(node is Option.Some) {
@@ -147,9 +151,49 @@ public func main() : int {
             q_view.size() as int, q_view.data())
     }
 
+    // Canvas + pointer + animation frame: the drawing surface an app writes
+    // instead of `#js`.
+    var canvas = doc.create_element("canvas")
+    canvas.set_attribute("width", "320")
+    canvas.set_attribute("height", "200")
+    var context = canvas.get_context_2d()
+    if(context is Option.Some) {
+        var Some(ctx) = context else unsafe { unreachable }
+        ctx.save()
+        ctx.set_fill_style(string_view("rgb(0, 0, 0)"))
+        ctx.fill_rect(0.0, 0.0, 320.0, 200.0)
+        ctx.set_stroke_style(string_view("rgb(255, 0, 0)"))
+        ctx.set_line_width(2.0)
+        ctx.begin_path()
+        ctx.move_to(0.0, 0.0)
+        ctx.line_to(320.0, 200.0)
+        ctx.stroke()
+        ctx.restore()
+        ctx.translate(4.0, 6.0)
+        ctx.set_transform(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
+        ctx.set_font(string_view("16px sans-serif"))
+        ctx.fill_text(string_view("chemical"), 8.0, 24.0)
+        unsafe { printf("dom canvas surface=1\n") }
+    } else {
+        unsafe { printf("dom canvas surface=0\n") }
+    }
+
+    var track = doc.get_element_by_id("count-button")
+    if(track is Option.Some) {
+        var Some(button) = track else unsafe { unreachable }
+        button.set_pointer_capture(1)
+    }
+
+    dom::request_animation_frame(on_frame)
+
     // fire-and-forget: the callback prints when the response arrives.
     dom::fetch_text(string_view("/api/ok"), on_fetch)
     return 0
+}
+
+// The frame callback: a browser hands it the frame time in milliseconds.
+public func on_frame(time_ms : f64) {
+    unsafe { printf("dom raf t=%.0f\n", time_ms) }
 }
 
 func <T> flag_helper(found : Option<T>) : int {

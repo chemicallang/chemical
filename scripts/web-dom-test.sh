@@ -112,9 +112,14 @@ dom classes none=0 added=1 toggled=1 matches=1 closest=1 parent=1 kids=5 first=1
 dom value=typed
 dom storage=dark removed=1
 dom url origin=https://example.com path=/a/b q=7
+dom canvas surface=1
+dom pointer x=10 y=20 button=0 id=1
 dom click count=1
+dom pointer x=10 y=20 button=0 id=1
 dom click count=2
 dom fetch status=200 body={"ok":true,"url":"/api/ok"}
+dom raf t=16
+dom canvas ops=save;fillRect(0,0,320,200);beginPath;moveTo(0,0);lineTo(320,200);stroke(rgb(255, 0, 0),2);restore;translate(4,6);setTransform(1,0,0,1,0,0);fillText(chemical,8,24);setPointerCapture(1)
 dom-harness: done
 EOF
 

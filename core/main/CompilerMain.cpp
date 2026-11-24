@@ -12,6 +12,7 @@
 #include "compiler/SymbolResolver.h"
 #include "utils/CmdUtils.h"
 #include <filesystem>
+#include <cstdlib>
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/PathUtils.h"
 #include <functional>

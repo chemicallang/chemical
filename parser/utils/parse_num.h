@@ -3,6 +3,7 @@
 #pragma once
 
 #include <string>
+#include <cerrno>
 #include "core/source/SourceLocation.h"
 
 template<typename T>

@@ -8,6 +8,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/StringValue.h"
+#include <cstdlib>
 #include "utils/StringHelpers.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/BoolValue.h"

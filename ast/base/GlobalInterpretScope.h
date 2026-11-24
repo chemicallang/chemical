@@ -52,8 +52,13 @@ public:
      * `is_comptime` resolve against another worker's frame. One stack per thread
      * keeps each worker's nesting independent; on the serial path the thread is
      * the only one, so behaviour is unchanged.
+     *
+     * Defined once in GlobalInterpretScope.cpp rather than inline here: a
+     * thread_local with a non-trivial destructor makes every including file emit
+     * its own thread_local init/destructor helper, and the MinGW toolchains link
+     * those duplicate weak symbols with ld.lld, which rejects them.
      */
-    inline static thread_local std::vector<FunctionCall*> call_stack;
+    static thread_local std::vector<FunctionCall*> call_stack;
 
     /**
      * a pointer to build compiler is stored, so compile time

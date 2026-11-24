@@ -921,8 +921,26 @@ jobs:
       # ––– Install dependencies –––
       - name: Install Dependencies
         run: |
-          brew update
-          brew install cmake ninja git
+          # The macOS runners already ship cmake/ninja/git, and `brew update`
+          # re-fetches every tap: that fetch has died here (curl 56 / early EOF)
+          # and failed the job before a single line was compiled. Install only
+          # what is missing, without updating the taps first.
+          for tool in cmake ninja git; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "$tool is already installed"
+              continue
+            fi
+            ok=0
+            for attempt in 1 2 3; do
+              if HOMEBREW_NO_AUTO_UPDATE=1 brew install "$tool"; then ok=1; break; fi
+              echo "brew install $tool failed (attempt $attempt), retrying in 20s"
+              sleep 20
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::could not install $tool"
+              exit 1
+            fi
+          done
 
       - name: Checkout chemical repository
         uses: actions/checkout@v5

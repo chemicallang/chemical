@@ -6,6 +6,12 @@
 
 #include "GlobalInterpretScope.h"
 
+// The one definition of the per-thread call stack (declared in the header).
+// Keeping it out of the header means only this object emits the thread_local
+// init/destructor helper, so the MinGW links no longer see duplicate weak
+// symbols for it.
+thread_local std::vector<FunctionCall*> GlobalInterpretScope::call_stack;
+
 GlobalInterpretScope::GlobalInterpretScope(
     OutputMode mode,
     TargetData& target_data,

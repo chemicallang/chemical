@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>

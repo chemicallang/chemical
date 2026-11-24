@@ -25,6 +25,7 @@
 #include "stream/FileInputSource.h"
 #include "compiler/mir/MIREmissionRegistry.h"
 #include <span>
+#include <atomic>
 #include <mutex>
 #include <functional>
 

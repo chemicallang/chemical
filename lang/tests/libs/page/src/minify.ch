@@ -197,3 +197,115 @@ func test_minify_is_deterministic(env : &mut TestEnv) {
         mn_fail(env, string_view("two runs must agree"), &a)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Local-identifier mangling: the names in a component body are ~15% of a
+// minified bundle, and renaming one is only safe under a rule that can be
+// checked from the bytes alone. Each test below pins one clause of that rule.
+// ---------------------------------------------------------------------------
+
+func mn_mangled(source : string_view) : string {
+    var out = mangle_js_locals(source)
+    return out
+}
+
+// A parameter and a `var` that are used only as variables get shorter names, and
+// the replacement never collides with a property name the body mentions
+// (`props.a` makes `a` unusable, so `props` becomes `b`).
+@test
+func test_mangle_renames_locals_only_variable_positions(env : &mut TestEnv) {
+    var source = string("function f(props){var card=\"x\";return props.a+card}")
+    var want = string("function f(b){var c=\"x\";return b.a+c}")
+    var out = mn_mangled(source.to_view())
+    if(!mn_equals(&out, want.to_view())) {
+        mn_fail(env, string_view("a local used only as a variable must shrink"), &out)
+    }
+}
+
+// `value` is both a binding and a property key (`o.value`). The key is not a use of
+// the binding, so the binding may shrink — but the key itself must survive.
+@test
+func test_mangle_keeps_a_property_key_of_a_renamed_binding(env : &mut TestEnv) {
+    var source = string("function f(o){var value=1;return o.value+value}")
+    var want = string("function f(o){var a=1;return o.value+a}")
+    var out = mn_mangled(source.to_view())
+    if(!mn_equals(&out, want.to_view())) {
+        mn_fail(env, string_view("a property key must never be renamed"), &out)
+    }
+}
+
+// A shorthand property (`{name}`) is a key, not a reference, and rewriting it would
+// silently rename a field.
+@test
+func test_mangle_refuses_a_shorthand_property(env : &mut TestEnv) {
+    var source = string("function f(onClick,label){var bound={onClick:onClick,label};return bound}")
+    var out = mn_mangled(source.to_view())
+    if(out.find_or_npos("onClick:") == NPOS) {
+        // `onClick` itself is a property key here, so it must stay.
+        mn_fail(env, string_view("a property key must not be renamed"), &out)
+    }
+    if(out.find_or_npos("label}") == NPOS && out.find_or_npos("label:") == NPOS) {
+        mn_fail(env, string_view("a shorthand property must not be renamed"), &out)
+    }
+}
+
+// The replacement must be free in the unit: `a` and `b` are already used, so the
+// binding takes the shortest name that is not.
+@test
+func test_mangle_avoids_names_the_unit_uses(env : &mut TestEnv) {
+    var source = string("function f(handler){var a=1;var b=2;return handler(a,b)}")
+    var out = mn_mangled(source.to_view())
+    if(out.find_or_npos("function f(c)") == NPOS) {
+        mn_fail(env, string_view("the first free name must be picked"), &out)
+    }
+    if(out.find_or_npos("return c(a,b)") == NPOS) {
+        mn_fail(env, string_view("the renamed binding must be the parameter"), &out)
+    }
+}
+
+// Top-level code is shared by every page: it is never mangled, so a name defined in
+// a gap and used from another chunk still resolves.
+@test
+func test_mangle_skips_non_units(env : &mut TestEnv) {
+    var source = string("var shared=1\nwindow.x=2")
+    var out = mn_mangled(source.to_view())
+    if(!mn_equals(&out, source.to_view())) {
+        mn_fail(env, string_view("top-level code must be left alone"), &out)
+    }
+}
+
+// A template literal can contain code (`${x}`); rather than guess, the unit keeps
+// its bytes.
+@test
+func test_mangle_skips_a_unit_with_a_template(env : &mut TestEnv) {
+    var source = string("function f(name){return `hi ${name}`}")
+    var out = mn_mangled(source.to_view())
+    if(!mn_equals(&out, source.to_view())) {
+        mn_fail(env, string_view("a unit with a template must be refused"), &out)
+    }
+}
+
+// A global the body calls (or a word it names) is never captured: `props` would be a
+// free `$_ucs`-style collision if the replacement appeared anywhere in the unit.
+@test
+func test_mangle_keeps_strings_byte_for_byte(env : &mut TestEnv) {
+    var source = string("function f(className){var out=\"className\";return out+className}")
+    var out = mn_mangled(source.to_view())
+    if(out.find_or_npos("\"className\"") == NPOS) {
+        mn_fail(env, string_view("a string literal must not be rewritten"), &out)
+    }
+    if(out.find_or_npos("function f(") == NPOS) {
+        mn_fail(env, string_view("the definition must survive"), &out)
+    }
+}
+
+// A binding used once saves nothing (and its name documents the code): it is left
+// as it is, so a debugger still shows `onClick` for the common one-use parameter.
+@test
+func test_mangle_leaves_single_use_bindings(env : &mut TestEnv) {
+    var source = string("function f(onClick,label){return label}")
+    var out = mn_mangled(source.to_view())
+    if(out.find_or_npos("onClick") == NPOS) {
+        mn_fail(env, string_view("a one-use binding must keep its name"), &out)
+    }
+}

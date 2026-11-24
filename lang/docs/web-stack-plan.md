@@ -1783,8 +1783,10 @@ block the exit contract above; each is recorded with the reason it was not taken
    `export_profile()` (`profile.json`) report per-route html/chunk bytes, unit counts and
    first-load vs navigation cost, enabled either by `set_profile(true)` or the new
    `--profile` build flag (`intrinsics::defined("profile")`). Still open in this item:
-   **emitter identifier mangling** and **tree-shaking** — both change every emitted name or
-   drop units, so they need their own verification pass rather than riding this one.
+   **emitter identifier mangling** (landed 2026-11-24, §9.1 item 10: names are renamed under a
+   per-definition rule that is checkable from the bytes, 196,414 → 191,929 B on the components
+   corpus) and **tree-shaking** — dropping units cannot pay until lazy chunks exist, because
+   every recorded unit is one a page dispatches.
 2. **`--static` MPA build** (§3.14): shared chunks across all pages, zero-JS pages stay zero-JS,
    `base_path`, `sitemap.xml`/`robots.txt`, optional hover prefetch, `web::Static.build` replacing
    `writeToDirectory` (deprecated shim for one release).
@@ -2151,9 +2153,30 @@ capable, and the route-mode work (#2, then #5–#7) precedes the export extras (
     minified build, which is what makes “formatting only” a checked claim rather than an
     assertion. Tests: `lang/tests/libs/page/src/page_minify.ch` (4: off keeps the source, on
     shrinks JS+CSS without losing tokens, `writeToDirectory` writes minified files, a site build
-    minifies route chunks — it fails when the page propagation is removed). **Still open from item
-    1:** emitter identifier mangling, tree-shaking, gzip precompression, numeric budgets in the
-    gate, `--profile`. Then the **skills kit** (item 4) and `skill conformance` in CI.
+    minifies route chunks — it fails when the page propagation is removed).
+    **Identifier mangling landed 2026-11-24.** `page.mangle_js` / `mangle_js_locals` rename a
+    definition's parameters and `var`/`let`/`const` bindings to one- or two-character names,
+    applied inside `minify_js` (the page buffer `writeToDirectory` and a route chunk write) and
+    per unit inside `SharedAssets.minify_buffers` (a shared bundle), so both paths share one
+    rule. The rule is provable from the bytes, which is what makes a whole-word rewrite correct:
+    only a `function` definition is touched; only its own parameters and `var`/`let`/`const`
+    bindings are candidates (a global component name, referenced from HTML by `$_uc`, never is);
+    an occurrence after `.` is a property name, so it neither counts as a use nor is rewritten;
+    a *shorthand* property (`{name}`) refuses the binding; the replacement must appear nowhere
+    in the unit as a word (so a rename cannot capture a global the body also calls); a unit
+    containing a backtick is refused outright (an interpolated `${…}` is code). Refusal keeps
+    the original bytes. Measured on the components corpus (196 component definitions,
+    `lang/compiled/components-e2e/app`, `writeToDirectory` with `set_minify(true)`):
+    **196,414 → 191,929 B (−4,485 B, −2.3%)**, `node --check` clean. The ceiling under these
+    rules on that corpus is 4,918 B (243 candidates, 239 renamed), so the remaining bytes are
+    *global* names — `window.$__uni_value` alone is 13.5 KB — which a minifier may not rename
+    because the runtime defines them; that would be a runtime-contract rename (an emitted alias
+    at the top of the bundle), not a minifier pass. **Still open from item 1:** tree-shaking,
+    gzip precompression (dynamic Huffman), numeric budgets in the gate, `--profile`. (Neither
+    tree-shaking nor a smaller identifier alphabet has headroom by measurement: every recorded
+    unit is one a page dispatches (`SharedAssets.unbacked_usage_count` is the other direction
+    and is asserted 0), so dropping units only becomes possible with lazy chunks.) Then the
+    **skills kit** (item 4) and `skill conformance` in CI.
 
 **Explicitly not started, and why:** Phase 6 (SPA navigation, realtime, async in the JS backend)
 needs `web_build`'s route-closure chunk graph; Phase 7 (the rest of `dom`: canvas, uploads,

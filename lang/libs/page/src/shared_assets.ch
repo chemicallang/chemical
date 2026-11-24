@@ -394,7 +394,16 @@ public struct SharedAssets {
                 }
                 var piece = unsafe(std::string_view(data + u.start, u.length))
                 var start = rebuilt.size()
-                js_emit_minified(piece, &mut rebuilt, &mut state)
+                // Whitespace first, then the local names: the mangler only has to
+                // understand canonical text, and a refused unit keeps the minified
+                // bytes either way. Both stages are per-unit, so a definition 
+                // `plan_chunks` later moves out is already final.
+                var minified = std::string()
+                js_emit_minified(piece, &mut minified, &mut state)
+                var minified_view = minified.to_view()
+                var mangled = mangle_js_locals(minified_view)
+                var mangled_view = mangled.to_view()
+                rebuilt.append_view(&mangled_view)
                 var old_end = u.start + u.length
                 u.start = start
                 u.length = rebuilt.size() - start

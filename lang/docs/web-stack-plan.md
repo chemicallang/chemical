@@ -9,6 +9,10 @@ stack for large, multi-platform applications (timeline, 123mind, sketchable), wi
 [`universal-runtime-professionalization-plan.md`](universal-runtime-professionalization-plan.md),
 [`universal-shared-js-bundle-design.md`](universal-shared-js-bundle-design.md),
 [`universal-router-design.md`](universal-router-design.md),
+[`component-body-typing-plan.md`](component-body-typing-plan.md) (checked component bodies via an
+indexed, browser-spelled `dom` surface; the owner of any body-typing work),
+[`component-body-typing-workflow.md`](component-body-typing-workflow.md) (its test matrix, performance
+method, review protocol, CI wiring and workflow holes),
 [`language-goals.md`](language-goals.md).
 
 ## How this plan changes

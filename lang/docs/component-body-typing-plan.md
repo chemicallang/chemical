@@ -1,6 +1,7 @@
 # Component Body Typing Plan (v1)
 
 **Status:** proposal v3, two review passes incorporated · 2026-11-25
+**Delivery workflow:** see [`component-body-typing-workflow.md`](component-body-typing-workflow.md) for the test matrix, performance method, review protocol, CI wiring and the holes found while reviewing the workflow.
 **Goal:** check `#universal` component bodies against real, indexed declarations (props and browser globals) without adding a second language, without shipping type information, and without putting plugin logic in C++.
 
 ---
@@ -468,6 +469,17 @@ resolve_member(type, name, is_root):
 | `do_js_job` Library guard | `Library + --emit-js` fails with the explicit diagnostic, not "could not find main()" |
 | LSP note | the plan documents that the editor does not run the check in v1 |
 
+Plus the workflow gates from [`component-body-typing-workflow.md`](component-body-typing-workflow.md) §5:
+
+- `scripts/check-cbi-enum-sync.sh` — the C++/Chemical enums match.
+- `scripts/web-index-test.sh` — parse/round-trip, probe, namespace flattening, duplicates.
+- `scripts/web-body-check-test.sh` — 001/002/006/008 negatives, 005 positives, built-ins, `$__uni_*`, dedup, messages.
+- `scripts/web-two-side-test.sh` — server skips, client runs, index isolation, native-only build.
+- `scripts/web-typing-perf.sh` — build/plugin/bundle/index measurements.
+- `scripts/component-typing-audit.sh` — no DOM special-case in `compiler/`, no AST reads in backends.
+- `lang/tests/universal_webview/src/tests_document.ch` — the allowed `document` surface works through SSR + hydration in a real WebView.
+- `.github/workflows/universal.yml` — the WebView suite runs in CI with `xvfb` + GTK/WebKit.
+
 A rule without a failing-without-it test is not done. Never weaken an existing test.
 
 ---
@@ -482,6 +494,8 @@ A rule without a failing-without-it test is not done. Never weaken an existing t
 | non-LLVM compiler binary | under the 5 MB ceiling | release gate |
 | bundle size | unchanged | existing golden/size checks |
 | index memory | O(public declarations of marked modules), freed per job | build RSS |
+
+The measurement method (cold/warm, plugin build, index-call count, peak RSS, failure action) is in the workflow doc §7. A budget miss is reverted or recorded here with a reason, never waived.
 
 ---
 
@@ -509,32 +523,35 @@ A rule without a failing-without-it test is not done. Never weaken an existing t
 ### Phase 0 — directive, metadata, backend flag (no behaviour)
 - `index_with` parsing, `ModuleFileData.indexers` (+ `clear()`), `LabModule.indexers`, `Module.addIndexer` (copying), converter emission.
 - Fix `target_data.js` to exclude Interpretation and reject `Library + --emit-js` with a clear diagnostic (F14/F15).
-- Gate: parse/round-trip tests; `Library + --emit-js` diagnostic; existing suite green; no output change.
+- Gate: `web-index-test.sh` parse/round-trip cases; `Library + --emit-js` diagnostic; Interpretation is not JS; existing suite green; no output change.
 
 ### Phase 1 — generic indexing hooks
 - `IndexModule` + `JobBegin` at the end of both enums; typedefs; dispatch points; public-namespace/scope recursion with the namespace specifier gate.
 - Register the hooks in `universal_cbi/build.lab`; add a debug dump under `-v` or a tiny indexer fixture.
-- Gate: a marked namespace module is indexed exactly once per client job; an unmarked module is not; the server job does not carry an index into the client job; enum values match.
+- Gate: `check-cbi-enum-sync.sh`; `web-index-test.sh` probe; a marked namespace module is indexed exactly once per client job; an unmarked module is not; the server job does not carry an index into the client job.
 
 ### Phase 2 — client job reads the index (no DOM yet)
 - `job_begin` records `is_client_job`; the body check early-returns on the server.
 - A debug/test provider package indexed in a client fixture; `document` resolves if and only if the provider is imported.
-- Gate: server job clean; client job resolves or reports 008.
+- Gate: `web-two-side-test.sh` (server skips, client runs, index isolation, native-only build); `web-index-test.sh` 008 cases.
 
 ### Phase 3 — browser-spelled `dom` and the narrow checker
 - Rename the surface; add the root members in §6.3.
 - `index.ch`, ambient table, `resolve_name`/`resolve_member`, 001/002/006/008, 005 counting.
 - `components/chemical.mod` gains `import dom if client`.
-- Gate: `web-body-check-test.sh`; `--plugins` and `--universal` green; `document.titel` fails; `Math`/`console` do not; deeper chains are counted.
+- Gate: `web-body-check-test.sh`; `web-typing-perf.sh`; `tests_document.ch` under `--universal`; `--plugins` green; `document.titel` fails; `Math`/`console` do not; deeper chains are counted; determinism repeat.
 - **Done when:** typed components report unknown direct members of `document`/`window`/`localStorage`/`navigator`, and no existing component fails for an unrelated reason.
 
 ### Phase 4 — server-side indexing (optional, larger)
 - Declarations-only modules, `host`, per-job `types_only`, object-cache bypass, consumer-side refusal in both C and LLVM emitters, `web-split-test` update.
+- New gate: `web-types-only-test.sh` (from the workflow's Phase 4 list).
 - Only if someone needs the check during the server-side build or in the LSP. The client job covers the browser.
 
 ### Phase 5 — coverage, chains and strict mode
 - `Element`/`DOMRect`/`classList`/`style`/`dataset`; `querySelectorAll` arrays; `Option<T>` unwrapping for chains.
 - Turn `WEB-BODY-005` into an error for `lang/libs/components`/CI only when the corpus scan is empty.
+
+Every phase also runs the workflow gates in [`component-body-typing-workflow.md`](component-body-typing-workflow.md) §5, records a §9 row, and satisfies the workflow's §11 definition of done. The workflow's §4 holes **H1–H25** are assigned to these phases; none may be dropped without a written decision here.
 
 ---
 

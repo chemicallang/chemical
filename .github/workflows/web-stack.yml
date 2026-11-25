@@ -19,6 +19,9 @@ name: Web stack
 #   web-split-test         `--web` builds shared+client as JS and shared+server as
 #                          native, and a native symbol reached from shared fails
 #                          the client pass with its source location
+#   web-two-pass-test      a shared `#universal` component is compiled by both
+#                          `--web` passes: the server renders it and the client
+#                          body-checks + bundles it (H31)
 #
 # These run on pull requests because they are the only checks that notice a
 # bundle regression: without them the numbers in the plan drift and nobody sees it.
@@ -91,6 +94,9 @@ jobs:
       - name: Two-job web build (`--web`)
         run: ./scripts/web-split-test.sh
 
+      - name: Shared `#universal` component in both `--web` passes
+        run: ./scripts/web-two-pass-test.sh
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -101,4 +107,5 @@ jobs:
             /tmp/web_golden_*.diff
             /tmp/web_golden_probe_*.txt
             lang/compiled/web-split-gate/*.log
+            lang/compiled/web-two-pass-gate/*.log
           if-no-files-found: ignore

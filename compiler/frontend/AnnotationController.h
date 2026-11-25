@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <cassert>
 #include <mutex>
+#include "std/chem_string.h"
 #include "std/chem_string_view.h"
 
 class ASTNode;
@@ -125,8 +126,22 @@ private:
 
     /**
      * annotation definitions
+     *
+     * The key and `AnnotationDefinition::name` are views. Built-in names are
+     * literals in the compiler binary, but a CBI plugin registers names that are
+     * literals in its `build.lab` JIT state, which is destroyed at the end of the
+     * pass that built it. A `--web` build reuses the CBI job (and therefore does
+     * not re-run the plugin's registration) on the second pass, so keeping the
+     * plugin's view would leave the definition pointing at freed memory. Copy
+     * every registered name into `owned_definition_names` instead; definitions
+     * then live as long as the controller.
      */
     std::unordered_map<chem::string_view, AnnotationDefinition> definitions;
+
+    /**
+     * storage backing plugin-registered annotation names (see `definitions`)
+     */
+    std::vector<std::unique_ptr<chem::string>> owned_definition_names;
 
     /**
      * annotation collections
@@ -193,6 +208,24 @@ private:
         return index;
     }
 
+    /**
+     * returns a view over a controller-owned copy of `name`, so a definition
+     * registered by a CBI plugin outlives the plugin's JIT state (see the
+     * `definitions` comment above). Repeated registration of the same name
+     * reuses one copy, which keeps `emplace` idempotent.
+     */
+    chem::string_view own_definition_name(const chem::string_view& name) {
+        for (auto& owned : owned_definition_names) {
+            if (owned->equals(name)) {
+                return owned->to_chem_view();
+            }
+        }
+        auto copy = std::make_unique<chem::string>(name);
+        const auto view = copy->to_chem_view();
+        owned_definition_names.emplace_back(std::move(copy));
+        return view;
+    }
+
     void create_collector_annotation(const chem::string_view& name, AnnotationDefType type, std::size_t coll_id) {
         definitions.emplace(name, AnnotationDefinition {
                 .collection_id = coll_id,
@@ -208,24 +241,26 @@ public:
     }
 
     inline void create_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
-        create_collector_annotation(name, AnnotationDefType::Collector, create_collection(expected_usage));
+        create_collector_annotation(own_definition_name(name), AnnotationDefType::Collector, create_collection(expected_usage));
     }
 
     inline void create_marker_and_collector_annotation(const chem::string_view& name, unsigned int expected_usage) {
-        create_collector_annotation(name, AnnotationDefType::MarkerAndCollector, create_collection(expected_usage));
+        create_collector_annotation(own_definition_name(name), AnnotationDefType::MarkerAndCollector, create_collection(expected_usage));
     }
 
     inline void create_single_marker_annotation(const chem::string_view& name, SingleMarkerMultiplePolicy policy = SingleMarkerMultiplePolicy::Override) {
-        definitions.emplace(name, AnnotationDefinition {
+        const auto owned_name = own_definition_name(name);
+        definitions.emplace(owned_name, AnnotationDefinition {
                 .policy = policy,
-                .name = name,
+                .name = owned_name,
                 .type = AnnotationDefType::SingleMarker
         });
     }
 
     inline void create_marker_annotation(const chem::string_view& name) {
-        definitions.emplace(name, AnnotationDefinition {
-                .name = name,
+        const auto owned_name = own_definition_name(name);
+        definitions.emplace(owned_name, AnnotationDefinition {
+                .name = owned_name,
                 .type = AnnotationDefType::Marker
         });
     }
@@ -296,6 +331,7 @@ public:
      */
     void clear() {
         definitions.clear();
+        owned_definition_names.clear();
         marked.clear();
         single_marked.clear();
         initialize();

@@ -68,13 +68,19 @@ func bc_is_hook_name(name : &std::string_view) : bool {
         }
 }
 
-// Framework internals are never part of the public Window surface; a member
-// access on them is a counted edge, not an error.
+// Framework internals and dynamic global slots are never part of the public
+// Window surface; a member access on them is a counted edge, not an error.
+// `$__uni_*` is runtime-internal, `__reportError` is the error hook, and any
+// other `__*` name is the conventional dynamic-global escape hatch used by
+// tests and app code to hang state off `window`. Checking those against the
+// typed `Window` struct would reject real browser code.
 func bc_is_framework_member(name : &std::string_view) : bool {
         unsafe {
-        if(name.equals(std::string_view("__reportError"))) return true
         const is_framework = name.size() > 6 && name.at(0) == '$' && name.at(1) == '_' && name.at(2) == '_' && name.at(3) == 'u' && name.at(4) == 'n' && name.at(5) == 'i' && name.at(6) == '_'
         if(is_framework) {
+            return true
+        }
+        if(name.size() >= 2 && name.at(0) == '_' && name.at(1) == '_') {
             return true
         }
         return false
@@ -220,6 +226,267 @@ func bc_struct_of_type(type : *mut BaseType) : *mut StructDefinition {
 
         }
 }
+
+struct BcCtx {
+    var comp : std::string_view
+    var propsName : std::string_view
+    var propsStruct : *mut StructDefinition
+    var locals : *mut std::vector<std::string_view>
+    var diag : *mut ASTDiagnoser
+    var loc : ubigint
+    var reportedProps : *mut std::vector<std::string_view>
+    var reportedMembers : *mut std::vector<std::string>
+    var reportedHooks : *mut std::vector<std::string_view>
+    var untyped : uint
+}
+
+// ── chain resolution (Phase 5b) ─────────────────────────────────────────────
+//
+// A component body is JS text, so a chain like
+// `document.body.classList.contains("x")` reaches the checker as nested
+// `JsMemberAccess` nodes. v1 stopped at a direct member of an ambient root. The
+// helpers below follow one or more members, but only while the base type is
+// known at every step: a member of a linked `dom` struct (5a) is checked, an
+// array/vector element keeps the chain alive, and `Option<T>` unwraps to `T`.
+// Anything else (an untyped local, an arrow parameter, a built-in) still counts
+// a WEB-BODY-005 edge and is never an error.
+
+// The declaration name of a generic type (`Option`, `vector`, ...). A generic
+// type may be linked to its declaration wrapper (before instantiation) or to a
+// concrete `StructDecl`/`VariantDecl` (after), so all four shapes are handled.
+func bc_generic_name(type : *mut BaseType) : std::string_view {
+        unsafe {
+        if(type == null || type.getKind() != BaseTypeKind.Generic) return std::string_view()
+        const gen = type as *mut GenericType
+        const linked = gen.getLinkedType()
+        if(linked == null) return std::string_view()
+        const node = linked.getLinkedNode()
+        if(node == null) return std::string_view()
+        // Generic wrappers resolve to their master implementation's name.
+        return node.getNodeIdentifier()
+
+        }
+    }
+
+// Follow references/pointers and unwrap `Option<T>`. Bounded so a malformed
+// self-referential type cannot spin the checker.
+func bc_strip_wrappers(type : *mut BaseType) : *mut BaseType {
+        unsafe {
+        var t = type
+        var guard : int = 0
+        while(t != null && guard < 8) {
+            const kind = t.getKind()
+            if(kind == BaseTypeKind.Reference) {
+                t = (t as *mut ReferenceType).getChildType()
+                guard = guard + 1
+                continue
+            }
+            if(kind == BaseTypeKind.Pointer) {
+                t = (t as *mut PointerType).getChildType()
+                guard = guard + 1
+                continue
+            }
+            if(kind == BaseTypeKind.Literal) {
+                t = (t as *mut LiteralType).getChildType()
+                guard = guard + 1
+                continue
+            }
+            if(kind == BaseTypeKind.Dynamic) {
+                t = (t as *mut DynamicType).getChildType()
+                guard = guard + 1
+                continue
+            }
+            if(kind == BaseTypeKind.Generic && bc_generic_name(t).equals(std::string_view("Option"))) {
+                const gen = t as *mut GenericType
+                if(gen.getArgumentCount() >= 1) {
+                    t = gen.getArgumentType(0)
+                    guard = guard + 1
+                    continue
+                }
+            }
+            return t
+        }
+        return t
+
+        }
+    }
+
+func bc_is_container(type : *mut BaseType) : bool {
+        unsafe {
+        const t = bc_strip_wrappers(type)
+        if(t == null) return false
+        if(t.getKind() == BaseTypeKind.Array) return true
+        if(t.getKind() == BaseTypeKind.Generic && bc_generic_name(t).equals(std::string_view("vector"))) return true
+        return false
+
+        }
+    }
+
+// The element type of an array or `std::vector<T>`, or null when `type` is not
+// a container.
+func bc_container_element(type : *mut BaseType) : *mut BaseType {
+        unsafe {
+        const t = bc_strip_wrappers(type)
+        if(t == null) return null
+        if(t.getKind() == BaseTypeKind.Array) {
+            return (t as *mut ArrayType).getElementType()
+        }
+        if(t.getKind() == BaseTypeKind.Generic && bc_generic_name(t).equals(std::string_view("vector"))) {
+            const gen = t as *mut GenericType
+            if(gen.getArgumentCount() >= 1) {
+                return gen.getArgumentType(0)
+            }
+        }
+        return null
+
+        }
+    }
+
+// Container members the corpus uses. A method that is not modelled returns
+// false, and the caller counts an untyped edge rather than reporting a missing
+// member — an incomplete container model must never reject real JS.
+func bc_container_member(type : *mut BaseType, name : &std::string_view,
+                         outType : *mut *mut BaseType) : bool {
+        unsafe {
+        const element = bc_container_element(type)
+        if(name.equals(std::string_view("length")) || name.equals(std::string_view("size"))) {
+            *outType = null
+            return true
+        }
+        if(name.equals(std::string_view("get"))) { *outType = element; return true }
+        if(name.equals(std::string_view("at"))) { *outType = element; return true }
+        if(name.equals(std::string_view("at_ref"))) { *outType = element; return true }
+        if(name.equals(std::string_view("at_mut"))) { *outType = element; return true }
+        if(name.equals(std::string_view("get_ptr"))) { *outType = element; return true }
+        if(name.equals(std::string_view("data"))) { *outType = element; return true }
+        if(name.equals(std::string_view("forEach")) || name.equals(std::string_view("map"))) {
+            // The callable's return/parameter types are not modelled; the call
+            // itself is a known container operation, so it is not an edge.
+            *outType = null
+            return true
+        }
+        if(name.equals(std::string_view("filter")) || name.equals(std::string_view("find"))) {
+            *outType = null
+            return true
+        }
+        if(name.equals(std::string_view("some")) || name.equals(std::string_view("every"))) {
+            // The callable's return/parameter types are not modelled; the call
+            // itself is a known container operation, so it is not an edge.
+            *outType = null
+            return true
+        }
+        return false
+
+        }
+    }
+
+// Resolve `name` on a known base type. Returns true when the member exists
+// (its type may still be null, e.g. `length`). When the base is a linked struct
+// and the member is missing, `outContainer` is set so the caller can report
+// WEB-BODY-002. `outContainer` is never set for a container.
+func bc_member_type(base : *mut BaseType, name : &std::string_view,
+                    outType : *mut *mut BaseType, outContainer : *mut *mut StructDefinition) : bool {
+        unsafe {
+        *outType = null
+        *outContainer = null
+        const t = bc_strip_wrappers(base)
+        if(t == null) return false
+        if(bc_is_container(t)) {
+            return bc_container_member(t, name, outType)
+        }
+        const container = bc_struct_of_type(t)
+        if(container == null) return false
+        *outContainer = container
+        return bc_find_member(container, name, outType)
+
+        }
+    }
+
+// The type of a JS expression, when it is statically known to the checker.
+// Only identifier roots (ambient providers / `props` fields), member chains and
+// calls/indexes into them are modelled. Everything else is null: the caller
+// counts that edge and never reports a member error.
+func bc_expr_type(ctx : &mut BcCtx, node : *mut JsNode) : *mut BaseType {
+        unsafe {
+        if(node == null) return null
+        switch(node.kind) {
+            JsNodeKind.Identifier => {
+                const id = node as *mut JsIdentifier
+                const entry = universal_index_lookup(&id.value)
+                if(entry != null) { return entry.type }
+                return null
+            }
+            JsNodeKind.MemberAccess => {
+                const m = node as *mut JsMemberAccess
+                if(m.object != null && m.object.kind == JsNodeKind.Identifier && (m.object as *mut JsIdentifier).value.equals(&ctx.propsName)) {
+                    if(ctx.propsStruct == null) return null
+                    var fieldType : *mut BaseType = null
+                    if(bc_find_field(ctx.propsStruct, &m.property, &raw mut fieldType)) {
+                        return fieldType
+                    }
+                    return null
+                }
+                const base = bc_expr_type(ctx, m.object)
+                if(base == null) return null
+                var memberType : *mut BaseType = null
+                var container : *mut StructDefinition = null
+                if(bc_member_type(base, &m.property, &raw mut memberType, &raw mut container)) {
+                    return memberType
+                }
+                return null
+            }
+            JsNodeKind.FunctionCall => {
+                const c = node as *mut JsFunctionCall
+                return bc_expr_type(ctx, c.callee)
+            }
+            JsNodeKind.IndexAccess => {
+                const s = node as *mut JsIndexAccess
+                const base = bc_expr_type(ctx, s.object)
+                if(base == null) return null
+                return bc_container_element(base)
+            }
+            JsNodeKind.Paren => {
+                return bc_expr_type(ctx, (node as *mut JsParen).expression)
+            }
+            default => { }
+        }
+        return null
+
+        }
+    }
+
+// Whether an expression is rooted at an indexed ambient provider. WEB-BODY-002
+// is about the browser surface, so a deep chain is only an error when its root
+// is one of those providers (`document.body.classList`). A chain through a
+// props field or another linked type is counted instead: those types are
+// Chemical values, and a JS body legitimately spells JavaScript string/array
+// methods on them that the Chemical surface does not model.
+func bc_rooted_in_ambient(ctx : &mut BcCtx, node : *mut JsNode) : bool {
+        unsafe {
+        if(node == null) return false
+        switch(node.kind) {
+            JsNodeKind.Identifier => {
+                const id = node as *mut JsIdentifier
+                return universal_index_lookup(&id.value) != null
+            }
+            JsNodeKind.MemberAccess => {
+                return bc_rooted_in_ambient(ctx, (node as *mut JsMemberAccess).object)
+            }
+            JsNodeKind.FunctionCall => {
+                return bc_rooted_in_ambient(ctx, (node as *mut JsFunctionCall).callee)
+            }
+            JsNodeKind.IndexAccess => {
+                return bc_rooted_in_ambient(ctx, (node as *mut JsIndexAccess).object)
+            }
+            JsNodeKind.Paren => {
+                return bc_rooted_in_ambient(ctx, (node as *mut JsParen).expression)
+            }
+            default => { }
+        }
+        return false
+
+        }
+    }
 
 // One edit (substitution, insertion, deletion or adjacent transposition) —
 // enough for `titel` -> `title` and the common typo class.
@@ -371,19 +638,6 @@ func bc_report_conflict(compName : &std::string_view, name : &std::string_view,
         diag.error(msg.to_view(), loc)
 
         }
-}
-
-struct BcCtx {
-    var comp : std::string_view
-    var propsName : std::string_view
-    var propsStruct : *mut StructDefinition
-    var locals : *mut std::vector<std::string_view>
-    var diag : *mut ASTDiagnoser
-    var loc : ubigint
-    var reportedProps : *mut std::vector<std::string_view>
-    var reportedMembers : *mut std::vector<std::string>
-    var reportedHooks : *mut std::vector<std::string_view>
-    var untyped : uint
 }
 
 func bc_report_unknown_prop(ctx : &mut BcCtx, prop : &std::string_view) {
@@ -884,8 +1138,32 @@ func bc_examine_member(ctx : &mut BcCtx, m : *mut JsMemberAccess) {
             return
         }
         if(m.object.kind != JsNodeKind.Identifier) {
-            // `document.body.classList`, `document.querySelector(...).textContent`:
-            // a deeper chain is measured, never rejected in this phase.
+            // A deeper chain (`document.body.classList`,
+            // `document.querySelector(...).textContent`). Follow it only while
+            // every step has a known type. A missing member on a known struct is
+            // WEB-BODY-002; an unknown base or an unmodelled container member is
+            // a counted WEB-BODY-005 edge, never an error.
+            if(bc_is_framework_member(&m.property)) {
+                ctx.untyped = ctx.untyped + 1
+                return
+            }
+            const base = bc_expr_type(ctx, m.object)
+            if(base == null) {
+                ctx.untyped = ctx.untyped + 1
+                return
+            }
+            var memberType : *mut BaseType = null
+            var container : *mut StructDefinition = null
+            if(bc_member_type(base, &m.property, &raw mut memberType, &raw mut container)) {
+                return
+            }
+            if(container != null && bc_rooted_in_ambient(ctx, m.object)) {
+                const typeName = container.getName()
+                bc_report_unknown_member(ctx, &typeName, &m.property, container)
+                return
+            }
+            // A known base that is not a linked struct (a container method that
+            // is not modelled, a string, a scalar, ...) is an untyped edge.
             ctx.untyped = ctx.untyped + 1
             return
         }
@@ -931,7 +1209,7 @@ func bc_examine_member(ctx : &mut BcCtx, m : *mut JsMemberAccess) {
                 ctx.untyped = ctx.untyped + 1
                 return
             }
-            const container = bc_struct_of_type(entry.type)
+            const container = bc_struct_of_type(bc_strip_wrappers(entry.type))
             if(container == null) {
                 ctx.untyped = ctx.untyped + 1
                 return
@@ -950,11 +1228,12 @@ func bc_examine_member(ctx : &mut BcCtx, m : *mut JsMemberAccess) {
 
 // Entry point. The check runs on the client/JS job, and on any other job whose
 // per-job index has at least one ambient provider (a shared component compiled
-// by the server pass with `import dom` on both sides). A server job with no
-// provider has nothing to resolve host names against, so it skips instead of
-// producing a false 008. Reports each missing host name (008), prop (001),
-// direct root member (002) and misplaced hook (006) once per component. Untyped
-// edges (005) are only counted.
+// by the server pass with `import dom` on both sides, or a native consumer that
+// imports the provider for its declarations). A job with no provider has
+// nothing to resolve host names against, so it skips instead of producing a
+// false 008. Reports each missing host name (008), prop (001), root or
+// known-chain member (002) and misplaced hook (006) once per component.
+// Untyped edges (005) are only counted.
 public func body_check(body : *mut void, compName : &std::string_view, propsName : &std::string_view,
                        propsStruct : *mut StructDefinition, diag : *mut ASTDiagnoser, loc : ubigint) {
         unsafe {

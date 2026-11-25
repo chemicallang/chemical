@@ -8,10 +8,13 @@
 #
 #   body_unknown_prop      props.titel              -> WEB-BODY-001
 #   body_unknown_member    document.titel (lambda)  -> WEB-BODY-002 (+ title)
+#   body_unknown_deep_member document.body.textContnt -> WEB-BODY-002 (+ suggestion)
 #   body_no_provider       no dom import            -> WEB-BODY-008
 #   body_hook_placement    useEffect inside if      -> WEB-BODY-006
 #   body_ok_surface        allowed roots/built-ins  -> builds, no 001/002/006/008
 #   body_ok_chains         document.body.classList  -> no 002, counted 005
+#   body_ok_deep_chains    fully typed chains        -> no 002 and untyped=0
+#                          (Option unwrap/vector/ClassList/DOMRect/Style)
 #   body_props_shadow      local `props` shadow     -> no 001 (counted)
 #   body_props_destructure props destructuring      -> no 001 (counted)
 #   body_jsx_contexts      document.title attr/child -> no 002
@@ -126,6 +129,23 @@ check "002 suggests the nearest member" "$(has "$c" "did you mean 'title'")"
 check "the 002 is in the client section" "$(has "$c" 'WEB-BODY-002')"
 check "the server section has no body diagnostic" "$(no_code "$s")"
 
+# ---------------------------------------------------------------- negative: 002 deep
+echo
+echo "== negative: document.body.textContnt has no member"
+if run_case body_unknown_deep_member; then
+    check "body_unknown_deep_member is rejected" 0
+else
+    check "body_unknown_deep_member is rejected" 1
+fi
+c="$out/body_unknown_deep_member.client.log"
+s="$out/body_unknown_deep_member.server.log"
+check "deep 002 is reported once" "$([ "$(count "$c" 'WEB-BODY-002')" = "1" ] && echo 1 || echo 0)"
+check "deep 002 names the component" "$(has "$c" "component 'DeepMemberProbe'")"
+check "deep 002 names the final member" "$(has "$c" "Element.textContnt")"
+check "deep 002 suggests the nearest member" "$(has "$c" "did you mean 'textContent'")"
+check "the deep 002 is in the client section" "$(has "$c" 'WEB-BODY-002')"
+check "the server section has no body diagnostic" "$(no_code "$s")"
+
 # ---------------------------------------------------------------- negative: 008
 echo
 echo "== negative: no provider for document"
@@ -190,6 +210,13 @@ c="$out/body_ok_chains.client.log"
 check "a deeper chain is counted, not rejected" \
       "$(has_re "$c" '\[body\] component=ChainProbe untyped=[1-9][0-9]*')"
 
+positive_case body_ok_deep_chains
+c="$out/body_ok_deep_chains.client.log"
+for component in ChainClassProbe ChainOptionProbe ChainQueryProbe ChainVectorProbe ChainLayoutProbe; do
+    check "$component chain is fully typed (untyped=0)" \
+          "$(has "$c" "[body] component=$component untyped=0")"
+done
+
 positive_case body_props_shadow
 c="$out/body_props_shadow.client.log"
 check "a shadowed props local produces no 001" \
@@ -208,8 +235,8 @@ check "document.title in an attribute and a child produces no 002" \
       "$([ "$(count "$c" 'WEB-BODY-002')" = "0" ] && echo 1 || echo 0)"
 
 # ---------------------------------------------------------------- cleanup
-for name in body_unknown_prop body_unknown_member body_no_provider body_hook_placement \
-            body_ok_surface body_ok_chains body_props_shadow body_props_destructure body_jsx_contexts; do
+for name in body_unknown_prop body_unknown_member body_unknown_deep_member body_no_provider body_hook_placement \
+            body_ok_surface body_ok_chains body_ok_deep_chains body_props_shadow body_props_destructure body_jsx_contexts; do
     rm -rf "$fixtures/$name/build" "$fixtures/$name/client/build" "$fixtures/$name/src/build"
 done
 if [ "$fail" = 0 ]; then

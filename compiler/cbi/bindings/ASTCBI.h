@@ -63,6 +63,8 @@ extern "C" {
 
     int ASTNodegetKind(ASTNode* node);
 
+    void ASTNodegetNodeIdentifier(chem::string_view* view, ASTNode* node);
+
     ASTNode* ASTNodegetParent(ASTNode* node);
 
     ASTNode* ASTNodechild(ASTNode* node, chem::string_view* name);

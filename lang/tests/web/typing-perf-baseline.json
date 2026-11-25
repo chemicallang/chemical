@@ -1,0 +1,10 @@
+{
+  "build_ms": 868,
+  "bundle_gz_bytes": 632316,
+  "cold_ms": 8677,
+  "generated": "2026-11-25",
+  "index_calls": 2,
+  "machine": "wakaztahir",
+  "max_rss_kb": 71816,
+  "plugin_ms": 6204
+}

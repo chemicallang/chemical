@@ -1,0 +1,80 @@
+name: Universal components (WebView)
+
+# The `--universal` suite builds every `#universal` fixture and runs the
+# SSR -> hydration -> interaction assertions in a real WebKit view. It is the
+# only gate that proves the component-typing allow-list agrees with the runtime.
+#
+# Local limitation (2026-11-25): the development host can compile the suite
+# (`./scripts/test.sh --tcc --universal --no-run`) but has no display/xvfb, no
+# GTK/WebKit development headers and no passwordless sudo, so it cannot run the
+# headed/hidden WebView locally. This workflow is the authoritative run.
+#
+# The fast, display-free typing gates live in web-stack.yml.
+
+on:
+  pull_request:
+    paths:
+      - 'lang/libs/components/**'
+      - 'lang/libs/dom/**'
+      - 'lang/libs/universal_cbi/**'
+      - 'lang/libs/page/**'
+      - 'lang/libs/lab/**'
+      - 'lang/libs/universal_test/**'
+      - 'compiler/cbi/**'
+      - 'compiler/lab/**'
+      - 'lang/tests/universal_webview/**'
+      - 'lang/docs/component-body-typing-*.md'
+      - 'scripts/test.sh'
+      - '.github/workflows/universal.yml'
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: universal-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  universal:
+    name: Universal WebView suite
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install build and WebView dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build python3 \
+            xvfb libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Set up TinyCC
+        run: ./scripts/setup.sh
+
+      - name: Configure TCCCompiler
+        run: ./scripts/configure.sh --no-llvm --generator Ninja
+
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j "$(nproc)"
+
+      - name: Universal components in a real WebView
+        run: xvfb-run -a ./scripts/test.sh --tcc --universal
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-logs
+          path: |
+            lang/tests/build/all-logs/universal.log
+            lang/tests/build/tests-tcc.exe
+          if-no-files-found: ignore

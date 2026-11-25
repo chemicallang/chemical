@@ -22,6 +22,20 @@ name: Web stack
 #   web-two-pass-test      a shared `#universal` component is compiled by both
 #                          `--web` passes: the server renders it and the client
 #                          body-checks + bundles it (H31)
+#   web-index-test         `index_with` metadata, the IndexModule/JobBegin hooks,
+#                          namespace flattening and duplicate providers
+#   web-body-check-test    001/002/006/008 negatives, 005 positives, chains,
+#                          built-ins and the client/server split
+#   web-two-side-test      server skips when there is no provider, client runs,
+#                          index isolation, native-only build
+#   web-component-typing-test
+#                          the 196-component corpus: typed rules strict, 005
+#                          baseline stable, both `--web` sides checked
+#   component-typing-audit no DOM/typing special-case in compiler/, enum sync,
+#                          CBI bindings present, backends read MIR only
+#   web-typing-perf        cold/warm build, plugin rebuild, canonical bundle
+#                          size, index calls/RSS (budget checked only on the
+#                          baseline machine)
 #
 # These run on pull requests because they are the only checks that notice a
 # bundle regression: without them the numbers in the plan drift and nobody sees it.
@@ -54,7 +68,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build python3
+          sudo apt-get install -y cmake ninja-build python3 time
 
       - name: Set up Node (the JS backend fixtures run their bundles)
         uses: actions/setup-node@v4
@@ -97,6 +111,26 @@ jobs:
       - name: Shared `#universal` component in both `--web` passes
         run: ./scripts/web-two-pass-test.sh
 
+      - name: `index_with` metadata and index hooks
+        run: ./scripts/web-index-test.sh
+
+      - name: Component body checks (001/002/006/008, counted 005)
+        run: ./scripts/web-body-check-test.sh
+
+      - name: Server/client two-side body check and index isolation
+        run: ./scripts/web-two-side-test.sh
+
+      - name: Component corpus: typed rules strict, 005 baseline
+        run: ./scripts/web-component-typing-test.sh
+
+      - name: Component typing boundary audit
+        run: ./scripts/component-typing-audit.sh
+
+      # The baseline is host-specific, so CI measures but skips the budget on a
+      # different machine. Run `--update-baseline` on the benchmark host.
+      - name: Component typing performance (cold/warm, plugin, bundle)
+        run: ./scripts/web-typing-perf.sh
+
       - name: Declarations-only host modules (`host = "js"`) on a native job
         run: ./scripts/web-types-only-test.sh
 
@@ -112,4 +146,8 @@ jobs:
             lang/compiled/web-split-gate/*.log
             lang/compiled/web-two-pass-gate/*.log
             lang/compiled/web-types-only-gate/*.log
+            lang/compiled/web-body-check-gate/*.log
+            lang/compiled/web-two-side-gate/*.log
+            lang/compiled/web-component-typing-gate/*.log
+            lang/compiled/web-typing-perf/*.log
           if-no-files-found: ignore

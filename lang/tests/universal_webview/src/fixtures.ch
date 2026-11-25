@@ -1302,3 +1302,19 @@
     </div>
 }
 
+
+// ---------------------------------------------------------------------------
+// Document surface: the checker's allowed ambient `document` members, exercised
+// through the real SSR -> hydration path. `document.title` and
+// `document.activeElement` are direct members of the indexed `Document`; a
+// checker false positive would fail the `--universal` build before this runs.
+// ---------------------------------------------------------------------------
+#universal DocumentFixture(props) {
+    state title = ""
+    state active = ""
+    useEffect(() => {
+        title = document.title
+        active = document.activeElement ? "yes" : "no"
+    }, [])
+    return <div data-testid="document-fixture" data-active={active}>{title}</div>
+}

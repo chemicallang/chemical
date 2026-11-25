@@ -646,6 +646,10 @@ int ASTNodegetKind(ASTNode* node) {
     return static_cast<int>(node->kind());
 }
 
+void ASTNodegetNodeIdentifier(chem::string_view* view, ASTNode* node) {
+    *view = node->get_node_identifier();
+}
+
 ASTNode* ASTNodegetParent(ASTNode* node) {
     return node->parent();
 }

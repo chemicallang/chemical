@@ -22,6 +22,19 @@ public func on_click(e : &dom::Event) {
         printf("dom pointer x=%.0f y=%.0f button=%d id=%d\n",
             e.clientX(), e.clientY(), e.button(), e.pointerId())
     }
+    // The listener's attachment point, not the event target.
+    var origin = e.currentTarget()
+    var origin_id = string()
+    if(origin is Option.Some) {
+        var Some(origin_el) = origin else unsafe { unreachable }
+        var origin_attr = origin_el.getAttribute("id")
+        if(origin_attr is Option.Some) {
+            var Some(origin_value) = origin_attr else unsafe { unreachable }
+            origin_id.append_view(origin_value.to_view())
+        }
+    }
+    var origin_view = origin_id.to_view()
+    unsafe { printf("dom current=%.*s\n", origin_view.size() as int, origin_view.data()) }
     var doc = dom.document()
     var node = doc.getElementById("count")
     if(node is Option.Some) {
@@ -119,6 +132,76 @@ public func main() : int {
                 first_kid, past_end, removed_class)
         }
 
+        // Deep DOM surface: querySelectorAll copies the host NodeList into a
+        // vector, so indexing and iteration are ordinary Chemical operations.
+        var all_roles = app.querySelectorAll("[data-role]")
+        var role_count : int = 0
+        var role_labels = string()
+        if(all_roles is Option.Some) {
+            var Some(found_roles) = all_roles else unsafe { unreachable }
+            role_count = found_roles.size() as int
+            var role_i : size_t = 0
+            while(role_i < found_roles.size()) {
+                var role_el = found_roles.get_ptr(role_i)
+                var role_content = unsafe(role_el.textContent())
+                role_labels.append_view(role_content.to_view())
+                if(role_i + 1 < found_roles.size()) {
+                    role_labels.append_view(string_view("|"))
+                }
+                role_i = role_i + 1
+            }
+        }
+        var document_roles = doc.querySelectorAll("[data-role]")
+        var document_role_count : int = 0
+        if(document_roles is Option.Some) {
+            var Some(found_document_roles) = document_roles else unsafe { unreachable }
+            document_role_count = found_document_roles.size() as int
+        }
+        var roles_view = role_labels.to_view()
+        unsafe {
+            printf("dom qsa doc=%d element=%d texts=%.*s\n",
+                document_role_count, role_count,
+                roles_view.size() as int, roles_view.data())
+        }
+
+        // classList / style: the browser spelling over the same host operations.
+        var tokens = card.classList()
+        var token_before = tokens.contains("deep") as int
+        tokens.add("deep")
+        tokens.add("deep")
+        var token_added = tokens.contains("deep") as int
+        var token_off = tokens.toggle("deep") as int
+        var token_after_off = tokens.contains("deep") as int
+        var token_on = tokens.toggle("deep") as int
+        var token_after_on = tokens.contains("deep") as int
+        tokens.remove("deep")
+        var token_removed = tokens.contains("deep") as int
+        unsafe {
+            printf("dom classlist before=%d added=%d off=%d after_off=%d on=%d after_on=%d removed=%d\n",
+                token_before, token_added, token_off, token_after_off,
+                token_on, token_after_on, token_removed)
+        }
+
+        var inline = card.style()
+        inline.setProperty("color", "rgb(1, 2, 3)")
+        inline.setProperty("display", "block")
+        var color_value = inline.getPropertyValue("color")
+        inline.removeProperty("display")
+        var display_value = inline.getPropertyValue("display")
+        var color_view = color_value.to_view()
+        var display_empty = (display_value.size() == 0) as int
+        unsafe {
+            printf("dom style color=%.*s display_empty=%d\n",
+                color_view.size() as int, color_view.data(), display_empty)
+        }
+
+        var rect = card.getBoundingClientRect()
+        unsafe {
+            printf("dom rect x=%.1f y=%.1f w=%.1f h=%.1f top=%.1f right=%.1f bottom=%.1f left=%.1f\n",
+                rect.x, rect.y, rect.width, rect.height,
+                rect.top, rect.right, rect.bottom, rect.left)
+        }
+
         var input = doc.getElementById("name")
         if(input is Option.Some) {
             var Some(field) = input else unsafe { unreachable }
@@ -157,6 +240,14 @@ public func main() : int {
                 title_view.size() as int, title_view.data(),
                 root_view.size() as int, root_view.data(),
                 active_view.size() as int, active_view.data())
+        }
+
+        // Viewport metrics come from the host window.
+        var viewport = dom.window()
+        unsafe {
+            printf("dom window w=%.0f h=%.0f x=%.0f y=%.0f\n",
+                viewport.innerWidth(), viewport.innerHeight(),
+                viewport.scrollX(), viewport.scrollY())
         }
 
         var button = doc.getElementById("count-button")

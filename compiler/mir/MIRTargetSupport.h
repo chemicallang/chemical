@@ -36,7 +36,8 @@ namespace mir {
 
     /**
      * A whole symbol that a target cannot provide, matched by mangled-name
-     * *prefix* (one rule covers a family: `chx_dom_` is 29 host declarations).
+     * *prefix* (one rule covers a whole family: `chx_dom_` is the typed-DOM
+     * host surface).
      */
     struct MIRTargetSymbolRule {
         MIRTargetKind target;

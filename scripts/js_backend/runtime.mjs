@@ -729,7 +729,39 @@ export const dom = {
 
   get_element_by_id: (doc, id) => retain(element(doc).getElementById(text_at(id))),
   query_selector: (root, selector) => retain(element(root).querySelector(text_at(selector))),
+  // A `NodeList` is retained like any other host object; `node_list_length`/`at`
+  // read it without copying. The Chemical wrapper copies the handles into a
+  // vector, because a `[]Element` has no length and cannot be a return type.
+  query_selector_all: (root, selector) => retain(element(root).querySelectorAll(text_at(selector))),
+  node_list_length: (list) => element(list).length,
+  node_list_at: (list, index) => {
+    const node = element(list)[Number(index)];
+    return node === undefined ? 0 : retain(node);
+  },
   create_element: (doc, tag) => retain(element(doc).createElement(text_at(tag))),
+
+  // Layout and inline style. A `DOMRect` is a host object handle; the eight
+  // field getters copy its CSS-pixel values into the Chemical struct.
+  get_bounding_client_rect: (handle) => retain(element(handle).getBoundingClientRect()),
+  rect_x: (rect) => Number(element(rect).x ?? 0),
+  rect_y: (rect) => Number(element(rect).y ?? 0),
+  rect_width: (rect) => Number(element(rect).width ?? 0),
+  rect_height: (rect) => Number(element(rect).height ?? 0),
+  rect_top: (rect) => Number(element(rect).top ?? 0),
+  rect_right: (rect) => Number(element(rect).right ?? 0),
+  rect_bottom: (rect) => Number(element(rect).bottom ?? 0),
+  rect_left: (rect) => Number(element(rect).left ?? 0),
+
+  style_set_property: (handle, name, value) => {
+    element(handle).style.setProperty(text_at(name), text_at(value));
+  },
+  style_get_property_value: (handle, name) => {
+    const value = element(handle).style.getPropertyValue(text_at(name));
+    return value === undefined || value === null ? 0 : cstr_of(String(value));
+  },
+  style_remove_property: (handle, name) => {
+    element(handle).style.removeProperty(text_at(name));
+  },
 
   set_text: (handle, text) => { element(handle).textContent = text_at(text); },
   text: (handle) => cstr_of(element(handle).textContent ?? ""),
@@ -842,6 +874,11 @@ export const dom = {
     globalThis.clearTimeout(Number(id));
   },
 
+  inner_width: (win) => Number(element(win).innerWidth ?? 0),
+  inner_height: (win) => Number(element(win).innerHeight ?? 0),
+  scroll_x: (win) => Number(element(win).scrollX ?? element(win).pageXOffset ?? 0),
+  scroll_y: (win) => Number(element(win).scrollY ?? element(win).pageYOffset ?? 0),
+
   event_client_x: (event) => Number(resolve_handle(event).clientX ?? 0),
   event_client_y: (event) => Number(resolve_handle(event).clientY ?? 0),
   event_button: (event) => Number((resolve_handle(event).button ?? -1)),
@@ -896,6 +933,10 @@ export const dom = {
   prevent_default: (event) => { const e = resolve_handle(event); if (e && e.preventDefault) e.preventDefault(); },
   stop_propagation: (event) => { const e = resolve_handle(event); if (e && e.stopPropagation) e.stopPropagation(); },
   target: (event) => retain(resolve_handle(event).target),
+  current_target: (event) => {
+    const e = resolve_handle(event);
+    return retain(e.currentTarget ?? e.target ?? null);
+  },
   key: (event) => cstr_of(resolve_handle(event).key ?? ""),
 
   // `fetch(url, callback)`; the callback is `(status : int, body : string_view)`,

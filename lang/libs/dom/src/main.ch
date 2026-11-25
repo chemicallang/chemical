@@ -77,8 +77,73 @@ public namespace raw {
     @extern @no_mangle
     func chx_dom_query_selector(root : usize, selector : string_view) : usize
 
+    // A `NodeList` is a host handle like an element; `length`/`at` read it. The
+    // safe side copies the handles into an owned `std::vector<Element>` because a
+    // `[]Element` is an unsized C array (no length, zero-size value) and cannot be
+    // a return type.
+    @extern @no_mangle
+    func chx_dom_query_selector_all(root : usize, selector : string_view) : usize
+
+    @extern @no_mangle
+    func chx_dom_node_list_length(list : usize) : int
+
+    @extern @no_mangle
+    func chx_dom_node_list_at(list : usize, index : int) : usize
+
     @extern @no_mangle
     func chx_dom_create_element(doc : usize, tag : string_view) : usize
+
+    // ── Layout, inline style and viewport metrics ───────────────────────────
+    // A `DOMRect` is a host object handle; the safe wrapper copies its eight
+    // `f64` fields into the Chemical struct. Style operations act on the
+    // element's `style` object, so one handle names both.
+    @extern @no_mangle
+    func chx_dom_get_bounding_client_rect(handle : usize) : usize
+
+    @extern @no_mangle
+    func chx_dom_rect_x(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_y(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_width(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_height(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_top(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_right(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_bottom(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_rect_left(rect : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_style_set_property(handle : usize, name : string_view, value : string_view)
+
+    @extern @no_mangle
+    func chx_dom_style_get_property_value(handle : usize, name : string_view) : *char
+
+    @extern @no_mangle
+    func chx_dom_style_remove_property(handle : usize, name : string_view)
+
+    @extern @no_mangle
+    func chx_dom_inner_width(window : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_inner_height(window : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_scroll_x(window : usize) : f64
+
+    @extern @no_mangle
+    func chx_dom_scroll_y(window : usize) : f64
 
     @extern @no_mangle
     func chx_dom_set_text(handle : usize, text : string_view)
@@ -257,6 +322,9 @@ public namespace raw {
     func chx_dom_target(event : usize) : usize
 
     @extern @no_mangle
+    func chx_dom_current_target(event : usize) : usize
+
+    @extern @no_mangle
     func chx_dom_key(event : usize) : *char
 
     @extern @no_mangle
@@ -302,6 +370,24 @@ func owned(p : *char) : string {
     return out
 }
 
+// Copy a host `NodeList` handle into an owned vector. A `[]Element` cannot carry
+// a length (unsized arrays have no size and decay to a pointer), so the checked
+// surface returns an owned vector; the handles themselves are cheap values.
+func copy_node_list(list : usize) : Option<std::vector<Element>> {
+    if(list == 0) {
+        return Option.None<std::vector<Element>>()
+    }
+    var count = unsafe(raw::chx_dom_node_list_length(list))
+    var out = std::vector<Element>()
+    out.reserve(count as size_t)
+    var i : int = 0
+    while(i < count) {
+        out.push(Element { handle : unsafe(raw::chx_dom_node_list_at(list, i)) })
+        i = i + 1
+    }
+    return Option.Some<std::vector<Element>>(out)
+}
+
 // ── Document ────────────────────────────────────────────────────────────────
 /// The page's document.
 @direct_init
@@ -324,6 +410,12 @@ public struct Document {
             return Option.None<Element>()
         }
         return Option.Some<Element>(Element { handle : h })
+    }
+
+    /// Every element matching a CSS selector, in document order. `None` only when
+    /// the host cannot produce a list (an empty match is `Some` of an empty vector).
+    public func querySelectorAll(&self, selector : string_view) : Option<std::vector<Element>> {
+        return copy_node_list(unsafe(raw::chx_dom_query_selector_all(handle, selector)))
     }
 
     public func createElement(&self, tag : string_view) : Element {
@@ -438,10 +530,36 @@ public struct Element {
         return Option.Some<Element>(Element { handle : h })
     }
 
+    /// Every descendant matching a CSS selector, in document order.
+    public func querySelectorAll(&self, selector : string_view) : Option<std::vector<Element>> {
+        return copy_node_list(unsafe(raw::chx_dom_query_selector_all(handle, selector)))
+    }
+
+    /// The element's viewport rectangle in CSS pixels. A snapshot, like the
+    /// browser API: call it again after a layout change.
+    public func getBoundingClientRect(&self) : DOMRect {
+        var rect = unsafe(raw::chx_dom_get_bounding_client_rect(handle))
+        return DOMRect {
+            x : unsafe(raw::chx_dom_rect_x(rect)),
+            y : unsafe(raw::chx_dom_rect_y(rect)),
+            width : unsafe(raw::chx_dom_rect_width(rect)),
+            height : unsafe(raw::chx_dom_rect_height(rect)),
+            top : unsafe(raw::chx_dom_rect_top(rect)),
+            right : unsafe(raw::chx_dom_rect_right(rect)),
+            bottom : unsafe(raw::chx_dom_rect_bottom(rect)),
+            left : unsafe(raw::chx_dom_rect_left(rect))
+        }
+    }
+
     // ── Classes ─────────────────────────────────────────────────────────────
     // The `class` attribute as a token set, so a class name is never spliced into a
     // string: `toggleClass` is what a `class="…"` read-modify-write would break
     // whenever two pieces of code touch the same element.
+    /// The element's class tokens as a `ClassList`, the browser spelling.
+    public func classList(&self) : ClassList {
+        return ClassList { handle : handle }
+    }
+
     public func hasClass(&self, name : string_view) : bool {
         return unsafe(raw::chx_dom_has_class(handle, name)) != 0
     }
@@ -457,6 +575,12 @@ public struct Element {
     /// Adds `name` when absent, removes it when present; returns whether it is now set.
     public func toggleClass(&self, name : string_view) : bool {
         return unsafe(raw::chx_dom_toggle_class(handle, name)) != 0
+    }
+
+    // ── Inline style ────────────────────────────────────────────────────────
+    /// The element's inline `style` object (`setProperty`/`getPropertyValue`).
+    public func style(&self) : Style {
+        return Style { handle : handle }
     }
 
     // ── Traversal ───────────────────────────────────────────────────────────
@@ -516,6 +640,65 @@ public struct Element {
 
     public func releasePointerCapture(&self, pointer_id : int) {
         unsafe { raw::chx_dom_release_pointer_capture(handle, pointer_id) }
+    }
+}
+
+// ── DOMRect ─────────────────────────────────────────────────────────────────
+/// A viewport rectangle in CSS pixels, matching `DOMRect`'s eight fields.
+@direct_init
+public struct DOMRect {
+    public var x : f64
+    public var y : f64
+    public var width : f64
+    public var height : f64
+    public var top : f64
+    public var right : f64
+    public var bottom : f64
+    public var left : f64
+}
+
+// ── ClassList ───────────────────────────────────────────────────────────────
+/// An element's class tokens. Each operation is the existing host class-token
+/// call, so two pieces of code can edit the same `class` attribute safely.
+@direct_init
+public struct ClassList {
+    internal var handle : usize
+
+    public func contains(&self, name : string_view) : bool {
+        return unsafe(raw::chx_dom_has_class(handle, name)) != 0
+    }
+
+    public func add(&self, name : string_view) {
+        unsafe { raw::chx_dom_add_class(handle, name) }
+    }
+
+    public func remove(&self, name : string_view) {
+        unsafe { raw::chx_dom_remove_class(handle, name) }
+    }
+
+    /// Adds `name` when absent, removes it when present; returns whether it is now set.
+    public func toggle(&self, name : string_view) : bool {
+        return unsafe(raw::chx_dom_toggle_class(handle, name)) != 0
+    }
+}
+
+// ── Style ───────────────────────────────────────────────────────────────────
+/// An element's inline style, as the browser's `CSSStyleDeclaration` subset.
+@direct_init
+public struct Style {
+    internal var handle : usize
+
+    public func setProperty(&self, name : string_view, value : string_view) {
+        unsafe { raw::chx_dom_style_set_property(handle, name, value) }
+    }
+
+    /// The property's value, or the empty string when it is not set.
+    public func getPropertyValue(&self, name : string_view) : string {
+        return owned(unsafe(raw::chx_dom_style_get_property_value(handle, name)))
+    }
+
+    public func removeProperty(&self, name : string_view) {
+        unsafe { raw::chx_dom_style_remove_property(handle, name) }
     }
 }
 
@@ -637,6 +820,15 @@ public struct Event {
         return Option.Some<Element>(Element { handle : h })
     }
 
+    /// The element whose listener is running (the attachment point).
+    public func currentTarget(&self) : Option<Element> {
+        var h = unsafe(raw::chx_dom_current_target(handle))
+        if(h == 0) {
+            return Option.None<Element>()
+        }
+        return Option.Some<Element>(Element { handle : h })
+    }
+
     /// The key of a keyboard event (empty for other events).
     public func key(&self) : string {
         return owned(unsafe(raw::chx_dom_key(handle)))
@@ -685,6 +877,24 @@ public struct Window {
 
     public func cancelAnimationFrame(&self, id : int) {
         unsafe { raw::chx_dom_cancel_animation_frame(id) }
+    }
+
+    /// The viewport width/height in CSS pixels.
+    public func innerWidth(&self) : f64 {
+        return unsafe(raw::chx_dom_inner_width(handle))
+    }
+
+    public func innerHeight(&self) : f64 {
+        return unsafe(raw::chx_dom_inner_height(handle))
+    }
+
+    /// The document's horizontal/vertical scroll offset in CSS pixels.
+    public func scrollX(&self) : f64 {
+        return unsafe(raw::chx_dom_scroll_x(handle))
+    }
+
+    public func scrollY(&self) : f64 {
+        return unsafe(raw::chx_dom_scroll_y(handle))
     }
 
     public func addEventListener(&self, event : string_view, handler : (e : &Event) => void) {

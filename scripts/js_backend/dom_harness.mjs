@@ -37,6 +37,7 @@ class FakeEventTarget {
     const event = {
       type: key,
       target: this,
+      currentTarget: this,
       key: "",
       clientX: 10,
       clientY: 20,
@@ -51,6 +52,30 @@ class FakeEventTarget {
   }
 }
 
+// Inline style: a property map that records every write, so the gate can prove
+// `style.setProperty`/`removeProperty` reached the host with the right names.
+const styleOps = [];
+globalThis.__chx_style_ops = styleOps;
+
+class FakeStyle {
+  constructor() { this.props = new Map(); }
+
+  setProperty(name, value) {
+    this.props.set(String(name), String(value));
+    styleOps.push(`set(${name}=${value})`);
+  }
+
+  getPropertyValue(name) {
+    const key = String(name);
+    return this.props.has(key) ? this.props.get(key) : "";
+  }
+
+  removeProperty(name) {
+    this.props.delete(String(name));
+    styleOps.push(`remove(${name})`);
+  }
+}
+
 class FakeElement extends FakeEventTarget {
   constructor(tagName, doc) {
     super();
@@ -62,6 +87,7 @@ class FakeElement extends FakeEventTarget {
     this.textContent = "";
     this.value = "";
     this.classList = new Set();
+    this.style = new FakeStyle();
   }
 
   setAttribute(name, value) {
@@ -106,6 +132,18 @@ class FakeElement extends FakeEventTarget {
     const sel = String(selector).trim();
     if (sel.startsWith("#")) return this.getAttribute("id") === sel.slice(1);
     if (sel.startsWith(".")) return this.classList.has(sel.slice(1));
+    if (sel.startsWith("[") && sel.endsWith("]")) {
+      const body = sel.slice(1, -1);
+      const eq = body.indexOf("=");
+      if (eq < 0) return this.hasAttribute(body.trim());
+      const name = body.slice(0, eq).trim();
+      let value = body.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      return this.getAttribute(name) === value;
+    }
     return this.tagName === sel.toUpperCase();
   }
 
@@ -116,6 +154,25 @@ class FakeElement extends FakeEventTarget {
       if (found) return found;
     }
     return null;
+  }
+
+  querySelectorAll(selector) {
+    const out = [];
+    const walk = (parent) => {
+      for (const child of parent.children) {
+        if (child.matches(selector)) out.push(child);
+        walk(child);
+      }
+    };
+    walk(this);
+    return out;
+  }
+
+  // Known layout: every element reports the same viewport rectangle. The gate
+  // asserts the emitted JavaScript copied all eight fields, not this file's
+  // fidelity to a real layout engine.
+  getBoundingClientRect() {
+    return { x: 12.5, y: 20.5, width: 100, height: 40, top: 20.5, right: 112.5, bottom: 60.5, left: 12.5 };
   }
 
   focus() { this.ownerDocument.focused = this; }
@@ -188,6 +245,14 @@ class FakeDocument extends FakeEventTarget {
     if (this.body.matches(selector)) return this.body;
     return this.body.querySelector(selector);
   }
+
+  querySelectorAll(selector) {
+    const out = [];
+    if (this.documentElement.matches(selector)) out.push(this.documentElement);
+    if (this.body.matches(selector)) out.push(this.body);
+    out.push(...this.body.querySelectorAll(selector));
+    return out;
+  }
 }
 
 function build() {
@@ -231,6 +296,12 @@ globalThis.document = build();
 // only what the fixture reads: window-level listeners and a clipboard that
 // records the text it was given.
 globalThis.window = new FakeEventTarget();
+// Known viewport metrics. The gate asserts the emitted JavaScript read each one
+// from the host instead of hard-coding a default.
+globalThis.window.innerWidth = 1024;
+globalThis.window.innerHeight = 768;
+globalThis.window.scrollX = 30;
+globalThis.window.scrollY = 120;
 let clipboardText = "";
 Object.defineProperty(globalThis, "navigator", {
   configurable: true,
@@ -318,5 +389,8 @@ if (clipboardText) console.log(`dom clipboard=${clipboardText}`);
 for (const frame of rafQueue.splice(0)) frame(16);
 if (globalThis.__chx_canvas_ops.length) {
   console.log(`dom canvas ops=${globalThis.__chx_canvas_ops.join(";")}`);
+}
+if (styleOps.length) {
+  console.log(`dom style ops=${styleOps.join(";")}`);
 }
 console.log("dom-harness: done");

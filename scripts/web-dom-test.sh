@@ -109,14 +109,21 @@ cat > "$expected" <<'EOF'
 dom found=1 missing=0
 dom text=Hello dom role=card has=1
 dom classes none=0 added=1 toggled=1 matches=1 closest=1 parent=1 kids=5 first=1 past_end=0 removed=0
+dom qsa doc=2 element=2 texts=hi|Hello dom
+dom classlist before=0 added=1 off=0 after_off=0 on=1 after_on=1 removed=0
+dom style color=rgb(1, 2, 3) display_empty=1
+dom rect x=12.5 y=20.5 w=100.0 h=40.0 top=20.5 right=112.5 bottom=60.5 left=12.5
 dom value=typed
 dom document title=dom harness root=html active=name
+dom window w=1024 h=768 x=30 y=120
 dom storage=dark removed=1
 dom url origin=https://example.com path=/a/b q=7
 dom canvas surface=1
 dom pointer x=10 y=20 button=0 id=1
+dom current=count-button
 dom click count=1
 dom pointer x=10 y=20 button=0 id=1
+dom current=count-button
 dom click count=2
 dom event doc=1
 dom event win=1
@@ -125,6 +132,7 @@ dom timeout=1
 dom clipboard=chemical clip
 dom raf t=16
 dom canvas ops=save;fillRect(0,0,320,200);beginPath;moveTo(0,0);lineTo(320,200);stroke(rgb(255, 0, 0),2);restore;translate(4,6);setTransform(1,0,0,1,0,0);fillText(chemical,8,24);setPointerCapture(1)
+dom style ops=set(color=rgb(1, 2, 3));set(display=block);remove(display)
 dom-harness: done
 EOF
 
@@ -140,10 +148,23 @@ else
 fi
 check "the listener fired for both dispatched clicks" \
       "$([ "$(grep -c 'dom click count=' "$harness_out")" = "2" ] && echo 1 || echo 0)"
+check "event.currentTarget names the listener's element on both dispatches" \
+      "$([ "$(grep -c 'dom current=count-button' "$harness_out")" = "2" ] && echo 1 || echo 0)"
 check "the fetch completion ran with the response body" \
       "$(file_has "$harness_out" 'dom fetch status=200 body={"ok":true,"url":"/api/ok"}')"
 check "document.title/documentElement/activeElement read from the host" \
       "$(file_has "$harness_out" 'dom document title=dom harness root=html active=name')"
+check "querySelectorAll copies the NodeList into an indexable vector (document + element)" \
+      "$(file_has "$harness_out" 'dom qsa doc=2 element=2 texts=hi|Hello dom')"
+check "classList add/contains/toggle/remove reach the host token set" \
+      "$(file_has "$harness_out" 'dom classlist before=0 added=1 off=0 after_off=0 on=1 after_on=1 removed=0')"
+check "style setProperty/getPropertyValue/removeProperty reach the host style object" \
+      "$([ "$(file_has "$harness_out" 'dom style color=rgb(1, 2, 3) display_empty=1')" = "1" ] \
+          && [ "$(file_has "$harness_out" 'dom style ops=set(color=rgb(1, 2, 3));set(display=block);remove(display)')" = "1" ] && echo 1 || echo 0)"
+check "getBoundingClientRect copied all eight DOMRect fields" \
+      "$(file_has "$harness_out" 'dom rect x=12.5 y=20.5 w=100.0 h=40.0 top=20.5 right=112.5 bottom=60.5 left=12.5')"
+check "window.innerWidth/innerHeight/scrollX/scrollY read from the host" \
+      "$(file_has "$harness_out" 'dom window w=1024 h=768 x=30 y=120')"
 check "document listeners add and remove (one line for two dispatches)" \
       "$([ "$(grep -c 'dom event doc=1' "$harness_out")" = "1" ] && echo 1 || echo 0)"
 check "window listeners add and remove (one line for two dispatches)" \

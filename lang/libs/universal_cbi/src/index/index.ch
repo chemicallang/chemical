@@ -1,12 +1,14 @@
 // Per-job ambient index for the universal component body checker (Phase 2).
 //
 // `JobBegin` clears everything and records which side of a `--web` build this
-// job is. `IndexModule` appends each marked module's public zero-parameter
-// functions as ambient roots (`document`, `window`, ...). The index lives for
-// exactly one job: no entry survives into the next server/client pass.
+// job is. `IndexModule` appends every public function as an ambient entry. A
+// zero-parameter function's entry carries its return type (`document()` ->
+// `Document`), which the body checker uses for direct member lookup; a function
+// with parameters (`fetch`) still gets an entry so the closed host-name list
+// resolves, but its `type` is null and no member lookup is implied. The index
+// lives for exactly one job: no entry survives into the next server/client pass.
 //
-// Phase 2 only indexes ambient names; member lookup on the return type is a
-// later phase. Output is gated by CHEM_DEBUG_INDEX so normal builds stay silent.
+// Output is gated by CHEM_DEBUG_INDEX so normal builds stay silent.
 
 public enum AmbientKind {
     Function
@@ -183,14 +185,18 @@ public unsafe func universal_index_module(module : *mut Module, declarations : *
                         printf("%.*s", decl_name.size() as int, decl_name.data())
                     }
 
-                    // An ambient root is a public zero-parameter function. The
-                    // participant has already filtered internal declarations and
-                    // recursed public namespaces, so only the parameter list is
-                    // checked here.
+                    // Every public function is indexed. The participant has
+                    // already filtered internal declarations and recursed public
+                    // namespaces. A zero-parameter function is an ambient root
+                    // whose return type drives member lookup; a function with
+                    // parameters only makes the name resolvable (so e.g. `fetch`
+                    // is not reported as an unknown host), with a null type.
                     const params = def.get_params()
+                    var entry_type : *mut BaseType = null
                     if(params == null || params.size() == 0) {
-                        index_add_ambient(&decl_name, &provider, def.getReturnType())
+                        entry_type = def.getReturnType()
                     }
+                    index_add_ambient(&decl_name, &provider, entry_type)
                 }
                 default => {
                     if(debug) {

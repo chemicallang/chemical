@@ -63,8 +63,7 @@ void initialize_job(LabJob* job, LabBuildCompilerOptions* options, const std::st
     // `js` is a property of the job's back end: build-script (JIT) and CBI jobs
     // always run through TinyCC, never through the JS emitter.
     job->target_data.js = options->emit_js && (job->type == LabJobType::Executable
-                                               || job->type == LabJobType::Library
-                                               || job->type == LabJobType::Interpretation);
+                                               || job->type == LabJobType::Library);
     // setting job specific variables
 #ifdef LSP_BUILD
     job->target_data.lsp = true;

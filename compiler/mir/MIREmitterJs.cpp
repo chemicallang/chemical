@@ -809,6 +809,60 @@ bool ModuleEmitter::run(std::string& out, std::string* source_map) {
     }
     out += "};\n";
 
+    // The public API table (library mode only): `$exports` stays the full symbol
+    // table for internal cross-module imports, but a consumer calls the library's
+    // public surface through `$api`, so a reachable private helper is not
+    // accidentally part of the API.
+    if (options_.library_mode) {
+        // A public async function's exported ramp follows the Chemical
+        // `FutureHandle` ABI: it writes a promise token through a hidden sret
+        // pointer and returns void. A JS consumer awaits the function itself, so
+        // `$api` maps it to a wrapper that allocates the handle, starts the
+        // ramp, and awaits the token. `$exports` keeps the raw ramp for internal
+        // Chemical calls.
+        auto api_wrapper_name = [](const MIRFunction& fn) {
+            return "$api_f" + std::to_string(fn.symbol);
+        };
+        for (const MIRFunction* fnp : functions_) {
+            if (fnp == nullptr) continue;
+            const MIRFunction& fn = *fnp;
+            if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+            if (emitted_.count(fn.symbol) == 0) continue; // no body
+            if (!fn.async_body) continue;
+            if (module_.symbols.get(fn.symbol).linkage != MIRLinkage::External) continue;
+            out += "async function ";
+            out += api_wrapper_name(fn);
+            out += "(...args) {\n";
+            out += "  const $h = rt.malloc(64);\n";
+            out += "  ";
+            out += js_function_name(fn.symbol);
+            out += "($h, ...args);\n";
+            out += "  return await rt.promise_get(rt.ld($h, 8, 0));\n";
+            out += "}\n\n";
+        }
+
+        out += "\n// --- public API table ---────────────────────────────────────────────────\n";
+        out += "export const $api = {\n";
+        std::unordered_set<SymbolId> api_listed;
+        for (const MIRFunction* fnp : functions_) {
+            if (fnp == nullptr) continue;
+            const MIRFunction& fn = *fnp;
+            if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module_.symbols.size()) continue;
+            if (!api_listed.insert(fn.symbol).second) continue;
+            if (emitted_.count(fn.symbol) == 0) continue; // no body
+            const MIRSymbolRecord& rec = module_.symbols.get(fn.symbol);
+            if (rec.linkage != MIRLinkage::External) continue;
+            const std::string name = module_.symbols.mangled_name(rec);
+            if (name.empty()) continue;
+            out += "  \"";
+            out += name;
+            out += "\": ";
+            out += fn.async_body ? api_wrapper_name(fn) : js_function_name(fn.symbol);
+            out += ",\n";
+        }
+        out += "};\n";
+    }
+
     if (source_map != nullptr && !options_.minify) {
         const std::string file_name = js_module_file_stem(options_.module_name) + ".mjs";
         *source_map = build_source_map(module_, mappings_, preamble_lines, file_name);
@@ -2608,10 +2662,9 @@ void collect_global_function_refs(const MIRModule& module, ConstExprId id,
     }
 }
 
-} // namespace
-
-std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
-                                                    std::string_view entry) {
+std::vector<const MIRFunction*> reachable_functions_impl(
+    const MIRModule& module, std::vector<std::string> work,
+    const std::vector<std::string>* library_modules) {
     std::unordered_map<std::string, const MIRFunction*> by_name;
     for (const MIRFunction& fn : module.functions) {
         if (fn.symbol == MIR_INVALID_ID || fn.symbol >= module.symbols.size()) continue;
@@ -2621,8 +2674,6 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
 
     std::vector<const MIRFunction*> out;
     std::unordered_set<std::string> visited;
-    std::vector<std::string> work;
-    work.emplace_back(entry);
 
     // A global's initializer can hold a function address, which makes that
     // function reachable even though no instruction names it.
@@ -2643,6 +2694,48 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
                 if (!slot.target.empty()) targets.push_back(slot.target);
             }
             if (!targets.empty()) vtable_targets.emplace(def.name, std::move(targets));
+        }
+    }
+
+    if (library_modules != nullptr) {
+        // A library's exported surface includes values the program never calls
+        // by name: a function whose address is taken, and a vtable slot. A
+        // consumer can reach both without any instruction in this program
+        // naming the target. Only the library's own modules are seeded: an
+        // imported module's internal vtable/address graph is reachable through
+        // the roots that call into it.
+        const std::unordered_set<std::string> own_modules(library_modules->begin(),
+                                                          library_modules->end());
+        auto owned_by_library = [&](const MIRFunction& fn) {
+            return own_modules.count(std::string(module.module_name_of(
+                module.module_of_symbol(fn.symbol)))) != 0;
+        };
+        for (const MIRVtableRecord& def : module.vtables.defs) {
+            bool owned = false;
+            for (const MIRVtableSlot& slot : def.slots) {
+                if (slot.target.empty()) continue;
+                auto it = by_name.find(slot.target);
+                if (it != by_name.end() && owned_by_library(*it->second)) {
+                    owned = true;
+                    break;
+                }
+            }
+            if (!owned) continue;
+            for (const MIRVtableSlot& slot : def.slots) {
+                if (!slot.target.empty()) work.push_back(slot.target);
+            }
+        }
+        for (const MIRFunction& fn : module.functions) {
+            if (!owned_by_library(fn)) continue;
+            for (const MIRInstruction& ins : fn.instructions) {
+                if (ins.opcode() != MIROpcode::FunctionAddr) continue;
+                for (uint32_t i = 0; i < ins.operand_count; ++i) {
+                    const MIROperand& op = fn.operands[ins.operand_offset + i];
+                    if (op.kind() != MIROperandKind::Symbol) continue;
+                    if (op.id >= module.symbols.size()) continue;
+                    work.push_back(module.symbols.mangled_name(module.symbols.get(op.id)));
+                }
+            }
         }
     }
 
@@ -2704,6 +2797,21 @@ std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
         }
     }
     return out;
+}
+
+} // namespace
+
+std::vector<const MIRFunction*> reachable_functions(const MIRModule& module,
+                                                    std::string_view entry) {
+    std::vector<std::string> work;
+    work.emplace_back(entry);
+    return reachable_functions_impl(module, std::move(work), nullptr);
+}
+
+std::vector<const MIRFunction*> reachable_functions(
+    const MIRModule& module, const std::vector<std::string>& roots,
+    const std::vector<std::string>& library_modules) {
+    return reachable_functions_impl(module, roots, &library_modules);
 }
 
 } // namespace mir

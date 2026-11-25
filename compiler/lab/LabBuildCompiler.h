@@ -38,6 +38,14 @@ class TypeBuilder;
 class Codegen;
 #endif
 
+/** Which program shape the JavaScript backend is emitting. */
+enum class JsJobKind {
+    /** A program: `main` is the root and an `index.mjs` entry is written. */
+    Executable,
+    /** A library: the job's public functions are the roots and no entry is written. */
+    Library,
+};
+
 /**
  * Handles everything from building a .lab file or a .mod file.
  * Doing the jobs required by the user and building modules and linking
@@ -376,9 +384,13 @@ public:
 
     /**
      * does a JS backend job: parse, symres, typecheck, lower to MIR, then emit
-     * one ES module per Chemical module into `options->emit_js_dir`
+     * one ES module per Chemical module into `options->emit_js_dir`.
+     *
+     * `Library` mode roots reachability at the job's public functions instead
+     * of `main`, emits no `index.mjs`, and copies `ship_files` into the output
+     * directory (a JS library is a directory of ES modules, not a `.so`).
      */
-    int do_js_job(LabJob* job);
+    int do_js_job(LabJob* job, JsJobKind kind = JsJobKind::Executable);
 
     /**
      * will perform the job returning result

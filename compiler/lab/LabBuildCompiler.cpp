@@ -2352,11 +2352,9 @@ int link_objects_now(
 #endif
 }
 
-void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
+void ship_files_to_dir(LabBuildCompilerOptions* options, LabJob* job,
+                       const std::filesystem::path& dest_dir) {
     if (job->ship_files.empty()) return;
-
-    std::filesystem::path exe_path(job->abs_path.to_std_string());
-    auto dest_dir = exe_path.parent_path();
 
     for (auto& ship_file_str : job->ship_files) {
         std::filesystem::path src_path(ship_file_str.to_std_string());
@@ -2377,6 +2375,11 @@ void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
             std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failed to ship '" << src_path.string() << "'" << std::endl;
         }
     }
+}
+
+void ship_files_now(LabBuildCompilerOptions* options, LabJob* job) {
+    std::filesystem::path exe_path(job->abs_path.to_std_string());
+    ship_files_to_dir(options, job, exe_path.parent_path());
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
@@ -2401,6 +2404,11 @@ int LabBuildCompiler::do_executable_job(LabJob* job) {
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
+    // `--emit-js`: a JS library is a directory of ES modules, not a shared
+    // object, so it is emitted by the JS backend rather than linked.
+    if (options->emit_js) {
+        return do_js_job(job, JsJobKind::Library);
+    }
     auto result = process_modules(job);
     if(result != 0) {
         return result;
@@ -3671,7 +3679,15 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
     // if running via 'chemical run', promote library module to application
     // so the main function becomes the entry point (no_mangle)
     if(promote_to_app && main_module && main_module->package_kind == PackageKind::Library) {
-        main_module->package_kind = PackageKind::Application;
+        if (options->emit_js && !options->web_build) {
+            // An explicit `--emit-js` on a library package builds a JS library:
+            // the job keeps the library shape (no `main`, no entry module) and
+            // `do_library_job` emits the module directory. `--web` sets
+            // `emit_js` for its client pass too, so it is excluded here.
+            final_job->type = LabJobType::Library;
+        } else {
+            main_module->package_kind = PackageKind::Application;
+        }
     }
 
     // just put main the module as this job's dependency
@@ -5286,12 +5302,13 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
     return 0;
 }
 
-int LabBuildCompiler::do_js_job(LabJob* job) {
+int LabBuildCompiler::do_js_job(LabJob* job, JsJobKind kind) {
 
     // A JS job runs the same front end as the interpretation job (parse, symbol
     // resolution, type verification, lowering to MIR) and swaps the back end:
     // each module's MIR is printed as one ES module instead of being executed or
     // linked. See lang/docs/web-stack-plan.md §3.9 and compiler/mir/MIREmitterJs.h.
+    const bool library = kind == JsJobKind::Library;
     const auto verbose = options->verbose;
     begin_job_print(job);
 
@@ -5312,6 +5329,18 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
 
     if (job->attrs.download_only) {
         return 0;
+    }
+
+    // A library's exported surface is the work of the modules the job directly
+    // depends on. Imported modules (`std`, `cstd`, …) are reachable through
+    // calls, but rooting their public functions would emit the whole standard
+    // library into every JS library.
+    std::vector<std::string> library_module_names;
+    if (library) {
+        for (const ModuleDependency& dep : job->dependencies) {
+            if (dep.module == nullptr) continue;
+            library_module_names.push_back(dep.module->name.to_std_string());
+        }
     }
 
     auto dependencies = flatten_dedupe_sorted(job->dependencies);
@@ -5431,58 +5460,97 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
         }
     }
 
-    // The entry point: the source `main`, resolved to the name the lowerer
-    // interned (same lookup the interpretation job does).
+    // The entry point of a program: the source `main`, resolved to the name the
+    // lowerer interned (same lookup the interpretation job does). A library has
+    // no entry point; its roots are the public functions below.
     FunctionDeclaration* main_fn = nullptr;
-    for (auto mod : dependencies) {
-        for (auto& file_meta : mod->direct_files) {
-            if (!file_meta.result) continue;
-            for (const auto node : file_meta.result->unit.scope.body.nodes) {
-                if (node->kind() != ASTNodeKind::FunctionDecl) continue;
-                auto fn = node->as_function_unsafe();
-                // An async `main` is renamed before any prototype is emitted (its
-                // sync trampoline owns `main`), so both spellings are the entry.
-                if (fn->name_view() == "main" ||
-                    fn->name_view() == mir::MIRLowerer::kAsyncMainInternalName) {
-                    main_fn = fn;
-                    break;
+    std::string main_mangled;
+    bool async_entry = false;
+    if (!library) {
+        for (auto mod : dependencies) {
+            for (auto& file_meta : mod->direct_files) {
+                if (!file_meta.result) continue;
+                for (const auto node : file_meta.result->unit.scope.body.nodes) {
+                    if (node->kind() != ASTNodeKind::FunctionDecl) continue;
+                    auto fn = node->as_function_unsafe();
+                    // An async `main` is renamed before any prototype is emitted (its
+                    // sync trampoline owns `main`), so both spellings are the entry.
+                    if (fn->name_view() == "main" ||
+                        fn->name_view() == mir::MIRLowerer::kAsyncMainInternalName) {
+                        main_fn = fn;
+                        break;
+                    }
                 }
+                if (main_fn) break;
             }
             if (main_fn) break;
         }
-        if (main_fn) break;
-    }
-    if (main_fn == nullptr) {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
-                  << "JS backend: could not find main()" << std::endl;
-        return 1;
+        if (main_fn == nullptr) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                      << "JS backend: could not find main()" << std::endl;
+            return 1;
+        }
+
+        {
+            BufferedWriter mw(256);
+            mangler.mangle(mw, main_fn);
+            main_mangled.assign(mw.data(), mw.getPosition());
+        }
+        // `async func main` lowers to a ramp plus a trampoline that drives it with a
+        // poll loop. A JS build has no use for the trampoline: the entry is the async
+        // body (a promise), and `$run` awaits it.
+        async_entry = main_fn->is_async();
     }
 
-    std::string main_mangled;
-    {
-        BufferedWriter mw(256);
-        mangler.mangle(mw, main_fn);
-        main_mangled.assign(mw.data(), mw.getPosition());
-    }
-    // `async func main` lowers to a ramp plus a trampoline that drives it with a
-    // poll loop. A JS build has no use for the trampoline: the entry is the async
-    // body (a promise), and `$run` awaits it.
-    const bool async_entry = main_fn->is_async();
-
-    // Only what `main` can reach is emitted. Without this the bundle would carry
-    // every function of every linked module — including platform code the
-    // program never calls — and the backend could not even emit `cstd`.
-    const auto reachable = mir::reachable_functions(mir_program.module, main_mangled);
-    if (reachable.empty()) {
-        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
-                  << "JS backend: main() has no MIR body (was it excluded from lowering?)"
-                  << std::endl;
-        return 1;
-    }
-    if (verbose) {
-        std::cout << "[lab] JS backend: " << reachable.size() << " of "
-                  << mir_program.module.functions.size()
-                  << " lowered function(s) are reachable from main" << std::endl;
+    // Only what the entry point (or the library's exported surface) can reach is
+    // emitted. Without this the bundle would carry every function of every linked
+    // module — including platform code the program never calls — and the backend
+    // could not even emit `cstd`.
+    std::vector<const mir::MIRFunction*> reachable;
+    if (library) {
+        const std::unordered_set<std::string> root_modules(library_module_names.begin(),
+                                                           library_module_names.end());
+        std::vector<std::string> roots;
+        for (const mir::MIRFunction& fn : mir_program.module.functions) {
+            if (fn.symbol == mir::MIR_INVALID_ID ||
+                fn.symbol >= mir_program.module.symbols.size()) {
+                continue;
+            }
+            if (fn.instructions.size() == 0) continue;
+            const mir::MIRSymbolRecord& rec = mir_program.module.symbols.get(fn.symbol);
+            if (rec.linkage != mir::MIRLinkage::External) continue;
+            const std::string_view owner = mir_program.module.module_name_of(
+                mir_program.module.module_of_symbol(fn.symbol));
+            if (root_modules.find(std::string(owner)) == root_modules.end()) continue;
+            roots.push_back(mir_program.module.symbols.mangled_name(rec));
+        }
+        reachable = mir::reachable_functions(mir_program.module, roots, library_module_names);
+        if (reachable.empty()) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                      << "JS backend: library '" << job->name.to_std_string()
+                      << "' has no public function to emit" << std::endl;
+            return 1;
+        }
+        if (verbose) {
+            std::cout << "[lab] JS backend: " << reachable.size() << " of "
+                      << mir_program.module.functions.size()
+                      << " lowered function(s) are reachable from the library'"
+                         "s public surface ("
+                      << roots.size() << " root(s))" << std::endl;
+        }
+    } else {
+        reachable = mir::reachable_functions(mir_program.module, main_mangled);
+        if (reachable.empty()) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                      << "JS backend: main() has no MIR body (was it excluded from lowering?)"
+                      << std::endl;
+            return 1;
+        }
+        if (verbose) {
+            std::cout << "[lab] JS backend: " << reachable.size() << " of "
+                      << mir_program.module.functions.size()
+                      << " lowered function(s) are reachable from main" << std::endl;
+        }
     }
 
     mir::MIREmitJsOptions js_options;
@@ -5493,6 +5561,9 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
     // Local names too: `v1234` is MIR bookkeeping, and a shipped bundle is not the
     // place to read it. Exported symbols keep their names (see MIREmitJsOptions).
     js_options.mangle_names = js_options.minify;
+    // Library mode also emits `$api` (external-linkage functions only); `$exports`
+    // stays the full symbol table for internal imports and executable mode.
+    js_options.library_mode = library;
     // One `.mjs` per Chemical module, so a browser caches each separately and a
     // change to one module invalidates only that file. The build-level module
     // split (shared/server/client) already decided *which* modules are in this
@@ -5515,24 +5586,35 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
         return 1;
     }
     // Which emitted file holds the entry point: the entry module's `$exports`
-    // table is the one `index.mjs` re-exports by name.
-    std::string entry_stem = js_files.front().stem;
-    for (const auto* fnp : reachable) {
-        if (fnp == nullptr) continue;
-        if (mir_program.module.symbols.mangled_name(mir_program.module.symbols.get(fnp->symbol)) ==
-            main_mangled) {
-            entry_stem = mir::js_module_file_stem(
-                std::string(mir_program.module.module_name_of(
-                    mir_program.module.module_of_symbol(fnp->symbol))));
-            break;
+    // table is the one `index.mjs` re-exports by name. A library has no entry.
+    std::string entry_stem;
+    if (!library) {
+        entry_stem = js_files.front().stem;
+        for (const auto* fnp : reachable) {
+            if (fnp == nullptr) continue;
+            if (mir_program.module.symbols.mangled_name(mir_program.module.symbols.get(fnp->symbol)) ==
+                main_mangled) {
+                entry_stem = mir::js_module_file_stem(
+                    std::string(mir_program.module.module_name_of(
+                        mir_program.module.module_of_symbol(fnp->symbol))));
+                break;
+            }
         }
     }
     if (check_only) {
         options->check_only = previous_check_only;
-        std::cout << "[lab] " << rang::fg::green
-                  << "JS backend check passed: " << reachable.size()
-                  << " function(s) reachable from main, no unsupported construct" << rang::fg::reset
-                  << std::endl;
+        if (library) {
+            std::cout << "[lab] " << rang::fg::green
+                      << "JS backend check passed: " << reachable.size()
+                      << " function(s) reachable from the library's public surface, no "
+                         "unsupported construct"
+                      << rang::fg::reset << std::endl;
+        } else {
+            std::cout << "[lab] " << rang::fg::green
+                      << "JS backend check passed: " << reachable.size()
+                      << " function(s) reachable from main, no unsupported construct"
+                      << rang::fg::reset << std::endl;
+        }
         return 0;
     }
     size_t js_bytes = 0;
@@ -5549,24 +5631,27 @@ int LabBuildCompiler::do_js_job(LabJob* job) {
         }
     }
 
-    // ── the bundle's entry point ────────────────────────────────────────────
+    // ── the bundle's entry point (programs only) ────────────────────────────
     // A single importable module that knows every emitted module, so a driver
     // (or a page bundle) can find `main` without knowing generated identifiers.
-    std::string index;
-    index += "// Generated by the Chemical compiler (JS backend). Do not edit.\n";
-    index += "// Entry point of the emitted program: one ES module per Chemical module,\n";
-    index += "// re-exported here so a driver finds the entry without knowing file stems.\n";
-    index += "export * from \"./" + entry_stem + ".mjs\";\n";
-    for (size_t i = 0; i < js_files.size(); ++i) {
-        index += "import { $exports as $x" + std::to_string(i) + " } from \"./" +
-                 js_files[i].stem + ".mjs\";\n";
-    }
-    index += "\n/** Every emitted symbol, merged across the bundle's modules. */\n";
-    index += "export const $exports = {};\n";
-    for (size_t i = 0; i < js_files.size(); ++i) {
-        index += "Object.assign($exports, $x" + std::to_string(i) + ");\n";
-    }
-    index += R"JS(
+    // A library has no entry point: consumers import the per-module `.mjs` files
+    // directly, so no barrel is written (a barrel is a follow-up).
+    if (!library) {
+        std::string index;
+        index += "// Generated by the Chemical compiler (JS backend). Do not edit.\n";
+        index += "// Entry point of the emitted program: one ES module per Chemical module,\n";
+        index += "// re-exported here so a driver finds the entry without knowing file stems.\n";
+        index += "export * from \"./" + entry_stem + ".mjs\";\n";
+        for (size_t i = 0; i < js_files.size(); ++i) {
+            index += "import { $exports as $x" + std::to_string(i) + " } from \"./" +
+                     js_files[i].stem + ".mjs\";\n";
+        }
+        index += "\n/** Every emitted symbol, merged across the bundle's modules. */\n";
+        index += "export const $exports = {};\n";
+        for (size_t i = 0; i < js_files.size(); ++i) {
+            index += "Object.assign($exports, $x" + std::to_string(i) + ");\n";
+        }
+        index += R"JS(
 /** Look up a function by its mangled Chemical name. */
 export function $find(name) {
   return $exports[name];
@@ -5574,20 +5659,20 @@ export function $find(name) {
 
 /** The mangled name of the program's entry point (`main`, or a module's main). */
 export const $entryName = ")JS";
-    index += main_mangled;
-    index += "\";\n";
-    index += R"JS(
+        index += main_mangled;
+        index += "\";\n";
+        index += R"JS(
 
 /** The program's entry point. */
 export function $entry() {
   return $exports[$entryName];
 }
 )JS";
-    if (async_entry) {
-        // The entry is a promise-mode async body: it writes a promise token into
-        // an sret handle and returns. A handle is two pointers, so the slot below
-        // is ample for the token the runtime stores in it.
-        index += R"JS(
+        if (async_entry) {
+            // The entry is a promise-mode async body: it writes a promise token into
+            // an sret handle and returns. A handle is two pointers, so the slot below
+            // is ample for the token the runtime stores in it.
+            index += R"JS(
 
 /** Run the program; resolves to its exit code. */
 export async function $run() {
@@ -5599,8 +5684,8 @@ export async function $run() {
   return typeof rc === "number" ? rc : 0;
 }
 )JS";
-    } else {
-        index += R"JS(
+        } else {
+            index += R"JS(
 
 /** Run the program; resolves to its exit code. */
 export async function $run() {
@@ -5610,16 +5695,17 @@ export async function $run() {
   return typeof rc === "number" ? rc : 0;
 }
 )JS";
+        }
+        if (async_entry) {
+            // `rt` is only needed for the awaitable entry; a sync program's driver
+            // stays free of the runtime import.
+            const std::string import_rt = "import * as rt from \"./runtime.mjs\";\n";
+            index.insert(index.find("\n") + 1, import_rt);
+        }
+        // The entry module ships too, so it is compacted by the same pass.
+        if (js_options.minify) index = mir::minify_js_source(index);
+        writeToFile(resolve_rel_child_path_str(out_dir, "index.mjs"), index);
     }
-    if (async_entry) {
-        // `rt` is only needed for the awaitable entry; a sync program's driver
-        // stays free of the runtime import.
-        const std::string import_rt = "import * as rt from \"./runtime.mjs\";\n";
-        index.insert(index.find("\n") + 1, import_rt);
-    }
-    // The entry module ships too, so it is compacted by the same pass.
-    if (js_options.minify) index = mir::minify_js_source(index);
-    writeToFile(resolve_rel_child_path_str(out_dir, "index.mjs"), index);
 
     // ── the runtime ─────────────────────────────────────────────────────────
     // The emitted modules import `./runtime.mjs`. A packaged compiler ships it
@@ -5654,6 +5740,12 @@ export async function $run() {
                       << "JS backend: could not locate runtime.mjs (set CHX_JS_RUNTIME, or keep "
                          "it next to the emitted modules)" << std::endl;
         }
+    }
+
+    // A JS library is a directory, so its data files land next to the modules
+    // rather than beside a linked `.so` (the native library path).
+    if (library) {
+        ship_files_to_dir(options, job, std::filesystem::path(out_dir));
     }
 
     std::cout << "[lab] " << rang::fg::green << "emitted " << reachable.size()

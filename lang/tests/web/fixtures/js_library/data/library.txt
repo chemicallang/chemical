@@ -1,0 +1,1 @@
+shipped by the js_library fixture

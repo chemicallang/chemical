@@ -52,6 +52,13 @@ struct MIREmitJsOptions {
      * because another module imports them by that name.
      */
     bool mangle_names = false;
+    /**
+     * Library mode: additionally emit `$api`, the public surface only (functions
+     * with external linkage). `$exports` stays the full symbol table so internal
+     * cross-module imports still resolve; a consumer of a library calls through
+     * `$api` so a reachable private helper is not part of the API.
+     */
+    bool library_mode = false;
 };
 
 /**
@@ -123,6 +130,21 @@ bool emit_program_js(const MIRModule& module, const std::vector<const MIRFunctio
  * also the whole-program dead-code elimination the bundle needs.
  */
 std::vector<const MIRFunction*> reachable_functions(const MIRModule& module, std::string_view entry);
+
+/**
+ * The functions reachable from a *set* of roots (library mode).
+ *
+ * Besides the roots, this seeds everything a library exports without a call
+ * site naming it: function addresses and vtable slots owned by
+ * `library_modules` (the modules the job directly depends on), plus the global
+ * initializers the single-entry walk already seeds. Dependency-internal
+ * addresses/vtables are left out: a consumer reaches them through a root's
+ * calls, and seeding them would pull an imported library's whole surface in.
+ * An async root still carries its poll/ramp pair through the normal walk.
+ */
+std::vector<const MIRFunction*> reachable_functions(
+    const MIRModule& module, const std::vector<std::string>& roots,
+    const std::vector<std::string>& library_modules);
 
 /** The JS spelling of a function symbol: `$f12`. */
 std::string js_function_name(SymbolId symbol);

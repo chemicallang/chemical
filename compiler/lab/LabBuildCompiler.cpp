@@ -3705,6 +3705,13 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
 
     // lets compile any cbi jobs user may have specified
     for(auto& job : executables) {
+        // `--web` runs this builder once per side with the same compiler-level
+        // job list. A CBI is process-global, so a plugin job that already
+        // succeeded in the first pass must not be rebuilt (its module cache and
+        // JIT state belong to that pass).
+        if(job->type == LabJobType::CBI && job->status == LabJobStatus::Success) {
+            continue;
+        }
         if(job->type == LabJobType::CBI) {
             const auto job_result = do_job(job.get());
             if(job_result != 0) {

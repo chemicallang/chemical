@@ -51,6 +51,14 @@ public unsafe func universal_symResNode(visitor : *mut SymResLinkBody, node : *m
             }
         }
 
+        // Browser-surface check (Phase 2): the client/JS job resolves host names
+        // against the per-job ambient index. The server job returns immediately;
+        // the index is built from marked provider modules before this component
+        // is linked. Runs after props resolution so the later member checks can
+        // use `propsStruct`.
+        body_check(root.signature.js_body, &root.signature.name, &root.signature.propsName,
+                   root.signature.propsStruct, diagnoser, loc);
+
         var builder = resolver.getJobBuilder()
 
         // creating the component function

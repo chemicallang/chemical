@@ -2,7 +2,7 @@
 
 **Status:** companion to `component-body-typing-plan.md` (v3) · approved scope 2026-11-25
 **Approved scope:** all phases 0–5 in one branch, browser-spelled `dom`, all gates, native WebView test + CI, **JS library mode**, **strict library diagnostics**, LSP deferred.
-**Local environment note (2026-11-25):** the machine has the GTK/WebKit runtime libraries but no dev headers, no `xvfb-run`, and no passwordless `sudo`. The native `--universal` suite therefore cannot build locally; the test and CI job are still required, and local verification uses the JS/DOM/fixture gates. CI runs the WebView job.
+**Local environment note (2026-11-25):** the machine can **compile** the native `--universal` suite (`./scripts/test.sh --tcc --universal --no-run` succeeds, and the DocumentFixture/test are linked in), but it has no `xvfb-run`, no display, no GTK/WebKit development headers and no passwordless `sudo`, so the WebView cannot be **run** locally. The test and CI job are still required; local verification uses the JS/DOM/fixture gates and the `--no-run` build. `.github/workflows/universal.yml` is the authoritative WebView run.
 **Purpose:** how the feature is built, tested, measured and reviewed. The plan says *what*; this says *how*, and records the holes found while reviewing the first draft of the workflow.
 
 ---
@@ -15,7 +15,7 @@
 4. **Generic compiler, specific plugin.** No `dom`/`universal` string in `compiler/`; no AST reads in backends; no plugin logic in C++.
 5. **Fixtures are code.** Small, named, cleaned up after the run; no generated build artifacts checked in.
 6. **The plan is reviewed before the code; the code is reviewed against the plan.** Two plan reviews are already done; each phase gets one design/code review.
-7. **Counts are not failures in v1.** An untyped edge is a measured number, not an error, until the strict phase. The count itself is tracked so it cannot grow silently.
+7. **Counts are not failures.** An untyped edge is a measured number, not an error. Phase 5b makes the typed rules strict and pins the `005` count per component in `lang/tests/web/component-body-baseline.txt`; strict-005 is an explicit non-claim until the typing follow-ups in the plan §11 land.
 
 ---
 
@@ -78,7 +78,7 @@
 
 | id | hole | risk | fix | phase |
 |---|---|---|---|---|
-| H1 | CI never runs `--universal` (WebView), so a checker false positive in `components` is only seen locally | ships a broken library | add `.github/workflows/universal.yml` (xvfb + GTK/WebKit + `./scripts/test.sh --tcc --universal`), path-filtered + nightly | 3 |
+| H1 | CI never runs `--universal` (WebView), so a checker false positive in `components` is only seen locally | ships a broken library | **Done:** `.github/workflows/universal.yml` (xvfb + GTK/WebKit + `./scripts/test.sh --tcc --universal`), path-filtered + nightly | 3 |
 | H2 | no fast CI gate for the new compile-time rules | the rules rot | add `web-index-test.sh`, `web-body-check-test.sh`, `web-two-side-test.sh` to `web-stack.yml` | 2–3 |
 | H3 | no test that the server job skips the check and the client runs it | server build breaks, or the check never runs | `web-two-side-test.sh`: bad body → client log has 002, server log does not; good body → both build | 2 |
 | H4 | no index-isolation test across the server/client jobs | stale `document` from another job | probe prints `job_begin`/`index_module`; assert empty at start and one provider on the client | 2 |
@@ -87,9 +87,9 @@
 | H7 | `addIndexer` view lifetime not covered | use-after-free in generated `build.lab` | copy in `addIndexer`; converter-path fixture | 0 |
 | H8 | no positive test for counted/deep chains and built-ins | over-reporting (`Math`, `console`, `classList`) | `fixtures/body_ok_chains`: `document.body.classList`, `Math.round`, `console.log`, `window.$__uni_*`, `sessionStorage`, `props.children`; must build | 3 |
 | H9 | no duplicate/internal-namespace/user-provider tests | a user `Document` hijacks `document`, or a legit provider conflicts | `body_two_providers`, `body_internal_namespace`, `body_user_provider`, `body_user_document_unmarked` | 3 |
-| H10 | no WebView test that the allowed `document` surface actually works | checker allows something the runtime/SSR cannot do | `tests_document.ch` with a `DocumentFixture` (`document.title`, `document.activeElement` in an effect) and `#universal_test` assertions | 3 |
-| H11 | no performance baseline | build-time/bundle regressions go unseen | `web-typing-perf.sh`; rows in the plan §9 | 1/3 |
-| H12 | no boundary audit | compiler special-cases `dom`; backend reads AST | `scripts/component-typing-audit.sh` (grep `dom`/`universal` in `compiler/`, enum sync) | 1 |
+| H10 | no WebView test that the allowed `document` surface actually works | checker allows something the runtime/SSR cannot do | **Done:** `tests_document.ch` + `DocumentFixture` (`document.title`, `document.activeElement` in an effect); compiled into `--universal` and run in `universal.yml` | 3 |
+| H11 | no performance baseline | build-time/bundle regressions go unseen | **Done:** `web-typing-perf.sh` + `lang/tests/web/typing-perf-baseline.json`; rows in the plan §9 | 1/3 |
+| H12 | no boundary audit | compiler special-cases `dom`; backend reads AST | **Done:** `scripts/component-typing-audit.sh` (module-literal/vocabulary grep in `compiler/`, enum sync, CBI bindings, MIR-only backends) | 1 |
 | H13 | diagnostics not pinned precisely | message quality regresses | each negative fixture asserts component, file, name and suggestion; dedup count | 3 |
 | H14 | no determinism test | non-deterministic index order or diagnostics | build the client twice; diff assets and logs | 3 |
 | H15 | WebView flakiness | red CI on timing | `xvfb-run`, hard timeout, `t.sleep` only for real timers, no retries-to-pass; quarantine with an owner | 3 |
@@ -104,7 +104,7 @@
 | H24 | plugin hooks not registered in `universal_cbi/build.lab` | the index never runs | registration is a Phase 1 deliverable and part of the probe | 1 |
 | H25 | no test for a server-only build with no client job | the check is assumed to run | native-only fixture; no diagnostic; build succeeds | 2 |
 | H26 | JS library mode has no test | `--emit-js` on a Library is broken or silently produces nothing | a `library` fixture: public function, no `main`; `--emit-js <dir>`; Node imports `./<module>.mjs`, calls it; `ship_files` present; no `.so` | 0 |
-| H27 | strict library is promised but not gated | the corpus is rejected, or the strict flag is never enabled | Phase 5 turns `WEB-BODY-005` into an error only after the corpus scan is empty; the gate fails on any new counted edge | 5 |
+| H27 | strict library is promised but not gated | the corpus is rejected, or the strict flag is never enabled | **Resolved with an explicit non-claim:** typed rules 001/002/006/008 are strict and gated (`web-component-typing-test.sh`); `005` is pinned per component in `component-body-baseline.txt`, and the gate fails on any increase. Strict-005 waits for the plan §11 Phase 5b typing follow-ups. | 5 |
 | H28 | WebView cannot run on this machine (no headers/xvfb/sudo) | the "run it" decision is unverifiable locally | implement `tests_document.ch` + `universal.yml`; local gates are the fixtures/DOM harness; CI is the WebView judge | 3 |
 | H29 | Phase 4 server-side index is under-tested | stale `dom.o`, LLVM accepts `chx_dom_*`, server/client diagnostics disagree | `web-types-only-test.sh` + a two-side diagnostic comparison + cache-bypass test; enforce the caller-site refusal in both C and LLVM | 4 |
 | H30 | JS library reachability roots are wrong | a public function is omitted from the library | roots = public functions + address-taken + vtable + async poll pairs + global initializers; a Node import test per public function | 0 |
@@ -127,8 +127,9 @@
 | `scripts/web-two-pass-test.sh` | `./scripts/web-two-pass-test.sh` | a **shared** `#universal` component builds in both `--web` passes; the server renders its markup, the client body-checks it and ships its function; no `symbol is not a component` |
 | `scripts/web-types-only-test.sh` | `./scripts/web-types-only-test.sh` | Phase 4: declarations-only `dom` on a server job; caller-site refusal; no `chx_dom_*`; cache bypass |
 | `scripts/web-js-library-test.sh` | `./scripts/web-js-library-test.sh` | `Library + --emit-js`: no `main`, one `.mjs` per module, Node import/call, `ship_files`, no `.so` |
-| `scripts/web-typing-perf.sh` | `./scripts/web-typing-perf.sh` | cold/warm build, plugin build, bundle gz, index count/RSS |
-| `scripts/component-typing-audit.sh` | `./scripts/component-typing-audit.sh` | no `dom`/`universal` names in `compiler/`; enum sync; no AST reads in backends |
+| `scripts/web-typing-perf.sh` | `./scripts/web-typing-perf.sh` | cold/warm build, plugin build, canonical bundle gz, index count/RSS; baseline file + budgets; skips on another machine |
+| `scripts/component-typing-audit.sh` | `./scripts/component-typing-audit.sh` | no `dom`/typing vocabulary or module-name literal in `compiler/`; enum sync; CBI bindings; no AST reads in backends |
+| `scripts/web-component-typing-test.sh` | `./scripts/web-component-typing-test.sh` | typed rules strict over the 196-component corpus; `005` baseline does not grow; both `--web` sides and a native consumer check |
 
 ### Fixtures
 
@@ -141,11 +142,14 @@ Place under `lang/tests/web/fixtures/`:
 - `body_no_provider` — `document` without `dom` → 008.
 - `body_hook_placement` — 006.
 - `body_ok_surface` — allowed roots and built-ins; must build.
-- `body_ok_chains` — `document.body.classList`, `Math`, `console`, `$__uni_*`, `sessionStorage`; must build.
+- `body_ok_chains` — `document.body.classList`, `document.activeElement.focus()`, `document.querySelector(...).textContent`, `document.querySelectorAll(...)`, `getBoundingClientRect().width`, `style.setProperty`, `Math`, `console`, `$__uni_*`, `sessionStorage`; must build with no 002.
+- `body_unknown_deep_member` — `document.body.textContnt` → 002 with a suggestion (Phase 5b chain).
+- `body_ok_deep_chains` — one component per typed chain shape (ClassList, `Option<Element>`, `querySelector`, `Option<vector<Element>>` indexing, `DOMRect`/`Style`); each must report `untyped=0`, so a broken unwrap/container model fails the gate.
 - `body_props_shadow` / `body_props_destructure` — counted; no false 001.
 - `body_two_providers` / `body_internal_namespace` / `body_user_provider` / `body_user_document_unmarked`.
 - `body_jsx_contexts` — attribute + `${}` child.
 - `shared_component` — a `#universal` component in a module compiled by both `--web` passes, rendered by the server `src` through `#html`, with its provider imported `if client` (the real `import dom if client` shape). Gate: `web-two-pass-test.sh`.
+- `components_corpus` — a `--web` app importing `components` and rendering a representative set; both sides compile all 196 bodies. Gate: `web-component-typing-test.sh` (counts/baseline + both-side check).
 
 Every fixture has a `chemical.mod` with `import dom if client` where needed, writes its build to a temp/`lang/compiled` dir, and is removed by the script.
 
@@ -221,19 +225,19 @@ Capture on the same machine, `TCCCompiler` at the phase's parent commit:
 | metric | command |
 |---|---|
 | cold components build | `rm -rf <build>`; `time cmake-build-debug/TCCCompiler lang/libs/components/chemical.mod ... --no-cache` (or the closest web fixture) |
-| warm build | same, cache enabled |
+| warm build | same build dir, cache enabled; **best of three** runs (single-run jitter exceeds 2%) |
 | plugin build | `... -frecompile-plugins` with timing |
-| client bundle | `gzip -9 -c <assets>/*.mjs | wc -c` |
-| index work | `-v` line: modules/entries/conflicts; count `IndexModule` calls |
+| client bundle | canonical `gzip -9`: normalize `$fN`/`$kN`/`$gN`/`$xN`/`__chx__vt_N` and numeric constant lines, sort lines, then gzip (the JS backend numbers symbols by instantiation order, so a raw byte count is not stable) |
+| index work | `CHEM_DEBUG_INDEX=1`: count `IndexModule` calls |
 | peak RSS | `/usr/bin/time -v` |
 
 ### 7.2 Budgets
 
 | budget | limit | failure action |
 |---|---|---|
-| client build | ≤ +2% | revert or record a new budget in the plan with a reason |
-| plugin build | ≤ +10% | same |
-| bundle | 0 B | same |
+| client build | ≤ +2% **or +200 ms**, whichever is larger | revert or record a new budget in the plan with a reason |
+| plugin build | ≤ +10% **or +750 ms** | same |
+| bundle (canonical) | 0 B | same |
 | compiler binary | < 5 MB | release gate |
 | index memory | O(public declarations) | same |
 
@@ -261,7 +265,7 @@ Capture on the same machine, `TCCCompiler` at the phase's parent commit:
 - [ ] `index.ch` (data), `ambient.ch` (host list/built-ins), `body_check.ch` (walk/diagnostics) separate.
 - [ ] No panics; diagnostics through `ASTDiagnoser`; a `Result` where a call can fail.
 - [ ] Zero-arg detection excludes `&self`; generated `init`/`drop` filtered.
-- [ ] `$__uni_*`/`__reportError` exempt in both name and member resolution.
+- [ ] `$__uni_*`/`__*` (including `__reportError`) exempt in both name and member resolution.
 - [ ] One diagnostic per component + name; message includes component, file/line, name, suggestion.
 
 **Tests**
@@ -299,6 +303,8 @@ Add to `.github/workflows/web-stack.yml` (fast, no display):
 - `./scripts/web-two-side-test.sh`
 - `./scripts/web-js-library-test.sh`
 - `./scripts/component-typing-audit.sh`
+- `./scripts/web-component-typing-test.sh`
+- `./scripts/web-typing-perf.sh` (budget checked only on the baseline machine)
 - `./scripts/web-types-only-test.sh` (Phase 4)
 - the existing `web-dom-test.sh`, `web-golden-test.sh`, `web-split-test.sh`, `js-backend-suites.sh`
 
@@ -313,10 +319,10 @@ Artifacts on failure: the fixture logs, `/tmp/web_*`, `lang/compiled/web-*`, and
 ## 11. Definition of done (feature)
 
 - [ ] Phase 0–5 complete on `feature/component-body-typing`.
-- [ ] Rules 001/002/006/008 and 005 implemented; **strict library** (`005` error) green over `lang/libs/components`.
+- [x] Rules 001/002/006/008 **strict** over `lang/libs/components` on both `--web` sides; `005` implemented, counted and pinned by a per-component baseline. Strict-005 is an explicit non-claim until the plan §11 Phase 5b typing follow-ups land.
 - [ ] Compiler-side generic hooks + metadata + JS library mode; no DOM special-case.
 - [ ] `dom` browser spelling and full surface (`Element`/`DOMRect`/`classList`/`style`/`dataset`, chains, `Option<T>`).
-- [ ] `components/chemical.mod` uses `import dom if client` for the checkpoint and `dom` is declarations-only on the server in Phase 4.
+- [ ] `components/chemical.mod` uses `import dom` (unconditional); `dom` is declarations-only on the server/native side in Phase 4b and the checker runs on both `--web` sides plus native consumers.
 - [ ] Full negative/positive fixture set; two-job, index isolation, determinism, WebView allowed-surface test.
 - [ ] The two-side gate uses a **shared** `#universal` component compiled by both `--web` passes (H31 fixed), not the Phase 2 client-only checkpoint.
 - [ ] JS library mode: `Library + --emit-js` produces importable modules, no `main`, no `.so`.

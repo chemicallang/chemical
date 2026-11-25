@@ -3,6 +3,7 @@ import std
 
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
+import "@lab/build.lab" as labMod
 import "@html_comp/build.lab" as htmlCompMod
 import "@compiler/build.lab" as compilerMod
 import "@js_syntax/build.lab" as jsSyntaxMod
@@ -63,6 +64,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
             return null
         }
 
+        // the build API module (Module / LabJob), needed by the index hooks
+        var lab_module = labMod.build(ctx, job);
+        if(lab_module == null) {
+            return null
+        }
+
         // the universal parser module
         var universal_parser = universalParserMod.build(ctx, job)
         if(universal_parser == null) {
@@ -98,7 +105,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
             universalIde = universal_parser
         }
 
-        const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module, js_syntax, js_cbi_lexer, universal_parser, universalIde, css_parser ]
+        const dependencies = [ cstd_module, std_module, lab_module, html_comp_module, compiler_module, js_syntax, js_cbi_lexer, universal_parser, universalIde, css_parser ]
         var src_path = lab::raw::rel_path_to("src")
         const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("universal_cbi"), src_path.to_view(), dependencies);
 
@@ -111,6 +118,8 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         ctx.index_cbi_fn(cbi, std::string_view("universal"), std::string_view("universal_symResNode"), CBIFunctionType.SymResNode);
         ctx.index_cbi_fn(cbi, std::string_view("universal"), std::string_view("universal_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
         ctx.index_cbi_fn(cbi, std::string_view("universal"), std::string_view("universal_replacementNode"), CBIFunctionType.ReplacementNode);
+        ctx.index_cbi_fn(cbi, std::string_view("universal"), std::string_view("universal_job_begin"), CBIFunctionType.JobBegin);
+        ctx.index_cbi_fn(cbi, std::string_view("universal"), std::string_view("universal_index_module"), CBIFunctionType.IndexModule);
 
         comptime if(def.lsp) {
             // this will let the lsp know that methods are present

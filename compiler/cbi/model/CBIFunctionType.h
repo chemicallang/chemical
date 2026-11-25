@@ -34,6 +34,10 @@ enum class CBIFunctionType : int {
 
     FoldingRangesPut,
 
-    TransformerMain
+    TransformerMain,
+
+    IndexModule,
+
+    JobBegin
 
 };

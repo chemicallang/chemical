@@ -438,6 +438,45 @@ static void generate_automatic_functions_for_module(
     }
 }
 
+/**
+ * Collects the public top-level declarations an indexer may see. Public
+ * namespaces and top-level scopes are recursed; a NamespaceDecl's own
+ * specifier gates its members (an internal namespace does not leak). The
+ * declared node kind must itself be public. Top-level VarInitStatement is not
+ * collected because the CBI has no name/type accessors for it yet.
+ */
+static void collect_public_declarations_in_scope(
+        const std::vector<ASTNode*>& nodes,
+        std::vector<void*>& declarations
+) {
+    for (const auto node : nodes) {
+        switch (node->kind()) {
+            case ASTNodeKind::NamespaceDecl: {
+                auto* ns = node->as_namespace_unsafe();
+                if (is_linkage_public(ns->specifier())) {
+                    collect_public_declarations_in_scope(ns->nodes, declarations);
+                }
+                break;
+            }
+            case ASTNodeKind::Scope: {
+                auto* scope = node->as_scope_unsafe();
+                collect_public_declarations_in_scope(scope->nodes, declarations);
+                break;
+            }
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::FunctionDecl: {
+                if (is_linkage_public(node->specifier())) {
+                    declarations.push_back(node);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 void ASTProcessor::sym_res_after_link_sig_file(
         Scope& scope,
         unsigned int fileId,
@@ -712,6 +751,43 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
     file_allocator.clear();
 
     if(errored) return 1;
+
+    // IndexModule: the marked module's signatures are linked, so hand its
+    // public top-level declarations to every registered indexer before the
+    // body pass. This runs once per (module, registered indexer) per job.
+    if (!module->indexers.empty()) {
+        std::vector<chem::string_view> called_indexers;
+        for (const auto& indexer : module->indexers) {
+            const auto indexer_view = indexer.to_chem_view();
+            bool duplicate = false;
+            for (const auto& previous : called_indexers) {
+                if (previous == indexer_view) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) {
+                continue;
+            }
+            called_indexers.push_back(indexer_view);
+
+            auto* hook = binder.findHook(indexer_view, CBIFunctionType::IndexModule);
+            if (hook == nullptr) {
+                // a name with no loaded indexer is inert
+                continue;
+            }
+
+            std::vector<void*> declarations;
+            for (auto& file_ptr : module->direct_files) {
+                auto* file = file_ptr.result;
+                if (file == nullptr) {
+                    continue;
+                }
+                collect_public_declarations_in_scope(file->unit.scope.body.nodes, declarations);
+            }
+            reinterpret_cast<IndexModuleFunc>(hook)(module, &declarations);
+        }
+    }
 
     // Two-pass link body: pass 1 resolves generic declaration master bodies,
     // pass 2 does full link body (instantiate generics, resolve function bodies).

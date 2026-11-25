@@ -75,6 +75,55 @@ check "the converter preserves the indexer names" \
           && [ "$(has "$lab_out" 'mod.addIndexer("docs");')" = "1" ] \
           && [ "$(has "$lab_out" 'mod.addIndexer("alpha");')" = "1" ] && echo 1 || echo 0)"
 
+# ---------------------------------------------------------------- enum sync
+if ./scripts/check-cbi-enum-sync.sh > "$out/enum-sync.log" 2>&1; then
+    check "the C++/Chemical CBIFunctionType enums match" 1
+else
+    check "the C++/Chemical CBIFunctionType enums match" 0
+    cat "$out/enum-sync.log" >&2
+fi
+
+# ---------------------------------------------------------------- hook probe
+# universal_cbi is loaded, so JobBegin runs, but IndexModule only runs for a
+# module that declares `index_with "universal"`.
+probe_build() {
+    local fixture="$1" name="$2" log="$3"
+    CHEM_DEBUG_INDEX=1 "$compiler" "$fixture/chemical.mod" -v \
+        --build-dir "$out/${name}_build" -o "$out/${name}.exe" > "$log" 2>&1
+}
+
+probe="lang/tests/web/fixtures/index_probe"
+probe_log="$out/index_probe.log"
+if probe_build "$probe" index_probe "$probe_log"; then
+    check "the marked index_probe fixture builds" 1
+else
+    check "the marked index_probe fixture builds" 0
+    tail -30 "$probe_log" >&2
+fi
+check "universal_job_begin runs exactly once for the job" \
+      "$([ "$(grep -cF '[index] universal_job_begin' "$probe_log" 2>/dev/null || true)" = "1" ] && echo 1 || echo 0)"
+check "universal_index_module runs exactly once for the marked module" \
+      "$([ "$(grep -cF '[index] universal_index_module module=index_probe ' "$probe_log" 2>/dev/null || true)" = "1" ] && echo 1 || echo 0)"
+check "the marked module has a non-zero declaration count" \
+      "$(grep -qE '\[index\] universal_index_module module=index_probe count=[1-9][0-9]* decls=' "$probe_log" 2>/dev/null && echo 1 || echo 0)"
+check "the indexed declarations include a public struct" \
+      "$(has "$probe_log" "StructDecl:ProbeWidgetProps")"
+check "the indexed declarations include a public function" \
+      "$(has "$probe_log" "FunctionDecl:probe_helper")"
+
+unmarked="lang/tests/web/fixtures/index_probe_unmarked"
+unmarked_log="$out/index_probe_unmarked.log"
+if probe_build "$unmarked" index_probe_unmarked "$unmarked_log"; then
+    check "the unmarked index_probe fixture builds" 1
+else
+    check "the unmarked index_probe fixture builds" 0
+    tail -30 "$unmarked_log" >&2
+fi
+check "universal_job_begin runs exactly once for the unmarked job" \
+      "$([ "$(grep -cF '[index] universal_job_begin' "$unmarked_log" 2>/dev/null || true)" = "1" ] && echo 1 || echo 0)"
+check "the unmarked module gets no index call" \
+      "$([ "$(grep -cF 'universal_index_module' "$unmarked_log" 2>/dev/null || true)" = "0" ] && echo 1 || echo 0)"
+
 # ---------------------------------------------------------------- diagnostics
 make_bad_fixture() {
     local dir="$1" body="$2"
@@ -119,7 +168,7 @@ check "the unexpected-end diagnostic is clear" \
 # ---------------------------------------------------------------- cleanup
 # The fixture itself must never accumulate a build directory; the gate's own
 # artifacts live under lang/compiled and are removed on success.
-rm -rf "$fixture/build"
+rm -rf "$fixture/build" "$probe/build" "$unmarked/build"
 if [ "$fail" = 0 ]; then
     rm -rf "$out"
 else

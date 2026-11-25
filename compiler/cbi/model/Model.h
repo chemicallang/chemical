@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <vector>
+
 class Lexer;
 
 struct Token;
@@ -117,3 +119,20 @@ typedef ASTNode*(*EmbeddedNodeReplacementFunc)(ASTBuilder* builder, ASTDiagnoser
  * given embedded node
  */
 typedef Value*(*EmbeddedValueReplacementFunc)(ASTBuilder* builder, ASTDiagnoser* diagnoser, EmbeddedValue* value);
+
+struct LabModule;
+struct LabJob;
+
+/**
+ * Called once per job before any module is processed. Stateful plugins clear
+ * their per-job tables here and record the job's side (client/server, JS/native).
+ */
+typedef void (*JobBeginFunc)(LabJob* job);
+
+/**
+ * Called after the marked module's signatures are linked, before the body pass.
+ * `declarations` is a transient std::vector<void*> of public ASTNode*; the plugin
+ * retains pointers (job-arena lifetime) and copies only owned metadata.
+ * The plugin receives the Module CBI interface, not the C++ LabModule*.
+ */
+typedef void (*IndexModuleFunc)(LabModule* module, std::vector<void*>* declarations);

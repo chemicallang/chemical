@@ -251,6 +251,16 @@ int LabBuildCompiler::do_job(LabJob* job) {
     }
 
     job->status = LabJobStatus::Launched;
+
+    // JobBegin: let every loaded plugin reset its per-job state and record the
+    // job's side before any module of the job is processed. A plugin that is not
+    // loaded has no hook, so this is a no-op for it.
+    for (auto& hook : binder.hooks_) {
+        if (hook.first.type == CBIFunctionType::JobBegin) {
+            reinterpret_cast<JobBeginFunc>(hook.second)(job);
+        }
+    }
+
     int return_int = 0;
     switch(job->type) {
         case LabJobType::Executable:

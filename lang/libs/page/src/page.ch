@@ -1765,7 +1765,7 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
         const agg = site_routes_aggregate(&docs)
         var sitePath = unsafe(std::string(dir.data(), dir.size()))
         sitePath.append_view(std::string_view("/routes.json"))
-        fs::raw::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
+        var _ = fs::raw::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
         return owned.size() as int
 
         }

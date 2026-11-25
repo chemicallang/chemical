@@ -771,7 +771,7 @@ func lock_file_shared(path : *char) : Result<File, FsError> {
     var Ok(f) = fo else unsafe { unreachable };
     // use LockFileEx with LOCKFILE_FAIL_IMMEDIATELY & LOCKFILE_SHARED_LOCK
     var ok = LockFileEx((f.handle as *mut void), LOCKFILE_FAIL_IMMEDIATELY as DWORD, 0, 0xFFFFFFFF, 0xFFFFFFFF, null);
-    if(ok == 0) { var e = GetLastError(); file_close(&raw mut f); return Result.Err(winerr_to_fs(e as int)); }
+    if(ok == 0) { var e = GetLastError(); var _close_lock_shared_err = file_close(&raw mut f); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(f);
 
         }}
@@ -786,7 +786,7 @@ func lock_file_exclusive(path : *char) : Result<File, FsError> {
     }
     var Ok(f) = fo else unsafe { unreachable };
     var ok = LockFileEx((f.handle as *mut void), 0, 0, 0xFFFFFFFF, 0xFFFFFFFF, null);
-    if(ok == 0) { var e = GetLastError(); file_close(&raw mut f); return Result.Err(winerr_to_fs(e as int)); }
+    if(ok == 0) { var e = GetLastError(); var _close_lock_exclusive_err = file_close(&raw mut f); return Result.Err(winerr_to_fs(e as int)); }
     return Result.Ok(f);
 
         }}
@@ -1173,7 +1173,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
                 var newcap = cap * 2;
                 // guard against 0 or overflow
                 if(newcap <= cap) { // overflow or stuck
-                    file_close(&raw mut f);
+                    var _close_large_file = file_close(&raw mut f);
                     return Result.Err(FsError.Other(string("file too large to read")));
                 }
                 cap = newcap;
@@ -1188,7 +1188,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
             var r = file_read(&raw mut f, ptr as *mut u8, want);
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable };
-                file_close(&raw mut f);
+                var _close_read_entire_err = file_close(&raw mut f);
                 return Result.Err(e);
             }
             var Ok(n) = r else unsafe { unreachable };
@@ -1206,7 +1206,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
         // set the string's size to the number of bytes read
         unsafe { vec.set_len(pos) };
 
-        file_close(&raw mut f);
+        var _close_read_entire_ok = file_close(&raw mut f);
         return Result.Ok(vec);
 
         }
@@ -1229,13 +1229,13 @@ public unsafe func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t)
         var pos : size_t = 0;
         while(true) {
             var r = file_read(&raw mut f, buf + pos, buf_len - pos);
-            if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
+            if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; var _close_buffer_read_err = file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
             var Ok(n) = r else unsafe { unreachable };
             if(n == 0) { break; } // EOF
             pos += n;
-            if(pos >= buf_len) { file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+            if(pos >= buf_len) { var _close_buffer_full = file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
         }
-        file_close(&raw mut f);
+        var _close_buffer_ok = file_close(&raw mut f);
         return Result.Ok<size_t, FsError>(pos);
 
         }
@@ -1254,8 +1254,8 @@ public unsafe func write_text_file(path : *char, data : *u8, data_len : size_t) 
         }
         var Ok(f) = fo else unsafe { unreachable };
         var r = file_write_all(&raw mut f, data, data_len);
-        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err(e); }
-        file_close(&raw mut f);
+        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; var _close_write_text_err = file_close(&raw mut f); return Result.Err(e); }
+        var _close_write_text_ok = file_close(&raw mut f);
         return Result.Ok(UnitTy{});
 
         }

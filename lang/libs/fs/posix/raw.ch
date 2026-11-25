@@ -159,7 +159,7 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
         dstopts.read = false; dstopts.write = true; dstopts.append = false; dstopts.create = true; dstopts.create_new = false; dstopts.truncate = true; dstopts.binary = true;
         var dres = file_open(dst, dstopts);
         if(dres is Result.Err) {
-            file_close(&raw mut sf)
+            var _close_open_err = file_close(&raw mut sf)
             var Err(e) = dres else unsafe { unreachable }
             return Result.Err(e)
         }
@@ -169,8 +169,8 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
         while(true) {
             var r = file_read(&raw mut sf, &raw mut buf[0], sizeof(buf));
             if(r is Result.Err) {
-                file_close(&raw mut sf);
-                file_close(&raw mut df)
+                var _close_read_err_src = file_close(&raw mut sf);
+                var _close_read_err_dst = file_close(&raw mut df)
                 var Err(e) = r else unsafe { unreachable }
                 return Result.Err(e)
             }
@@ -178,13 +178,13 @@ func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> 
             if(n == 0) { break; }
             var w = file_write_all(&raw mut df, &raw mut buf[0], n);
             if(w is Result.Err) {
-                file_close(&raw mut sf)
-                file_close(&raw mut df)
+                var _close_write_err_src = file_close(&raw mut sf)
+                var _close_write_err_dst = file_close(&raw mut df)
                 var Err(e) = w else unsafe { unreachable }
                 return Result.Err(e)
             }
         }
-        file_close(&raw mut sf); file_close(&raw mut df);
+        var _close_copy_src = file_close(&raw mut sf); var _close_copy_dst = file_close(&raw mut df);
         return Result.Ok(UnitTy{});
 
         }
@@ -1110,7 +1110,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
                 var newcap = cap * 2;
                 // guard against 0 or overflow
                 if(newcap <= cap) { // overflow or stuck
-                    file_close(&raw mut f);
+                    var _close_large_file = file_close(&raw mut f);
                     return Result.Err(FsError.Other(string("file too large to read")));
                 }
                 cap = newcap;
@@ -1125,7 +1125,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
             var r = file_read(&raw mut f, ptr as *mut u8, want);
             if(r is Result.Err) {
                 var Err(e) = r else unsafe { unreachable };
-                file_close(&raw mut f);
+                var _close_read_entire_err = file_close(&raw mut f);
                 return Result.Err(e);
             }
             var Ok(n) = r else unsafe { unreachable };
@@ -1143,7 +1143,7 @@ public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsEr
         // set the string's size to the number of bytes read
         unsafe { vec.set_len(pos) };
 
-        file_close(&raw mut f);
+        var _close_read_entire_ok = file_close(&raw mut f);
         return Result.Ok(vec);
 
         }
@@ -1166,13 +1166,13 @@ public unsafe func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t)
         var pos : size_t = 0;
         while(true) {
             var r = file_read(&raw mut f, buf + pos, buf_len - pos);
-            if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
+            if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; var _close_buffer_read_err = file_close(&raw mut f); return Result.Err<size_t, FsError>(e); }
             var Ok(n) = r else unsafe { unreachable };
             if(n == 0) { break; } // EOF
             pos += n;
-            if(pos >= buf_len) { file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
+            if(pos >= buf_len) { var _close_buffer_full = file_close(&raw mut f); return Result.Err<size_t, FsError>(FsError.PathTooLong()); }
         }
-        file_close(&raw mut f);
+        var _close_buffer_ok = file_close(&raw mut f);
         return Result.Ok<size_t, FsError>(pos);
 
         }
@@ -1191,8 +1191,8 @@ public unsafe func write_text_file(path : *char, data : *u8, data_len : size_t) 
         }
         var Ok(f) = fo else unsafe { unreachable };
         var r = file_write_all(&raw mut f, data, data_len);
-        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; file_close(&raw mut f); return Result.Err(e); }
-        file_close(&raw mut f);
+        if(r is Result.Err) { var Err(e) = r else unsafe { unreachable }; var _close_write_text_err = file_close(&raw mut f); return Result.Err(e); }
+        var _close_write_text_ok = file_close(&raw mut f);
         return Result.Ok(UnitTy{});
 
         }

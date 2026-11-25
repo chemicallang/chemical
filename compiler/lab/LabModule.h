@@ -109,6 +109,15 @@ struct LabModule {
     LabModuleOptions options;
 
     /**
+     * Per-job: this module is included for its declarations/types only (its
+     * `host` implementation does not exist on this job's backend). Set by
+     * `LabBuildCompiler::mark_declaration_only_modules` at the start of
+     * `process_modules`; never part of the public module options because it is
+     * a property of the consumer job, not of the module.
+     */
+    bool types_only = false;
+
+    /**
      * these files are calculated before compilation to see which direct files
      * are present in the module, which have changed, so we can determine whether
      * module requires compilation

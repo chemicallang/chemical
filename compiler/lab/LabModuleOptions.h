@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 #include "std/chem_string_view.h"
 
 /**
@@ -17,4 +18,16 @@
 struct LabModuleOptions {
     chem::string_view stack_protector; // "none" | "standard" | "strong" | "all" | "" (not set)
     int optimization_level = 0;    // 0-3
+    // The host a module's implementation is written for:
+    // 0 = any/unset, 1 = js, 2 = native.
+    // ABI: this must stay an `int`, matching `ModuleOptions.host : int` in
+    // lang/libs/lab/src/lab.ch. `ModulegetOptions` hands this struct to the
+    // Chemical build.lab, so a C++ type whose layout differs from the Chemical
+    // mirror (e.g. `chem::string` vs libstdc++ `std::string`) is not allowed.
+    // A module with host 1 (js) is declarations-only on a non-JS job (see
+    // `LabBuildCompiler::mark_declaration_only_modules`).
+    int host = 0;
 };
+
+static_assert(std::is_same_v<decltype(LabModuleOptions::host), int>,
+              "LabModuleOptions::host must stay an int to match lab.ch::ModuleOptions");

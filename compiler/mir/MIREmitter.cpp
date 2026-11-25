@@ -807,6 +807,27 @@ static void append_wrapping_unary(const MIRModule& module, const std::string& a,
     out += "))";
 }
 
+// Attach the caller's source location to a symbol-availability diagnostic. MIR
+// keeps source locations optionally (debug builds record them; a quick build
+// may not), so the location is best-effort and the reason always leads.
+static void set_unavailable_symbol_error(const MIRModule& module,
+                                         const MIRFunction& function,
+                                         uint32_t inst_index,
+                                         std::string_view reason,
+                                         std::string& error) {
+    error.assign(reason.data(), reason.size());
+    if (inst_index >= function.instructions.size()) return;
+    const uint32_t source_index = function.instructions[inst_index].source_index;
+    if (source_index == MIR_NO_SOURCE || source_index >= function.sources.size()) return;
+    const MIRSourceLoc& loc = function.sources[source_index];
+    if (loc.file >= module.source_files.size()) return;
+    error += " (at ";
+    error += module.source_files[loc.file];
+    error += ":";
+    error += std::to_string(loc.line + 1);
+    error += ")";
+}
+
 } // namespace
 
 bool emit_function_c(const MIRFunction& function, const MIRModule& module,
@@ -2309,6 +2330,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = reason;
                     return false;
                 }
+                // A symbol from a module this job included for declarations only
+                // (no host implementation on this backend) is refused at the
+                // caller's site, naming the caller's source.
+                if (const std::string_view reason = module.unavailable_symbol_reason(call);
+                    !reason.empty()) {
+                    set_unavailable_symbol_error(module, function, idx, reason, error);
+                    return false;
+                }
                 call += "(";
                 if (sret && !c_abi) {
                     call += "&";
@@ -2606,6 +2635,11 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         error = reason;
                         return false;
                     }
+                    if (const std::string_view reason = module.unavailable_symbol_reason(fname);
+                        !reason.empty()) {
+                        set_unavailable_symbol_error(module, function, idx, reason, error);
+                        return false;
+                    }
                 }
                 append_vname_declarator(module, function.values[v].type, v, out);
                 out += " = ";
@@ -2617,6 +2651,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const ValueId v = inst.result_or_place;
                 const MIROperand* s = operand_at(function, inst, 0);
                 if (!s) { error = "global_addr missing symbol"; return false; }
+                {
+                    std::string gname;
+                    append_symbol_name(module, s->id, gname);
+                    if (const std::string_view reason = module.unavailable_symbol_reason(gname);
+                        !reason.empty()) {
+                        set_unavailable_symbol_error(module, function, idx, reason, error);
+                        return false;
+                    }
+                }
                 // an array global decays to a pointer to its first element
                 bool decay = false;
                 if (s->id < module.symbols.size()) {

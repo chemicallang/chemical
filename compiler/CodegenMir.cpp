@@ -104,6 +104,28 @@ llvm::AtomicRMWInst::BinOp mir_atomic_rmw_op(uint64_t op) {
     }
 }
 
+/**
+ * The diagnostic for a reference into a declarations-only module (a host this
+ * backend does not implement), with the caller's source when MIR recorded it.
+ * Both C and LLVM refuse at the caller's site, so the message is identical in
+ * spirit; the emitter-specific writing (stderr + diagnostics) is at the checks.
+ */
+std::string unavailable_symbol_message(const MIRModule& m, const MIRFunction& fn,
+                                       uint32_t inst_index, std::string_view reason) {
+    std::string msg(reason);
+    if (inst_index >= fn.instructions.size()) return msg;
+    const uint32_t source_index = fn.instructions[inst_index].source_index;
+    if (source_index == MIR_NO_SOURCE || source_index >= fn.sources.size()) return msg;
+    const MIRSourceLoc& loc = fn.sources[source_index];
+    if (loc.file >= m.source_files.size()) return msg;
+    msg += " (at ";
+    msg += m.source_files[loc.file];
+    msg += ":";
+    msg += std::to_string(loc.line + 1);
+    msg += ")";
+    return msg;
+}
+
 } // namespace
 
 // ── MIR type → LLVM type ────────────────────────────────────────────────────
@@ -1438,6 +1460,18 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             auto arg = [&](uint32_t n) -> const MIROperand* {
                 return mir::operand_at(fn, inst, n);
             };
+            // A reference into a module this job included for declarations only
+            // (its host has no implementation on this backend) is refused at the
+            // caller's site, with the caller's source, instead of becoming an
+            // unresolved symbol at link time.
+            auto reject_unavailable = [&](std::string_view name) -> bool {
+                const std::string_view reason = m.unavailable_symbol_reason(name);
+                if (reason.empty()) return false;
+                const std::string msg = unavailable_symbol_message(m, fn, ii, reason);
+                std::cerr << "error: " << msg << "\n";
+                error(ZERO_LOC) << msg;
+                return true;
+            };
             const uint32_t v = inst.result_or_place;
             // Attach the instruction's MIR source location (when present),
             // scoped to the innermost lexical block covering it.
@@ -1502,6 +1536,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::GlobalAddr: {
                     const MIROperand* s = arg(0);
                     if (s) {
+                        if (s->kind() == MIROperandKind::Symbol &&
+                            s->id < m.symbols.size()) {
+                            const std::string nm =
+                                m.symbols.mangled_name(m.symbols.get(s->id));
+                            if (reject_unavailable(nm)) return false;
+                        }
                         auto git = mir_global_cache_.find(s->id);
                         if (git != mir_global_cache_.end() && git->second) {
                             vals[v] = git->second;
@@ -1542,7 +1582,15 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 }
                 case MIROpcode::FunctionAddr: {
                     const MIROperand* s = arg(0);
-                    if (s) vals[v] = mir_function(m, s->id);
+                    if (s) {
+                        if (s->kind() == MIROperandKind::Symbol &&
+                            s->id < m.symbols.size()) {
+                            const std::string nm =
+                                m.symbols.mangled_name(m.symbols.get(s->id));
+                            if (reject_unavailable(nm)) return false;
+                        }
+                        vals[v] = mir_function(m, s->id);
+                    }
                     break;
                 }
                 case MIROpcode::Load: {
@@ -2001,6 +2049,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (inst.opcode() == MIROpcode::Call) {
                         const MIROperand* s = arg(0);
                         if (!s || s->kind() != MIROperandKind::Symbol) break;
+                        if (s->id < m.symbols.size()) {
+                            const std::string nm =
+                                m.symbols.mangled_name(m.symbols.get(s->id));
+                            if (reject_unavailable(nm)) return false;
+                        }
                         callee = mir_function(m, s->id);
                         a = 1;
                     } else {

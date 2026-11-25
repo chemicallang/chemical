@@ -2896,6 +2896,7 @@ int ASTProcessor::implement_module(
     mir::MIRTaskContext mir_task_local(mir_module_local, mir_types_local);
     std::recursive_mutex mir_mutex_local;
     mir::MIRModule& mir_module = mir_interp_program ? mir_interp_program->module : mir_module_local;
+    mir_module.unavailable_symbols = unavailable_symbols;
     // A shared program is lowered one Chemical module at a time, and a backend
     // that emits one file per module (the JS backend) needs to know which module
     // owns each function/global. Attributes recorded here belong to `module`:
@@ -3310,6 +3311,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
 
     mir::MIRModule mir_module;
     mir_module.set_single_threaded(!kEnableParallelLowering);
+    mir_module.unavailable_symbols = unavailable_symbols;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);

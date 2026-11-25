@@ -5,10 +5,11 @@ application shared_component
 // its component client-only; this fixture is the real shape (shared component
 // imported by both sides) and must build both sides.
 //
-// `shared` imports the ambient provider conditionally on the client side (like
-// the real `components` library's `import dom if client`), so only the client
-// job indexes it and the server job resolves/renders the component without an
-// index.
+// `shared` imports the ambient provider on both sides (the Phase 4b shape: a
+// server job includes a declarations-only provider and still runs its
+// IndexModule hook), so both jobs index it and both body-check the component.
+// `scripts/web-two-pass-test.sh` also builds a client-only-provider copy to
+// prove the server skips the check when no provider is present.
 source "src" if server
 
 import std

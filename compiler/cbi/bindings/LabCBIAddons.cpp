@@ -18,6 +18,10 @@ extern "C" {
         *view = self->name.to_chem_view();
     }
 
+    LabModuleOptions* ModulegetOptions(LabModule* self) {
+        return &self->options;
+    }
+
     void ModulegetBitcodePath(chem::string_view* view, LabModule* self) {
         *view = self->bitcode_path.to_chem_view();
     }

@@ -948,13 +948,17 @@ func bc_examine_member(ctx : &mut BcCtx, m : *mut JsMemberAccess) {
         }
 }
 
-// Entry point. The check runs only on the client/JS job and reports each
-// missing host name (008), prop (001), direct root member (002) and misplaced
-// hook (006) once per component. Untyped edges (005) are only counted.
+// Entry point. The check runs on the client/JS job, and on any other job whose
+// per-job index has at least one ambient provider (a shared component compiled
+// by the server pass with `import dom` on both sides). A server job with no
+// provider has nothing to resolve host names against, so it skips instead of
+// producing a false 008. Reports each missing host name (008), prop (001),
+// direct root member (002) and misplaced hook (006) once per component. Untyped
+// edges (005) are only counted.
 public func body_check(body : *mut void, compName : &std::string_view, propsName : &std::string_view,
                        propsStruct : *mut StructDefinition, diag : *mut ASTDiagnoser, loc : ubigint) {
         unsafe {
-        if(!universal_is_client_job) return
+        if(!universal_is_client_job && universal_index.ambient.size() == 0) return
         if(body == null || diag == null) return
 
         var locals = std::vector<std::string_view>()

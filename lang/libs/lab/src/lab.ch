@@ -18,6 +18,11 @@ public enum PackageKind {
 public struct ModuleOptions {
     var stack_protector : std::string_view;
     var optimization_level : int = 0;
+    // ABI: keep this an `int`; C++ `LabModuleOptions::host` is an `int` and
+    // `ModulegetOptions` hands this struct across CBI by pointer.
+    // 0 = any/unset, 1 = js, 2 = native. A host 1 (js) module is
+    // declarations-only on a non-JS job.
+    var host : int = 0;
 }
 
 @compiler.interface

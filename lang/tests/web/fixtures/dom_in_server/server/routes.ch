@@ -1,6 +1,7 @@
-// Server-only code that touches the DOM. There is no native implementation of
-// `chx_dom_*`, so the shared per-symbol target table (`MIRTargetSupport`) makes
-// this a compile diagnostic for the C/LLVM targets.
+// Server-only code that touches the DOM. `dom` declares `option host = "js"`, so
+// this native job includes it for declarations only: naming `dom::Document` is
+// fine, but calling a wrapper is refused at this caller with the client-only
+// reason (not with an undefined `chx_dom_*` at link time).
 public func route_title() : int {
     var doc = dom.document()
     var found = doc.getElementById("title")

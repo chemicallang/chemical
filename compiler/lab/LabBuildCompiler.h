@@ -351,6 +351,10 @@ public:
      * it also calls appropriate method process job tcc or process job gen
      */
     int process_modules(LabJob* job) {
+        // A module declaring a non-native host (e.g. "js") is included for its
+        // declarations/types only on a job whose backend cannot implement it.
+        // This is per job and independent of whether an indexer is registered.
+        mark_declaration_only_modules(job);
 #ifdef COMPILER_BUILD
         return use_c(job) ? (
             process_job_tcc(job)
@@ -361,6 +365,15 @@ public:
         return process_job_tcc(job);
 #endif
     }
+
+    /**
+     * flags every dependency module whose `host` this job's backend cannot
+     * implement as `types_only` (see LabModule::types_only). A host "js" module
+     * has no C/LLVM implementation; the job still needs its types and
+     * signatures for parsing, symbol resolution and type checking. The host
+     * spelling is generic — no module name is special-cased here.
+     */
+    void mark_declaration_only_modules(LabJob* job);
 
     /**
      * does executable job (generates executable)

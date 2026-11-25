@@ -68,6 +68,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_ModulegetType", (void*) ModulegetType },
         { "lab_ModulegetScopeName", (void*) ModulegetScopeName },
         { "lab_ModulegetName", (void*) ModulegetName },
+        { "lab_ModulegetOptions", (void*) ModulegetOptions },
         { "lab_ModulegetBitcodePath", (void*) ModulegetBitcodePath },
         { "lab_ModulesetBitcodePath", (void*) ModulesetBitcodePath },
         { "lab_ModulegetObjectPath", (void*) ModulegetObjectPath },

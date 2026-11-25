@@ -11,6 +11,10 @@ static constexpr chem::string_view kStackProtectorValues[] = {
     "none", "standard", "strong", "all"
 };
 
+static constexpr chem::string_view kHostValues[] = {
+    "js", "native"
+};
+
 // ---------------------------------------------------------------------------
 // Registry initialization
 // ---------------------------------------------------------------------------
@@ -24,6 +28,9 @@ void init_module_option_registry(
     // String options (with allowed value lists)
     // NOTE: keys use underscores to match struct field names in LabModuleOptions/lab.ch
     registry["stack_protector"]      = OptionDescriptor::string_val(kStackProtectorValues);
+    // Spelled as a string in chemical.mod, stored as the integer ABI field
+    // `LabModuleOptions::host` / `ModuleOptions.host` (0 = any, 1 = js, 2 = native).
+    registry["host"]                 = OptionDescriptor::string_val(kHostValues);
 }
 
 // ---------------------------------------------------------------------------

@@ -117,14 +117,14 @@ check "the server job is not the client side (client=0 js=0)" \
       "$(has_re "$pos_server" 'universal_job_begin .*client=0 js=0')"
 check "the client indexes the provider exactly once" \
       "$([ "$(count "$pos_client" 'universal_index_module module=shared_component_provider ')" = "1" ] && echo 1 || echo 0)"
-check "the server job never indexes the provider" \
-      "$([ "$(count "$pos_server" 'universal_index_module module=shared_component_provider')" = "0" ] && echo 1 || echo 0)"
+check "the server indexes the provider exactly once (imported on both sides)" \
+      "$([ "$(count "$pos_server" 'universal_index_module module=shared_component_provider ')" = "1" ] && echo 1 || echo 0)"
 
-# Phase 2/3 body check still runs on the shared component, on the client only.
+# The body check runs on both jobs when the provider is present on both sides.
 check "the client body-checks the shared component" \
       "$(has "$pos_client" '[body] component=SharedBadge')"
-check "the server pass does not run the body check" \
-      "$([ "$(count "$pos_server" '[body] component=')" = "0" ] && echo 1 || echo 0)"
+check "the server body-checks the shared component (provider present)" \
+      "$(has "$pos_server" '[body] component=SharedBadge')"
 check "the positive build has no WEB-BODY diagnostic" \
       "$([ "$(count "$pos_log" 'WEB-BODY')" = "0" ] && echo 1 || echo 0)"
 
@@ -176,6 +176,62 @@ split_sides "$neg_log" "$neg_client" "$neg_server"
 check "the 001 is in the client section" "$(has "$neg_client" 'WEB-BODY-001')"
 check "the server section has no 001" \
       "$([ "$(count "$neg_server" 'WEB-BODY-001')" = "0" ] && echo 1 || echo 0)"
+
+# ---------------------------------------------------------------- server-side check
+# The server pass runs the same body check when a provider is present. A native
+# build of the same shared component (server-shaped: `src` included, provider
+# imported) proves the non-client branch reports the same typo, with
+# `client=0 js=0`.
+echo
+echo "== negative: the server/native job body-checks too (provider present)"
+neg_native="$out/negative_native"
+cp -r "$neg" "$neg_native"
+rm -rf "$neg_native/build" "$neg_native/output" "$neg_native/shared/build" \
+       "$neg_native/client/build" "$neg_native/provider/build" "$neg_native/src/build"
+# `src` is the server entry; include it without `--web` for this native job.
+sed -i 's/^source "src" if server$/source "src"/' "$neg_native/chemical.mod"
+neg_native_log="$out/negative_native.log"
+if CHEM_DEBUG_INDEX=1 "$compiler" "$neg_native/chemical.mod" -v \
+        --build-dir "$out/negative_native_build" -o "$out/negative_native.exe" > "$neg_native_log" 2>&1; then
+    check "the typo'd shared component fails the native/server job (it built)" 0
+else
+    check "the typo'd shared component fails the native/server job" 1
+fi
+check "the native job is not the client side (client=0 js=0)" \
+      "$(has_re "$neg_native_log" 'universal_job_begin .*client=0 js=0')"
+check "the native/server job body-checks the shared component" \
+      "$(has "$neg_native_log" '[body] component=SharedBadge')"
+check "the native/server job reports WEB-BODY-001" \
+      "$(has "$neg_native_log" 'WEB-BODY-001')"
+
+# ---------------------------------------------------------------- no provider on the server
+# `shared` imports the provider only on the client side: the server job has an
+# empty index and must skip the check (no false 008), while the client indexes
+# it and checks the component.
+echo
+echo "== no provider on the server: the server skips, the client checks"
+skip="$out/no_provider"
+cp -r "$fixture" "$skip"
+rm -rf "$skip/build" "$skip/output" "$skip/shared/build" "$skip/client/build" \
+       "$skip/provider/build" "$skip/src/build"
+sed -i 's|^import "\.\./provider"$|import "../provider" if client|' "$skip/shared/chemical.mod"
+skip_log="$out/no_provider.log"
+if CHEM_DEBUG_INDEX=1 "$compiler" "$skip/chemical.mod" --web -v \
+        --build-dir "$out/no_provider_build" -o "$out/no_provider.exe" > "$skip_log" 2>&1; then
+    check "the no-server-provider build succeeds" 1
+else
+    check "the no-server-provider build succeeds (see $skip_log)" 0
+    tail -20 "$skip_log" >&2
+fi
+skip_client="$out/no_provider.client.log"
+skip_server="$out/no_provider.server.log"
+split_sides "$skip_log" "$skip_client" "$skip_server"
+check "the client still body-checks the shared component" \
+      "$(has "$skip_client" '[body] component=SharedBadge')"
+check "the server (no provider) skips the body check" \
+      "$([ "$(count "$skip_server" '[body] component=')" = "0" ] && echo 1 || echo 0)"
+check "the no-server-provider build has no WEB-BODY diagnostic" \
+      "$([ "$(count "$skip_log" 'WEB-BODY')" = "0" ] && echo 1 || echo 0)"
 
 if [ "$fail" != 0 ]; then
     echo "web-two-pass-test: FAILED" >&2

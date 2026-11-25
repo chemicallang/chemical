@@ -11,9 +11,12 @@
 #                      must reject it (`WEB-CLIENT-001`), while the same discard
 #                      in server-only code is allowed. The gate then rewrites the
 #                      client discard to `var _ = ...` and builds again.
-#   dom_in_server      a server module calls the typed `dom` API: the per-symbol
-#                      table in `MIRTargetSupport` must refuse the client-only
-#                      host symbols during translation, not at link time.
+#   dom_in_server      a server module calls the typed `dom` API. `dom` declares
+#                      `option host = "js"`, so a native job includes its
+#                      declarations only; the call into a `dom` wrapper is then
+#                      refused at the caller's site (module `server`,
+#                      `server/routes.ch`) instead of becoming an unresolved
+#                      symbol at link time.
 #
 # Both directions run through the real CLI, so this is the gate that keeps the
 # two-job build honest: a regression that silently lets native code into the
@@ -143,12 +146,13 @@ else
     check "a server module using dom is rejected" 1
 fi
 check "the diagnostic names the reason" "$(file_has "$dom_log" 'client-only')"
-check "the diagnostic names the dom host API" \
-      "$(file_has "$dom_log" "the 'dom' host API")"
+check "the diagnostic names the calling module" \
+      "$(file_has "$dom_log" 'failure during translation to c in the module server')"
+check "the diagnostic names the caller source" "$(file_has "$dom_log" 'server/routes.ch')"
 check "the diagnostic says where to move the call" \
       "$(file_has "$dom_log" "call it from a 'client' module")"
-check "the refusal happens during translation, not at link time" \
-      "$(file_has "$dom_log" 'failure during translation to c in the module dom')"
+check "the refusal happens at the caller, not in the dom module" \
+      "$([ "$(grep -qF -- 'failure during translation to c in the module dom' "$dom_log" && echo 0 || echo 1)" = "1" ] && echo 1 || echo 0)"
 check "no link error is reached" \
       "$(grep -qF -- 'unresolved reference' "$dom_log" && echo 0 || echo 1)"
 check "no server executable was linked" \

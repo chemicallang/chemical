@@ -3,6 +3,7 @@
 #pragma once
 
 #include <utility>
+#include <string>
 
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
@@ -612,6 +613,15 @@ public:
      * IR for the fully-populated MIR module.
      */
     std::function<void(mir::MIRTypeBuilder&, mir::MIRModule&)> mir_llvm_finish;
+
+    /**
+     * Mangled-name prefixes of declarations-only modules on this job, with the
+     * reason to report. `implement_module` publishes them into the per-module
+     * `MIRModule`; the C and LLVM emitters refuse a call/address into one of
+     * them at the caller's site instead of leaving an undefined symbol for the
+     * linker. Empty on a JS job (every host is implemented there).
+     */
+    std::vector<std::pair<std::string, std::string>> unavailable_symbols;
 
     /**
      * When set, `implement_module` uses this job-wide MIR program's tables

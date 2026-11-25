@@ -20,6 +20,8 @@
 #include <span>
 #include <deque>
 #include <mutex>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace mir {
@@ -175,6 +177,26 @@ struct MIRModule {
         if (symbol >= symbol_modules.size()) return MIR_INVALID_ID;
         return symbol_modules[symbol];
     }
+
+    /**
+     * Mangled-name prefixes of modules that were included for declarations only
+     * on this job (a host this backend does not implement), with the diagnostic
+     * to report. Emitters consult this before writing a call/address so the
+     * error is at the caller's site, not a link failure. Filled by the front end
+     * (`ASTProcessor`) from the job's module records.
+     */
+    std::vector<std::pair<std::string, std::string>> unavailable_symbols;
+
+    /** The reason `name` is unavailable, or an empty view when it is fine. */
+    std::string_view unavailable_symbol_reason(std::string_view name) const {
+        for (const auto& entry : unavailable_symbols) {
+            if (name.size() >= entry.first.size() &&
+                name.compare(0, entry.first.size(), entry.first) == 0) {
+                return entry.second;
+            }
+        }
+        return {};
+    }
     /** The name of module `id` (`""` when unknown). */
     std::string_view module_name_of(uint32_t id) const {
         if (id == MIR_INVALID_ID || id >= module_names.size()) return std::string_view();
@@ -240,6 +262,7 @@ struct MIRModule {
         source_files.clear();
         module_names.clear();
         symbol_modules.clear();
+        unavailable_symbols.clear();
         lowering_module = MIR_INVALID_ID;
         inline_structs.clear();
         inline_struct_seen_.clear();

@@ -7,6 +7,7 @@
 #include "compiler/lab/LabJob.h"
 
 struct LabModule;
+struct LabModuleOptions;
 struct LabJob;
 struct TargetData;
 
@@ -16,6 +17,7 @@ extern "C" {
     int ModulegetType(LabModule* self);
     void ModulegetScopeName(chem::string_view* view, LabModule* self);
     void ModulegetName(chem::string_view* view, LabModule* self);
+    LabModuleOptions* ModulegetOptions(LabModule* self);
     
     void ModulegetBitcodePath(chem::string_view* view, LabModule* self);
     void ModulesetBitcodePath(LabModule* self, chem::string_view* path);

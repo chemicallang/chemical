@@ -10,10 +10,12 @@
 //
 // Client modules only. The handles name browser objects, so the server job (native)
 // has no implementation for them: import `dom` from a `client` module, never from
-// `shared` or `server`. A native build that reaches one of these symbols is refused
-// by the shared per-symbol target table (`MIRTargetSymbolRule` in
-// `compiler/mir/MIRTargetSupport.cpp`), so the mistake is a translation-time
-// diagnostic, not a link error.
+// `shared` or `server`. `dom/chemical.mod` declares `option host = "js"`, so a
+// native job includes this module for its declarations only and a call into one
+// of its wrappers is refused at the caller's site (see
+// `LabBuildCompiler::mark_declaration_only_modules`); the raw `chx_dom_*` externs
+// are also refused by the shared per-symbol target table (`MIRTargetSupport`).
+// The mistake is a translation-time diagnostic, not a link error.
 //
 //     import dom in `client/chemical.mod`, then:
 //

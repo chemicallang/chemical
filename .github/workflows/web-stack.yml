@@ -97,6 +97,9 @@ jobs:
       - name: Shared `#universal` component in both `--web` passes
         run: ./scripts/web-two-pass-test.sh
 
+      - name: Declarations-only host modules (`host = "js"`) on a native job
+        run: ./scripts/web-types-only-test.sh
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -108,4 +111,5 @@ jobs:
             /tmp/web_golden_probe_*.txt
             lang/compiled/web-split-gate/*.log
             lang/compiled/web-two-pass-gate/*.log
+            lang/compiled/web-types-only-gate/*.log
           if-no-files-found: ignore

@@ -188,6 +188,98 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency
 }
 
 /**
+ * The mangled-name prefix every runtime symbol of a module starts with. It is
+ * exactly the module scope the name mangler writes (`scope_name_` when a scope
+ * is present, then `module_name_`). Derived from the record, never hardcoded.
+ */
+static std::string module_symbol_prefix(LabModule* mod) {
+    std::string prefix = LabModule::format(mod->scope_name.to_chem_view(), mod->name.to_chem_view(), '_');
+    prefix.push_back('_');
+    return prefix;
+}
+
+/**
+ * The diagnostic for a call into a declarations-only (client-only host) module.
+ * It names the module and the module's `host`, so the caller knows both why the
+ * symbol is unavailable and where the call belongs.
+ */
+static std::string declarations_only_reason(LabModule* mod) {
+    std::string reason = "module '";
+    reason += mod->format(':');
+    reason += "' declares host '";
+    // The module record stores the integer ABI; spell it for the diagnostic.
+    reason += mod->options.host == 1 ? "js" : (mod->options.host == 2 ? "native" : "any");
+    reason += "' and is declarations-only on this target (client-only); "
+              "call it from a 'client' module, not from server/shared code";
+    return reason;
+}
+
+/**
+ * The identity of the types-only set, recorded next to the job's object file.
+ * The set is part of the cache key: adding/removing a declarations-only module
+ * must invalidate the cached job object, because the set decides which objects
+ * are linked.
+ */
+static std::string types_only_identity(const std::vector<LabModule*>& modules) {
+    std::vector<std::string> names;
+    for (auto* mod : modules) {
+        if (mod->types_only) names.push_back(mod->format(':'));
+    }
+    std::sort(names.begin(), names.end());
+    std::string out;
+    for (const auto& name : names) {
+        out += name;
+        out.push_back('\n');
+    }
+    return out;
+}
+
+static bool types_only_identity_matches(const std::string& path, const std::string& current) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open()) return false;
+    std::string existing((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    return existing == current;
+}
+
+void LabBuildCompiler::mark_declaration_only_modules(LabJob* job) {
+    auto dependencies = flatten_dedupe_sorted(job->dependencies);
+    for (auto* mod : dependencies) {
+        mod->types_only = false;
+    }
+    // A JS-backend job implements every host; a C/LLVM job implements only
+    // native code. Do not key this on whether an indexer is registered: a plain
+    // native build that imports a JavaScript host module must still work.
+    if (job->target_data.js) {
+        return;
+    }
+    for (auto* mod : dependencies) {
+        if (mod->options.host == 1) {
+            mod->types_only = true;
+            if (options->verbose) {
+                std::cout << "[lab] module '" << mod->format()
+                          << "' declares host 'js' and is declarations-only on this job"
+                          << std::endl;
+            }
+        }
+    }
+}
+
+/**
+ * Publish the declarations-only modules' mangled-name prefixes to MIR. Both
+ * emitters refuse a call/function address/global address into one of them at
+ * the caller's site, so the mistake is a translation diagnostic in the calling
+ * module instead of an undefined symbol at link time.
+ */
+static void collect_declarations_only_symbols(const std::vector<LabModule*>& dependencies,
+                                             ASTProcessor& processor) {
+    for (auto* mod : dependencies) {
+        if (!mod->types_only) continue;
+        processor.unavailable_symbols.emplace_back(module_symbol_prefix(mod),
+                                                   declarations_only_reason(mod));
+    }
+}
+
+/**
  * this should be used in each job, so children of each module are calculated again
  */
 void zero_out_cached_children(std::vector<LabModule*>& mods) {
@@ -949,7 +1041,11 @@ int LabBuildCompiler::process_module_tcc(
 
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (we make the check when setting the boolean)
-    if(mod->has_changed.has_value() && !mod->has_changed.value()) {
+    // A declarations-only module has no object of its own (its declarations are
+    // emitted into the shared C translation unit), so the object cache must not
+    // be consulted for it — a stale object from an earlier full build would
+    // otherwise be linked.
+    if(!mod->types_only && mod->has_changed.has_value() && !mod->has_changed.value()) {
 
         bool cache_succeeded = false;
 
@@ -1046,6 +1142,30 @@ int LabBuildCompiler::process_module_tcc(
             return 0;
         }
 
+    }
+
+    // Declarations-only module: emit the C declaration section (struct
+    // definitions, prototypes, extern declarations) so dependents' translation
+    // units can name its types and signatures, but emit no bodies and no object.
+    // This is what lets a native server job import a `host = "js"` module for
+    // type checking without producing symbols nothing implements.
+    if(mod->types_only) {
+        if(verbose) {
+            std::cout << "[lab] " << "declaring the types-only module '" << mod->format() << "'" << std::endl;
+        }
+        processor.mir_dedupe_type_definitions = single_file;
+        processor.mir_emission_registry.begin_module();
+        const auto dec_status = processor.declare_module(c_visitor, mod);
+        if (dec_status != 0) {
+            std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during declaration of the types-only module " << *mod << std::endl;
+            return dec_status;
+        }
+        // Generic instantiations registered by this module belong to it; the
+        // object that would have owned them is not emitted.
+        processor.container.clear_current_module_instantiations();
+        remove_non_public_nodes(processor, mod->direct_files);
+        mod_allocator->clear();
+        return 0;
     }
 
     if(verbose) {
@@ -1267,13 +1387,27 @@ int LabBuildCompiler::process_module_gen(
         return 1;
     }
 
+    // Declarations-only module on the LLVM path: parse, symbol resolve and type
+    // check for dependents, but generate no LLVM module/object and therefore no
+    // code. Unlike the C path there is no shared declaration writer; a dependent
+    // names this module's types through MIR (the AST stays alive for the job).
+    if(mod->types_only) {
+        if(verbose) {
+            std::cout << "[lab] " << "type-checking the types-only module '" << mod->format()
+                      << "' (no LLVM emission)" << std::endl;
+        }
+        processor.container.clear_current_module_instantiations();
+        pool.wait_idle();
+        return 0;
+    }
+
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (currently
     // A cached object is only reusable when the definitions it owns are known,
     // so a module translated in this build does not emit a second definition of
     // an instantiation the cached module already owns (see
     // `get_module_names_path`).
-    if(mod->has_changed.has_value() && !mod->has_changed.value() && !job->attrs.check_only
+    if(!mod->types_only && mod->has_changed.has_value() && !mod->has_changed.value() && !job->attrs.check_only
        && load_module_names(get_module_names_path(build_dir, mod), processor.mir_emission_registry)) {
 
         if(verbose) {
@@ -1843,11 +1977,23 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
 
     }
 
+    // The declarations-only set is part of the job cache identity: it decides
+    // which module objects are linked, so adding/removing one invalidates a
+    // cached job object even when every source file is unchanged.
+    const std::string types_only_identity_path =
+            resolve_rel_child_path_str(build_dir, "types_only.identity");
+    const std::string current_types_only_identity = types_only_identity(dependencies);
+    const bool types_only_identity_same =
+            types_only_identity_matches(types_only_identity_path, current_types_only_identity);
+
     // if caching is enabled, we check if none of the files have changed
     if(job_caching && do_compile) {
 
         // if not a single module has changed, we consider it true
-        bool has_any_changed = false;
+        bool has_any_changed = !types_only_identity_same;
+
+        // Record this build's set for the next run.
+        writeToFile(types_only_identity_path, current_types_only_identity);
 
         const auto job_obj_exists = is_single_file && fs::exists(job_obj_path);
 
@@ -1928,6 +2074,7 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
 
     // the processor we use
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, *job_allocator, *mod_allocator, *file_allocator);
+    collect_declarations_only_symbols(dependencies, processor);
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver, job->target_data);
@@ -2006,8 +2153,9 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
             return result;
         }
 
-        // module's object file must be linked if not a single file compilation
-        if (!is_single_file) {
+        // module's object file must be linked if not a single file compilation.
+        // A declarations-only module has no object of its own.
+        if (!is_single_file && !mod->types_only) {
             job->objects.emplace_back(mod->object_path.copy());
         }
 
@@ -2143,10 +2291,20 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
 
     }
 
+    // The declarations-only set is part of the job cache identity (see the C
+    // path above): it decides which module objects are linked.
+    const std::string types_only_identity_path =
+            resolve_rel_child_path_str(build_dir, "types_only.identity");
+    const std::string current_types_only_identity = types_only_identity(dependencies);
+    const bool types_only_identity_same =
+            types_only_identity_matches(types_only_identity_path, current_types_only_identity);
+
     if(job_caching) {
 
+        writeToFile(types_only_identity_path, current_types_only_identity);
+
         // if not a single module has changed, we consider it true
-        bool has_any_changed = false;
+        bool has_any_changed = !types_only_identity_same;
 
         for(auto& dep : job->dependencies) {
             const auto changed = has_module_changed(this, dep.module, mods_dir, false, false);
@@ -2162,6 +2320,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             // we need to return early so modules won't be parsed at all
 
             for (const auto mod: dependencies) {
+                // a declarations-only module never contributes an object
+                if(mod->types_only) continue;
                 job->objects.emplace_back(mod->object_path.to_chem_view());
             }
 
@@ -2187,6 +2347,7 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     // a single c translator across this entire job
     CTranslator cTranslator(job_alloc, type_builder, options->is64Bit);
     ASTProcessor processor(path_handler, options, mod_storage, controller, loc_man, &resolver, binder, type_builder, instContainer, job_alloc, *mod_allocator, *file_allocator);
+    collect_declarations_only_symbols(dependencies, processor);
     CodegenOptions code_gen_options;
     code_gen_options.fno_unwind_tables = options->fno_unwind_tables;
     code_gen_options.fno_asynchronous_unwind_tables = options->fno_asynchronous_unwind_tables;
@@ -2281,10 +2442,13 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
             return result;
         }
 
-        if(is_use_obj_format) {
-            job->objects.emplace_back(mod->object_path.copy());
-        } else {
-            job->objects.emplace_back(mod->bitcode_path.copy());
+        // A declarations-only module emits no object/bitcode of its own.
+        if(!mod->types_only) {
+            if(is_use_obj_format) {
+                job->objects.emplace_back(mod->object_path.copy());
+            } else {
+                job->objects.emplace_back(mod->bitcode_path.copy());
+            }
         }
 
     }
@@ -2645,6 +2809,19 @@ static void apply_module_options(LabModuleOptions& opts, const std::vector<ModFi
             case hasher("optimization_level"):
                 if (key == "optimization_level" && val.kind == ModOptionValueKind::Integer) {
                     opts.optimization_level = static_cast<int>(val.int_val);
+                }
+                break;
+            case hasher("host"):
+                if (key == "host" && val.kind == ModOptionValueKind::String) {
+                    // chemical.mod keeps the string spelling; the module record
+                    // and Chemical build.lab use the integer ABI (0/1/2).
+                    if (val.str_val == "js") {
+                        opts.host = 1;
+                    } else if (val.str_val == "native") {
+                        opts.host = 2;
+                    } else {
+                        opts.host = 0;
+                    }
                 }
                 break;
             default:

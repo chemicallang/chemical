@@ -456,7 +456,22 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     output << opt.value.float_val;
                     break;
                 case ModOptionValueKind::String:
-                    output << "std::string_view(\"" << opt.value.str_val << "\")";
+                    // `host` is an integer ABI field (0 = any, 1 = js,
+                    // 2 = native) even though `chemical.mod` spells it as a
+                    // string. Emitting a string here would hand libstdc++'s
+                    // `std::string` to a `chem::string` field (different
+                    // layout); keep the mirror type in both places an `int`.
+                    if(opt.key == "host") {
+                        if(opt.value.str_val == "js") {
+                            output << "1";
+                        } else if(opt.value.str_val == "native") {
+                            output << "2";
+                        } else {
+                            output << "0";
+                        }
+                    } else {
+                        output << "std::string_view(\"" << opt.value.str_val << "\")";
+                    }
                     break;
                 default:
                     break;

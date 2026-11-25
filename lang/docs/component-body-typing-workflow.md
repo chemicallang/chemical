@@ -108,6 +108,9 @@
 | H28 | WebView cannot run on this machine (no headers/xvfb/sudo) | the "run it" decision is unverifiable locally | implement `tests_document.ch` + `universal.yml`; local gates are the fixtures/DOM harness; CI is the WebView judge | 3 |
 | H29 | Phase 4 server-side index is under-tested | stale `dom.o`, LLVM accepts `chx_dom_*`, server/client diagnostics disagree | `web-types-only-test.sh` + a two-side diagnostic comparison + cache-bypass test; enforce the caller-site refusal in both C and LLVM | 4 |
 | H30 | JS library reachability roots are wrong | a public function is omitted from the library | roots = public functions + address-taken + vtable + async poll pairs + global initializers; a Node import test per public function | 0 |
+| H31 | `--web` compiles a shared `#universal` component in both passes and fails (`symbol is not a component`, `@extern` storm) | the real library cannot be checked; Phase 2 used a client-only component to proceed | Phase 4 must fix the two-pass plugin/cache state and convert the two-side gate to a **shared** component; do not claim the library is checked before it passes | 4 |
+| H32 | `page`/`fs` client builds discard `Result` cleanup calls | the client job rejects `page` before any body check | consume (`var _close… =`) the POSIX and Windows `fs` cleanup Results; `page`'s `write_text_file` discard; already committed as a prerequisite | pre-2 |
+| H33 | a successful CBI job is rebuilt on the second `--web` pass | crash / stale plugin state | reuse a `Success` CBI job across passes; side-dependent behavior must use `JobBegin` at runtime, not plugin compile-time branching | pre-2 |
 
 ---
 
@@ -313,6 +316,7 @@ Artifacts on failure: the fixture logs, `/tmp/web_*`, `lang/compiled/web-*`, and
 - [ ] `dom` browser spelling and full surface (`Element`/`DOMRect`/`classList`/`style`/`dataset`, chains, `Option<T>`).
 - [ ] `components/chemical.mod` uses `import dom if client` for the checkpoint and `dom` is declarations-only on the server in Phase 4.
 - [ ] Full negative/positive fixture set; two-job, index isolation, determinism, WebView allowed-surface test.
+- [ ] The two-side gate uses a **shared** `#universal` component compiled by both `--web` passes (H31 fixed), not the Phase 2 client-only checkpoint.
 - [ ] JS library mode: `Library + --emit-js` produces importable modules, no `main`, no `.so`.
 - [ ] CI: web-stack steps + universal job; `--plugins` green; components-e2e scheduled.
 - [ ] Perf rows: build (both sides), plugin build, bundle, index count/RSS.

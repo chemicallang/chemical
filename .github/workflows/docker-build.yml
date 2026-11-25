@@ -50,7 +50,9 @@ jobs:
           file: scripts/docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          # :latest is the LLVM-based ubuntu image (VARIANT is empty), so it moves with latest-ubuntu.
           tags: |
+            ${{ env.REPO }}:latest
             ${{ env.REPO }}:latest-ubuntu
             ${{ env.REPO }}:${{ env.VERSION }}-ubuntu
           build-args: |

@@ -724,6 +724,7 @@ void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
         diagnoser.error("cannot apply operator '&raw' to r-value", value);
     }
+    check_mutable_global_ref(value, addrOfValue->encoded_location(), addrOfValue->is_mutable);
     const auto linked = value->get_chain_last_linked();
     if(linked) {
         switch (linked->kind()) {
@@ -744,6 +745,7 @@ void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
 }
 
 void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
+    check_mutable_global_ref(refValue->value, refValue->encoded_location(), refValue->is_mutable);
     if (refValue->value->kind() == ValueKind::DereferenceValue) {
         visit_dereference_value(*this, refValue->value->as_dereference_value_unsafe(), true);
     } else {
@@ -1974,6 +1976,51 @@ private:
     TypeVerifier& verifier;
     std::unordered_set<const BaseType*> deciding;
 };
+
+/**
+ * SAFE-GLOBAL-003. `unsafe` is the only thing SAFE-GLOBAL-001 requires before a
+ * mutable global may be read or written, and `unsafe` asserts everything at
+ * once. A mutable reference is the strongest form of that access: it escapes
+ * the accessor, so every caller holds a `&mut` to the same object and two
+ * threads can write it concurrently — the shape of the shared-`StaticSite`
+ * crash. Warned about rather than rejected because taking the reference under a
+ * lock is the correct pattern and the compiler cannot see the lock. Reported
+ * once per global: the fix belongs at the declaration, not at every accessor.
+ *
+ * A global whose type is `Sync` is exempt: it is meant to be shared (a mutex, an
+ * atomic, a synchronized wrapper), and `&mut` to it is how a caller locks it.
+ * Only a type that *cannot* be shared is reported wherever its `&mut` escapes —
+ * which is the shape that crashed: a site struct holding raw pointers and
+ * containers, handed to every request.
+ */
+void TypeVerifier::check_mutable_global_ref(Value* ref_target, SourceLocation at, bool is_mutable) {
+    if (!is_mutable || ref_target == nullptr) return;
+    const auto linked = ref_target->get_chain_last_linked();
+    if (linked == nullptr || linked->kind() != ASTNodeKind::VarInitStmt) return;
+    // thread-local and comptime storage has no cross-thread hazard, and an
+    // immutable global is checked for `Sync` at its declaration (SAFE-GLOBAL-002)
+    auto* global = linked->as_var_init_unsafe();
+    if (!global->is_top_level() || global->is_const() ||
+        global->is_thread_local() || global->is_comptime()) return;
+    BaseType* global_type = global->known_type();
+    if (global_type != nullptr) {
+        std::unordered_set<MembersContainer*> visiting;
+        TypeVerifierAutoTraitContext auto_trait_context(*this);
+        if (type_satisfies_auto_trait(global_type, AutoTraitKind::Sync, visiting, &index,
+                                      (ASTNode*) coreNodes.send_interface,
+                                      (ASTNode*) coreNodes.sync_interface,
+                                      &auto_trait_context)) {
+            return;
+        }
+    }
+    if (!reported_mutable_globals.insert(linked).second) return;
+    diagnoser.warning(at).with_code("SAFE-GLOBAL-003")
+        << "mutable reference to the global '" << global->name_view()
+        << "' escapes into a caller: every caller gets a `&mut` to the same "
+           "object, so two threads can write it at once. The unsafe boundary "
+           "asserts they are synchronized — hold a lock across every access, "
+           "or make the global thread-local";
+}
 
 void TypeVerifier::VisitDynamicValue(DynamicValue* value) {
     RecursiveVisitor<TypeVerifier>::VisitDynamicValue(value);

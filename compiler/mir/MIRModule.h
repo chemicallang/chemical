@@ -70,6 +70,13 @@ struct MIRModule {
     MIRConstantPool constants;
     MIRSymbolTable symbols;
     MIRModuleLayout layout;
+    /**
+     * The build carries debug information. The C emitter reads it to decide
+     * whether to write a `#line` before each source line (see
+     * `emit_function_c`); the LLVM backend reads its own DI metadata instead.
+     * Set by the driver from the build options, so a release module pays nothing.
+     */
+    bool emit_debug_info = false;
     std::vector<MIRFunction> functions;
     /** Constant-expression trees for global initializers (see MIRGlobal). */
     MIRConstExprTable const_exprs;
@@ -194,13 +201,37 @@ struct MIRModule {
     }
     bool single_threaded() const { return types.single_threaded(); }
 
-    /** Intern a source file path; returns its id. */
+    /**
+     * Intern a source file path; returns its id.
+     *
+     * `MIRLowerer::note_source` calls this for every AST node it lowers, so with
+     * parallel lowering every worker interns paths concurrently and the table can
+     * reallocate under another worker's feet. Guarded like the other module
+     * tables: the lock is skipped while the module is single-threaded, and readers
+     * go through `source_file_at`, which copies under the same lock.
+     */
     uint32_t source_file(const std::string& path) {
+        std::unique_lock<std::mutex> lock(source_files_mtx_, std::defer_lock);
+        if (!single_threaded()) lock.lock();
         for (uint32_t i = 0; i < source_files.size(); ++i) {
             if (source_files[i] == path) return i;
         }
         source_files.push_back(path);
         return static_cast<uint32_t>(source_files.size() - 1);
+    }
+    /**
+     * Copy source file `id` into `out`. Returns false when the id is unknown.
+     *
+     * A reader must not index `source_files` directly while another worker may
+     * intern a path: a `push_back` reallocation frees the buffer the reference
+     * points into. This copies under the intern lock instead.
+     */
+    bool source_file_at(uint32_t id, std::string& out) const {
+        std::unique_lock<std::mutex> lock(source_files_mtx_, std::defer_lock);
+        if (!single_threaded()) lock.lock();
+        if (id >= source_files.size()) return false;
+        out = source_files[id];
+        return true;
     }
     /**
      * Inline (anonymous or locally-named) struct types discovered while mapping
@@ -218,6 +249,8 @@ struct MIRModule {
     std::vector<uint8_t> inline_struct_seen_;
     /** Guards `inline_structs` (appended from parallel lowering workers). */
     std::mutex inline_structs_mtx_;
+    /** Guards `source_files` (interned from parallel lowering workers). */
+    mutable std::mutex source_files_mtx_;
     void record_inline_struct(uint32_t id, void* type) {
         if (id == MIR_INVALID_ID) return;
         std::unique_lock<std::mutex> lock(inline_structs_mtx_, std::defer_lock);

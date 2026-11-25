@@ -369,10 +369,8 @@ private:
         if (ins.source_index == MIR_NO_SOURCE || ins.source_index >= fn.sources.size()) return {};
         const MIRSourceLoc& loc = fn.sources[ins.source_index];
         std::string text;
-        if (loc.file < module_.source_files.size()) {
-            text = module_.source_files[loc.file];
-            text += ':';
-        }
+        // copied under the intern lock: parallel lowering may still add a path
+        if (module_.source_file_at(loc.file, text)) text += ':';
         // the lowerer records 0-based positions; a diagnostic is 1-based
         text += std::to_string(loc.line + 1);
         text += ':';

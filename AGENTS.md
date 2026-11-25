@@ -1237,7 +1237,8 @@ cmake-build-debug/Compiler "lang/compiled/temp.ch" --out-ll-all --build-dir "lan
 ```
 
 **Flag explanations:**
-- `--mode debug_complete` — adds maximum debug information (omit for cleaner IR without debug metadata)
+- `--mode debug_complete` / `-g` — adds maximum debug information (omit for cleaner IR without debug metadata). On the **C/TCC backend** this is what makes `--emit-c` write a `#line <n> "<file>.ch"` before each source line and each function signature: TCC's `-g` line table is built by its preprocessor, so a runtime backtrace, a gdb frame and a TCC diagnostic then name the Chemical file and line instead of `Translated.c:N` (or `<string>:N` when the C is compiled from memory). Release builds emit no directives.
+- `--tsan` / `--sanitize=<list>` — **clang backend only**. The tcc backend has no instrumentation hook, so it refuses the build instead of linking an uninstrumented binary; with tcc, pass `--emit-c` and compile the generated C with `cc -fsanitize=thread`.
 - `--debug-ir` — don't crash on potentially bad IR (LLVM's own validation may still crash)
 - `--assertions` — verify the generated IR is valid
 - `-fno-unwind-tables` — makes the IR cleaner (on Windows, removes unwind data above every function)

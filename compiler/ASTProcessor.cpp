@@ -2836,6 +2836,11 @@ int ASTProcessor::implement_module(
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
+    // The C emitter writes a `#line` before each source line when the module
+    // carries debug info, so a TCC `-g` backtrace and a TCC diagnostic name the
+    // Chemical file and line instead of the concatenated `Translated.c`. The LLVM
+    // backend reads its own DI metadata and does not consult this flag.
+    mir_module.emit_debug_info = options->debug_info;
     // Type-name mangling is serialized by the builder's own lock and reads no
     // shared mutable mangler state, so it does not take the visitor lock (which
     // would invert the builder->visitor order).
@@ -2855,7 +2860,10 @@ int ASTProcessor::implement_module(
         if (enc == 0) return false;
         const SourceLocation loc(enc);
         const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
-        if (pos.fileId == 0) return false;
+        // Not `fileId == 0`: id 0 is the first file the parser encoded, which in
+        // a single-file compile is the program itself. Rejecting it dropped every
+        // source location, so MIR recorded no lines (no debug info, no `#line`).
+        // `getPathForFileId` is bounds-checked and returns "" for a bad id.
         const std::string_view path = loc_man.getPathForFileId(pos.fileId);
         if (path.empty()) return false;
         out.file = mir_module.source_file(std::string(path));
@@ -3237,6 +3245,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
+    mir_module.emit_debug_info = c_visitor.line_directives;
     mir::MIRTypeBuilder mir_types(mir_module);
     // One lock for every access to the shared `c_visitor` (the mangler, the
     // comptime scope, the AST allocator, diagnostics, `iface->active_user`,
@@ -3265,7 +3274,10 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         if (enc == 0) return false;
         const SourceLocation loc(enc);
         const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
-        if (pos.fileId == 0) return false;
+        // Not `fileId == 0`: id 0 is the first file the parser encoded, which in
+        // a single-file compile is the program itself. Rejecting it dropped every
+        // source location, so MIR recorded no lines (no debug info, no `#line`).
+        // `getPathForFileId` is bounds-checked and returns "" for a bad id.
         const std::string_view path = loc_man.getPathForFileId(pos.fileId);
         if (path.empty()) return false;
         out.file = mir_module.source_file(std::string(path));

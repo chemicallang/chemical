@@ -108,7 +108,7 @@
 | H28 | WebView cannot run on this machine (no headers/xvfb/sudo) | the "run it" decision is unverifiable locally | implement `tests_document.ch` + `universal.yml`; local gates are the fixtures/DOM harness; CI is the WebView judge | 3 |
 | H29 | Phase 4 server-side index is under-tested | stale `dom.o`, LLVM accepts `chx_dom_*`, server/client diagnostics disagree | `web-types-only-test.sh` + a two-side diagnostic comparison + cache-bypass test; enforce the caller-site refusal in both C and LLVM | 4 |
 | H30 | JS library reachability roots are wrong | a public function is omitted from the library | roots = public functions + address-taken + vtable + async poll pairs + global initializers; a Node import test per public function | 0 |
-| H31 | `--web` compiles a shared `#universal` component in both passes and fails (`symbol is not a component`, `@extern` storm) | the real library cannot be checked; Phase 2 used a client-only component to proceed | Phase 4 must fix the two-pass plugin/cache state and convert the two-side gate to a **shared** component; do not claim the library is checked before it passes | 4 |
+| H31 | `--web` compiles a shared `#universal` component in both passes and fails (`symbol is not a component`, `@extern` storm) | the real library cannot be checked; Phase 2 used a client-only component to proceed | **Fixed:** `AnnotationController` now owns the names plugins register (the definition no longer points into the first pass's destroyed `build.lab` JIT state), and `scripts/web-two-pass-test.sh` gates a shared component rendered by the server and body-checked by the client. Server-side declarations-only indexing remains Phase 4b. | 4 |
 | H32 | `page`/`fs` client builds discard `Result` cleanup calls | the client job rejects `page` before any body check | consume (`var _close… =`) the POSIX and Windows `fs` cleanup Results; `page`'s `write_text_file` discard; already committed as a prerequisite | pre-2 |
 | H33 | a successful CBI job is rebuilt on the second `--web` pass | crash / stale plugin state | reuse a `Success` CBI job across passes; side-dependent behavior must use `JobBegin` at runtime, not plugin compile-time branching | pre-2 |
 
@@ -124,6 +124,7 @@
 | `scripts/web-index-test.sh` | `./scripts/web-index-test.sh` | parse/round-trip, probe, namespace flattening, duplicates, internal namespace |
 | `scripts/web-body-check-test.sh` | `./scripts/web-body-check-test.sh` | 001/002/006/008 negative, 005 positive, built-ins, `$__uni_*`, dedup, message quality |
 | `scripts/web-two-side-test.sh` | `./scripts/web-two-side-test.sh` | server skips, client runs, index isolation, native-only build |
+| `scripts/web-two-pass-test.sh` | `./scripts/web-two-pass-test.sh` | a **shared** `#universal` component builds in both `--web` passes; the server renders its markup, the client body-checks it and ships its function; no `symbol is not a component` |
 | `scripts/web-types-only-test.sh` | `./scripts/web-types-only-test.sh` | Phase 4: declarations-only `dom` on a server job; caller-site refusal; no `chx_dom_*`; cache bypass |
 | `scripts/web-js-library-test.sh` | `./scripts/web-js-library-test.sh` | `Library + --emit-js`: no `main`, one `.mjs` per module, Node import/call, `ship_files`, no `.so` |
 | `scripts/web-typing-perf.sh` | `./scripts/web-typing-perf.sh` | cold/warm build, plugin build, bundle gz, index count/RSS |
@@ -144,6 +145,7 @@ Place under `lang/tests/web/fixtures/`:
 - `body_props_shadow` / `body_props_destructure` — counted; no false 001.
 - `body_two_providers` / `body_internal_namespace` / `body_user_provider` / `body_user_document_unmarked`.
 - `body_jsx_contexts` — attribute + `${}` child.
+- `shared_component` — a `#universal` component in a module compiled by both `--web` passes, rendered by the server `src` through `#html`, with its provider imported `if client` (the real `import dom if client` shape). Gate: `web-two-pass-test.sh`.
 
 Every fixture has a `chemical.mod` with `import dom if client` where needed, writes its build to a temp/`lang/compiled` dir, and is removed by the script.
 

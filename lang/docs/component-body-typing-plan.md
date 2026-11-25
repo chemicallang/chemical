@@ -537,7 +537,7 @@ The measurement method (cold/warm, plugin build, index-call count, peak RSS, fai
 - `job_begin` records `is_client_job`; the body check early-returns on the server.
 - A debug/test provider package indexed in a client fixture; `document` resolves if and only if the provider is imported.
 - Gate: `web-two-side-test.sh` (server skips, client runs, index isolation, native-only build); `web-index-test.sh` 008 cases.
-- **Checkpoint limitation:** the gate's component is in the client-only module. A `#universal` component in a **shared** module is currently compiled by both `--web` passes and fails (`symbol is not a component` plus an `@extern` storm in `cstd`). This is a pre-existing two-pass plugin/cache limitation, not a Phase 2 index bug. Phase 4 must fix it and convert the gate to a shared component before claiming the real library is checked.
+- **Checkpoint limitation (historical):** the Phase 2 gate's component lived in the client-only module because a `#universal` component in a **shared** module failed in the second `--web` pass (`symbol is not a component`). This was a two-pass registration lifetime bug, not a Phase 2 index bug: a CBI plugin registers its marker with a name view into its `build.lab` JIT state, the pass destroys that state, and the reused CBI job on the second pass does not run the registration again. **Fixed in Phase 4 (H31)** by making `AnnotationController` own registered names; `scripts/web-two-pass-test.sh` now gates a shared component (see Phase 4 below).
 
 ### Phase 3 — browser-spelled `dom` and the narrow checker
 - Rename the surface; add the root members in §6.3.
@@ -547,9 +547,9 @@ The measurement method (cold/warm, plugin build, index-call count, peak RSS, fai
 - **Done when:** typed components report unknown direct members of `document`/`window`/`localStorage`/`navigator`, and no existing component fails for an unrelated reason.
 
 ### Phase 4 — server-side indexing (in scope)
-- **Fix the two-pass universal component limitation**: a `#universal` component in a shared module must compile in both `--web` passes and render on the server. Convert the `web-two-side-test.sh` fixture to a shared component; it must pass before server-side indexing is claimed.
-- Declarations-only modules, `host`, per-job `types_only`, object-cache bypass, consumer-side refusal in both C and LLVM emitters, `web-split-test` update.
-- Gate: `web-types-only-test.sh`; `dom_in_server` still refused at the caller; no `chx_dom_*` in the server binary; server and client produce the same component diagnostics; the shared-component two-side gate is green.
+- **Fix the two-pass universal component limitation (H31, done)**: a `#universal` component in a shared module compiles in both `--web` passes and renders on the server. `AnnotationController` copies every plugin-registered annotation name so the marker definition survives the first pass's JIT state while the `c4baaa1e4` CBI-reuse guard keeps the plugin job from being rebuilt. `scripts/web-two-pass-test.sh` gates the shared shape (server SSR markup + client body check + client bundle emission).
+- Declarations-only modules (Phase 4b), `host`, per-job `types_only`, object-cache bypass, consumer-side refusal in both C and LLVM emitters, `web-split-test` update. These remain unimplemented by the H31 fix.
+- Gate: `web-types-only-test.sh` (Phase 4b); `dom_in_server` still refused at the caller; no `chx_dom_*` in the server binary; server and client produce the same component diagnostics; `web-two-pass-test.sh` (shared component, H31) and `web-two-side-test.sh` are green.
 - Required for the final state; the client-side Phases 2–3 are checkpoints.
 
 ### Phase 5 — coverage, chains and strict mode

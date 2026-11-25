@@ -39,6 +39,10 @@ public interface Module {
     func setAsmPath(&self, path : &std::string_view)
 
     func getOptions(&self) : *mut ModuleOptions
+
+    // adds an indexer (a compiler plugin that indexes this module's public
+    // surface). The name is copied into the module, so the caller's view may die.
+    func addIndexer(&self, name : &std::string_view)
 }
 
 public enum LabJobType {

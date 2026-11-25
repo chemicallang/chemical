@@ -2636,6 +2636,29 @@ static void apply_module_options(LabModuleOptions& opts, const std::vector<ModFi
     }
 }
 
+namespace {
+
+    /**
+     * Prints the indexer names a module was declared with, so a shell gate can
+     * observe the parsed `index_with` metadata under `-v`.
+     */
+    void print_module_indexers(const LabModule* module) {
+        std::cout << "[lab] module '" << module->name << "' indexers: ";
+        if(module->indexers.empty()) {
+            std::cout << "(none)";
+        } else {
+            for(std::size_t i = 0; i < module->indexers.size(); i++) {
+                if(i != 0) {
+                    std::cout << ", ";
+                }
+                std::cout << module->indexers[i];
+            }
+        }
+        std::cout << std::endl;
+    }
+
+}
+
 LabModule* LabBuildCompiler::build_module_from_mod_file(
         LabBuildContext& context,
         const std::string_view& modFilePathView,
@@ -2670,6 +2693,12 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     // create a new module
     const auto module = context.new_module(modFileData.scope_name, modFileData.module_name, modFileData.package_kind);
+
+    // copy indexer names into the module record before the module allocator
+    // (which backs the parsed views) is cleared
+    for(auto& indexer : modFileData.indexers) {
+        module->indexers.emplace_back(indexer);
+    }
 
     // get all the sources
     for(auto& src : modFileData.sources_list) {
@@ -2767,6 +2796,7 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
 
     if (verbose) {
         std::cout << "[lab] " << "created module for '" << module->scope_name << ':' << module->name << "'" << std::endl;
+        print_module_indexers(module);
     }
 
     // --- Apply module options ---
@@ -3632,6 +3662,10 @@ int LabBuildCompiler::build_module_build_file_no_alloc(
     const auto main_module = build(&context, final_job);
     if(main_module == nullptr) {
         return 1;
+    }
+
+    if(options->verbose) {
+        print_module_indexers(main_module);
     }
 
     // if running via 'chemical run', promote library module to application

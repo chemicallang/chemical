@@ -95,6 +95,13 @@ struct LabModule {
     std::vector<std::span<const std::pair<chem::string_view, void*>>> compiler_interfaces;
 
     /**
+     * names of compiler plugins that should index this module's public surface
+     * (parsed from `index_with` in chemical.mod / set via Module.addIndexer).
+     * Owned copies: the ModuleFileData/build.lab views do not outlive this record.
+     */
+    std::vector<chem::string> indexers;
+
+    /**
      * Module options parsed from chemical.mod / set via build.lab.
      * WARNING: The C++ struct LabModuleOptions mirrors the Chemical struct
      * ModuleOptions in lang/libs/lab/src/lab.ch. Keep them in sync.

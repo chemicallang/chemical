@@ -54,6 +54,10 @@ extern "C" {
         self->asm_path.append(*path);
     }
 
+    void ModuleaddIndexer(LabModule* self, chem::string_view* name) {
+        self->indexers.emplace_back(*name);
+    }
+
     int LabJobgetType(LabJob* self) {
         return static_cast<int>(self->type);
     }

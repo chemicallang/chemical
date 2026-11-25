@@ -471,6 +471,12 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             output << "\tctx.add_compiler_interface(mod, \"" << interface << "\");\n";
         }
     }
+    if(!data.indexers.empty()) {
+        // writing each indexer (addIndexer copies the name into the module)
+        for(const auto indexer : data.indexers) {
+            output << "\tmod.addIndexer(\"" << indexer << "\");\n";
+        }
+    }
     output << "\treturn mod;\n";
     output << "\t}\n";
     output << "}\n\n";

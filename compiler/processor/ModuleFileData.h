@@ -132,6 +132,13 @@ public:
     std::vector<chem::string_view> compiler_interfaces;
 
     /**
+     * indexer names parsed from `index_with "<name>", ...` statements.
+     * An indexer is a compiler plugin that indexes this module's public surface.
+     * The statement is repeatable and each value is a plain string identifier.
+     */
+    std::vector<chem::string_view> indexers;
+
+    /**
      * module options parsed from `option <key> = <value>` statements.
      * Each option has been validated against the global option registry.
      * This is consumed by both the modconv and direct-import paths.
@@ -176,6 +183,7 @@ public:
         include_dirs.clear();
         c_files.clear();
         compiler_interfaces.clear();
+        indexers.clear();
         options.clear();
         read_error.clear();
         lex_diagnostics.clear();

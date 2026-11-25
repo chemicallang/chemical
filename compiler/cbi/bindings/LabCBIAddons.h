@@ -29,6 +29,9 @@ extern "C" {
     void ModulegetAsmPath(chem::string_view* view, LabModule* self);
     void ModulesetAsmPath(LabModule* self, chem::string_view* path);
 
+    // copies the indexer name into the module
+    void ModuleaddIndexer(LabModule* self, chem::string_view* name);
+
     // LabJob getters
     int LabJobgetType(LabJob* self);
     void LabJobgetName(chem::string_view* view, LabJob* self);

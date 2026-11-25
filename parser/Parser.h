@@ -225,6 +225,14 @@ public:
     bool parseOptionStmt(ASTAllocator& allocator, ModuleFileData& data);
 
     /**
+     * parses an index_with statement in a .mod file.
+     * The syntax is: index_with "<indexer>", "<indexer>", ... ;
+     * Names a compiler plugin that should index this module's public surface.
+     * The statement is repeatable.
+     */
+    bool parseIndexWithStmt(ASTAllocator& allocator, ModuleFileData& data);
+
+    /**
      * a module file is a .mod file that defines which modules are imported
      * by a single module, and it's scope and module declaration
      */

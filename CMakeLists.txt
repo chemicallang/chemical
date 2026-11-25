@@ -188,6 +188,7 @@ set(COMMON_SOURCES
         parser/statements/VarInitialization.cpp
         parser/statements/LexStatement.cpp
         parser/statements/OptionStmt.cpp
+        parser/statements/IndexWithStmt.cpp
         parser/statements/LexType.cpp
         stream/StreamPosition.h
         parser/utils/LexValue.cpp

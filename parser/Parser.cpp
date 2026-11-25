@@ -185,6 +185,12 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             goto loop_break;
                         }
                         break;
+                    case hash_fn("index_with"):
+                        if(!parseIndexWithStmt(allocator, data)) {
+                            error("couldn't parse an index_with statement");
+                            goto loop_break;
+                        }
+                        break;
                     case hash_fn("include"): {
                         token++;
                         data.include_dirs.emplace_back();

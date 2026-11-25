@@ -76,6 +76,7 @@ const std::pair<chem::string_view, void*> BuildContextSymMap[] = {
         { "lab_ModulesetLlvmIrPath", (void*) ModulesetLlvmIrPath },
         { "lab_ModulegetAsmPath", (void*) ModulegetAsmPath },
         { "lab_ModulesetAsmPath", (void*) ModulesetAsmPath },
+        { "lab_ModuleaddIndexer", (void*) ModuleaddIndexer },
 
         // LabJob functions
         { "lab_LabJobgetType", (void*) LabJobgetType },

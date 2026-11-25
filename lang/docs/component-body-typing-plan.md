@@ -1,6 +1,6 @@
 # Component Body Typing Plan (v1)
 
-**Status:** proposal v3, two review passes incorporated · 2026-11-25
+**Status:** approved implementation scope, 2026-11-25 (all phases 0–5, one branch)
 **Delivery workflow:** see [`component-body-typing-workflow.md`](component-body-typing-workflow.md) for the test matrix, performance method, review protocol, CI wiring and the holes found while reviewing the workflow.
 **Goal:** check `#universal` component bodies against real, indexed declarations (props and browser globals) without adding a second language, without shipping type information, and without putting plugin logic in C++.
 
@@ -27,28 +27,30 @@ props.a               -> one lookup in the component's lexical scope
 
 The DOM is the first provider. It stays a Chemical module, is renamed to browser spelling (`querySelector`, `activeElement`, …), gains `index_with "universal"`, and is imported by the components library **on the client side only**.
 
-### v1 is the client-job slice
+### Implementation scope (approved)
 
-Two review passes showed that indexing on the server job is the risky part: `dom`'s host symbols have no native implementation, and making the module declarations-only drags in MIR target refusal, object-cache invalidation, and `dom_in_server` diagnostic changes. None of that is needed to catch `document.somethingElse`.
+The branch implements **Phases 0–5 in order**, plus the workflow gates. The client-job slice is the first mergeable checkpoint, not the final state:
 
-So v1 runs the checker **only when the current job is the client/JS side**:
+- **Phase 0**: `index_with` metadata, `Module.addIndexer`, `do_library_job` + JS library mode, `target_data.js` fix.
+- **Phase 1**: `IndexModule`/`JobBegin` hooks, namespace-aware declaration collection, probe, enum sync.
+- **Phase 2**: client-job index + checker plumbing; server job still skips.
+- **Phase 3**: browser-spelled `dom`, root members, 001/002/006/008, counted 005, WebView allowed-surface test.
+- **Phase 4**: server-side declarations-only indexing, `host` gating, consumer-side refusal in C and LLVM, object-cache bypass, `web-split-test` update.
+- **Phase 5**: `Element`/`DOMRect`/`classList`/`style`/`dataset`, deep chains, `Option<T>` unwrapping, **strict library mode**.
 
-- `dom` is imported by `components` with `import dom if client`; the server job never sees it.
-- The client job compiles `dom` normally (no declarations-only mode), indexes it, and checks component bodies.
-- The server job's `#universal` symres runs as today, but the plugin skips the body check because the job is not the client side.
-- A native-only build with no client job does not check bodies; there is no browser to disagree with.
+**Strict library mode is the Phase 5 gate.** `WEB-BODY-005` becomes an error for `lang/libs/components` once the Element surface is complete. It cannot be enabled earlier without rejecting the corpus; the branch is one delivery, so the final state is strict.
 
-This removes `types_only`, `host`, `MIRTargetSupport` changes, `web-split-test` changes, and the `do_library_job` dependency from v1. They become Phase 4 (server-side indexing), which is optional until someone needs it.
+**LSP stays deferred.** The editor does not surface these diagnostics in this branch; a parse smoke test is added and the limitation is documented.
 
-### Non-goals (v1)
+### Non-goals
 
 - No `.ext` files, no `@ambient`/`@process_with` annotations.
 - No generic `lookup_type(name)` / `find_module(name)` API for the checker.
 - No full JavaScript type system: no unions, overload resolution, optional chaining, generics, or inference beyond simple initializers.
-- No server-side/index-on-native indexing (Phase 4).
 - No migration of the 196 components' bodies. They keep JS; the library adds `import dom if client`.
 - No source line numbers: JS AST nodes carry no location. Diagnostics carry the component's encoded location.
 - No change to `#universal` syntax, props structs, call sites, `#html`, or the bundle format.
+- No LSP diagnostics in this branch.
 
 ---
 
@@ -250,20 +252,20 @@ Dispatch:
 
 Cached plugins: appending enum values is safe, but a cached plugin binary built before `universal_cbi/build.lab` changes will not register the new hooks. The concrete mechanism is `force_recompile_plugins` / `index_function`; a cache hit without the new hooks fails lookup rather than silently skipping. Include the plugin's build.lab in its cache identity or bump the CBI ABI.
 
-### 5.4 Fix the backend flag (no `LabJob::backend`, no Library routing)
+### 5.4 JS library mode and the backend flag
 
-The user asked to fix `do_library_job` rather than add a backend enum. The review found that **routing a Library job to `do_js_job` is not correct as-is**:
+`do_library_job` currently never routes `emit_js`, and `do_js_job` is executable-only (requires `main()`, writes `index.mjs`, ignores `abs_path`/`ship_files`). This branch adds a real JS library mode rather than rejecting the build:
 
-- `do_js_job` requires `main()`, writes a bundle to `emit_js_dir`, and ignores the library's `abs_path`, object list and `ship_files` (F14). A `Library + --emit-js` build would fail with "could not find main()", not produce a `.so`.
-- `target_data.js` is also true for Interpretation (F15), which is not a JS job.
+- `do_library_job`: if `options->emit_js`, call `do_js_job(job, JsJobKind::Library)`.
+- `do_js_job` gains a job-kind parameter:
+  - **Executable**: current behaviour (requires `main`, emits `index.mjs`, runs the program's roots).
+  - **Library**: no `main()` lookup. Roots are each module's public functions/exports plus address-taken symbols; no `index.mjs` entry (a barrel is a follow-up; per-module `.mjs` imports are stable). `ship_files` are copied into `emit_js_dir`; `job->abs_path` is not used because a JS library is a directory of ES modules, not a `.so`. `check_only` lowers and diagnoses but writes nothing.
+- Reachability: `MIREmitterJs` already computes reachable functions from an entry. Library mode passes a **root set** (public functions, address-taken symbols, vtable slots, async poll pairs, global initializers) instead of `main`; extend `process_js_job` to accept it.
+- `target_data.js` excludes `Interpretation`; it is true for Executable and Library `emit_js`. The checker's client gate is `target_data.client || target_data.js`.
+- Gate: a `library` fixture with a public function; `--emit-js <dir>`; a Node consumer imports `./<module>.mjs`, calls the function and sees the expected output; no `main` is required; `ship_files` are present; no `.so` is produced.
+- LSP is unaffected.
 
-The correct v1 fix:
-
-- `do_library_job`: if `options->emit_js`, reject with a clear diagnostic — `the JavaScript backend does not produce a library yet; build an executable or a client job`. A real JS-library mode (export public symbols, no `main`, no `index.mjs`) is a separate feature, not a one-line route.
-- Exclude `Interpretation` from `target_data.js`, or use a helper `is_js_job(job) = options->emit_js && job->type == Executable` for the v1 checker. The client job is `Executable` with `emit_js`.
-- v1 does not depend on `types_only`, `host`, or a consumer-side refusal. Those are Phase 4.
-
-### 5.5 Deferred: declarations-only modules (Phase 4)
+### 5.5 Phase 4 — declarations-only modules (in scope)
 
 A server job that wants to index `dom` needs the module included without lowering `chx_dom_*`. That is a later phase and requires all of:
 
@@ -274,7 +276,7 @@ A server job that wants to index `dom` needs the module included without lowerin
 - a consumer-side refusal for calls to the host module's mangled symbols, enforced in **both** `MIREmitter.cpp` (C) and `CodegenMir.cpp` (LLVM); today only the C emitter consults `MIRTargetSupport` (F13), and the table is static with no job context. The clean shape is a per-job set of unavailable module ids carried into `MIRModule`, or `module_of_symbol` lookup against a types-only set;
 - `web-split-test.sh` update (the current expectation is `failure during translation to c in the module dom`).
 
-None of this is needed for the client-side v1.
+These are Phase 4; the client-side checkpoint (Phases 2–3) does not depend on them, but the final branch does.
 
 ---
 
@@ -520,10 +522,11 @@ The measurement method (cold/warm, plugin build, index-call count, peak RSS, fai
 
 ## 11. Phases
 
-### Phase 0 — directive, metadata, backend flag (no behaviour)
+### Phase 0 — directive, metadata, JS library mode
 - `index_with` parsing, `ModuleFileData.indexers` (+ `clear()`), `LabModule.indexers`, `Module.addIndexer` (copying), converter emission.
-- Fix `target_data.js` to exclude Interpretation and reject `Library + --emit-js` with a clear diagnostic (F14/F15).
-- Gate: `web-index-test.sh` parse/round-trip cases; `Library + --emit-js` diagnostic; Interpretation is not JS; existing suite green; no output change.
+- Implement JS library mode (§5.4): `do_library_job` → `do_js_job(Library)`, root set instead of `main`, no `index.mjs`, `ship_files`, no `.so`.
+- Fix `target_data.js` to exclude Interpretation.
+- Gate: `web-index-test.sh` parse/round-trip cases; a `library` fixture imported from Node and run; no `.so`; Interpretation is not JS; existing suite green.
 
 ### Phase 1 — generic indexing hooks
 - `IndexModule` + `JobBegin` at the end of both enums; typedefs; dispatch points; public-namespace/scope recursion with the namespace specifier gate.
@@ -542,14 +545,14 @@ The measurement method (cold/warm, plugin build, index-call count, peak RSS, fai
 - Gate: `web-body-check-test.sh`; `web-typing-perf.sh`; `tests_document.ch` under `--universal`; `--plugins` green; `document.titel` fails; `Math`/`console` do not; deeper chains are counted; determinism repeat.
 - **Done when:** typed components report unknown direct members of `document`/`window`/`localStorage`/`navigator`, and no existing component fails for an unrelated reason.
 
-### Phase 4 — server-side indexing (optional, larger)
+### Phase 4 — server-side indexing (in scope)
 - Declarations-only modules, `host`, per-job `types_only`, object-cache bypass, consumer-side refusal in both C and LLVM emitters, `web-split-test` update.
-- New gate: `web-types-only-test.sh` (from the workflow's Phase 4 list).
-- Only if someone needs the check during the server-side build or in the LSP. The client job covers the browser.
+- Gate: `web-types-only-test.sh`; `dom_in_server` still refused at the caller; no `chx_dom_*` in the server binary; server and client produce the same component diagnostics.
+- Required for the final state; the client-side Phases 2–3 are checkpoints.
 
 ### Phase 5 — coverage, chains and strict mode
 - `Element`/`DOMRect`/`classList`/`style`/`dataset`; `querySelectorAll` arrays; `Option<T>` unwrapping for chains.
-- Turn `WEB-BODY-005` into an error for `lang/libs/components`/CI only when the corpus scan is empty.
+- **Strict library from the start of this phase**: `WEB-BODY-005` is an error for `lang/libs/components`/CI once the corpus scan is empty. A branch is not done until strict is green.
 
 Every phase also runs the workflow gates in [`component-body-typing-workflow.md`](component-body-typing-workflow.md) §5, records a §9 row, and satisfies the workflow's §11 definition of done. The workflow's §4 holes **H1–H25** are assigned to these phases; none may be dropped without a written decision here.
 
@@ -565,14 +568,15 @@ Every phase also runs the workflow gates in [`component-body-typing-workflow.md`
 | who owns the index | the plugin; the compiler only vends marked modules and declarations |
 | declaration transfer | a transient `VecRef<ASTNode>`/`std::vector<void*>`; recurse public namespaces; no new module AST accessor |
 | index lifetime | per job; `JobBegin` clears and records the side; no cross-job cache |
-| v1 checking side | **client/JS job only**; server job skips the check; no declarations-only mode in v1 |
+| scope | **all phases 0–5** in one branch; Phases 2–3 (client job) are checkpoints, Phase 4/5 complete the delivery |
+| checking side | Phases 2–3: client/JS job only; Phase 4: server job also checks from declarations-only `dom` |
 | provider selection | any marked package may provide an ambient name; the marker is the consent; no canonical allow-list |
 | duplicate policy | conflicts only for ambient names (cross- or same-module); report at the component; no silent last-wins |
 | browser spelling | rename `dom`; one spelling; no mapping table |
-| globals | public zero-arg functions only in v1; ambient `var` needs CBI accessors |
-| v1 depth | direct members of ambient roots plus `props.X`; deeper chains counted |
-| backend flag | fix `do_library_job` by rejecting `Library + --emit-js`; exclude Interpretation from `target_data.js`; no `LabJob::backend` enum |
-| untyped edges | counted in v1; strict is a later phase gated on corpus coverage |
+| globals | public zero-arg functions only initially; ambient `var` needs CBI accessors (add if the DOM surface needs it) |
+| depth | Phase 3: direct members of ambient roots plus `props.X`; Phase 5: chains, `Option<T>`, `Element` |
+| backend flag | implement **JS library mode** in `do_library_job`/`do_js_job`; exclude Interpretation from `target_data.js` |
+| untyped edges | **strict library** in Phase 5: `WEB-BODY-005` is an error for `lang/libs/components`/CI once the corpus scan is empty |
 | unknown-global rule | only a closed host-name list produces 008; everything else is counted |
 | `.ext` / annotations | rejected; declarations stay Chemical |
 | generic `lookup_type` | rejected; the index is the only ambient source |
@@ -582,8 +586,8 @@ Every phase also runs the workflow gates in [`component-body-typing-workflow.md`
 
 ## 13. Open questions for the next review
 
-1. Zero-arg function vs. top-level `var` for ambient globals: v1 uses functions because the CBI lacks `VarInitStatement` accessors; is adding those accessors worth it for v1.1?
+1. Zero-arg function vs. top-level `var` for ambient globals: the initial phases use functions because the CBI lacks `VarInitStatement` accessors; add those accessors if Phase 5's Element surface needs a var provider.
 2. Is "any marked package may provide" plus duplicate-is-a-conflict enough, or does a later release need an explicit `override`/priority rule?
 3. Should `IndexModule` carry an `ASTDiagnoser*` and module location for eager conflict reporting, or keep conflicts deferred to the first component (current choice)?
-4. How much of the `JsNodeKind` set must be walked in v1 to avoid silently missing `document.x` inside `${}`/JSX containers?
-5. Is a JS-library mode (`Library + --emit-js`) worth implementing, or is the clear rejection enough until a consumer needs it?
+4. How much of the `JsNodeKind` set must be walked to avoid silently missing `document.x` inside `${}`/JSX containers (Phase 3 vs Phase 5)?
+5. What is the JS-library barrel policy: per-module `.mjs` only (chosen) or an optional `index.mjs` generated from public exports? Per-module is the v1 choice; a barrel is additive.

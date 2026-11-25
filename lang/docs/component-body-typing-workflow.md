@@ -1,6 +1,8 @@
 # Component Body Typing — Delivery Workflow
 
-**Status:** companion to `component-body-typing-plan.md` (v3) · 2026-11-25
+**Status:** companion to `component-body-typing-plan.md` (v3) · approved scope 2026-11-25
+**Approved scope:** all phases 0–5 in one branch, browser-spelled `dom`, all gates, native WebView test + CI, **JS library mode**, **strict library diagnostics**, LSP deferred.
+**Local environment note (2026-11-25):** the machine has the GTK/WebKit runtime libraries but no dev headers, no `xvfb-run`, and no passwordless `sudo`. The native `--universal` suite therefore cannot build locally; the test and CI job are still required, and local verification uses the JS/DOM/fixture gates. CI runs the WebView job.
 **Purpose:** how the feature is built, tested, measured and reviewed. The plan says *what*; this says *how*, and records the holes found while reviewing the first draft of the workflow.
 
 ---
@@ -101,6 +103,11 @@
 | H23 | 0-byte claim untestable | hidden bundle growth | unique debug marker + gz comparison; not a grep for `document` | 3 |
 | H24 | plugin hooks not registered in `universal_cbi/build.lab` | the index never runs | registration is a Phase 1 deliverable and part of the probe | 1 |
 | H25 | no test for a server-only build with no client job | the check is assumed to run | native-only fixture; no diagnostic; build succeeds | 2 |
+| H26 | JS library mode has no test | `--emit-js` on a Library is broken or silently produces nothing | a `library` fixture: public function, no `main`; `--emit-js <dir>`; Node imports `./<module>.mjs`, calls it; `ship_files` present; no `.so` | 0 |
+| H27 | strict library is promised but not gated | the corpus is rejected, or the strict flag is never enabled | Phase 5 turns `WEB-BODY-005` into an error only after the corpus scan is empty; the gate fails on any new counted edge | 5 |
+| H28 | WebView cannot run on this machine (no headers/xvfb/sudo) | the "run it" decision is unverifiable locally | implement `tests_document.ch` + `universal.yml`; local gates are the fixtures/DOM harness; CI is the WebView judge | 3 |
+| H29 | Phase 4 server-side index is under-tested | stale `dom.o`, LLVM accepts `chx_dom_*`, server/client diagnostics disagree | `web-types-only-test.sh` + a two-side diagnostic comparison + cache-bypass test; enforce the caller-site refusal in both C and LLVM | 4 |
+| H30 | JS library reachability roots are wrong | a public function is omitted from the library | roots = public functions + address-taken + vtable + async poll pairs + global initializers; a Node import test per public function | 0 |
 
 ---
 
@@ -114,6 +121,8 @@
 | `scripts/web-index-test.sh` | `./scripts/web-index-test.sh` | parse/round-trip, probe, namespace flattening, duplicates, internal namespace |
 | `scripts/web-body-check-test.sh` | `./scripts/web-body-check-test.sh` | 001/002/006/008 negative, 005 positive, built-ins, `$__uni_*`, dedup, message quality |
 | `scripts/web-two-side-test.sh` | `./scripts/web-two-side-test.sh` | server skips, client runs, index isolation, native-only build |
+| `scripts/web-types-only-test.sh` | `./scripts/web-types-only-test.sh` | Phase 4: declarations-only `dom` on a server job; caller-site refusal; no `chx_dom_*`; cache bypass |
+| `scripts/web-js-library-test.sh` | `./scripts/web-js-library-test.sh` | `Library + --emit-js`: no `main`, one `.mjs` per module, Node import/call, `ship_files`, no `.so` |
 | `scripts/web-typing-perf.sh` | `./scripts/web-typing-perf.sh` | cold/warm build, plugin build, bundle gz, index count/RSS |
 | `scripts/component-typing-audit.sh` | `./scripts/component-typing-audit.sh` | no `dom`/`universal` names in `compiler/`; enum sync; no AST reads in backends |
 
@@ -283,10 +292,12 @@ Add to `.github/workflows/web-stack.yml` (fast, no display):
 - `./scripts/web-index-test.sh`
 - `./scripts/web-body-check-test.sh`
 - `./scripts/web-two-side-test.sh`
+- `./scripts/web-js-library-test.sh`
 - `./scripts/component-typing-audit.sh`
+- `./scripts/web-types-only-test.sh` (Phase 4)
 - the existing `web-dom-test.sh`, `web-golden-test.sh`, `web-split-test.sh`, `js-backend-suites.sh`
 
-Add a separate `universal.yml` (WebView, display) per §6.
+Add a separate `universal.yml` (WebView, display) per §6. Because the local machine cannot build WebKit (no dev headers/xvfb/sudo), CI is the authoritative WebView run; the PR must still pass the fast gates locally.
 
 Run `./scripts/test.sh --tcc --plugins` in CI when `lang/libs/*_cbi/**` or `compiler/cbi/**` changes (it is already the plugin regression suite; the plan's changes are plugin-side). Run `components-e2e` nightly or in the release gate when `lang/libs/components/**` or `lang/libs/dom/**` changes.
 
@@ -294,16 +305,18 @@ Artifacts on failure: the fixture logs, `/tmp/web_*`, `lang/compiled/web-*`, and
 
 ---
 
-## 11. Definition of done (feature v1)
+## 11. Definition of done (feature)
 
-- [ ] Phase 0–3 complete; Phase 4/5 explicitly out of v1.
-- [ ] v1 rules 001/002/006/008 and counted 005 implemented and gated.
-- [ ] Compiler-side generic hooks + metadata + `do_library_job` guard; no DOM special-case.
-- [ ] `dom` browser spelling and root surface; `components/chemical.mod` uses `import dom if client`.
+- [ ] Phase 0–5 complete on `feature/component-body-typing`.
+- [ ] Rules 001/002/006/008 and 005 implemented; **strict library** (`005` error) green over `lang/libs/components`.
+- [ ] Compiler-side generic hooks + metadata + JS library mode; no DOM special-case.
+- [ ] `dom` browser spelling and full surface (`Element`/`DOMRect`/`classList`/`style`/`dataset`, chains, `Option<T>`).
+- [ ] `components/chemical.mod` uses `import dom if client` for the checkpoint and `dom` is declarations-only on the server in Phase 4.
 - [ ] Full negative/positive fixture set; two-job, index isolation, determinism, WebView allowed-surface test.
+- [ ] JS library mode: `Library + --emit-js` produces importable modules, no `main`, no `.so`.
 - [ ] CI: web-stack steps + universal job; `--plugins` green; components-e2e scheduled.
-- [ ] Perf rows: build, plugin build, bundle, index count/RSS.
-- [ ] Docs: plan, workflow, web-stack-plan link, getting-started, dom migration.
+- [ ] Perf rows: build (both sides), plugin build, bundle, index count/RSS.
+- [ ] Docs: plan, workflow, web-stack-plan link, getting-started, dom migration, LSP limitation.
 - [ ] No ignored build artifacts left by the feature; `git status` clean.
 
 ---

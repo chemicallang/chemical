@@ -798,7 +798,7 @@ component's source location.
 **(c) `dom` types (minimal in Phase 3, complete in Phase 7).** Proposal 0008's module: `Document`,
 `Element`, typed handles for common tags, `Event`/`PointerEvent`/`KeyboardEvent`, `fetch`,
 `localStorage`, `URL`, `CanvasRenderingContext2D`, `requestAnimationFrame`, `WebSocket`. Client
-modules are ordinary Chemical, so `document.query_selector("#count")` returns `Option<Element>` and
+modules are ordinary Chemical, so `document.querySelector("#count")` returns `Option<Element>` and
 a typo'd method is a compile error. `#js` stays as the escape hatch for hot loops, but it is no
 longer the only way to write client code.
 
@@ -1144,7 +1144,7 @@ What that first version proves and what it does not:
   Details and the three traps (poll signature `(scratch, frame, ctx)`, frame-slot aliasing, heap
   storage for suspended frames) are in §17. Fixture `js_backend_async` runs in
   `js-backend-suites.sh`; aggregate await/async results are diagnosed, not mis-compiled.
-- **A host future exists too (`§17.1`).** `dom::fetch_status(url)` returns a
+- **A host future exists too (`§17.1`).** `dom::fetchStatus(url)` returns a
   `FutureHandle<'static, int>`; the host creates the promise and writes its token through the sret
   slot (`rt.dom.fetch_status`). Fixture `lang/tests/web/fixtures/dom_async` awaits `200`, `404` and
   a rejecting request (`0`) inside the `web-dom-test.sh` gate, which also asserts the bundle uses
@@ -1535,14 +1535,15 @@ in a render body fails compilation.
    `dom` fails **during translation** (reason present, no `unresolved reference`).
 3. Minimal `dom` slice (proposal 0008): `Document`, `Element`, `Event`, `fetch`,
    `localStorage`, `URL` — enough for client modules to be useful; full 0008 later.
-   **Landed 2026-11-18:** `lang/libs/dom` (`document`, `Document.get_element_by_id`/
-   `query_selector`/`create_element`/`body`, `Element` text/attributes/value/children/
-   `add_event_listener`, `Event.prevent_default`/`stop_propagation`/`target`/`key`,
-   `fetch_text`, `storage_get`/`storage_set`/`storage_remove`, `url_origin`/
-   `url_pathname`/`url_search_param`), all safe by default with the raw host bindings under
-   `dom::raw`. Browser objects cannot live in the emulated heap, so a `Document`/
-   `Element`/`Event` is a **handle**: an index into a host table in the JS runtime that is
-   never reused (a stale handle names its original object, never a different element).
+   **Landed 2026-11-18, browser-spelled 2026-11-25:** `lang/libs/dom` (`document`,
+   `Document.getElementById`/`querySelector`/`createElement`/`body`, `Element`
+   text/attributes/value/children/`addEventListener`, `Event.preventDefault`/
+   `stopPropagation`/`target`/`key`, `fetch`, `localStorage` (`Storage.getItem`/
+   `setItem`/`removeItem`), `urlOrigin`/`urlPathname`/`urlSearchParam`), all safe by
+   default with the raw host bindings under `dom::raw`. Browser objects cannot live in
+   the emulated heap, so a `Document`/`Element`/`Event` is a **handle**: an index into a
+   host table in the JS runtime that is never reused (a stale handle names its original
+   object, never a different element).
    Callbacks (a listener, a fetch completion) travel as MIR function addresses and are
    resolved through the emitted module's `$fns` table, which the module now registers with
    `rt.register_fns`. Text crosses as `string_view`/`*char` in the heap. Gated by
@@ -1872,9 +1873,9 @@ with `await` and with handlers.
 1. Complete proposal 0008 (`dom` submodules, host-handle borrow rule — a language change, not a
    library), DOM event typing in `#universal`, `--check` rejects unknown DOM members.
    **Progress 2026-11-24:** the element surface now covers what a tree walk needs without
-   `#js` — `class` tokens (`has_class`/`add_class`/`remove_class`/`toggle_class`, never a
-   read-modify-write of the attribute string) and traversal (`parent`, `child_count`,
-   `child_at`, `matches`, `closest`), each a typed wrapper over a `chx_dom_*` host call that the
+   `#js` — `class` tokens (`hasClass`/`addClass`/`removeClass`/`toggleClass`, never a
+   read-modify-write of the attribute string) and traversal (`parent`, `childCount`,
+   `childAt`, `matches`, `closest`), each a typed wrapper over a `chx_dom_*` host call that the
    C/LLVM backends refuse at translation time. Wired in all four places a DOM operation needs
    (`lang/libs/dom` raw + safe, the `MIREmitterJs` host table, `scripts/js_backend/runtime.mjs`,
    and the harness's `parentElement`), and gated by `web-dom-test.sh`, whose exact-line diff over
@@ -1884,12 +1885,12 @@ with `await` and with handlers.
 2. Canvas/pointer surface: `CanvasRenderingContext2D`, `PointerEvent`, `requestAnimationFrame`,
    `ImageData`, transforms — the sketchable/123mind requirement; the typed wrapper that apps wrote
    over `#js` in v1 becomes a thin alias, so no call-site migration.
-   **Progress 2026-11-24:** `dom::Canvas2D` (`Element.get_context_2d()` → `Option<Canvas2D>`) with
-   rects, paths (`begin_path`/`move_to`/`line_to`/`arc`/`close_path`), fill/stroke, state
-   (`save`/`restore`, `fill_style`/`stroke_style`/`line_width`/`font`, `fill_text`), transforms
-   (`translate`/`rotate`/`scale`/`set_transform`) and `request_animation_frame`/
-   `cancel_animation_frame`; pointer input as `Event.client_x`/`client_y`/`button`/`pointer_id`
-   plus `Element.set_pointer_capture`/`release_pointer_capture`. Coordinates are `f64` CSS pixels,
+   **Progress 2026-11-24:** `dom::Canvas2D` (`Element.getContext2D()` → `Option<Canvas2D>`) with
+   rects, paths (`beginPath`/`moveTo`/`lineTo`/`arc`/`closePath`), fill/stroke, state
+   (`save`/`restore`, `setFillStyle`/`setStrokeStyle`/`setLineWidth`/`setFont`, `fillText`), transforms
+   (`translate`/`rotate`/`scale`/`setTransform`) and `requestAnimationFrame`/
+   `cancelAnimationFrame`; pointer input as `Event.clientX`/`clientY`/`button`/`pointerId`
+   plus `Element.setPointerCapture`/`releasePointerCapture`. Coordinates are `f64` CSS pixels,
    so a v1 `#js` wrapper keeps its arithmetic — the wrapper becomes an alias, no call-site
    migration. Every call is a `chx_dom_*` host extern, so the surface costs nothing server-side
    (the prefix rule refuses it at translation time). `web-dom-test.sh` now proves the drawing

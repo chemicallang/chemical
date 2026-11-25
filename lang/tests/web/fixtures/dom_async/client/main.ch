@@ -7,7 +7,7 @@
 using std::string_view;
 
 async func load_status(url : string_view) : int {
-    var status = await dom::fetch_status(url)
+    var status = await dom::fetchStatus(url)
     return status
 }
 

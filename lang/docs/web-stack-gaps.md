@@ -191,12 +191,12 @@ which is enough for the probes but still not a one-call `Request.make`); `Reques
 `std::time.Instant::now()` / `.elapsed()` is a monotonic clock and both new probes use it; this item
 is down to `http::Request.make(method, path, headers, body)` with fillable query and headers.
 
-**12. The client-side primitive set is too small for an SPA.** `dom` has `get_element_by_id`,
-`query_selector`, `create_element`, `set_text`, `set_html`, attributes, `append_child`, `remove`,
-`add_event_listener`, `fetch_text`, `localStorage`, and URL parsing — but no
-`query_selector_all`, `child_count`/`child_at`, `remove_child`, `location`/hash, history,
+**12. The client-side primitive set is too small for an SPA.** `dom` has `getElementById`,
+`querySelector`, `createElement`, `setText`, `setHTML`, attributes, `appendChild`, `remove`,
+`addEventListener`, `fetch`, `localStorage`, and URL parsing — but no
+`querySelectorAll`, `removeChild`, `location`/hash, history,
 `fetch` with headers/body, or a JSON decoder. The SPA probe had to drive navigation from a click
-handler on a container, clear lists with `set_html("")`, and split JSON by hand. *Fix (additive):*
+handler on a container, clear lists with `setHTML("")`, and split JSON by hand. *Fix (additive):*
 add those members to `dom` (they are additive to the frozen v1 set), plus `web::Client` for typed
 `fetch` with a Chemical callback.
 
@@ -225,7 +225,7 @@ where noted, and none is a rewrite.
 | 5 | ~~Escape-by-default `{}` + explicit raw marker~~ **done, raw form is `{!expr}`** | it was the only security bug in the list | `shop`'s search page needs no `escape_html_view`; script/style bodies stay raw |
 | 6 | ~~`RequestContext` (P1-6) + `Session` handle (P1-7)~~ **done** | removes the globals/`unsafe` pattern from every route | `shop` keeps its session in the app, no `unsafe` for session access |
 | 7 | ~~Copy the path and own the page in `Static.add` (P1-8)~~ **done as `Static.page(path)`**; `Request.make` + `now_ms` (P1-11) | probe/gate ergonomics; one-line-ish each | `blog` drops `page_paths`; probes time their own renders |
-| 8 | `dom` additions + `web::Client` (P1-12) | makes an SPA expressible without the `#js` escape hatch | `spa`'s client uses `location.hash`, `query_selector_all`, and typed `fetch` |
+| 8 | `dom` additions + `web::Client` (P1-12) | makes an SPA expressible without the `#js` escape hatch | `spa`'s client uses `location.hash`, `querySelectorAll`, and typed `fetch` |
 
 Items 1–4 are the difference between "the stack can render pages" and "the stack can run an app".
 Item 5 is a design decision that should be taken in the same release as 1, because both change what

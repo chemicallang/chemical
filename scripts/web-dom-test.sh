@@ -110,6 +110,7 @@ dom found=1 missing=0
 dom text=Hello dom role=card has=1
 dom classes none=0 added=1 toggled=1 matches=1 closest=1 parent=1 kids=5 first=1 past_end=0 removed=0
 dom value=typed
+dom document title=dom harness root=html active=name
 dom storage=dark removed=1
 dom url origin=https://example.com path=/a/b q=7
 dom canvas surface=1
@@ -117,7 +118,11 @@ dom pointer x=10 y=20 button=0 id=1
 dom click count=1
 dom pointer x=10 y=20 button=0 id=1
 dom click count=2
+dom event doc=1
+dom event win=1
 dom fetch status=200 body={"ok":true,"url":"/api/ok"}
+dom timeout=1
+dom clipboard=chemical clip
 dom raf t=16
 dom canvas ops=save;fillRect(0,0,320,200);beginPath;moveTo(0,0);lineTo(320,200);stroke(rgb(255, 0, 0),2);restore;translate(4,6);setTransform(1,0,0,1,0,0);fillText(chemical,8,24);setPointerCapture(1)
 dom-harness: done
@@ -137,6 +142,18 @@ check "the listener fired for both dispatched clicks" \
       "$([ "$(grep -c 'dom click count=' "$harness_out")" = "2" ] && echo 1 || echo 0)"
 check "the fetch completion ran with the response body" \
       "$(file_has "$harness_out" 'dom fetch status=200 body={"ok":true,"url":"/api/ok"}')"
+check "document.title/documentElement/activeElement read from the host" \
+      "$(file_has "$harness_out" 'dom document title=dom harness root=html active=name')"
+check "document listeners add and remove (one line for two dispatches)" \
+      "$([ "$(grep -c 'dom event doc=1' "$harness_out")" = "1" ] && echo 1 || echo 0)"
+check "window listeners add and remove (one line for two dispatches)" \
+      "$([ "$(grep -c 'dom event win=1' "$harness_out")" = "1" ] && echo 1 || echo 0)"
+check "a live window timer fires and a cleared one does not" \
+      "$([ "$(grep -c 'dom timeout=1' "$harness_out")" = "1" ] && echo 1 || echo 0)"
+check "window.requestAnimationFrame delivered the frame callback" \
+      "$(file_has "$harness_out" 'dom raf t=16')"
+check "navigator.clipboard.writeText reached the host with the text" \
+      "$(file_has "$harness_out" 'dom clipboard=chemical clip')"
 
 echo "== source map decodes to the client source"
 if node scripts/js_backend/sourcemap_check.mjs "$build_dir/web-client/assets" main.ch on_click \
@@ -147,7 +164,7 @@ else
     tail -10 "$out/sourcemap.txt" >&2
 fi
 
-# ── promise-based async: `await dom::fetch_status(...)` ────────────────────
+# ── promise-based async: `await dom::fetchStatus(...)` ─────────────────────
 # The second fixture's client entry point is an `async func` that awaits a host
 # `fetch`. The emitted JavaScript must suspend on a real promise (not poll), and
 # the bundle's `$run` must resolve only after the request settles.

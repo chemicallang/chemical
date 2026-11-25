@@ -6,3 +6,4 @@ import page
 import std
 import universal_cbi
 import css_cbi
+import dom if client

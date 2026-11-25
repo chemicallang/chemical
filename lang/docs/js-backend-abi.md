@@ -491,19 +491,19 @@ whose result is an aggregate, are rejected with a message. Instants (`await <pla
 built by the async library as coroutine futures; `rt.promise_get` throws a named error on such a
 handle instead of resolving garbage.
 
-### 17.1 A host future: `await dom::fetch_status(url)`
+### 17.1 A host future: `await dom::fetchStatus(url)`
 
 The promise path is not testable without a future the *host* creates, so `dom` gained the
 awaitable form of its fetch:
 
 ```chemical
 async func load_status(url : string_view) : int {
-    var status = await dom::fetch_status(url)   // 0 when the request failed
+    var status = await dom::fetchStatus(url)   // 0 when the request failed
     return status
 }
 ```
 
-`dom::fetch_status` returns `core::async::FutureHandle<'static, int>`; underneath,
+`dom::fetchStatus` returns `core::async::FutureHandle<'static, int>`; underneath,
 `raw::chx_dom_fetch_status` is an extern whose aggregate return travels through the hidden sret
 pointer, so the emitted call is `rt.dom.fetch_status(handle, url)` and the host does
 

@@ -39,8 +39,8 @@ the remote-import version drift that a GitHub-hosted package would introduce.
 
    ```chemical
    import dom;
-   var el = dom.document.get_element_by_id("app");
-   el.set_attribute("class", "ready");
+   var el = dom.document().getElementById("app");
+   el.setAttribute("class", "ready");
    ```
 
    Universal components reuse the same types for props/events, so their generated

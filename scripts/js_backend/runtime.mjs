@@ -698,6 +698,19 @@ function element(handle) {
   return value;
 }
 
+// Listeners are tracked so `removeEventListener` can find the wrapper registered
+// for a Chemical function pointer. Keyed by the host object (not the handle), so
+// a second lookup that yields a new handle still removes the same listener.
+const domListeners = new WeakMap();
+function listener_registry(target) {
+  let map = domListeners.get(target);
+  if (!map) {
+    map = new Map();
+    domListeners.set(target, map);
+  }
+  return map;
+}
+
 function storage() {
   if (typeof globalThis.localStorage === "undefined") {
     throw new Error("js runtime: no localStorage available");
@@ -707,7 +720,12 @@ function storage() {
 
 export const dom = {
   document: () => retain(document_object()),
+  window: () => retain(globalThis.window ?? globalThis),
+  navigator: () => retain(globalThis.navigator ?? {}),
   body: (doc) => retain(element(doc).body),
+  active_element: (doc) => retain(element(doc).activeElement ?? null),
+  title: (doc) => cstr_of(element(doc).title ?? ""),
+  document_element: (doc) => retain(element(doc).documentElement ?? null),
 
   get_element_by_id: (doc, id) => retain(element(doc).getElementById(text_at(id))),
   query_selector: (root, selector) => retain(element(root).querySelector(text_at(selector))),
@@ -816,6 +834,13 @@ export const dom = {
   cancel_animation_frame: (id) => {
     if (typeof globalThis.cancelAnimationFrame === "function") globalThis.cancelAnimationFrame(Number(id));
   },
+  set_timeout: (fn, delay) => {
+    const id = globalThis.setTimeout(() => call_chemical(fn), Number(delay));
+    return Number(id) || 0;
+  },
+  clear_timeout: (id) => {
+    globalThis.clearTimeout(Number(id));
+  },
 
   event_client_x: (event) => Number(resolve_handle(event).clientX ?? 0),
   event_client_y: (event) => Number(resolve_handle(event).clientY ?? 0),
@@ -844,11 +869,28 @@ export const dom = {
   // A listener receives a pointer to a one-field `Event { handle }` slot: MIR passes
   // an aggregate by address, so the Chemical callback reads its handle from there.
   on: (handle, event, fn) => {
-    element(handle).addEventListener(text_at(event), (browserEvent) => {
+    const target = element(handle);
+    const type = text_at(event);
+    const registry = listener_registry(target);
+    const key = type + "\u0000" + fn;
+    if (registry.has(key)) return;
+    const wrapper = (browserEvent) => {
       const slot = alloc(8, 8);
       st(slot, 8, false, retain(browserEvent));
       call_chemical(fn, slot);
-    });
+    };
+    registry.set(key, wrapper);
+    target.addEventListener(type, wrapper);
+  },
+  off: (handle, event, fn) => {
+    const target = element(handle);
+    const type = text_at(event);
+    const registry = listener_registry(target);
+    const key = type + "\u0000" + fn;
+    const wrapper = registry.get(key);
+    if (!wrapper) return;
+    registry.delete(key);
+    if (target.removeEventListener) target.removeEventListener(type, wrapper);
   },
 
   prevent_default: (event) => { const e = resolve_handle(event); if (e && e.preventDefault) e.preventDefault(); },
@@ -879,6 +921,12 @@ export const dom = {
   },
   storage_set: (key, value) => { storage().setItem(text_at(key), text_at(value)); },
   storage_remove: (key) => { storage().removeItem(text_at(key)); },
+
+  navigator_clipboard: (nav) => retain(element(nav).clipboard ?? null),
+  clipboard_write_text: (clipboard, text) => {
+    const result = element(clipboard).writeText(text_at(text));
+    if (result && typeof result.catch === "function") result.catch(() => {});
+  },
 
   url_origin: (url) => cstr_of(new URL(text_at(url)).origin),
   url_pathname: (url) => cstr_of(new URL(text_at(url)).pathname),

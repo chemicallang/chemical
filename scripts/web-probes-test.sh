@@ -145,9 +145,9 @@ if want spa; then
         grep -q 'register_fns' "$bundle" 2>/dev/null \
             && pass_note "spa: client bundle carries the dom bindings" \
             || fail_note "spa: client bundle lacks the dom bindings"
-        # The bundle is one ES module per Chemical module: `fetch_text` lives in
+        # The bundle is one ES module per Chemical module: `fetch` lives in
         # the emitted `dom.mjs`, not in the application's `client.mjs`.
-        grep -q 'fetch_text' "$web_dir/web-client/assets/dom.mjs" 2>/dev/null \
+        grep -q 'rt.dom.fetch_text' "$web_dir/web-client/assets/dom.mjs" 2>/dev/null \
             && pass_note "spa: client bundle carries the fetch path" \
             || fail_note "spa: client bundle lacks the fetch path"
         # The export written by `finish()` holds the served bundle. Boot it in Node

@@ -9,7 +9,7 @@
 //   * navigation is a click handler, because `dom` has no `location`/history API
 //     (a real hash router needs the `#js` escape hatch);
 //   * JSON is read with string splitting: no typed decode in `dom`;
-//   * rows are built with `create_element` + `set_html("")`, because `dom` has no
+//   * rows are built with `createElement` + `setHTML("")`, because `dom` has no
 //     render/template primitive and no `innerHTML` on `Document`.
 using std::Option;
 using std::string;
@@ -44,10 +44,10 @@ func copy_of(v : string_view) : string {
 
 func bootstrap_json() : string {
     var doc = dom.document()
-    var node = doc.get_element_by_id("bootstrap")
+    var node = doc.getElementById("bootstrap")
     if(node is Option.Some) {
         var Some(el) = node else unsafe { unreachable }
-        return el.text()
+        return el.textContent()
     }
     return string()
 }
@@ -109,43 +109,43 @@ func load(tasks_json : &string_view) {
 
 func render() {
     var doc = dom.document()
-    var list = doc.get_element_by_id("tasks")
+    var list = doc.getElementById("tasks")
     if(list is Option.None) { return }
     var Some(ul) = list else unsafe { unreachable }
-    // no `child_count`/`remove_child`: the list is emptied with `set_html("")`
-    ul.set_html(string_view(""))
+    // no `childCount`/`remove_child`: the list is emptied with `setHTML("")`
+    ul.setHTML(string_view(""))
     var shown = 0
     var st = state()
     var index : ubigint = 0
     while(index < st.all.size()) {
         var task = unsafe(&*(st.all.get_ptr(index)))
         if(!st.filter_open || task.open) {
-            var row = doc.create_element("li")
-            row.set_attribute("class", "task")
-            row.set_text(task.title)
-            if(!task.open) { row.set_attribute("data-done", "1") }
-            ul.append_child(&row)
+            var row = doc.createElement("li")
+            row.setAttribute("class", "task")
+            row.setText(task.title)
+            if(!task.open) { row.setAttribute("data-done", "1") }
+            ul.appendChild(&row)
             shown = shown + 1
         }
         index = index + 1
     }
-    var status = doc.get_element_by_id("status")
+    var status = doc.getElementById("status")
     if(status is Option.Some) {
         var Some(el) = status else unsafe { unreachable }
         var text = string()
         text.append_integer(shown as bigint)
         text.append_view(" shown")
         var view = text.to_view()
-        el.set_text(view)
+        el.setText(view)
     }
-    var count = doc.get_element_by_id("count")
+    var count = doc.getElementById("count")
     if(count is Option.Some) {
         var Some(el) = count else unsafe { unreachable }
         var text = string()
         text.append_integer(open_count(&st.all) as bigint)
         text.append_view(" open")
         var view = text.to_view()
-        el.set_text(view)
+        el.setText(view)
     }
     unsafe { printf("client render shown=%d total=%zu\n", shown, st.all.size()) }
 }
@@ -156,7 +156,7 @@ public func on_view_click(e : &dom::Event) {
     var target = e.target()
     if(target is Option.Some) {
         var Some(el) = target else unsafe { unreachable }
-        var href = el.attribute("href")
+        var href = el.getAttribute("href")
         if(href is Option.Some) {
             var Some(v) = href else unsafe { unreachable }
             state().filter_open = v.to_view().contains(&string_view("#/open"))
@@ -191,11 +191,11 @@ public func main() : int {
     unsafe { printf("client boot tasks=%zu\n", state().all.size()) }
 
     var doc = dom.document()
-    var nav = doc.query_selector(string_view(".views"))
+    var nav = doc.querySelector(string_view(".views"))
     if(nav is Option.Some) {
         var Some(nav_el) = nav else unsafe { unreachable }
-        nav_el.add_event_listener("click", on_view_click)
+        nav_el.addEventListener("click", on_view_click)
     }
-    dom::fetch_text(string_view("/api/tasks"), on_tasks)
+    dom::fetch(string_view("/api/tasks"), on_tasks)
     return 0
 }

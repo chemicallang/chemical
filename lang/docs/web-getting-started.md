@@ -164,6 +164,25 @@ compiled from an older version of the component library; a plain build does not
 revalidate them against the plugin sources. Delete the build directory (or build with
 `--no-cache`) after changing library or plugin code.
 
+### Browser code in a `client` module
+
+Browser interactions can be ordinary Chemical in a `client` module, which `--web`
+compiles to JavaScript. Import the typed `dom` module there; a shared module that
+must not be lowered on the server imports it conditionally:
+
+```chemical
+// client/chemical.mod
+import dom
+
+// shared/chemical.mod — the server pass never sees `dom`
+import dom if client
+```
+
+`dom` uses the browser's own spelling (`querySelector`, `getElementById`,
+`addEventListener`, `setText`, `fetch`, `localStorage`), so component bodies and
+client Chemical agree. The component library already imports it this way, so
+`import components` needs no extra setup.
+
 ## What is not available yet
 
 These are planned, not shipped — do not design around them:
@@ -172,9 +191,10 @@ These are planned, not shipped — do not design around them:
   output yourself.
 - **Declaring the app once and deriving client/server bundles** (`web::App`,
   `web_build`, chunk graph). The client/server split is done by hand today.
-- **Writing client logic in Chemical.** Client behaviour lives in `#universal`
-  component bodies (and `#js` escape hatches); the JS backend emits ES modules
-  for whole programs but is not wired into the bundle graph.
+- **A declarative app definition / automatic client/server split.** Client logic
+  can be Chemical in a `client` module, but the split is written by hand; HTML
+  rendering and reactive state stay in `#universal` component bodies (and `#js`
+  escape hatches).
 - **Production packaging**: `--static` multi-page export, sessions/CSRF, gzip
   precompression, size budgets. (JS/CSS minification *is* available — it is an
   opt-in on the artifact, `HtmlPage.set_minify` / `StaticSite.set_minify` /

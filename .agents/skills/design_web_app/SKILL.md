@@ -828,24 +828,24 @@ import "../shared"          // pure logic only: no dom, no page, no platform
 
 // client/counter.ch
 public func on_click(e : &dom::Event) {
-    e.prevent_default()
+    e.preventDefault()
     var doc = dom.document()
-    var node = doc.get_element_by_id("count")
+    var node = doc.getElementById("count")
     if(node is Option.Some) {
         var Some(label) = node else unsafe { unreachable }
-        var next = shared_next(shared_parse_int(label.text().to_view()))
-        label.set_text(shared_label(next).to_view())
+        var next = shared_next(shared_parse_int(label.textContent().to_view()))
+        label.setText(shared_label(next).to_view())
     }
 }
 
 public func main() : int {
     var doc = dom.document()
-    var button = doc.get_element_by_id("count-button")
+    var button = doc.getElementById("count-button")
     if(button is Option.Some) {
         var Some(el) = button else unsafe { unreachable }
-        el.add_event_listener("click", on_click)
+        el.addEventListener("click", on_click)
     }
-    dom::fetch_text("/api/count", on_loaded)   // (status : int, body : &string_view)
+    dom::fetch("/api/count", on_loaded)   // (status : int, body : &string_view)
     return 0
 }
 ```
@@ -858,14 +858,18 @@ public func main() : int {
   compiles `shared` + `client`, the server pass `shared` + `server` + `src`, each with
   its own build directory. Calling a native-only symbol from `shared` or `client` fails
   the client pass by name and source location (`web-split-test.sh`).
-- **v1 surface:** `document()`, `Document.get_element_by_id`/`query_selector`/
-  `create_element`/`body`, `Element` text/`set_html`/attributes/`value`/`append_child`/
-  `remove`/`focus`/`add_event_listener`/`query_selector`, `Event.prevent_default`/
-  `stop_propagation`/`target`/`key`, `fetch_text`, `storage_get`/`storage_set`/
-  `storage_remove`, `url_origin`/`url_pathname`/`url_search_param`. Raw host bindings
-  live under `dom::raw`; canvas, uploads, pointer/rAF and `WebSocket` are later work.
-  **Not yet in v1:** `query_selector_all`, `child_count`/`child_at`, `remove_child`,
-  `location`/hash, history, a `fetch` with headers/body, and JSON. An SPA that navigates from a
+- **v1 surface:** `document()`/`window()`/`localStorage()`/`navigator()`,
+  `Document.getElementById`/`querySelector`/`createElement`/`body`/`activeElement`/
+  `title`/`documentElement`/`addEventListener`/`removeEventListener`, `Element`
+  `textContent`/`setText`/`setHTML`/attributes/`value`/`setValue`/`appendChild`/
+  `remove`/`focus`/`addEventListener`/`removeEventListener`/`querySelector`/class
+  tokens/traversal, `Event.preventDefault`/`stopPropagation`/`target`/`key`/pointer
+  fields, `Canvas2D`, `Window` timers + rAF, `Storage.getItem`/`setItem`/`removeItem`,
+  `Navigator.clipboard`/`Clipboard.writeText`, `fetch`/`fetchStatus`,
+  `urlOrigin`/`urlPathname`/`urlSearchParam`. Raw host bindings live under
+  `dom::raw`; `WebSocket` and file uploads are later work.
+  **Not yet in v1:** `querySelectorAll`, `removeChild`, `location`/hash, history, a
+  `fetch` with headers/body, and JSON. An SPA that navigates from a
   hash or renders a list of unknown length needs workarounds today (see `spa/client/main.ch`).
 - **`app.add_client_module()` wires `client/*.ch` into the served page.** On a `--web` build the
   client job writes `<build-dir>/web-client/assets/*.mjs` before the server runs; this call publishes
@@ -876,8 +880,8 @@ public func main() : int {
   different tag. Verify a bundle the way `lang/tests/web/probes/spa/client_boot_check.mjs` does:
   import the exported `boot.mjs` in Node against a stub `document`/`fetch` and assert what the client
   rendered.
-- **`set_html` is trusted-markup only** — it parses HTML and never escapes; use
-  `set_text` for anything that came from a user.
+- **`setHTML` is trusted-markup only** — it parses HTML and never escapes; use
+  `setText` for anything that came from a user.
 - Debugging: the client job always emits a source map (`web-client.mjs.map`), so a
   browser stack frame maps back to the `.ch` line. `scripts/web-dom-test.sh` runs the
   same fixture headlessly under Node with a small DOM harness

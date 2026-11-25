@@ -3,16 +3,57 @@
 //   node scripts/js_backend/dom_harness.mjs <bundle-dir>
 //
 // The JS backend targets the browser for `dom`, but a gate needs something it can
-// run headlessly: this file installs `document`, `localStorage` and `fetch` on
-// `globalThis`, imports the bundle, runs the program, then dispatches the clicks a
-// real page would deliver. Everything the Chemical code touches is a plain JS object,
-// so the check is about the *emitted JavaScript* (handle plumbing, callback wiring,
-// string marshalling), not about this file's fidelity to the DOM.
+// run headlessly: this file installs `document`, `window`, `navigator`,
+// `localStorage` and `fetch` on `globalThis`, imports the bundle, runs the program,
+// then dispatches the clicks a real page would deliver. Everything the Chemical
+// code touches is a plain JS object, so the check is about the *emitted JavaScript*
+// (handle plumbing, callback wiring, string marshalling), not about this file's
+// fidelity to the DOM.
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 
-class FakeElement {
+class FakeEventTarget {
+  constructor() {
+    this.listeners = new Map();
+  }
+
+  addEventListener(type, handler) {
+    const key = String(type);
+    if (!this.listeners.has(key)) this.listeners.set(key, []);
+    this.listeners.get(key).push(handler);
+  }
+
+  removeEventListener(type, handler) {
+    const list = this.listeners.get(String(type));
+    if (!list) return;
+    const i = list.indexOf(handler);
+    if (i >= 0) list.splice(i, 1);
+  }
+
+  dispatchEvent(type) {
+    const key = String(type);
+    // Pointer fields a real event carries: the typed `dom::Event` reads them, so a
+    // harness event without them would silently answer 0 for every coordinate.
+    const event = {
+      type: key,
+      target: this,
+      key: "",
+      clientX: 10,
+      clientY: 20,
+      button: 0,
+      pointerId: 1,
+      defaultPrevented: false,
+      preventDefault() { this.defaultPrevented = true; },
+      stopPropagation() {},
+    };
+    for (const handler of this.listeners.get(key) || []) handler(event);
+    return event;
+  }
+}
+
+class FakeElement extends FakeEventTarget {
   constructor(tagName, doc) {
+    super();
     this.tagName = String(tagName).toUpperCase();
     this.ownerDocument = doc;
     this.attributes = new Map();
@@ -21,7 +62,6 @@ class FakeElement {
     this.textContent = "";
     this.value = "";
     this.classList = new Set();
-    this.listeners = new Map();
   }
 
   setAttribute(name, value) {
@@ -58,32 +98,6 @@ class FakeElement {
     if (i >= 0) this.children.splice(i, 1);
     child.parentNode = null;
     return child;
-  }
-
-  addEventListener(type, handler) {
-    const key = String(type);
-    if (!this.listeners.has(key)) this.listeners.set(key, []);
-    this.listeners.get(key).push(handler);
-  }
-
-  dispatchEvent(type) {
-    const key = String(type);
-    // Pointer fields a real event carries: the typed `dom::Event` reads them, so a
-    // harness event without them would silently answer 0 for every coordinate.
-    const event = {
-      type: key,
-      target: this,
-      key: "",
-      clientX: 10,
-      clientY: 20,
-      button: 0,
-      pointerId: 1,
-      defaultPrevented: false,
-      preventDefault() { this.defaultPrevented = true; },
-      stopPropagation() {},
-    };
-    for (const handler of this.listeners.get(key) || []) handler(event);
-    return event;
   }
 
   click() { return this.dispatchEvent("click"); }
@@ -147,13 +161,18 @@ class FakeContext2D {
   setTransform(a, b, c, d, e, f) { canvasOps.push(`setTransform(${a},${b},${c},${d},${e},${f})`); }
 }
 
-class FakeDocument {
+class FakeDocument extends FakeEventTarget {
   constructor() {
+    super();
     this.index = new Map();
+    this.title = "dom harness";
     this.body = new FakeElement("body", this);
-    this.documentElement = this.body;
+    this.documentElement = new FakeElement("html", this);
+    this.documentElement.setAttribute("data-root", "html");
     this.focused = null;
   }
+
+  get activeElement() { return this.focused; }
 
   createElement(tag) { return new FakeElement(tag, this); }
 
@@ -207,6 +226,16 @@ if (!dir) {
 }
 
 globalThis.document = build();
+
+// A browser has `window` and `navigator` beside `document`. The harness exposes
+// only what the fixture reads: window-level listeners and a clipboard that
+// records the text it was given.
+globalThis.window = new FakeEventTarget();
+let clipboardText = "";
+Object.defineProperty(globalThis, "navigator", {
+  configurable: true,
+  value: { clipboard: { writeText: async (text) => { clipboardText = String(text); } } },
+});
 
 const store = new Map();
 globalThis.localStorage = {
@@ -272,7 +301,16 @@ if (!countBeforeFetch) {
 }
 button.click();
 
+// Document and window listeners: each fixture handler removes itself, so the
+// second dispatch of the same event must be silent.
+globalThis.document.dispatchEvent("domtest");
+globalThis.document.dispatchEvent("domtest");
+globalThis.window.dispatchEvent("domwin");
+globalThis.window.dispatchEvent("domwin");
+
 await new Promise((done) => setTimeout(done, 25));
+
+if (clipboardText) console.log(`dom clipboard=${clipboardText}`);
 
 // `requestAnimationFrame` is delivered like a browser would: queued, then run with
 // a frame timestamp. Printing the log proves the Chemical callback ran and that the

@@ -1853,7 +1853,10 @@ func windows_i386_cstd_has_no_safety_diagnostics(env : &mut TestEnv) {
 func macos_target_libs_safety(env : &mut TestEnv) {
     unsafe {
         var ch = "public func main() : int { return 0 }\n"
-        expect_check_target_no_diagnostic(env, "macos_libs_safety", ch, "SAFE-", NEG_MOD_POSIX_LIBS, "x86_64-apple-darwin")
+        // POSIX builds include `async`, whose deliberately process-wide
+        // executor/reactor globals emit the unrelated SAFE-GLOBAL-003 warning.
+        // This test is about the target C ABI, so assert no SAFE-FFI diagnostic.
+        expect_check_target_no_diagnostic(env, "macos_libs_safety", ch, "SAFE-FFI-", NEG_MOD_POSIX_LIBS, "x86_64-apple-darwin")
     }
 }
 
@@ -1861,7 +1864,9 @@ func macos_target_libs_safety(env : &mut TestEnv) {
 func freebsd_target_libs_safety(env : &mut TestEnv) {
     unsafe {
         var ch = "public func main() : int { return 0 }\n"
-        expect_check_target_no_diagnostic(env, "freebsd_libs_safety", ch, "SAFE-", NEG_MOD_POSIX_LIBS, "x86_64-unknown-freebsd")
+        // See the macOS case: SAFE-GLOBAL-003 on the async globals is not an
+        // ABI diagnostic.
+        expect_check_target_no_diagnostic(env, "freebsd_libs_safety", ch, "SAFE-FFI-", NEG_MOD_POSIX_LIBS, "x86_64-unknown-freebsd")
     }
 }
 

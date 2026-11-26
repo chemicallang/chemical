@@ -2839,6 +2839,31 @@ static void apply_module_options(LabModuleOptions& opts, const std::vector<ModFi
                     }
                 }
                 break;
+            case hasher("no_panic"):
+                if (key == "no_panic" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.no_panic = val.bool_val ? 1 : 0;
+                }
+                break;
+            case hasher("no_alloc"):
+                if (key == "no_alloc" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.no_alloc = val.bool_val ? 1 : 0;
+                }
+                break;
+            case hasher("no_unsafe"):
+                if (key == "no_unsafe" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.no_unsafe = val.bool_val ? 1 : 0;
+                }
+                break;
+            case hasher("no_blocking"):
+                if (key == "no_blocking" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.no_blocking = val.bool_val ? 1 : 0;
+                }
+                break;
+            case hasher("pure"):
+                if (key == "pure" && val.kind == ModOptionValueKind::Boolean) {
+                    opts.pure = val.bool_val ? 1 : 0;
+                }
+                break;
             default:
                 // Unknown keys are already rejected by the parser, so this is unreachable
                 break;

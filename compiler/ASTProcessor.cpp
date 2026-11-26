@@ -95,6 +95,10 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
+#include "ast/structures/GenericInterfaceDecl.h"
+#include "ast/structures/GenericImplDecl.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 #include "ast/structures/Namespace.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -1432,6 +1436,93 @@ void ASTProcessor::print_file_results(ASTFileResult& result, const chem::string_
     auto moved2 = std::move(result.parse_diagnostics);
 }
 
+/**
+ * Proposal 0005 module policy. A module may opt into default effect
+ * restrictions (`no_panic`, `no_alloc`, `no_unsafe`, `no_blocking`, `pure`) in
+ * its `chemical.mod`. The default is applied to function bodies *defined* in
+ * that module: a bodyless/extern declaration proves nothing about the callee,
+ * so it must still be annotated explicitly, and an interface method is
+ * dynamic-dispatch checked instead. A function overrides a default for one
+ * effect by declaring the positive form (`[panic]`, `[alloc]`, ...).
+ */
+namespace {
+
+struct ModuleEffectDefaults {
+    bool no_panic = false;
+    bool no_alloc = false;
+    bool no_unsafe = false;
+    bool no_blocking = false;
+    bool pure = false;
+
+    bool empty() const {
+        return !no_panic && !no_alloc && !no_unsafe && !no_blocking && !pure;
+    }
+
+    void apply(FunctionDeclaration* decl) {
+        if (decl == nullptr || !decl->body.has_value() || decl->is_extern()) return;
+        auto& attrs = decl->attrs;
+        if (!attrs.declares_panic && (no_panic || pure)) attrs.forbids_panic = true;
+        if (!attrs.declares_alloc && (no_alloc || pure)) attrs.forbids_alloc = true;
+        if (!attrs.declares_unsafe && (no_unsafe || pure)) attrs.forbids_unsafe = true;
+        if (!attrs.declares_blocking && (no_blocking || pure)) attrs.forbids_blocking = true;
+    }
+};
+
+struct ModuleEffectDefaultVisitor : RecursiveVisitor<ModuleEffectDefaultVisitor> {
+    ModuleEffectDefaults defaults;
+
+    void VisitFunctionDecl(FunctionDeclaration* decl) {
+        defaults.apply(decl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitFunctionDecl(decl);
+    }
+
+    // Generic declarations keep their bodies on the master implementation. At
+    // parse time `instantiations` is still empty; the concrete copies inherit
+    // `attrs` via `FunctionDeclaration::shallow_copy`, so defaulting the master
+    // propagates the restriction to every instantiation.
+    void VisitGenericFuncDecl(GenericFuncDecl* node) {
+        if (node->master_impl) defaults.apply(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericFuncDecl(node);
+    }
+    void VisitGenericStructDecl(GenericStructDecl* node) {
+        if (node->master_impl) NonRecursiveVisitor<ModuleEffectDefaultVisitor>::visit(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericStructDecl(node);
+    }
+    void VisitGenericVariantDecl(GenericVariantDecl* node) {
+        if (node->master_impl) NonRecursiveVisitor<ModuleEffectDefaultVisitor>::visit(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericVariantDecl(node);
+    }
+    void VisitGenericUnionDecl(GenericUnionDecl* node) {
+        if (node->master_impl) NonRecursiveVisitor<ModuleEffectDefaultVisitor>::visit(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericUnionDecl(node);
+    }
+    void VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
+        if (node->master_impl) NonRecursiveVisitor<ModuleEffectDefaultVisitor>::visit(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericInterfaceDecl(node);
+    }
+    void VisitGenericImplDecl(GenericImplDecl* node) {
+        if (node->master_impl) NonRecursiveVisitor<ModuleEffectDefaultVisitor>::visit(node->master_impl);
+        RecursiveVisitor<ModuleEffectDefaultVisitor>::VisitGenericImplDecl(node);
+    }
+};
+
+} // namespace
+
+static void apply_module_effect_defaults(ASTFileResult& result) {
+    if (result.module == nullptr || result.module->container == nullptr) return;
+    const auto& opts = result.module->container->options;
+    ModuleEffectDefaults defaults;
+    defaults.no_panic = opts.no_panic != 0;
+    defaults.no_alloc = opts.no_alloc != 0;
+    defaults.no_unsafe = opts.no_unsafe != 0;
+    defaults.no_blocking = opts.no_blocking != 0;
+    defaults.pure = opts.pure != 0;
+    if (defaults.empty()) return;
+    ModuleEffectDefaultVisitor visitor;
+    visitor.defaults = defaults;
+    visitor.VisitScope(&result.unit.scope.body);
+}
+
 bool ASTProcessor::parse_chemical_file(
         ASTFileResult& result,
         unsigned int fileId,
@@ -1521,6 +1612,9 @@ bool ASTProcessor::parse_chemical_file(
     if(!parser.diagnostics.empty()) {
         result.parse_diagnostics = std::move(parser.diagnostics);
     }
+
+    // apply the module's opt-in effect policy defaults (proposal 0005)
+    apply_module_effect_defaults(result);
 
     // continue
     if(parser.has_errors()) {
@@ -1613,6 +1707,9 @@ bool ASTProcessor::import_chemical_file(
     if(!parser.diagnostics.empty()) {
         result.parse_diagnostics = std::move(parser.diagnostics);
     }
+
+    // apply the module's opt-in effect policy defaults (proposal 0005)
+    apply_module_effect_defaults(result);
 
     // continue
     if(parser.has_errors()) {
@@ -1740,6 +1837,9 @@ bool ASTProcessor::import_chemical_file_with_tokens(
     if(!parser.diagnostics.empty()) {
         result.parse_diagnostics = std::move(parser.diagnostics);
     }
+
+    // apply the module's opt-in effect policy defaults (proposal 0005)
+    apply_module_effect_defaults(result);
 
     // continue
     if(parser.has_errors()) {
@@ -2469,6 +2569,9 @@ bool mir_translate_after_declaration(
                                                 : mir::MIRLinkage::Internal;
         rec.has_body = !decl->is_extern();
         rec.panic_free = decl->attrs.forbids_panic;
+        rec.alloc_free = decl->attrs.forbids_alloc;
+        rec.unsafe_free = decl->attrs.forbids_unsafe;
+        rec.blocking_free = decl->attrs.forbids_blocking;
         rec.stdcall = decl->is_std_call();
         rec.type = mir::mir_function_signature(types, module, decl);
         mir::SymbolId sym = module.symbols.add(

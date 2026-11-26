@@ -5,6 +5,7 @@
 #include "MIRLowererHelpers.h"
 #include "MIRABI.h"
 #include "MIRPrototype.h"
+#include "preprocess/visitors/RecursiveVisitor.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -308,6 +309,9 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
     rec.panic_free = decl->attrs.forbids_panic;
+    rec.alloc_free = decl->attrs.forbids_alloc;
+    rec.unsafe_free = decl->attrs.forbids_unsafe;
+    rec.blocking_free = decl->attrs.forbids_blocking;
     rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
@@ -889,65 +893,193 @@ static const MIROperand* no_panic_operand(const MIRFunction& fn,
     return &fn.operands[inst.operand_offset + index];
 }
 
+/** The restricted effects proposal 0005 can prove over lowered MIR. */
+enum class MIRRestrictedEffect : uint8_t { Panic = 0, Alloc, Unsafe, Blocking };
+
+static bool forbids_effect(const FunctionDeclaration* decl, MIRRestrictedEffect effect) {
+    switch (effect) {
+        case MIRRestrictedEffect::Panic: return decl->attrs.forbids_panic;
+        case MIRRestrictedEffect::Alloc: return decl->attrs.forbids_alloc;
+        case MIRRestrictedEffect::Unsafe: return decl->attrs.forbids_unsafe;
+        case MIRRestrictedEffect::Blocking: return decl->attrs.forbids_blocking;
+    }
+    return false;
+}
+
+static const char* effect_code(MIRRestrictedEffect effect) {
+    switch (effect) {
+        case MIRRestrictedEffect::Panic: return "SAFE-PANIC-001";
+        case MIRRestrictedEffect::Alloc: return "SAFE-ALLOC-001";
+        case MIRRestrictedEffect::Unsafe: return "SAFE-UNSAFE-004";
+        case MIRRestrictedEffect::Blocking: return "SAFE-BLOCKING-001";
+    }
+    return "SAFE-EFFECT-001";
+}
+
+static const char* effect_spelling(MIRRestrictedEffect effect) {
+    switch (effect) {
+        case MIRRestrictedEffect::Panic: return "[no_panic]";
+        case MIRRestrictedEffect::Alloc: return "[no_alloc]";
+        case MIRRestrictedEffect::Unsafe: return "[no_unsafe]";
+        case MIRRestrictedEffect::Blocking: return "[no_blocking]";
+    }
+    return "[no_effect]";
+}
+
+static bool symbol_is_free(const MIRSymbolRecord& rec, MIRRestrictedEffect effect) {
+    switch (effect) {
+        case MIRRestrictedEffect::Panic: return rec.panic_free;
+        case MIRRestrictedEffect::Alloc: return rec.alloc_free;
+        case MIRRestrictedEffect::Unsafe: return rec.unsafe_free;
+        case MIRRestrictedEffect::Blocking: return rec.blocking_free;
+    }
+    return false;
+}
+
 /**
- * Reject a `[no_panic]` function whose lowered body can abort. Calls to a
- * callee are accepted only when the callee carries the same explicit effect;
- * indirect/dynamic calls and throws have no provable contract and are rejected.
- * `unreachable` is a trap/unsafe effect, not a panic, so it is intentionally
- * allowed here (and separately requires `unsafe` in safe context).
+ * Direct unsafe constructs inside a body. The MIR type/system erases the
+ * `unsafe` boundary (a raw dereference and a reference dereference lower to the
+ * same ops), so `[no_unsafe]` has to look at the declaration body while it is
+ * still available. Traps and explicit unsafe blocks are unsafe effects, not
+ * panic effects (proposal 0005 decision 5).
  */
-static bool check_no_panic_effect(const MIRModule& module,
-                                  const MIRFunction& fn,
-                                  FunctionDeclaration* decl,
-                                  std::string& error) {
-    auto reject_symbol = [&](const MIROperand* operand, const char* what) -> bool {
+struct UnsafeUseScanner : RecursiveVisitor<UnsafeUseScanner> {
+    bool found = false;
+
+    void VisitUnsafeBlock(UnsafeBlock* block) {
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitUnsafeBlock(block);
+    }
+    void VisitInlineAsmStmt(InlineAsmStatement* stmt) {
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitInlineAsmStmt(stmt);
+    }
+    void VisitUnsafeValue(UnsafeValue* value) {
+        // `unsafe(expr)` is an expression-level unsafe boundary.
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitUnsafeValue(value);
+    }
+    void VisitUnreachableStmt(UnreachableStmt* node) {
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitUnreachableStmt(node);
+    }
+    void VisitThrowStmt(ThrowStatement* node) {
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitThrowStmt(node);
+    }
+    void VisitDeleteStmt(DestructStmt* node) {
+        // An explicit `delete`/destruct call is an ownership operation on a
+        // raw pointer; `[no_unsafe]` treats it as unsafe.
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitDeleteStmt(node);
+    }
+    void VisitDeallocStmt(DeallocStmt* node) {
+        found = true;
+        RecursiveVisitor<UnsafeUseScanner>::VisitDeallocStmt(node);
+    }
+};
+
+static bool body_uses_unsafe(FunctionDeclaration* decl) {
+    if (decl == nullptr || !decl->body.has_value()) return false;
+    UnsafeUseScanner scanner;
+    scanner.visit_it(decl->body.value());
+    return scanner.found;
+}
+
+/**
+ * Reject a function that forbids an effect but whose lowered body can perform
+ * it. Calls are accepted only when the callee carries the same explicit
+ * restriction; indirect/dynamic calls, throws and direct traps have no provable
+ * contract and are rejected. `[pure]` is the conjunction of the four effects.
+ */
+static bool check_function_effects(const MIRModule& module,
+                                   const MIRFunction& fn,
+                                   FunctionDeclaration* decl,
+                                   std::string& error) {
+    const bool checks_unsafe = decl->attrs.forbids_unsafe || decl->attrs.forbids_pure;
+    if (checks_unsafe && body_uses_unsafe(decl)) {
+        error = effect_code(MIRRestrictedEffect::Unsafe);
+        error += ": function '";
+        error.append(decl->name_view().data(), decl->name_view().size());
+        error += "' is declared [no_unsafe] but its body uses an unsafe block, "
+                 "inline assembly, a trap, a throw, or an explicit deallocation";
+        return false;
+    }
+
+    auto reject_symbol = [&](const MIROperand* operand, const char* what,
+                             MIRRestrictedEffect effect) -> bool {
         if (operand == nullptr || operand->kind() != MIROperandKind::Symbol) {
             return false;
         }
         const MIRSymbolRecord& rec = module.symbols.get(operand->id);
-        if (rec.panic_free) return false;
+        if (symbol_is_free(rec, effect)) return false;
         const std::string_view callee = module.symbols.mangled_view(rec);
-        std::string message("SAFE-PANIC-001: [no_panic] function '");
-        message.append(decl->name_view().data(), decl->name_view().size());
-        message += "' ";
-        message += what;
-        message += " '";
-        message.append(callee.data(), callee.size());
-        message += "', whose panic effect is not explicitly [no_panic]";
-        error = std::move(message);
+        error = effect_code(effect);
+        error += ": function '";
+        error.append(decl->name_view().data(), decl->name_view().size());
+        error += "' ";
+        error += what;
+        error += " '";
+        error.append(callee.data(), callee.size());
+        error += "', whose effect set is not explicitly ";
+        error += effect_spelling(effect);
         return true;
     };
+
     for (const MIRInstruction& inst : fn.instructions) {
-        switch (inst.opcode()) {
-            case MIROpcode::Call:
-                if (reject_symbol(no_panic_operand(fn, inst, 0), "calls")) {
+        const MIROpcode op = inst.opcode();
+        // Every effect is checked against every call-like instruction. A call
+        // to an unannotated declaration fails closed for each restriction.
+        for (MIRRestrictedEffect effect : {MIRRestrictedEffect::Panic, MIRRestrictedEffect::Alloc,
+                                           MIRRestrictedEffect::Unsafe, MIRRestrictedEffect::Blocking}) {
+            if (!forbids_effect(decl, effect)) continue;
+            switch (op) {
+                case MIROpcode::Call:
+                    if (reject_symbol(no_panic_operand(fn, inst, 0), "calls", effect)) return false;
+                    break;
+                case MIROpcode::Init:
+                case MIROpcode::Drop:
+                case MIROpcode::Destroy:
+                    if (reject_symbol(no_panic_operand(fn, inst, 1), "runs", effect)) return false;
+                    break;
+                case MIROpcode::CallIndirect:
+                    error = effect_code(effect);
+                    error += ": function '";
+                    error.append(decl->name_view().data(), decl->name_view().size());
+                    error += "' calls through a function pointer; the effect set cannot be proven";
                     return false;
-                }
-                break;
-            case MIROpcode::Init:
-            case MIROpcode::Drop:
-            case MIROpcode::Destroy:
-                if (reject_symbol(no_panic_operand(fn, inst, 1), "runs")) {
+                case MIROpcode::DynamicCall:
+                    error = effect_code(effect);
+                    error += ": function '";
+                    error.append(decl->name_view().data(), decl->name_view().size());
+                    error += "' uses dynamic dispatch; the effect set cannot be proven";
                     return false;
-                }
-                break;
-            case MIROpcode::CallIndirect:
-                error = "SAFE-PANIC-001: [no_panic] function '";
-                error.append(decl->name_view().data(), decl->name_view().size());
-                error += "' calls through a function pointer; the panic effect cannot be proven";
-                return false;
-            case MIROpcode::DynamicCall:
-                error = "SAFE-PANIC-001: [no_panic] function '";
-                error.append(decl->name_view().data(), decl->name_view().size());
-                error += "' uses dynamic dispatch; the panic effect cannot be proven";
-                return false;
-            case MIROpcode::Throw:
-                error = "SAFE-PANIC-001: [no_panic] function '";
-                error.append(decl->name_view().data(), decl->name_view().size());
-                error += "' can throw";
-                return false;
-            default:
-                break;
+                case MIROpcode::Throw:
+                    error = effect_code(effect);
+                    error += ": function '";
+                    error.append(decl->name_view().data(), decl->name_view().size());
+                    error += "' can throw";
+                    return false;
+                default:
+                    break;
+            }
+        }
+        // A coroutine frame allocation is a direct heap allocation.
+        if (op == MIROpcode::AsyncFrameAlloc &&
+            (decl->attrs.forbids_alloc || decl->attrs.forbids_pure)) {
+            error = effect_code(MIRRestrictedEffect::Alloc);
+            error += ": function '";
+            error.append(decl->name_view().data(), decl->name_view().size());
+            error += "' allocates a coroutine frame but is declared [no_alloc]";
+            return false;
+        }
+        if (op == MIROpcode::InlineAsm &&
+            (decl->attrs.forbids_unsafe || decl->attrs.forbids_pure)) {
+            error = effect_code(MIRRestrictedEffect::Unsafe);
+            error += ": function '";
+            error.append(decl->name_view().data(), decl->name_view().size());
+            error += "' contains inline assembly but is declared [no_unsafe]";
+            return false;
         }
     }
     return true;
@@ -993,8 +1125,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     } lower_timer;
 #endif
     if (decl->is_async()) {
-        if (decl->attrs.forbids_panic) {
-            error = "SAFE-PANIC-001: [no_panic] async functions are not supported yet";
+        if (decl->attrs.forbids_panic || decl->attrs.forbids_alloc ||
+            decl->attrs.forbids_unsafe || decl->attrs.forbids_blocking ||
+            decl->attrs.forbids_pure) {
+            error = "SAFE-PANIC-001: effect restrictions on async functions are not supported yet";
             return false;
         }
         lambda_scope_tag_ = sanitized_symbol_tag(intern_function(decl));
@@ -1273,8 +1407,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         error = b.error() ? b.error() : "MIR builder failure";
         return false;
     }
-    if (decl->attrs.forbids_panic &&
-        !check_no_panic_effect(module_, func, decl, error)) {
+    if ((decl->attrs.forbids_panic || decl->attrs.forbids_alloc ||
+         decl->attrs.forbids_unsafe || decl->attrs.forbids_blocking ||
+         decl->attrs.forbids_pure) &&
+        !check_function_effects(module_, func, decl, error)) {
         return false;
     }
     return true;

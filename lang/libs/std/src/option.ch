@@ -4,11 +4,11 @@ public variant Option<T> {
     Some(value : T)
     None()
 
-    func is_some(&self) : bool {
+    func is_some(&self) : bool [no_panic] {
         return self is Option.Some
     }
 
-    func is_none(&self) : bool {
+    func is_none(&self) : bool [no_panic] {
         return self is Option.None
     }
 

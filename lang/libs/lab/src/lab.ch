@@ -23,6 +23,14 @@ public struct ModuleOptions {
     // 0 = any/unset, 1 = js, 2 = native. A host 1 (js) module is
     // declarations-only on a non-JS job.
     var host : int = 0;
+    // Proposal 0005 module policy defaults (0/1). A module may opt into a
+    // default restriction applied to every function body it defines; a
+    // function overrides it by declaring the positive effect, e.g. `[panic]`.
+    var no_panic : int = 0;
+    var no_alloc : int = 0;
+    var no_unsafe : int = 0;
+    var no_blocking : int = 0;
+    var pure : int = 0;
 }
 
 @compiler.interface

@@ -24,6 +24,7 @@ the explicit "not supported yet" error (see `NONBREAKING_DEFERRED.md`).
 | `net` safe TCP/TLS helpers | mixed | Return `Result`; allocation failures in vector growth are reported where `try_push` is used. |
 | `process::execute`/`spawn` | mixed | Return `Result`; process setup still uses platform FFI. |
 | async executor submission (`spawn*`) | mixed | Frame/vtable allocation still aborts on OOM; a fallible submission form is not shipped yet. |
+| `async::try_channel` | safe (fallible) | Returns `Result<Channel<T>, AllocError>` instead of aborting; the panicking `channel()` remains. |
 | async function effect annotations | rejected (deferred) | `[no_*]`/`[pure]` on `async func` errors: the lowered coroutine ramp allocates a frame, and generated poll/drop/await machinery is not attributable to a source effect or explicitly annotated. See `NONBREAKING_DEFERRED.md`. |
 | interface dynamic dispatch under a restriction | rejected (fail-closed) | `DynamicCall` has no provable effect set. Unannotated code is unaffected. |
 | legacy raw APIs / cstd | panics | Tier C; not part of the safe API guarantee. |

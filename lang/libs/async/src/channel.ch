@@ -436,6 +436,33 @@ public func <T> channel() : Channel<T> {
         }
     }
 
+// Fallible channel construction: report an allocation failure instead of
+// aborting. The panicking `channel()` remains for existing callers.
+public func <T> try_channel() : std::Result<Channel<T>, std::alloc::AllocError> {
+        unsafe {
+        var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
+        if(s == null) {
+            return std::Result.Err<Channel<T>, std::alloc::AllocError>(
+                std::alloc::AllocError.OutOfMemory()
+            )
+        }
+        new(s) ChannelShared<T> {
+            m : std::mutex(),
+            head : null,
+            tail : null,
+            closed : false,
+            senders : 1,
+            receivers : 1,
+            waker : core::async::Waker.empty()
+        }
+        return std::Result.Ok<Channel<T>, std::alloc::AllocError>(Channel<T> {
+            sender : Sender<T> { shared : s },
+            receiver : Receiver<T> { shared : s }
+        })
+
+        }
+    }
+
 // Clone the sender into a value the caller owns (e.g. to capture in a lambda).
 // Use `clone_sender` on the channel's sender rather than moving it out of the
 // `Channel<T>`: moving a destructible field out of a value is rejected by the

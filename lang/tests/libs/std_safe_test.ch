@@ -119,3 +119,19 @@ func test_map_try_insert(env : &mut TestEnv) {
     if(!o.try_insert(2, 20)) { env.error("ordered_map.try_insert second") }
     if(o.size() != 2) { env.error("ordered_map.try_insert size") }
 }
+
+@test
+func test_async_try_channel(env : &mut TestEnv) {
+    var made = async::try_channel<int>()
+    if(made is Result.Err) { env.error("try_channel allocation") ; return }
+    var Ok(ch) = made else unsafe { unreachable }
+    var sent = ch.sender.send(7)
+    if(sent is Result.Err) { env.error("try_channel send") }
+    var got = ch.receiver.try_recv()
+    if(got is Result.Err) {
+        env.error("try_channel try_recv")
+    } else {
+        var Ok(value) = got else unsafe { unreachable }
+        if(value != 7) { env.error("try_channel value") }
+    }
+}

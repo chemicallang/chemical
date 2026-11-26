@@ -26,6 +26,14 @@ if [ ! -x "$compiler" ]; then
     exit 1
 fi
 compiler="$(cd "$(dirname "$compiler")" && pwd)/$(basename "$compiler")"
+# The TCC backend reports the refusal as "failure during translation to c in
+# the module <caller>"; the LLVM backend reports the same caller-site reason
+# with its own prefix. The caller-module assertion is backend-specific, the
+# reason/source/no-link assertions are shared.
+is_llvm=0
+case "$(basename "$compiler")" in
+    Compiler) is_llvm=1 ;;
+esac
 
 if ! command -v nm >/dev/null 2>&1; then
     echo "web-types-only-test: 'nm' is required to inspect the server binary" >&2
@@ -176,8 +184,13 @@ else
     check "a server call into dom is rejected" 1
 fi
 check "the diagnostic names the client-only reason" "$(has "$neg_log" 'client-only')"
-check "the diagnostic names the caller module" \
-      "$(has "$neg_log" 'failure during translation to c in the module server')"
+if [ "$is_llvm" = "1" ]; then
+    check "the diagnostic names the caller module (LLVM caller-site reason)" \
+          "$(has "$neg_log" "module 'dom' declares host 'js'")"
+else
+    check "the diagnostic names the caller module" \
+          "$(has "$neg_log" 'failure during translation to c in the module server')"
+fi
 check "the diagnostic names the caller source" "$(has "$neg_log" 'server/routes.ch')"
 check "the diagnostic says where to move the call" \
       "$(has "$neg_log" "call it from a 'client' module")"

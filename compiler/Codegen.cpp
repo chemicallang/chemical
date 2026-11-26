@@ -601,7 +601,10 @@ int invoke_lld(std::vector<chem::string>& command_args, const std::string_view& 
     chem::string lld_driver;
     auto tripleRef = llvm::StringRef(targetTripleString);
     auto triple = llvm::Triple(llvm::Triple::normalize(tripleRef));
-    if (triple.isOSDarwin()){
+    if (triple.isWasm()) {
+        // Wasm has its own driver; ld.lld would treat the objects as ELF.
+        lld_driver.append(std::string_view("wasm-ld"));
+    } else if (triple.isOSDarwin()){
         lld_driver.append(std::string_view("ld64.lld"));
     } else if (triple.isOSWindows()) {
         lld_driver.append(std::string_view("lld-link"));
@@ -630,6 +633,48 @@ int lld_link_objects(
         const std::string_view& target_triple,
         LinkFlags& flags
 ) {
+
+    // WebAssembly is freestanding: no host crt, libc, rpath or ELF flags. The
+    // module is linked with wasm-ld and either left with a start function or
+    // (-no-entry) with exported symbols the host calls explicitly.
+    if (llvm::Triple(llvm::Triple::normalize(target_triple)).isWasm()) {
+        std::vector<chem::string> wasm_command;
+        for (auto& linkable : linkables) {
+            wasm_command.emplace_back(linkable.to_view());
+        }
+        // No `_start`, no host libs. Exported memory and (for this wave) every
+        // symbol, so a host can call `main`/`start` and the app's event
+        // dispatch export without a per-app export list.
+        wasm_command.emplace_back(chem::string("--no-entry"));
+        if (flags.wasm_export_all) {
+            wasm_command.emplace_back(chem::string("--export-all"));
+        } else if (!flags.wasm_exports.empty()) {
+            for (const auto& name : flags.wasm_exports) {
+                wasm_command.emplace_back();
+                wasm_command.back().append("--export=");
+                wasm_command.back().append(name);
+            }
+        } else {
+            wasm_command.emplace_back(chem::string("--export=main"));
+        }
+        wasm_command.emplace_back(chem::string("--export-memory"));
+        wasm_command.emplace_back(chem::string("--allow-undefined"));
+        wasm_command.emplace_back(chem::string("--gc-sections"));
+        // 1 MiB stack, placed before static data so overflow traps instead of
+        // silently corrupting globals.
+        wasm_command.emplace_back(chem::string("-z"));
+        wasm_command.emplace_back(chem::string("stack-size=1048576"));
+        wasm_command.emplace_back(chem::string("--stack-first"));
+        if (flags.debug_info) {
+            wasm_command.emplace_back(chem::string("-g"));
+        }
+        if (flags.verbose) {
+            wasm_command.emplace_back(chem::string("--verbose"));
+        }
+        wasm_command.emplace_back(chem::string("-o"));
+        wasm_command.emplace_back(chem::string(bin_out));
+        return invoke_lld(wasm_command, target_triple);
+    }
 
     // creating lld command
     std::vector<chem::string> command;

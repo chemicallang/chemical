@@ -473,8 +473,10 @@ Decisions from the proposal reviews (full log in
   [`proposals/0005-effect-system.md`](proposals/0005-effect-system.md).
 - **Native GC gates the managed targets:** JVM (`0010`) is reconsidered now that GC is
   approved; Android/cross-compilation (`0011`) stays deferred until the GC model works.
-- **WASM (`0009`) is deferred** — TinyCC is adding TLS and may add a WASM backend; revisit
-  when a concrete need appears.
+- **WASM (`0009`) has a working freestanding slice** — `wasm32-unknown-unknown`
+  builds through LLVM/wasm-ld and through the C emitter + clang/wasm-ld, with a
+  browser DOM bridge and a Chromium-tested UI demo. WASI, the wasm aggregate ABI,
+  threads/SIMD, and wasm64 remain backlog (see [`wasm-target.md`](wasm-target.md)).
 - **No standalone stdlib proposal** for now (`0012`); only a shared IO abstraction
   (`Reader`/`Stream`, `0015`) is a candidate.
 - **Standing constraints:** every approved feature must be implemented **without regressing

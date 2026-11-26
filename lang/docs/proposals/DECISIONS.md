@@ -29,7 +29,7 @@ Running record of review decisions. Newest first. This is the source of truth fo
 | 06 | Native GC mode | **Needs information** | In principle yes, but wants concrete: what changes, the syntax, how a user writes GC code. "What are we even implementing — that's what should be approved." |
 | 07 | JavaScript backend | **Approved** | Backends must stay **thin**; shared code goes into MIR; no loss of performance for the toolchain or any single backend. |
 | 08 | Web/DOM type declarations | **Needs information** | Wants: does it keep compilation fast; how do remote (GitHub) modules work; does it affect other backends; how do users/AIs use it. |
-| 09 | WASM backend | **Deferred (future)** | No present need; TinyCC is gaining TLS and may add WASM. Revisit when the need appears. |
+| 09 | WASM backend | **Implemented — freestanding wasm32 slice** | LLVM `--target wasm32-unknown-unknown` builds and links through in-process wasm-ld with a freestanding runtime; `TCCCompiler --emit-c` emits wasm-compatible C; `browser` DOM bridge + Chromium demo prove the UI path. WASI/aggregate ABI/threads remain W4. See [`../wasm-target.md`](../wasm-target.md). |
 | 10 | JVM bytecode backend | **Deferred — gated on 06** | Reconsider after the native-GC proposal is approved. |
 | 11 | Android + cross-compilation | **Deferred — gated on 06** | Too big now; needs native GC semantics and opt-in settled first. Wants specific syntax/user-facing/perf decisions, not "should we". |
 | 12 | Stdlib & ecosystem integration | **Not now — shared IO only (candidate)** | Only the shared IO abstraction (Reader/Stream) is a candidate; split out as proposal 15. |
@@ -50,4 +50,7 @@ Running record of review decisions. Newest first. This is the source of truth fo
    losing features*.
 4. **Native GC gates JVM/Android.** JVM and Android proposals stay deferred until the
    native-GC semantics and opt-in are approved.
-5. **WASM is deferred to TinyCC** possibly providing it; not a current direction.
+5. **WASM is implemented for the freestanding browser slice** (`wasm32-unknown-unknown`)
+   through LLVM/wasm-ld and through emitted C + clang/wasm-ld; WASI, the wasm
+   aggregate ABI, threads/SIMD, and wasm64 remain backlog
+   (see [`wasm-target.md`](wasm-target.md)).

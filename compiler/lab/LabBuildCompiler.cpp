@@ -2525,8 +2525,15 @@ int link_objects_now(
         linkFlags.verbose = options->verbose_link;
         linkFlags.no_pie = options->no_pie;
         linkFlags.sanitizers = options->sanitizers;
+        linkFlags.wasm_export_all = options->wasm_export_all;
+        linkFlags.wasm_exports = options->wasm_exports;
         int link_result;
-        if(options->use_lld) {
+        // WebAssembly must be linked by wasm-ld (the in-process LLD driver);
+        // the host clang driver would pass ELF flags and cannot find a wasm
+        // sysroot. Native targets keep their existing selection.
+        const bool wasm_target = target_triple.rfind("wasm32", 0) == 0 ||
+                                 target_triple.rfind("wasm64", 0) == 0;
+        if(options->use_lld || wasm_target) {
             link_result = lld_link_objects(objects, output_path, options->exe_path, link_libs, lib_search_paths, target_triple, linkFlags);
         } else {
             link_result = clang_link_objects(objects, output_path, options->exe_path, link_libs, lib_search_paths, target_triple, linkFlags, options->resources_path);

@@ -19,6 +19,12 @@ struct LinkFlags {
 
     SanitizerType sanitizers = SanitizerType::None;
 
+    // WebAssembly link surface. When no export is named, the linker exports
+    // `main`; `--wasm-export name` can be repeated, and `--wasm-export-all`
+    // exports every defined symbol (handy for the UI demo/host probing).
+    bool wasm_export_all = false;
+    std::vector<std::string> wasm_exports;
+
 };
 
 int lld_link_objects(

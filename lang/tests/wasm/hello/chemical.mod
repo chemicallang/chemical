@@ -1,0 +1,2 @@
+application hello
+source "src"

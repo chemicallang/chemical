@@ -7,6 +7,9 @@
 #include "compiler/OutputMode.h"
 #include "compiler/SanitizerOptions.h"
 
+#include <string>
+#include <vector>
+
 /**
  * Which side of a `--web` build a job compiles. A web application is built
  * twice from one build script: `Server` (shared + server modules, native backend)
@@ -190,6 +193,13 @@ public:
      * should the lld be used directly
      */
     bool use_lld = false;
+
+    /**
+     * wasm-ld export surface: `--wasm-export name` (repeatable) names exports;
+     * with neither that nor `--wasm-export-all`, `main` is exported.
+     */
+    bool wasm_export_all = false;
+    std::vector<std::string> wasm_exports;
 
     /**
      * output .ll file for each module

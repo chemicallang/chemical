@@ -264,6 +264,8 @@ public struct string {
     }
 
     func try_move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) : bool {
+        // SAFETY: the capacity overflow is rejected before malloc; a non-null
+        // destination of capacity+1 bytes is checked before memcpy.
         unsafe {
             if(capacity >= ((0 as size_t) - 1) || length > capacity) {
                 return false
@@ -306,6 +308,8 @@ public struct string {
     // this is a private function
     // new_capacity is always > length
     func try_resize_heap(&mut self, new_capacity : size_t) : bool {
+        // SAFETY: an impossible capacity is rejected and realloc failure leaves
+        // the old buffer owned by the string untouched.
         unsafe {
             if(new_capacity >= ((0 as size_t) - 1)) {
                 return false
@@ -565,6 +569,8 @@ public struct string {
     // unchanged) on a length overflow or allocation failure. Internal because
     // it accepts a raw pointer.
     func try_append_with_len(&mut self, value : *char, len : size_t) : bool {
+        // SAFETY: length overflow, null source and allocation failure are all
+        // rejected before the memcpy; a self-alias is rebased after growth.
         unsafe {
             if(len == 0) { return true }
             if(value == null) { return false }
@@ -1304,6 +1310,8 @@ public struct string {
         if(!try_ensure_mut(length + 2)) {
             return false
         }
+        // SAFETY: ensure_mut grew the representation and the length bound was
+        // checked, so both the inline and heap branches have room + a sentinel.
         unsafe {
             if(state == '1') {
                 storage.sso.buffer[length] = value

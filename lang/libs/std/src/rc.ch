@@ -214,6 +214,8 @@ public func <T> try_rc(value : T) : std::Result<Rc<T>, std::alloc::AllocError> {
     }
     var Ok(raw) = mem else unsafe { unreachable }
     var inner = raw as *mut RcInner<T>
+    // SAFETY: `raw` is a checked non-null allocation large enough for
+    // RcInner<T>; the value is placed exactly once and owned by the handle.
     unsafe {
         new (inner) RcInner<T> {
             strong : 1 as size_t,

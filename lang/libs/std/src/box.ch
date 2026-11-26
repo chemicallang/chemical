@@ -33,6 +33,8 @@ public struct Box<T> {
         }
         var Ok(raw) = mem else unsafe { unreachable }
         var ptr = raw as *mut T
+        // SAFETY: `raw` is a checked non-null allocation of at least sizeof(T)
+        // bytes; `value` is consumed exactly once and forgotten.
         unsafe {
             memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
             intrinsics::forget(value)

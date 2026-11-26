@@ -29,6 +29,8 @@ public struct deque<T> {
         if(new_cap > ((0 as size_t) - 1) / sizeof(deque_block<T>)) {
             return false
         }
+        // SAFETY: the element-count overflow was rejected above; realloc
+        // failure leaves the old block array owned by the deque.
         const new_blocks = unsafe(realloc(blocks, sizeof(deque_block<T>) * new_cap)) as *mut deque_block<T>
         if(new_blocks == null) {
             return false
@@ -45,6 +47,8 @@ public struct deque<T> {
     }
 
     func try_add_block(&mut self) : bool {
+        // SAFETY: block reservation is checked before writing the new block,
+        // and a failed chunk allocation returns false without changing state.
         unsafe {
             if(block_count >= block_cap) {
                 if(block_cap == 0) {
@@ -76,6 +80,8 @@ public struct deque<T> {
     }
 
     func try_push(&mut self, value : T) : bool {
+        // SAFETY: a writable block with a free slot is ensured first; memcpy
+        // consumes `value` and forget suppresses its source destructor.
         unsafe {
             if(block_count == 0 || blocks[block_count - 1].data_size == DEQUE_CHUNK_SIZE) {
                 if(!try_add_block()) { return false }

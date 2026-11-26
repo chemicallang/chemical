@@ -146,7 +146,7 @@ while [ $# -gt 0 ]; do
     --regexp) TEST_REGEXP=true ;;
     --fuzz)
       TEST_LIBS=true
-      TEST_NAMES="fuzz_encoding_malformed,fuzz_json_cbor_malformed,fuzz_mime_bad_input"
+      TEST_NAMES="fuzz_encoding_malformed,fuzz_json_cbor_malformed,fuzz_mime_bad_input,fuzz_regex_malformed,fuzz_image_audio_archive_malformed"
       SKIP_SEQUENTIAL=true
       ;;
     --cbor) TEST_CBOR=true ;;

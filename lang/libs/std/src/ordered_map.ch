@@ -34,6 +34,8 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     // Fallible resize: leaves the map untouched and returns false on overflow
     // or allocation failure.
     func try_resize(&mut self) : bool {
+        // SAFETY: capacity overflow is rejected, the allocation is null-checked,
+        // and the old table is freed only after every node is rehashed.
         unsafe {
             if(capacity > ((0 as size_t) - 1) / 2) {
                 return false
@@ -137,6 +139,9 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
     // is left unchanged and the passed key/value are dropped by the caller
     // frame (no leak).
     func try_insert(&mut self, key : Key, value : Value) : bool {
+        // SAFETY: the table has room after try_resize; the node allocation is
+        // null-checked before placement, and an existing key drops the old
+        // value before taking ownership of the new one.
         unsafe {
             if ((_size as float) / capacity > ORDERED_LOAD_FACTOR_THRESHOLD) {
                 if(!try_resize()) { return false }

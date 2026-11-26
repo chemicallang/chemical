@@ -439,6 +439,9 @@ public func <T> channel() : Channel<T> {
 // Fallible channel construction: report an allocation failure instead of
 // aborting. The panicking `channel()` remains for existing callers.
 public func <T> try_channel() : std::Result<Channel<T>, std::alloc::AllocError> {
+        // SAFETY: the allocation is checked for null before it is written, and
+        // the returned Channel owns the single reference to it. `T` has no
+        // extra drop requirements at construction time.
         unsafe {
         var s = unsafe(malloc(sizeof(ChannelShared<T>))) as *mut ChannelShared<T>
         if(s == null) {

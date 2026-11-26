@@ -515,6 +515,9 @@ public namespace std {
     // failure; this reports the pool/queue allocation path without changing the
     // panicking `create_pool` convenience.
     public func try_create_pool(n:uint) : std::Result<ThreadPool, std::alloc::AllocError> {
+        // SAFETY: zero workers is rejected, PoolData is null-checked before
+        // placement, and every worker arg points at the live PoolData owned by
+        // the returned handle.
         unsafe {
             if(n==0u){
                 return std::Result.Err<ThreadPool, std::alloc::AllocError>(std::alloc::AllocError.InvalidLayout())

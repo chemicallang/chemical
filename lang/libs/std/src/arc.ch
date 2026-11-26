@@ -314,6 +314,8 @@ public func <T> try_arc(value : T) : std::Result<Arc<T>, std::alloc::AllocError>
     }
     var Ok(raw) = mem else unsafe { unreachable }
     var inner = raw as *mut ArcInner<T>
+    // SAFETY: `raw` is a checked non-null allocation large enough for
+    // ArcInner<T>; the value is placed exactly once and owned by the handle.
     unsafe {
         new (inner) ArcInner<T> {
             lock : mutex(),

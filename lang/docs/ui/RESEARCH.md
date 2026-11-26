@@ -64,12 +64,10 @@ Taffy's published benchmark (M1 Pro, layout only) is the best hard data:
 **3,000–10,000 nodes**. Deep intrinsic/auto sizing is the cliff.
 <https://github.com/DioxusLabs/taffy>
 
-**Decision (ADR-012).** Ship a single-pass constraints-down/sizes-up layout with
-a linear flex subset in v1 (row/column/stack/wrap, grow/shrink/basis, min/max,
+**Decision (ADR-012).** Ship a bounded 3-pass constraints-down/sizes-up layout (intrinsic measure → resolve/distribute → text re-break/place) with a linear flex subset in v1 (row/column/stack/wrap, grow/shrink/basis, min/max,
 aspect, gap, padding, align/justify), plus an explicit track grid added as a
 separate, bounded solver. No CSS cascade, no arbitrary constraint solving, no
-implicit deep auto-size explosions. Budgets: **10k nodes ≤1.5 ms**, **100k
-≤20 ms**, single-node update **≤30 µs**. Layout is a total function: NaN/Inf/
+implicit deep auto-size explosions. Budgets: **10k simple ≤1.5/2.5 ms**, **10k mixed ≤4/6 ms**, **100k ≤30/45 ms**, single fixed-width label **≤50/100 µs**; warm no-change 0. Layout is a total function: NaN/Inf/
 negative sizes clamp and emit a diagnostic.
 
 ---
@@ -273,8 +271,12 @@ Verified in this tree (2026-11-26):
 | Fact | Consequence |
 |------|-------------|
 | `lang/libs/window` has Windows and Linux/GTK3 backends, **no macOS backend** | P3.4 must add a Cocoa host (and/or a `window` macOS backend) before macOS can ship. |
-| `window::Event` exposes platform key codes (`VK`/`GDK keyval`), integer wheel delta, no IME preedit/commit | P3.1/P3.5 must normalize keys, add precise wheel/touchpad, IME, pointer-leave. |
-| `font` parses TTF metrics/outlines; **no rasterizer, no shaper, no bidi** | P2.1–P2.5 are real work, not wiring. |
+| `window` has **no drawable/present/damage** API; `window_run` blocks in the global GTK/Win32 loop | `HOST.md`/P3.1 must add a per-window presenter and frame trigger; P1.14 walking skeleton proves it before Stage 2. |
+| `window::Event` exposes platform key codes (`VK`/`GDK keyval`), integer wheel delta, no IME preedit/commit; Linux has no `EVENT_CHAR`; Win32 truncates UTF-16 | P3.1/P3.5 must normalize keys, deliver whole UTF-8, add precise wheel/touchpad, IME, pointer-leave. |
+| `window` installs a 1 ms async timer for the process lifetime | Idle "0 wakeups" is impossible until P3.9 replaces it; budget/test updated. |
+| `font` parses only `glyf`, cmap 0/4/6, no composite/CFF/TTC/cmap-12/OS2/name/GSUB/GPOS; `GlyphOutline` has no contour ends | `TEXT.md` support matrix; P1.5b metrics + P2.1/P2.2 parser/raster work; no "system font magically works". |
+| `std::vector::push`/`string::append`/`std::function`/`Image.new` panic on OOM; `UiError` strings allocate | `CONTRACTS.md` §7.3: allocation-free errors, fallible UI buffers, std blocker recorded; OOM tests use a child process. |
+| TCC has no sanitizer support (`scripts/test.sh` refuses `--sanitize` without LLVM) | Sanitizer matrix: LLVM ASAN/UBSAN + C-emitted clang sanitizer; TCC never claimed instrumented. |
 | `image` decodes/encodes PNG/BMP/PPM and blits | Reuse for PNG screenshots and image nodes. |
 | `link c "file.c"` works and compiles C files to objects; macOS `.m` support unverified | P0.1 verifies `.m`; add support if needed. |
 | `lang/libs/cstd` has a wasm runtime/host ABI with DOM create/text/attr/event only | P3.7 must extend the host ABI for canvas presentation, input, IME, clipboard, semantics. |

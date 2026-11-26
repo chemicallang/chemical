@@ -1,8 +1,11 @@
 # Chemical UI — one-page plan
 
-**Status:** draft, awaiting maintainer approval · **Date:** 2026-11-26
+**Status:** draft, reviewed and corrected · **Date:** 2026-11-27
 **Full design:** [`../proposals/0016-native-ui.md`](../proposals/0016-native-ui.md)
-**Execution:** [`EXECUTION.md`](EXECUTION.md) · **Contracts:** [`API.md`](API.md) ·
+**Execution:** [`EXECUTION.md`](EXECUTION.md) · **Contracts:** [`API.md`](API.md) +
+[`CONTRACTS.md`](CONTRACTS.md) · **Text:** [`TEXT.md`](TEXT.md) ·
+**Host:** [`HOST.md`](HOST.md) · **Protocol:** [`PROTOCOL.md`](PROTOCOL.md) ·
+**Catalog/tests:** [`CATALOG.md`](CATALOG.md) · **Design:** [`DESIGN.md`](DESIGN.md) ·
 **Gates:** [`BENCHMARKS.md`](BENCHMARKS.md) · **Evidence:** [`RESEARCH.md`](RESEARCH.md)
 
 ---
@@ -13,7 +16,9 @@
 > Chemical compiler. It must make the performant, accessible, and visually
 > consistent implementation the path of least resistance; make every pixel and
 > interaction explainable and testable without a human; and run with the same
-> semantics and visuals on Linux, Windows, macOS, WASM, and headless.
+> semantics/layout on Linux, Windows, macOS, WASM, and headless. Native headless
+> visuals are bit-exact with a pinned font; system-font, GPU, and browser-text
+> paths are tolerance-only and say so.
 >
 > Declarative typed views → retained keyed tree → one display list consumed by
 > a deterministic CPU reference renderer and an optional GPU backend (Vulkan/
@@ -67,18 +72,19 @@
 
 - **Core:** view/tree/reconcile, flex/stack/wrap/grid/scroll layout, display
   list, CPU rasterizer, text shaping/editing/IME, input/focus/hit testing,
-  semantics, animation, error boundaries.
+  semantics, animation, multi-window, error boundaries, typed-error cards.
 - **Platforms:** Linux (X11/Wayland), Windows, macOS, WASM canvas + DOM
-  semantics, headless.
+  semantics, headless. Multi-window and close-veto in v1.
 - **Rendering:** CPU reference; `RenderBackend` interface and GPU track
   (Vulkan/Metal/D3D12/WebGPU) available as an optional v1.1 accelerator.
-- **Fonts:** system UI stack by default (0 bytes embedded); optional `ui_fonts`
-  cache/download/pin; ~42 KB Inter Latin subset if an app wants identical
-  typography; test-only pinned font for goldens.
+- **Text/fonts:** system UI stack by default (0 bytes embedded); optional
+  `ui_fonts` cache/download/pin; 42 KB Inter Latin subset if an app wants
+  identical typography; test-only pinned stack for goldens. Formats/shaping/
+  bidi/IME per `TEXT.md`; WASM browser text is tolerance-only.
 - **Kit:** primitives, layout, navigation, buttons/toggles, text inputs,
   selects/menus/popovers/tooltips/command palette, dialogs/sheets/toasts,
-  virtual list/table/tree (100k), forms, feedback, page patterns; light/dark/
-  compact/high-contrast.
+  virtual list/table/tree (100k), **charts**, forms, feedback, page patterns;
+  light/dark/compact/high-contrast.
 - **Agent tooling:** debug server (snapshot/find/inspect/act/clock/animation/
   screenshot/overlay/capture/replay/state/audit/perf/logs), `chemical ui` CLI,
   MCP adapter, in-app inspector, agent skill/catalog, generation eval harness.
@@ -90,7 +96,7 @@
   the end and pushed via `gh`.
 
 **Later:** mobile, full portable complex shaping/color emoji, variable-font
-rendering, SVG subset, charts, video, tray/notifications, live reload, remote
+rendering, SVG subset, video, tray/notifications, live reload, remote
 rendering. GPU is a parallel track (P3.10–P3.15); move it before the kit if v1
 must ship GPU.
 
@@ -100,12 +106,12 @@ must ship GPU.
 
 | Stage | Packets | Outcome |
 |-------|---------|---------|
-| 0. Decisions | P0.1–P0.3 | Verified facts, frozen contracts, green scaffolding/scripts |
-| 1. Core | P1.1–P1.13 | Headless UI: view/tree/layout/paint/raster/input/semantics/errors |
+| 0. Decisions | P0.1–P0.4 | Verified facts, frozen contracts, green scaffolding/scripts, exact design tokens |
+| 1. Core | P1.1–P1.14 | Headless UI + first real-window walking skeleton |
 | 2. Text & visual | P2.1–P2.11 | System-first typography, icons, images, effects, animation, design system |
 | 3. Platforms | P3.1–P3.9 | Linux/Windows/macOS/WASM hosts, IME, a11y, damage/pacing |
 | 3G. GPU (parallel) | P3.10–P3.15 | Vulkan/Metal/WebGPU backends, parity, device loss, GPU benchmarks |
-| 4. Kit | P4.1–P4.11 | Complete catalog + page patterns + guidelines |
+| 4. Kit | P4.1–P4.12 | Complete catalog + charts + page patterns + guidelines |
 | 5. Agent tooling | P5.1–P5.9 | Debug server, CLI/MCP, inspector, audit, eval, lint |
 | 6. Validation | P6.1–P6.7 | Harness, goldens, fuzz, benches, CI matrix, comparison |
 | 7. Examples + hardening | P7.1–P7.9 | Settings/dashboard/chat/media apps, hardening, docs/claims, public `ui-examples` repo |
@@ -148,7 +154,8 @@ table and methodology: [`BENCHMARKS.md`](BENCHMARKS.md).
 1. Maintainer approves [`0016-native-ui.md`](../proposals/0016-native-ui.md).
 2. Parent launches **P0.1** (feasibility/compiler probes; no library API
    changes).
-3. P0.2 freezes [`API.md`](API.md); P0.3 creates the branch, libraries, test
-   suite, and `ui-*` scripts.
+3. P0.2 freezes [`API.md`](API.md) + [`CONTRACTS.md`](CONTRACTS.md); P0.3
+   creates the branch, libraries, test core, and `ui-*` scripts; P0.4 signs the
+   exact tokens/reference screens.
 4. Proceed packet by packet through [`EXECUTION.md`](EXECUTION.md); update
    [`STATUS.md`](STATUS.md) after every commit.

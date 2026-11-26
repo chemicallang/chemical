@@ -8,12 +8,14 @@
 |--------|-------|--------|-----|----------|-------------|-------|
 | P0.1 Feasibility probe | todo | — | — | — | — | |
 | P0.2 Freeze contracts | todo | — | — | — | — | |
-| P0.3 Scaffolding | todo | — | — | — | — | |
+| P0.3 Scaffolding/test core | todo | — | — | — | — | |
+| P0.4 Design spec/tokens | todo | — | — | — | — | |
 | P1.1 Math/geometry/color | todo | — | — | — | — | |
 | P1.2 Arena/IDs/keys | todo | — | — | — | — | |
 | P1.3 View builder | todo | — | — | — | — | |
 | P1.4 Reconciler/tree | todo | — | — | — | — | |
 | P1.5 Style/tokens/themes | todo | — | — | — | — | |
+| P1.5b Font metrics fixture | todo | — | — | — | — | |
 | P1.6 Layout v1 | todo | — | — | — | — | |
 | P1.7 Layout v2 | todo | — | — | — | — | |
 | P1.8 Display list/painter | todo | — | — | — | — | |
@@ -21,7 +23,8 @@
 | P1.10 Headless/app loop | todo | — | — | — | — | |
 | P1.11 Input/focus/hit | todo | — | — | — | — | |
 | P1.12 Semantics/audit | todo | — | — | — | — | |
-| P1.13 Typed-error boundary/panic audit | todo | — | — | — | — | stage gate |
+| P1.13 Typed-error boundary/panic audit | todo | — | — | — | — | |
+| P1.14 Linux walking skeleton | todo | — | — | — | — | stage gate |
 | P2.1 Font provider (system-first) | todo | — | — | — | — | |
 | P2.1b ui_fonts cache/download | todo | — | — | — | — | |
 | P2.1c Font determinism/fallback | todo | — | — | — | — | |
@@ -54,13 +57,15 @@
 | P4.2 Primitives | todo | — | — | — | — | |
 | P4.3 Buttons/selection | todo | — | — | — | — | |
 | P4.4 Text inputs | todo | — | — | — | — | |
+| P4.4b Date/time/color pickers | todo | — | — | — | — | |
 | P4.5 Menus/popovers/palette | todo | — | — | — | — | |
 | P4.6 Dialogs/overlays | todo | — | — | — | — | |
 | P4.7 Layout/navigation | todo | — | — | — | — | |
 | P4.8 Virtual list/table/tree | todo | — | — | — | — | |
 | P4.9 Forms/validation | todo | — | — | — | — | |
 | P4.10 Feedback/status | todo | — | — | — | — | |
-| P4.11 Patterns/guidelines | todo | — | — | — | — | stage gate |
+| P4.11 Patterns/guidelines | todo | — | — | — | — | |
+| P4.12 Charts (v1) | todo | — | — | — | — | stage gate |
 | P5.1 Debug server | todo | — | — | — | — | |
 | P5.2 Input/clock/animation | todo | — | — | — | — | |
 | P5.3 Screenshot/capture/replay | todo | — | — | — | — | |
@@ -84,7 +89,8 @@
 | P7.5 Perf hardening | todo | — | — | — | — | |
 | P7.6 Safety hardening | todo | — | — | — | — | |
 | P7.7 Docs/README | todo | — | — | — | — | |
-| P7.8 Media Library example | todo | — | — | — | — | |
+| P7.8a Media Library example | todo | — | — | — | — | |
+| P7.8b Example benchmark packaging | todo | — | — | — | — | |
 | P7.9 Publish ui-examples repo | todo | — | — | — | — | stage gate; gh push |
 | P8.1 Release audit | todo | — | — | — | — | |
 | P8.2 Packaging/final | todo | — | — | — | — | release |

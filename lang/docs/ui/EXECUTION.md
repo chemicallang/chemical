@@ -29,8 +29,8 @@ messenger.
 - Tag every completed packet: `ui-P1.3`.
 - Update [`STATUS.md`](STATUS.md) in the same commit (packet, state, commit,
   evidence path, benchmark delta).
-- Merge `feature/ui-v1` → `main` only at **stage gates** (after P1.13, P2.11,
-  P3.9, P4.11, P5.9, P6.7, P7.9, P8.2), with the full relevant suites green.
+- Merge `feature/ui-v1` → `main` only at **stage gates** (after P0.4, P1.14, P2.11,
+  P3.9, P4.12, P5.9, P6.7, P7.9, P8.2), with the full relevant suites green.
 
 ### 0.2 The loop
 
@@ -64,7 +64,9 @@ A packet is done only if **all** of the following are true:
       were inspected.
 - [ ] `./scripts/ui-bench.sh --compare` stays within the gates for scenarios the
       packet touches; counters are attached.
-- [ ] ASAN/UBSAN (and TSAN where relevant) pass on the headless suite.
+- [ ] LLVM ASAN/UBSAN pass on the headless suite; C-emitted output is also
+      compiled with `cc -fsanitize=address,undefined`. TCC is never claimed as
+      instrumented. TSAN runs for protocol/worker changes.
 - [ ] No `panic`, `unwrap`/`expect`, `unreachable`, unchecked indexing, or
       `unsafe` in the safe surface; `[no_panic]` annotations added where the
       current std allows; the panic whitelist is unchanged or explicitly approved.
@@ -145,7 +147,7 @@ git status --short
 git diff --stat main...HEAD
 ./scripts/ui-verify.sh --packet P1.3
 ./scripts/ui-test.sh --tcc --filter view_builder
-./scripts/ui-test.sh --tcc --asan --filter view_builder
+./scripts/ui-test.sh --llvm --sanitize=address,undefined --filter view_builder
 ./scripts/ui-bench.sh --scenario static-1k --compare
 ./scripts/ui-shot.sh --headless --theme light --scale 1 --out /tmp/p13.png
 ```
@@ -172,9 +174,12 @@ Branch: feature/ui-v1 (do not switch branches; do not commit; the parent commits
 
 Read before coding, in this order:
 1. lang/docs/ui/API.md (frozen contracts)
-2. lang/docs/ui/BENCHMARKS.md (gates for this packet)
-3. lang/docs/ui/EXECUTION.md §<packet> and §0.3–0.6
-4. lang/docs/ui/RESEARCH.md (only the sections relevant to this packet)
+2. lang/docs/ui/CONTRACTS.md (normative freeze amendments)
+3. lang/docs/ui/TEXT.md / HOST.md / PROTOCOL.md / CATALOG.md / DESIGN.md
+   (only those relevant to this packet)
+4. lang/docs/ui/BENCHMARKS.md (gates for this packet)
+5. lang/docs/ui/EXECUTION.md §<packet> and §0.3–0.6
+6. lang/docs/ui/RESEARCH.md (only the sections relevant to this packet)
 
 Scope:
 <packet goal and deliverables>
@@ -212,12 +217,14 @@ check. `S` = safety/sanitizer check. `X` = cross-platform target.
 |----|--------|---|---|---|---|---|
 | P0.1 | Feasibility and compiler probe | | | | | |
 | P0.2 | Freeze contracts v1 | | | | | |
-| P0.3 | Scaffolding and verify harness | | | | | |
+| P0.3 | Scaffolding, test core, scripts | | | | | |
+| P0.4 | Design spec + exact tokens | V | | | | |
 | P1.1 | Math, geometry, color, errors | | | | | |
 | P1.2 | Arena, generational IDs, keys | | | | | |
 | P1.3 | View builder and view arena | P | | | | |
 | P1.4 | Reconciler and retained tree | P | | | | |
 | P1.5 | Style, tokens, themes | V | | | | |
+| P1.5b | Font metrics fixture before layout | | | | | |
 | P1.6 | Layout v1 (flex/stack) | P | P | | | |
 | P1.7 | Layout v2 (wrap/grid/scroll) | V | P | | | |
 | P1.8 | Display list and painter | | P | | | |
@@ -225,7 +232,8 @@ check. `S` = safety/sanitizer check. `X` = cross-platform target.
 | P1.10 | Headless host, app loop, PNG | V | P | D | S | |
 | P1.11 | Input, focus, hit testing | V | | D | S | |
 | P1.12 | Semantics tree and audit core | V | | D | S | |
-| P1.13 | Typed-error boundary, fault injection, panic audit | | | D | S | |
+| P1.13 | Typed-error boundary, fault injection, panic audit | V | | D | S | |
+| P1.14 | Linux walking skeleton (real window) | V | P | D | S | X |
 | P2.1 | Font provider (system-first) | | | | | |
 | P2.1b | `ui_fonts` cache/download/pin | | | | | |
 | P2.1c | Font determinism/fallback | | | | | |
@@ -258,6 +266,7 @@ check. `S` = safety/sanitizer check. `X` = cross-platform target.
 | P4.2 | Text/icon/surface primitives | V | | D | | |
 | P4.3 | Buttons and selection controls | V | | D | | |
 | P4.4 | Text input family | V | P | D | S | |
+| P4.4b | Date/time/color pickers | V | | D | | |
 | P4.5 | Menus, popovers, tooltips, command palette | V | | D | | |
 | P4.6 | Dialogs, sheets, toasts, overlays | V | | D | | |
 | P4.7 | Layout and navigation components | V | | D | | |
@@ -265,6 +274,7 @@ check. `S` = safety/sanitizer check. `X` = cross-platform target.
 | P4.9 | Forms, validation, labels, errors | V | | D | | |
 | P4.10 | Feedback and status components | V | | D | | |
 | P4.11 | Page patterns, guidelines, templates | V | | D | | |
+| P4.12 | Charts (v1) | V | P | D | S | |
 | P5.1 | Debug server: discovery, tree, inspect | | | D | S | |
 | P5.2 | Input, action, frame, clock, animation control | | | D | S | |
 | P5.3 | Screenshot, overlay, capture, replay | V | | D | S | |
@@ -288,7 +298,8 @@ check. `S` = safety/sanitizer check. `X` = cross-platform target.
 | P7.5 | Performance hardening | V | P | D | | X |
 | P7.6 | Safety hardening and long-run validation | | | | S | X |
 | P7.7 | Docs, book, README, published claims | V | | | | |
-| P7.8 | Fourth example app: Media Library | V | P | D | S | X |
+| P7.8a | Fourth example app: Media Library | V | P | D | S | X |
+| P7.8b | Example benchmarks/screenshots packaging | V | P | | | X |
 | P7.9 | Publish `chemicallang/ui-examples` | V | P | | | X |
 | P8.1 | Release gate audit | V | P | D | S | X |
 | P8.2 | Packaging, templates, final validation | V | P | D | S | X |
@@ -301,6 +312,17 @@ Each packet lists the **minimum** scope. A subagent may add internal helpers,
 but may not expand the public API. If a packet is too large for one session,
 split it into `a`/`b` sub-packets with the parent's approval; both keep the same
 exit criteria split across them.
+
+**Packet size budget:** a packet should be implementable and verified in one
+session. At most **5 components** per kit packet; at most **2 platforms** per
+host packet; at most **1 protocol surface** (CLI, MCP, relay) per packet. If a
+packet touches >15 files or >2,000 added lines, split it before launch.
+
+**Mandatory splits already identified:** P1.13 (error boundary / fault inject /
+panic audit), P2.5a/b/c (shaper interface, Windows/macOS, Linux/fallback),
+P3.2a/b (X11/GTK, Wayland), P4.2–P4.5/P4.7/P4.10 (3–5 components each),
+P5.4a/b (CLI, MCP/relay), P7.8a/b (Media app, benchmark packaging). The map
+above uses the unsuffixed IDs; split them at launch and keep the gate.
 
 ### Stage 0 — Decisions and guardrails
 
@@ -318,21 +340,32 @@ Deliver:
   `link c` with `.c` and `.m` on macOS; `window` macOS gap; wasm host ABI
   coverage; dead-code elimination for unused `ui_kit` components; `float` math on
   wasm; `image` PNG encode speed; TCC vs LLVM baseline of a minimal window.
-- GPU probe: available Vulkan loader/ICD on Linux and Windows, Metal on macOS,
-  WebGPU/WebGL2 in Chromium; lavapipe/SwiftShader/WARP in CI; device init time,
-  shader/pipeline cache behavior, device-loss behavior. Compare three options in
-  a spike: native Vulkan+Metal+WebGPU, SDL3 GPU, and OpenGL3/GLES3/WebGL2.
-  Record binary size, dependency weight, startup, and CI feasibility.
-- Font probe: enumerate system UI fonts on each OS, measure fallback coverage
-  (Latin/CJK/emoji), measure TTF sizes (Inter static/subset/variable, Noto,
-  DejaVu, Liberation), verify runtime download/cache/atomic write and WASM fetch
-  + `FontFace`/Canvas2D text. Confirm no font is linked by default.
+- GPU spike: Vulkan loader/ICD (Linux/Windows), Metal (macOS), WebGPU/WebGL2
+  (Chromium), lavapipe/SwiftShader/WARP; device init, pipeline cache, device
+  loss. Compare native Vulkan+Metal+WebGPU vs SDL3 GPU vs OpenGL3/GLES3/WebGL2
+  on binary size, dependency, startup, CI. Record a go/no-go for P3.10.
+- **Raster prototype (P0 go/no-go):** implement a throwaway 1080p blend + 10k
+  defined AA quads + glyph blit in Chemical/C; measure on the reference laptop.
+  If the budgets in `BENCHMARKS.md` are impossible, adjust the algorithm/budget
+  **now**, not at P1.9.
+- **Committed probes:** move the probe to `lang/tests/ui_probe/` (not gitignored),
+  with per-OS pass/fail/blocked logs. Probe: per-window GTK signal/Win32
+  WndProc/Cocoa delegate user data, IME preedit/candidate, WASM present/rAF/
+  pointer/IME, source locations through a 3-level generic component, allocation
+  counting/OOM, `.m` + framework linking, `gh auth status` + org repo
+  permission.
+- Font probe: system fonts on each OS, fallback coverage (Latin/CJK/emoji),
+  TTF sizes, TTC/CFF/cmap-12/composite support in `font`, runtime download/cache/
+  atomic write, WASM fetch + `FontFace`/Canvas2D metrics, zero-font container.
+  Confirm no font is linked by default.
 - A minimal spike under `lang/compiled/ui_probe/` (not shipped) proving each
   risky capability on Linux and, where available, Windows/macOS/WASM.
 - `BLOCKER.md` for anything that needs a compiler/std change, with a minimal
   repro and proposed patch size.
 
 Acceptance: every claim in `RESEARCH.md` §7 is either confirmed or corrected;
+the raster prototype has a go/no-go with numbers; `gh auth status` + org repo
+permission are recorded; macOS/IME/WASM probes are pass/fail/blocked with logs;
 the parent signs off on the blocker list.
 
 #### P0.2 — Freeze contracts v1
@@ -341,12 +374,18 @@ the parent signs off on the blocker list.
 
 Deliver:
 
-- Amendments to `API.md` from P0.1 findings (only if a contract is impossible).
-- `lang/docs/ui/API.md` reviewed line by line; examples compile as snippets
-  where possible (`lang/compiled/ui_api_snippets/`).
-- A `CONTRACT_TEST` list: which signatures/semantics are compile- or test-gated.
+- Fold `CONTRACTS.md`, `TEXT.md`, `HOST.md`, `PROTOCOL.md`, `CATALOG.md`, and
+  `DESIGN.md` into `API.md`; resolve every P0/P1 review finding.
+- **Every public declaration compiles.** Commit snippets under
+  `lang/tests/ui/contracts/` (not `lang/compiled/`); no "where possible".
+- Generate `ui_api_index.json`; add a CI diff gate (fail on removed/renamed
+  public symbol, changed signature/default, changed Props/slot).
+- Freeze `UiError` codes/classes, key/event lifetimes, `Application`, `Options`,
+  `Limits`, `TextEditState`, `ComponentMeta`, protocol schema, CLI commands.
+- A `CONTRACT_TEST` list: every signature/semantic is compile- or test-gated.
 
-Acceptance: parent approves the contract; no code packets start before this.
+Acceptance: parent approves the contract; `ui-verify --packet P0.2` compiles all
+snippets and passes the API-diff gate; no code packets start before this.
 
 #### P0.3 — Scaffolding and verify harness
 
@@ -361,18 +400,45 @@ Deliver:
   packages (`ui_gpu_vulkan`, `ui_gpu_metal`, `ui_gpu_webgpu`) are scaffolded in
   P3.10–P3.13, not here.
 - `lang/tests/ui/` standalone suite (`chemical.mod`, `src/main.ch`), and
-  `lang/tests/ui_bench/`.
-- `scripts/ui-test.sh`, `scripts/ui-bench.sh`, `scripts/ui-shot.sh`,
-  `scripts/ui-verify.sh` with documented flags; `--filter`, `--asan`,
-  `--update-goldens`, `--packet`, `--scenario`, `--compare`.
-- `lang/docs/ui/STATUS.md` with the packet table.
+  `lang/tests/ui_bench/` with `scenes/*.json` + 3 baselines.
+- **`ui_test_core` in this packet:** headless frame/settle, semantics/geometry
+  snapshots, `assert_golden` + diff artifacts, `find_all`, app access. P6.1 only
+  hardens it.
+- **Minimal lint in this packet:** `UI-KEY-001`, `UI-PANIC-001`, `UI-RAW-001`.
+  P5.9 adds rules; P4.1 enforces them.
+- `scripts/ui-test.sh`, `ui-bench.sh`, `ui-shot.sh`, `ui-verify.sh` with
+  documented flags and JSON output; `ui-verify` reads packet manifests under
+  `lang/docs/ui/packets/<ID>.json` (commands, artifacts, goldens, evidence,
+  benchmark keys) and fails on missing/stale evidence. A deliberately failing
+  fixture packet must make it red.
+- `STATUS.md` + `STATUS.json` + `STUBS.md` (each scaffold `NotImplemented` maps
+  to the packet that removes it).
 - A hello-headless app that renders a single colored rect to `hello.png`; a
-  golden test for it (even if the rasterizer is not implemented yet—use a
-  deterministic placeholder and replace in P1.9).
-- CI stub job that runs `ui-test.sh` (can be non-blocking until P1.13).
+  golden test for it.
+- CI job that runs the UI suite on Linux **and macOS** (blocking from P1.0), plus
+  a contract-snippet job.
 
 Acceptance: `./scripts/ui-test.sh --tcc --filter scaffold` passes; scripts are
 executable and documented; `ui-verify.sh --packet P0.3` passes.
+
+---
+
+#### P0.4 — Design spec and exact tokens
+
+**Goal:** remove design ambiguity before layout/components.
+
+Deliver:
+
+- `lang/docs/ui/DESIGN.md` values implemented as `theme.ch`: colors light/dark/
+  high-contrast, spacing, radii, type ramp, elevation, motion, breakpoints,
+  density, focus, contrast.
+- 3 reference screens (settings, dashboard, chat) as static composition specs
+  with screenshots **before** the kit; parent aesthetic sign-off.
+- Token sheet golden at 1×/2× light/dark/high-contrast/compact.
+- A `GOLDEN-CHURN.md` rule: any token change after P1.5 lists every updated
+  golden; P2.11 is polish only.
+
+Acceptance: parent signs the design spec; P1.5/P1.6 use these exact values.
 
 ---
 
@@ -394,8 +460,9 @@ Acceptance: property tests with 10k random cases; ASAN; no unchecked indexing.
   stale-handle `None`, reserve/clear.
 - `Key` hash (FNV-1a 64), `key`, `key_of`, `key_pair`; collision handling by
   label compare; keyed map for state slots.
-- Tests: 1M insert/remove random; stale handles never alias; reorder stability;
-  collision injection.
+- Tests: 1M insert/remove random; stale/forged/generation-wrap handles never
+  alias; reorder stability; injected same-hash collision; swapped `key_pair`;
+  duplicate-key scope; intern cap; 10M key uniqueness.
 
 Acceptance: fuzz 1M operations; no leaks; O(1) lookup.
 
@@ -433,6 +500,19 @@ P: reconcile 10k nodes ≤1 ms.
 Acceptance: contrast ≥4.5:1 for body text in both themes; 8-pt scale; token
 coverage test; V reviewed.
 
+#### P1.5b — Font metrics fixture before layout
+
+- Implement the `font` parser extensions needed for metrics: `OS/2`, `hhea`
+  line gap, `name`, cmap 12, composite depth, `units_per_em` rejection.
+- Commit a small OFL test TTF + SHA-256 + license under `lang/tests/ui/assets/`.
+- Expose `TextContext.measure`/`TextLayoutMetrics` with ascent/descent/line gap/
+  cap/x-height; no rasterization yet.
+- Tests: expected metrics for the fixture, zero-font container, missing glyph,
+  composite `é`, CJK/emoji coverage report.
+- P1.6 baseline/auto sizing uses this; it may not stub text metrics.
+
+Acceptance: metrics match the committed oracle; no allocation per measure.
+
 #### P1.6 — Layout v1 (flex/stack)
 
 - Row/column/stack; sizing (`Auto/Px/Percent/Fill`), grow/shrink/basis,
@@ -440,7 +520,7 @@ coverage test; V reviewed.
   invalid input clamping.
 - Geometry snapshot API; property tests against a reference model; WPT/Taffy
   fixture subset for the supported subset.
-- P: 10k nodes ≤1.5 ms; 100k ≤20 ms; single-node ≤30 µs.
+- P: 10k simple ≤1.5/2.5 ms; 10k mixed ≤4/6 ms; 100k ≤30/45 ms; single fixed-width label ≤50/100 µs.
 - V: layout gallery with 30 cases + overlay boxes; goldens.
 
 Acceptance: all fixtures within 0.5 px; no NaN; P gates; V reviewed.
@@ -463,10 +543,10 @@ Acceptance: fixtures; scroll offset preservation; P gates; V reviewed.
 - Primitive list (rect, rounded, border, text run, image, path, clip, layer,
   transform); deterministic ordering; batching/culling; `Painter` API; canvas
   content; display-list serialization for tests.
-- `RenderBackend` interface consumed by both CPU and GPU paths: resource handles
-  (textures, atlases, buffers), pipeline/pass description, damage/scissor,
-  present, device-loss notification. CPU is the first implementation; GPU is
-  added in P3.10+ without changing the display list or app API.
+- A **minimal** `RenderBackend` contract + CPU adapter: display-list consumption,
+  damage list, present, device-lost notification. GPU details (swapchain,
+  persistent scene texture, pipeline cache, texture formats, atlas R8) are
+  specified in P3.10 before any GPU code; P1.8 does not freeze an unused GPU ABI.
 - Damage computation hooks (node bounds → tiles) but full repaint allowed.
 - Tests: ordering, clip nesting, transform composition, culling; fuzz list
   generation.
@@ -476,22 +556,29 @@ outside clip; P: 10k quads command build ≤0.3 ms.
 
 #### P1.9 — CPU rasterizer v1
 
-- Premultiplied RGBA8 surface; solid/rounded rects, borders, AA (fixed-point
-  coverage), sRGB blend; clip rect/rounded; integer-deterministic output.
-- SIMD-friendly loops but scalar reference; no FMA-dependent rounding.
-- Fuzz: random rects/clips/radii; invariants (no OOB, alpha bounds, clip).
+- Premultiplied RGBA8; **sRGB-encoded 8-bit UNORM** blending formula from
+  `CONTRACTS.md` §6 (integer `div255`, no float); solid/rounded rects, borders,
+  AA (4×4 coverage), clip rect/rounded; pixel-centre/half-open convention.
+- SIMD-friendly loops but scalar reference; no FMA-dependent rounding; tile is
+  a scissor, coverage in absolute device coordinates.
+- Fuzz: random rects/clips/radii; invariants (no OOB, alpha bounds, clip, no
+  seams at tile edges).
 - V: raster torture scene (overlaps, alpha, radii, thin borders) at 1x/2x;
-  bit-exact goldens on x86-64 and ARM (CI when available).
-- P: 10k quads ≤1.2 ms; 1080p clear+fill ≤1 ms.
+  bit-exact goldens on x86-64 and macOS ARM (P0.3 CI job).
+- P: 10k defined quads ≤1.2 ms; 1080p clear+fill ≤1 ms.
 
 Acceptance: identical PNG hash across Linux x86-64 and macOS ARM for the
-torture scene; ASAN clean; V reviewed.
+torture scene (pinned font if text); ASAN clean; V reviewed.
 
 #### P1.10 — Headless host, app loop, PNG
 
 - `run_headless`, `Options`, frame scheduling, virtual clock, dirty flags,
   `UiCtx`, `Application` wiring; `--ui-shot`, `--ui-size`, `--ui-scale`,
   `--ui-theme`, `--ui-fixed-time`, `--ui-frames`.
+- Event coalescing/order, `EventSender`/`UserEvent`, `set_timeout`,
+  `request_frame`, `EventKind.Frame`, frame loop per `CONTRACTS.md` §1.4/§9.
+- Tests: 100 events → at most one view/reconcile; `on_start` before first view;
+  timers never fire after close; worker post ordering; `UserEvent` text ownership.
 - PNG output via `image`; screenshot hash; structured `FrameStats`.
 - Example app `hello_ui`; golden test.
 - D: a minimal `perf.stats`-like snapshot (protocol server comes later) exposed
@@ -515,9 +602,10 @@ Acceptance: 100 event-sequence tests; no focus escape; V reviewed.
 
 #### P1.12 — Semantics tree and audit core
 
-- Semantics roles/states/actions on nodes; derived from widget props; stable IDs;
-  incremental update struct; audit for missing name/role, contrast, target size,
-  focus order.
+- Semantics roles/states/actions/relations on nodes; derived from widget props;
+  stable IDs; incremental update struct; audit for missing name/role, contrast,
+  target size, focus order, relations, modal/live, secure redaction.
+- `UiCtx.announce`, heading mapping, reading order/RTL, Canvas semantic overlay.
 - Tests: every built-in widget has a contract; audit negative cases.
 - D: semantic tree dump (JSON) and `tree.find`-equivalent internal API.
 - V: semantics overlay PNG (labels/bounds/roles).
@@ -531,8 +619,11 @@ violations; V reviewed.
   report; `UiError` propagation. This does not catch panics (no unwinding).
 - Fault injection: OOM, bad font, corrupt image, NaN style, stale node, huge
   list, invalid key, protocol garbage.
+- App-error path: `view` returns `Err`, `b.error` marks a subtree, and
+  `ctx.report_error` renders a keyed card; test retry/dismiss/state preservation.
 - Static no-panic audit script (grep + AST-ish checks), a
-  `lang/docs/ui/PANIC_WHITELIST.md` file, and a negative test. Every whitelist
+  `lang/docs/ui/PANIC_WHITELIST.md` file, `UI-PANIC-003` transitive-trap scan,
+  and a negative test. Every whitelist
   site names the invariant, why continuing is unsafe, and the test that keeps it
   unreachable.
 - ASAN/UBSAN full headless suite.
@@ -540,7 +631,19 @@ violations; V reviewed.
 
 Acceptance: every injected expected fault yields an error card or degraded UI,
 never a crash; the audit catches a seeded `panic` and a seeded `unwrap`; the
-panic whitelist is justified; stage gate: merge to `main`.
+panic whitelist is justified.
+
+#### P1.14 — Linux walking skeleton (real window)
+
+- GTK3 host + real surface/present/input/IME stub per `HOST.md`; open a window,
+  render a layout with a button/text field/list, click/type, screenshot, close.
+- Measure startup breakdown, PSS at 960×640, idle wakeups (after removing the
+  1 ms pump), input latency.
+- This is the first real-window vertical slice; Stage 2 does not start until it
+  is green. P3.2 hardens/extends it.
+- V: real-window screenshot + headless compare; startup/RSS table.
+
+Acceptance: app runs on X11 and Wayland; stage gate: merge to `main`.
 
 ---
 
@@ -618,11 +721,15 @@ breaks match the conformance corpus; P gate.
 
 Acceptance: model-based editing test; no panic on arbitrary text; V reviewed.
 
-#### P2.5 — System shaper backends
-
-- `TextShaper` interface: shape → glyph IDs/advances/offsets/clusters + font
-  id; backends: DirectWrite (Windows), CoreText (macOS), HarfBuzz (Linux),
-  portable fallback.
+#### P2.5a — TextShaper interface + platform bridge contract
+- `ShapedGlyph { face, glyph_id, cluster, advance_q, offset_x_q, offset_y_q }`;
+  platform must expose font file+face or a bitmap fallback.
+- Cache/incremental shaping contract; no per-run allocations.
+#### P2.5b — DirectWrite + CoreText backends
+- Windows/macOS shape + metrics + fallback; C/ObjC shims; tests.
+#### P2.5c — HarfBuzz (Linux) + portable fallback
+- Dependency decision in P0.1; link only if approved; portable Latin fallback.
+- If a backend is absent, tofu + warning, never a crash.
 - Glyph atlas rasterizes the returned IDs from the same font file; metrics
   consistent with layout.
 - Tests: Arabic, Devanagari, Thai, Hebrew (RTL), emoji fallback; platform
@@ -652,9 +759,11 @@ Acceptance: 100% of shipped icons render; V reviewed.
 
 #### P2.8 — Images: decode, scale, 9-slice
 
-- `ImageSource` (bytes/path), PNG decode via `image`, size limits, bilinear/
-  nearest scale, 9-slice, fit modes (contain/cover/fill), async load hook (no
-  blocking in view), cache with LRU.
+- `ImageSource` (bytes/path/handle), PNG core + JPEG v1 (`ui_images`), **dimension/pixel/
+  encoded/decoded caps** (`Limits`), checked arithmetic, `try_resize`, bilinear/
+  nearest scale, 9-slice, fit modes, async load + cancellation, cache LRU.
+- Decode never occurs in `view`; `ImageHandle`/`ImageReady`/`ImageFailed` per
+  `CONTRACTS.md` §10. Differential tests vs libpng; decompression-bomb tests.
 - Tests: corrupt/oversized images; EXIF? (no); cache eviction; no leaks.
 - V: image gallery (contain/cover/fill/9-slice, 1x/2x); goldens.
 
@@ -696,24 +805,29 @@ Acceptance: parent signs the visual spec; stage gate: merge to `main`.
 
 #### P3.1 — Platform interface and present contract
 
-- `Host`, `Surface`, `Presenter`, `InputSource`, `Clipboard`, `Timer`, `Ime`,
-  `A11yBridge`, `Monitor` interfaces; logical/physical units; scale changes;
-  event timestamps; thread rules (`!Send` UI state); pointer/touch kinds;
-  drag/drop intents and file drops.
+- Implement `HOST.md` exactly: `SurfaceDesc/Format`, `Presenter.acquire/present/
+  resize/request_frame`, double buffering, damage, logical↔physical boundary,
+  `HostCaps`, close/shutdown, `!Send` UI state, worker/protocol queues, pointer/
+  touch/drag/file drops.
 - Headless implements all interfaces; contract tests run on headless.
 - D: host info (`backend`, scale, monitors, vsync).
 
 Acceptance: headless host passes the full suite; no OS type leaks into core.
 
-#### P3.2 — Linux host (X11/Wayland via GTK3)
+#### P3.2a — Linux X11/GTK3 host hardening
 
-- Window creation, present via shared memory/DIB, input, clipboard, cursor,
-  timers, DPI, focus, close; run under Xvfb and Weston headless.
-- Extend `window` only as needed; no GTK widgets in the render path.
-- V: real-window screenshot via the app's own presenter + headless golden
-  compare; startup/RSS measurement.
+- GtkDrawingArea + cairo image surface present, GDK input, clipboard, cursor,
+  timers, DPI, focus, close; XShm path if measured better; Xvfb tests.
+- No GTK widgets in the render path; per-window session, no global `window_run`.
+- V: real-window screenshot + headless compare; startup/RSS.
 
-Acceptance: runs on X11 and Wayland; P: startup ≤120 ms; V reviewed.
+#### P3.2b — Wayland-native host
+
+- `wl_shm` buffer/damage/frame callback, xdg-shell, libinput/IME bridge; Weston
+  headless tests; fractional scaling. If not ready, document a `HostCaps`
+  fallback to X11/GTK3, not a silent fake.
+
+Acceptance: both hosts pass the same scene; P gates; V reviewed.
 
 #### P3.3 — Windows host (Win32)
 
@@ -754,10 +868,12 @@ Acceptance: no cross-window focus leaks; DPI change re-lays out correctly.
 
 #### P3.7 — WASM canvas host and DOM semantics
 
-- Host imports: canvas create/resize/present (RGBA buffer or damaged tiles),
-  rAF tick, pointer/key/wheel/text/IME, clipboard, DPI, visibility; DOM
-  semantics overlay with absolute-positioned ARIA nodes; focus bridge; reduced
-  motion. Present only damaged tiles; full-frame copy is a fallback.
+- Implement `HOST.md` §7 imports: canvas create/resize/present damaged tiles,
+  rAF, pointer/key/wheel/text/IME, clipboard, DPI, visibility, semantics DOM,
+  font fetch. Present only damaged tiles; full-frame copy is a fallback.
+- Choose the WASM text backend (`TEXT.md` §5.1): BrowserCanvas default
+  (tolerance-only) or PinnedFont for deterministic demos; wait for font-ready
+  before first layout; never silently reflow.
 - Debug transport: `globalThis.__chemicalUi.call(method, params)` + optional
   WebSocket relay to `chemical ui relay` (no listening socket in the browser).
 - Playwright E2E: hello, form, scroll, IME mock, screenshot compare; bundle size.
@@ -877,9 +993,12 @@ applicable), keyboard contract, and a catalog entry.
 
 #### P4.1 — Component framework, catalog, docs generator
 
-- `ComponentMeta`, prop schema JSON, examples, a11y contract, docs generator
-  (`ui catalog --json` / markdown), component test harness helpers.
-- V: generated catalog page for 3 sample components; goldens.
+- `ComponentMeta`, prop schema JSON, slots, examples, a11y contract, docs
+  generator (`ui catalog --json`), `ui_api_index.json`, `llms.txt`, and
+  `.agents/skills/ui/SKILL.md` generated from the catalog (drift-checked).
+- Ship the minimal lint from `CATALOG.md` §6 here: `UI-KEY-001`, `UI-LIST-001`,
+  `UI-RAW-001`, `UI-A11Y-001/002`, `UI-PANIC-001/002`, `UI-ALLOC-001`.
+- V: generated catalog page for 3 sample components + state matrix; goldens.
 
 #### P4.2 — Text/icon/surface primitives
 
@@ -899,6 +1018,16 @@ applicable), keyboard contract, and a catalog entry.
 - TextInput, TextArea, SearchField, PasswordField, NumberField, with labels,
   hints, errors, prefixes/suffixes, clear button, character count.
 - Uses P2.4 editing core; IME; V: form matrix.
+
+#### P4.4b — Date/time and color pickers
+
+- Calendar, DatePicker, DateRangePicker, TimePicker (locale/timezone via
+  `datetime`), ColorPicker (tokens + custom brand color), keyboard/a11y,
+  validation, open/selected/invalid states.
+- V: Dashboard date range + Settings timezone/color states; goldens.
+
+Acceptance: Dashboard can express its date range without hand-rolling a
+calendar; audit/keyboard tests pass.
 
 #### P4.5 — Menus, popovers, tooltips, command palette
 
@@ -947,7 +1076,17 @@ applicable), keyboard contract, and a catalog entry.
   responsive rules, motion, a11y, do/don't with screenshots.
 - V: every pattern in light/dark/compact/200%; parent aesthetic review.
 
-Acceptance: patterns compile and pass interaction tests; stage gate.
+Acceptance: patterns compile and pass interaction tests.
+
+#### P4.12 — Charts (v1, required by Dashboard)
+
+- `ui_charts`: line, bar, area, scatter, pie/donut, heatmap on Canvas; axes,
+  ticks, legend, tooltip, selection, empty/loading/error states; a11y table
+  fallback; theme tokens; keyboard focus.
+- V: chart gallery + dashboard integration; P: 10k-point chart p99 ≤8 ms;
+  audit clean.
+
+Acceptance: Dashboard can use charts without hand-drawing; stage gate.
 
 ---
 
@@ -977,10 +1116,12 @@ Acceptance: patterns compile and pass interaction tests; stage gate.
 
 #### P5.4 — `chemical ui` CLI and MCP adapter
 
-- Self-built `ui_cli` (TCC, cached) + tiny compiler launcher; commands from
-  API §10/§11; `mcp` stdio adapter with high-level tools; discovery/pid
-  selection; `diff` command; `relay` for WASM WebSocket; DOM-bridge client.
-- D: end-to-end test: launch app, snapshot, click, type, screenshot, audit.
+- P5.4a: self-built `ui_cli` (TCC, cached) + tiny compiler launcher; commands/
+  flags/exit codes from `PROTOCOL.md` §3; schema-generated client.
+- P5.4b: MCP stdio adapter + WASM relay/DOM bridge; high-level tools; discovery/
+  pid/window selection; diff.
+- D: end-to-end: launch, snapshot, click, type, IME, screenshot, audit,
+  `wait.idle`, `state.snapshot/restore`.
 
 #### P5.5 — In-app inspector overlay
 
@@ -1009,14 +1150,18 @@ Acceptance: patterns compile and pass interaction tests; stage gate.
   audit, screenshots), rubric; baseline scores.
 - V: eval report with screenshots.
 
-#### P5.9 — Compile-time `ui_lint` rules
+#### P5.9 — `ui_lint` hardening (rules beyond P4.1)
 
-- CBI diagnostics: missing keyed list items, icon-only without label, raw
-  token/color in kit props, blocking IO in `view` (if effects allow), unsafe in
-  UI code, huge static list suggestion, duplicate keys in a literal list.
-- Panic rules: `UI-PANIC-001` bans `unwrap`/`expect`/`panic`/`unreachable` in
-  library and app UI code; `UI-PANIC-002` requires a `PANIC:` justification for
-  any whitelisted abort; tests/examples are handled separately.
+- P4.1 ships the minimal rules. This packet adds CBI diagnostics: missing keyed
+  list items, icon-only without label, raw token/color in kit props, blocking IO
+  in `view` (if effects allow), unsafe in UI code, huge static list suggestion,
+  duplicate keys in a literal list.
+- Extend `UI-PANIC-001` (`unwrap`/`expect`/`panic`/`unreachable`) and
+  `UI-PANIC-002` (`PANIC:` justification) to the full AST checks; tests/examples
+  are handled separately.
+- `UI-PANIC-003` scans `ui*` **and its transitive UI dependencies** (`font`,
+  `image`, `window`) for `unreachable`/trap sites; each must be replaced or
+  whitelisted with a proof. `[no_panic]` does not reject traps today.
 - Each rule: positive/negative tests, error message with a fix, docs.
 - D: lint runs in the normal build; `--ui-lint=off` escape for migration.
 
@@ -1027,21 +1172,23 @@ stage gate.
 
 ### Stage 6 — Validation infrastructure
 
-#### P6.1 — `ui_test` harness
-
-- API §11; headless, virtual clock, semantic/geometry/golden helpers, audit.
+#### P6.1 — `ui_test` hardening
+- P0.3 ships the core; this packet adds `wait_until`, state/async helpers, IME/
+  drag/touch, `assert_semantics`, `assert_no_overflow`, scoped queries.
 - Tests: harness self-tests (settle bounds, stale query, input routing).
 
-#### P6.2 — Golden corpus and review workflow
-
-- Goldens for every component state/theme/DPI/scale; naming; `--update-goldens`;
-  diff generation; CI artifact upload; review checklist.
+#### P6.2 — Golden corpus expansion/review workflow
+- P0.3 ships the golden core; this packet expands to every component state/
+  theme/DPI/scale, independent ComponentSpec/PageSpec assertions, diff review,
+  CI artifact upload, and the reference-spec gallery.
 - V: corpus index page with thumbnails.
 
 #### P6.3 — Fuzzers and sanitizer campaign
 
-- Layout/style/event/font/image/protocol fuzzers; invariants; corpora; 24h run;
-  fix all findings; regression tests.
+- Layout/style/event/font/image/protocol **and** window/timer lifecycle, key
+  generation/collision, text editing/IME, atlas eviction, state.restore, path
+  confinement fuzzers; invariant checks; corpora; 24h run; fix all; regression
+  tests; child-process OOM/fatal probes.
 
 #### P6.4 — Bench harness, baselines, CI gates
 
@@ -1113,21 +1260,21 @@ gate and the public proof, not a demo scaffold.
 - 24h fuzz, ASAN/UBSAN/TSAN, leak/long-run, fault injection, no-panic audit;
   review `PANIC_WHITELIST.md` line by line; fix all; release checklist.
 
-#### P7.7 — Docs, book, README, published claims
+#### P7.7 — Docs framework, book, getting started
 
-- Getting started, architecture, component gallery, cookbook, debugging guide,
-  agent guide, migration/versioning, benchmark report with raw data.
-- V: docs site screenshots; README numbers verified.
+- Getting started, architecture, component gallery index, cookbook, debugging
+  guide, agent guide, migration/versioning framework. The final README includes
+  the fourth app after P7.8; P7.9 updates the docs.
+- V: docs site screenshots; README numbers verified at P7.9.
 
-#### P7.8 — Fourth example app: Media Library
+#### P7.8a — Fourth example app: Media Library
 
 - Real app in `lang/compiled/ui_media/`: a visually rich fourth app with
   album/artist grid, virtualised playlist (10k
   tracks), search/filter, context menu, drag-to-reorder, now-playing panel with
-  an animated Canvas visualiser, keyboard shortcuts, light/dark, 200% text,
+  an animated Canvas visualiser (CPU), keyboard shortcuts, light/dark, 200% text,
   empty/loading/error states, image loading/caching.
-- Exercises images, grids, virtualisation, menus, animation, Canvas, GPU
-  (visualiser), focus/keyboard, and performance under continuous animation.
+- Exercises images, grids, virtualisation, menus, animation, Canvas, CPU visualiser (GPU optional), focus/keyboard, and performance under continuous animation.
 - No actual audio playback is required (it is a UI/benchmark app); a simulated
   transport is fine.
 - Tests: semantic, interaction, audit, goldens, 10k-track scroll, 60/120 fps
@@ -1139,7 +1286,15 @@ gate and the public proof, not a demo scaffold.
 Acceptance: app is beautiful, audit-clean, both backends build, benchmarks
 recorded; parent reviews the screen tour.
 
-#### P7.9 — Publish `chemicallang/ui-examples`
+#### P7.8b — Benchmark and screenshot packaging for all four apps
+
+- Collect `bench/results.json`, machine specs, screenshots (light/dark/compact/
+  200%), and README text for each app; verify CPU path (GPU optional).
+- Ensure no app depends on a deferred feature; charts use P4.12, media
+  visualiser uses Canvas on CPU, GPU is optional.
+- Evidence: per-app benchmarks + screenshot gallery.
+
+#### P7.9 — Publish `chemicallang/ui-examples` (private first, public at P8.1)
 
 - Create a public repo at **`github.com/chemicallang/ui-examples`** containing
   the four example apps (**settings, dashboard, chat, media**), each in its own
@@ -1196,7 +1351,9 @@ recorded; parent reviews the screen tour.
   git init -b main
   git add .
   git commit -m "Initial Chemical UI examples"
-  gh repo create chemicallang/ui-examples --public --source=. --remote=origin --push
+  gh repo create chemicallang/ui-examples --private --source=. --remote=origin --push
+  # make public only after P8.1 approves the release:
+  gh repo edit chemicallang/ui-examples --visibility public --accept-visibility-change-consequences
   # if the repo already exists: git remote add origin … && git push -u origin main
   gh repo view chemicallang/ui-examples
   git ls-remote origin
@@ -1209,7 +1366,7 @@ recorded; parent reviews the screen tour.
 - Evidence: public URL, commit hash, CI run (if any), benchmark JSON,
   screenshots, `gh` output, fresh-clone verification.
 
-Acceptance: the four apps are public, build on both backends, look beautiful,
+Acceptance: the four apps are public after P8.1, build on both backends, look beautiful,
 pass audit/tests, and their documented benchmarks reproduce and meet the
 `BENCHMARKS.md` budgets with margin (or a documented blocker). The parent
 reviews the repo, the screenshots, and at least one fresh clone.
@@ -1220,16 +1377,22 @@ reviews the repo, the screenshots, and at least one fresh clone.
 
 #### P8.1 — Release gate audit
 
-- Run the full matrix; verify every budget; binary sizes; API freeze audit;
-  deprecations; license audit (fonts/icons); security review of the debug
-  server; accessibility manual pass; comparison report; public examples repo
-  fresh-clone verification and benchmark reproduction.
+- Run the full matrix; verify every budget; binary sizes; **TCCCompiler ≤5 MB
+  steady-state**; API index diff/freeze audit; deprecations; license/attribution
+  audit (fonts/icons/examples); security review of the debug server; panic
+  whitelist; accessibility manual pass; comparison report; fresh-clone
+  `ui-examples` build on both backends + benchmark reproduction; then make the
+  examples repo public.
 
 #### P8.2 — Packaging, templates, final validation
 
 - Libraries ship under `lang/libs/*`; `chemical new --ui` template; docs
   linked; CI green on all targets; release notes; `ui-examples` linked from the
   main README; final parent review.
+- **Packaging contract:** `chemical bundle` for Linux AppImage/deb, Windows
+  MSI/MSIX, macOS `.app`/notarization, WASM static; asset manifest +
+  `resolve_asset`; app icons/licenses; signing; update feed; crash reporter;
+  installed-path asset resolution (no CWD).
 
 ---
 

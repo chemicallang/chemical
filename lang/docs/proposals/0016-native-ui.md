@@ -4,11 +4,16 @@
 
 > A native, memory-safe UI library that makes the performant and accessible
 > implementation the path of least resistance for an AI agent, renders
-> deterministically on every target, and exposes a first-class machine-readable
-> view of the UI for inspection, testing, and debugging.
+> deterministically on native targets with pinned fonts (tolerance-declared on
+> GPU/system-font/WASM text), and exposes a first-class machine-readable view of
+> the UI for inspection, testing, and debugging.
 
-**Status:** draft, awaiting maintainer approval · **Area:** Libraries · UI ·
-[review index](review.md) · **Execution plan:** [`../ui/EXECUTION.md`](../ui/EXECUTION.md)
+**Status:** draft, reviewed/corrected by six adversarial agents · **Area:** Libraries · UI ·
+[review index](review.md) · **Execution plan:** [`../ui/EXECUTION.md`](../ui/EXECUTION.md) ·
+**Normative contracts:** [`../ui/CONTRACTS.md`](../ui/CONTRACTS.md) ·
+[`../ui/TEXT.md`](../ui/TEXT.md) · [`../ui/HOST.md`](../ui/HOST.md) ·
+[`../ui/PROTOCOL.md`](../ui/PROTOCOL.md) · [`../ui/CATALOG.md`](../ui/CATALOG.md) ·
+[`../ui/DESIGN.md`](../ui/DESIGN.md)
 
 ---
 
@@ -214,7 +219,7 @@ verifiable UI**, not just pixels.
 
 ### 4.3 Layout
 
-- Constraints-down / sizes-up, single pass for non-wrapping containers.
+- Constraints-down / sizes-up, bounded 3-pass pipeline per `CONTRACTS.md` §5 (intrinsic measure → resolve/distribute → text re-break/place).
 - v1: row, column, stack, wrap, explicit-track grid, scroll, layers; sizing
   (`Auto/Px/Percent/Fill`), grow/shrink/basis, min/max, aspect, gap, padding,
   align/justify/baseline.
@@ -222,14 +227,14 @@ verifiable UI**, not just pixels.
   values; invalid input clamps and reports.
 - Dirty subtrees only; relayout boundary when a parent's size does not depend on
   the child.
-- Targets: 10k nodes ≤1.5 ms, 100k ≤20 ms, single node ≤30 µs.
+- Targets: 10k simple ≤1.5/2.5 ms, 10k mixed ≤4/6 ms, 100k ≤30/45 ms, single fixed-width label ≤50/100 µs; warm 0.
 
 ### 4.4 Paint and raster
 
 - Display list of primitives: solid/rounded rect, border, shadow, text run,
   image, path, gradient, clip, opacity/transform layer.
 - One deterministic CPU reference rasterizer: premultiplied RGBA8, fixed-point
-  coverage, integer blending, sRGB-correct, no FMA-dependent rounding. Same
+  coverage, integer sRGB-encoded UNORM blending (`CONTRACTS.md` §6), no FMA-dependent rounding. Same
   bytes on x86-64 and ARM when the font is pinned.
 - Cached resources: glyph atlas, shadow sprites (9-slice), gradient ramps,
   decoded images, layer buffers.
@@ -355,7 +360,7 @@ verifiable UI**, not just pixels.
 | ADR-009 | Thin host interface; GTK3/Win32/Cocoa/WASM hosts | Core stays portable; platforms own only window/input/present/a11y. |
 | ADR-010 | Portable Latin text + platform shapers for complex scripts | Own the deterministic path; do not reimplement HarfBuzz/ICU in v1. |
 | ADR-011 | Split packages (`ui`, `ui_kit`, `ui_host`, …) | Unused widgets do not bloat apps; keeps the compiler/toolchain budget. |
-| ADR-012 | Layout: single-pass flex + explicit grid; no CSS | Predictable cost; avoids deep auto-size cliffs; still expressive. |
+| ADR-012 | Layout: bounded 3-pass flex + explicit grid; no CSS | Predictable cost; avoids deep auto-size cliffs; still expressive. |
 | ADR-013 | Virtualisation and keys are API requirements | Prevents the classic agent failure of 10k unvirtualised rows and lost state. |
 | ADR-014 | Typed-error boundaries + a minimal, reviewed panic whitelist + fault injection | Expected failures must not abort; panic is only for unsafe-to-continue invariants, and no `unwrap`/`expect` is offered. No unwinding means this must be structural. |
 | ADR-015 | API freeze before v1 | Agents and humans should not re-learn the library every release. |
@@ -393,7 +398,11 @@ public struct App {
     var filter : Filter
     var next_id : u64
 
-    public func view(&self, b : &mut ui::ViewBuilder) : ui::NodeId {
+    public func on_start(&mut self, frame : &ui::FrameInfo, ctx : &mut ui::UiCtx) : std::Result<std::Unit, ui::UiError> {
+        return std::Result.Ok(std::Unit{})
+    }
+
+    public func view(&self, frame : &ui::FrameInfo, b : &mut ui::ViewBuilder) : std::Result<ui::NodeId, ui::UiError> {
         var root = b.column(ui::key("root"), ui_kit::page_style())
 
         b.child(root, ui_kit::heading(b, ui::key("title"),
@@ -416,10 +425,10 @@ public struct App {
         b.child(root, ui_kit::button(b, ui::key("add"),
             ui_kit::ButtonProps.make("Add", ui::key("action.add")).variant(ui_kit::ButtonVariant.Primary)))
 
-        return root
+        return std::Result.Ok(root)
     }
 
-    public func update(&mut self, ev : &ui::UiEvent, ctx : &mut ui::UiCtx) {
+    public func update(&mut self, ev : &ui::UiEvent, ctx : &mut ui::UiCtx) : std::Result<std::Unit, ui::UiError> {
         if(ev.key.equals("action.add") && ev.kind == ui::EventKind.Click) {
             var text = ctx.text(ui::key("new"))
             if(text.size() > 0) {
@@ -435,9 +444,16 @@ public struct App {
             }
             ctx.request_view()
         }
+        return std::Result.Ok(std::Unit{})
     }
 
-    public func paint(&self, canvas : ui::CanvasId, p : &mut ui::Painter) { }
+    public func paint(&self, frame : &ui::FrameInfo, canvas : ui::CanvasPaint, p : &mut ui::Painter) : std::Result<std::Unit, ui::UiError> {
+        return std::Result.Ok(std::Unit{})
+    }
+
+    public func on_close(&mut self, frame : &ui::FrameInfo, ctx : &mut ui::UiCtx) : ui::CloseAction {
+        return ui::CloseAction.Allow
+    }
 }
 
 public func main(argc : int, argv : **char) : int {
@@ -642,7 +658,7 @@ public library, and published to **`github.com/chemicallang/ui-examples`**:
 3. **Chat** — virtual message list, IME composer, command palette, tabs, split
    panes, notifications.
 4. **Media** — album grid, 10k-track playlist, context menus, drag-reorder,
-   animated Canvas visualiser, GPU path.
+   animated Canvas visualiser on the CPU path; GPU benchmark optional.
 
 The repo has a root README (what each app demonstrates, screenshots, quick
 start), a per-app README (features, screenshots, architecture, build/run with
@@ -672,7 +688,9 @@ verifies each and P0.2 freezes the fallback.
 | No-panic effects | `[no_panic]` on std + module defaults | Current checker rejects unannotated std calls | Panic-free implementation + audit + fuzz; add annotations incrementally |
 | Dead-code elimination | Unused `ui_kit` components must not bloat apps | TCC may link all functions | Split packages/files; measure per-app size; add linker GC if needed |
 | Debug CLI | Self-built `ui_cli` cached by the compiler launcher | Adds a small C++ launcher | If self-build is too slow, ship a tiny C++ client for the core RPC subset |
-| `ui_lint` | CBI plugin reading UI AST | CBI plugin maintenance | Runtime `ui audit` already covers most rules; lint can land later |
+| Charts | `ui_charts` on Canvas + a11y table fallback | Extra v1 scope | Required by Dashboard; P4.12 |
+| Packaging | `chemical bundle` targets, asset manifest, signing, updates, crash reporting | Per-OS tooling | v1.1 if a target is unavailable, documented; apps still run from build dir |
+| `ui_lint` | CBI plugin reading UI AST | CBI plugin maintenance | P4.1 ships minimal rules; P5.9 adds CBI |
 
 No compiler change is allowed to hide a library design flaw. If a dependency
 blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
@@ -703,15 +721,18 @@ blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
 ### v1 (this plan)
 
 - Core: view/tree/reconcile/layout/display list/CPU reference raster/text/input/
-  focus/semantics/animation/error model, plus the `RenderBackend` interface used
-  by CPU and GPU.
-- Platforms: Linux (X11/Wayland via one host), Windows, macOS, WASM canvas +
-  DOM semantics, headless.
-- Text: system-first fonts (0 bytes embedded by default); Latin/Greek/Cyrillic
-  shaping, bidi paragraph direction, line breaking, IME, editing; complex
-  scripts via system shapers; optional `ui_fonts` pin/download/embed.
+  focus/semantics/animation/multi-window/error model, plus the `RenderBackend`
+  interface used by CPU and GPU. Exact design tokens in `DESIGN.md`.
+- Platforms: Linux (X11/Wayland), Windows, macOS, WASM canvas + DOM semantics,
+  headless. Multi-window and close-veto in v1.
+- Text: system-first fonts (0 bytes embedded by default); `TEXT.md` coverage
+  matrix (TTF/CFF/TTC/cmap-12/composite), Latin/Greek/Cyrillic own shaping,
+  platform shapers for complex scripts, bidi, line breaking, IME, editing,
+  secure-field redaction, WASM browser backend; optional `ui_fonts`
+  pin/download/embed (42 KB Latin preset).
 - Kit: primitives, layout, navigation, inputs, overlays, virtualised data
-  views, forms, feedback, page patterns; light/dark/compact/high-contrast.
+  views, charts (`ui_charts`), forms, feedback, page patterns; light/dark/
+  compact/high-contrast.
 - Agent tooling: debug protocol v1, CLI, MCP, inspector, audit, capture/replay,
   state snapshot, agent docs/skill, eval harness.
 - Validation: goldens, geometry/semantics tests, fuzz/sanitizers, bench gates,
@@ -728,10 +749,11 @@ blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
 
 - Mobile (Android/iOS), Wayland-native/raw X11 hosts for smaller footprint,
   full portable complex shaping/color emoji, variable-font rendering, SVG
-  subset, charts library, video, native tray/notifications, live code hot
-  reload, remote/network rendering, plugin widgets, RTL polish, i18n/locale
+  subset, video/PDF/webview child surfaces, native tray/notifications, live code
+  hot reload, remote/network rendering, plugin widgets, RTL polish, i18n/locale
   formatting, more platforms (FreeBSD), and a `ui2` only if a semantic break is
-  unavoidable.
+  unavoidable. "Any 2D UI" means primitives/canvas; embedded web/PDF/video/map
+  surfaces are a v1.1 `HostView` capability, not a v1 promise.
 
 ### Explicit non-goals
 
@@ -750,12 +772,12 @@ subagent loop are in [`../ui/EXECUTION.md`](../ui/EXECUTION.md). Summary:
 
 | Stage | Packets | Outcome |
 |-------|---------|---------|
-| 0. Decisions | P0.1–P0.3 | Verified facts, frozen contracts, green scaffolding + verify scripts |
-| 1. Core | P1.1–P1.13 | Headless UI: view/tree/layout/paint/raster/input/semantics/errors |
+| 0. Decisions | P0.1–P0.4 | Verified facts, frozen contracts, scaffold/test core, exact design tokens |
+| 1. Core | P1.1–P1.14 | Headless UI + first real-window walking skeleton |
 | 2. Text & visual | P2.1–P2.11 | System-first typography, icons, images, effects, animation, design system |
 | 3. Platforms | P3.1–P3.9 | Linux/Windows/macOS/WASM hosts, IME, a11y, damage/pacing |
 | 3G. GPU (parallel) | P3.10–P3.15 | Vulkan/Metal/WebGPU backends, parity, device loss, GPU benchmarks |
-| 4. Kit | P4.1–P4.11 | Complete component catalog + page patterns + guidelines |
+| 4. Kit | P4.1–P4.12 | Complete component catalog + charts + page patterns + guidelines |
 | 5. Agent tooling | P5.1–P5.9 | Debug server, CLI/MCP, inspector, audit, eval, lint |
 | 6. Validation | P6.1–P6.7 | Harness, goldens, fuzz, benches, CI matrix, comparison |
 | 7. Examples + hardening | P7.1–P7.9 | Four polished apps (settings/dashboard/chat/media), hardening, docs/claims, public `chemicallang/ui-examples` repo |

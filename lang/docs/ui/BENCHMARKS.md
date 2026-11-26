@@ -19,9 +19,9 @@ All headline budgets are measured on the **reference profile**:
 
 | Item | Value |
 |------|-------|
-| CPU | 4-core x86-64 laptop class (i5-1035G1 or equivalent), no turbo assumptions |
+| CPU | Intel Core i5-1035G1 (4C/8T), 16 GB, Linux, governor `performance`, turbo per BIOS; record the exact hostname/BIOS |
 | RAM | 16 GB |
-| Display | 1920×1080, 60 Hz, scale 1.0 |
+| Display | 1920×1080, 60 Hz, scale 1.0; secondary 120 Hz panel for 120 fps tests |
 | OS | Linux (X11 or headless), release build |
 | Renderer | CPU rasterizer for reference/goldens; GPU backend measured separately |
 | Build | `--mode release_fast`, assertions off, LTO where supported |
@@ -46,9 +46,9 @@ not pretend TinyCC-generated code matches LLVM.
 
 | Metric | Budget | Gate |
 |--------|--------|------|
-| Cold start → first presented frame | **≤120 ms p50**, **≤250 ms p99** | release gate |
+| Cold start → first presented frame | **≤120 ms p50**, **≤250 ms p99** (breakdown: exec/link ≤40, GTK/host init ≤35, font scan ≤10, tree+layout ≤15, raster+present ≤20) | release gate |
 | Warm start → first frame | **≤50 ms p50** | release gate |
-| Empty-window PSS (Linux) | **≤12 MB** | release gate |
+| Empty-window PSS (Linux, 960×640 default) | **≤12 MB** (two 960×640 surfaces = 4.9 MB) | release gate |
 | Hello-world binary (stripped, LLVM, CPU only, no font) | **≤2.5 MB target; ≤3.5 MB hard ceiling** | release gate |
 | Hello-world binary (TCC path, stripped) | **≤4.0 MB** | release gate |
 | 100k-row virtualised table PSS | **≤100 MB** | release gate |
@@ -74,25 +74,25 @@ not pretend TinyCC-generated code matches LLVM.
 
 | Metric | Budget |
 |--------|--------|
-| Layout, 10k nodes | **≤1.5 ms** |
-| Layout, 100k nodes (wide, shallow) | **≤20 ms** |
-| Layout, 100k nodes (deep auto-size, adversarial) | **≤200 ms** (documented cliff; must not be catastrophic) |
-| Single-node update (change one label in 10k) | **≤30 µs** |
+| Layout, 10k simple nodes (fixed sizes, no text), cold | **≤1.5 ms target / ≤2.5 ms hard** |
+| Layout, 10k mixed (20% text/auto/wrap), cold | **≤4 ms target / ≤6 ms hard** |
+| Layout, 100k wide/shallow nodes, cold | **≤30 ms target / ≤45 ms hard** |
+| Single fixed-width label change in 10k (no wrap/auto) | **≤50 µs target / ≤100 µs hard** |
 | Relayouts per hover/click | **≤2 nodes + ancestors** |
 | Paint, 10k solid quads | **≤1.2 ms** |
 | Paint, 10k glyphs | **≤2 ms** cached |
-| Text shaping, 1k glyphs | **≤0.4 ms** cached, **≤4 ms** cold |
+| Text shaping, 1k glyphs | **≤0.4 ms** cached, **≤4 ms** cold; 2k-char paragraph re-shape ≤2 ms |
 | Text measure cache hit | **≥99%** in scroll/typing scenarios |
-| Allocation in steady-state frame | **0** (after warm-up) |
+| Allocation in steady-state frame | **0** process-allocator calls after warm-up; cold/text/atlas high-water reported separately |
 | Damage ratio on scroll | **≤1.5× exposed area** (no full-window repaint) |
 
 ### 2.4 Input and interaction
 
 | Metric | Budget |
 |--------|--------|
-| Event → frame submitted | **≤4 ms p99** |
-| Click → next presented frame | **≤2 frames (33 ms) p99** @60 |
-| Keystroke → caret/text on screen | **≤4 ms p99** |
+| Event → update applied | **≤1 ms p99** |
+| Event → presented frame (full repaint) | **≤10 ms p99** (4 ms event + 6 ms paint) @60 |
+| Keystroke → caret/text on screen (damage-only) | **≤4 ms p99**; full repaint ≤10 ms |
 | Scroll wheel → offset applied | **≤1 frame** |
 | Focus traversal (Tab) | **≤0.5 ms** per step, 10k nodes |
 | IME preedit update | **≤1 frame** |
@@ -120,10 +120,11 @@ CPU path remains the correctness reference.
 | 10k quads | **≤1 ms GPU** |
 | 100k glyphs, cached atlas | **≤1.5 ms GPU** |
 | 1k shadows/blurred layers | **≤4 ms GPU** |
-| GPU memory (textures/buffers) | **≤64 MB** for the reference scenes |
-| GPU upload per steady frame | **0 bytes** (no re-upload of clean atlases) |
+| GPU memory (textures/buffers) | **≤64 MB**; 4K persistent scene texture + blit budgeted separately |
+| GPU upload per steady frame | **0 bytes** unless the atlas generation changes (then upload the atlas delta, not the full texture) |
 | Draw calls, dashboard | **≤64**; large table **≤256** |
 | Device loss recovery | first frame after loss **≤250 ms**; CPU fallback keeps app alive |
+| Partial present | GPU renders damage to a persistent scene texture then blits to the swapchain; budget the blit (4K ≤1 ms) |
 | GPU idle | 0% CPU/GPU, no fences spinning |
 
 GPU goldens use per-OS/GPU baselines with `maxDiffPixels ≤0.1%` and YIQ ≤0.2.
@@ -209,7 +210,7 @@ trade-off:
 16. `examples-chat` — 10k-message virtual list, composer keystroke→paint, command
     palette open, split-pane resize.
 17. `examples-media` — 10k-track playlist scroll, album grid, animated
-    visualiser at 60/120 fps, image cache churn, GPU path.
+    visualiser at 60/120 fps, image cache churn, CPU path (GPU optional).
 
 The four public example apps are benchmarked from their own `bench.sh` and
 `bench/results.json`; the main repo mirrors the summary. This proves the library
@@ -220,7 +221,7 @@ on real screens, not just synthetic scenes:
 | Settings | forms, validation, dialogs, search, keyboard, dark/light, 200% text, a11y |
 | Dashboard | 100k virtual table, charts, resizing, filters, empty/loading/error |
 | Chat | virtual list, IME composer, command palette, tabs, split panes, notifications |
-| Media | images, grid, virtual playlist, context menus, drag-reorder, Canvas animation, GPU |
+| Media | images, grid, virtual playlist, context menus, drag-reorder, Canvas animation, CPU visualiser (GPU optional) |
 
 Each scenario prints one JSON object:
 
@@ -257,6 +258,13 @@ only in a dedicated commit with the raw run attached.
 - No-panic audit: no `panic`/`unwrap`/`expect`/`unreachable`/`unsafe` in the
   safe surface (static search + compiler checks where available); every
   approved `PANIC:` whitelist site has a test proving the state unreachable.
+- Sanitizer matrix: LLVM ASAN+UBSAN is the PR gate; C-emitted output is compiled
+  with `cc -fsanitize=address,undefined` on PR; TCC itself has no sanitizer and
+  must not be claimed as instrumented. TSAN runs on PR for protocol/worker
+  changes.
+- Idle test runs only after the host 1 ms async pump is removed/replaced; 60 s
+  with no timer/rAF wakeups. Allocation counting uses a linker-wrapped allocator
+  in the bench build; cold/high-water allocations are reported separately.
 - Expected-failure audit: missing font/image, invalid layout, stale ID, IO,
   OOM, and protocol garbage return `Result`/placeholder, never abort.
 - WASM smoke: build + run one scenario in Chromium.
@@ -281,6 +289,9 @@ only in a dedicated commit with the raw run attached.
 - Published benchmark report with raw data and methodology.
 - Binary size report (per target, stripped, with and without kit, with and
   without the optional font).
+- Toolchain size: the steady-state `TCCCompiler` must stay under the AGENTS
+  hard ceiling (5 MB; first release 7–15 MB allowed). Report the UI-related
+  delta; it must not push the compiler over the ceiling.
 - Public `chemicallang/ui-examples` repo: four apps, fresh-clone build on TCC+LLVM,
   reproduced benchmark JSON, screenshots, audit clean.
 
@@ -379,7 +390,7 @@ artifact is incomplete even if unit tests pass.
 
 ### Golden determinism rules
 
-- Headless, CPU rasterizer, pinned test font, fixed DPI/scale/time/locale/theme.
+- Headless, CPU rasterizer, pinned test font, fixed DPI/scale/time/locale/theme. Scene JSON files are committed under `lang/tests/ui_bench/scenes/` and define node kinds/sizes/text/overlap/font size; baselines are committed at P0.3.
 - 1× and 2× only; no GPU in the primary gate.
 - Integer blend math and fixed-point coverage so x86-64 and ARM produce the
   same bytes for the same scene and pinned font.

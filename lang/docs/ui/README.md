@@ -1,6 +1,6 @@
 # Chemical UI — native, safe, AI-first UI toolkit
 
-**Status:** draft plan, awaiting maintainer approval · **Date:** 2026-11-26
+**Status:** draft plan, reviewed/corrected by six adversarial agents · **Date:** 2026-11-27
 **Proposal:** [`../proposals/0016-native-ui.md`](../proposals/0016-native-ui.md)
 **Execution:** [`EXECUTION.md`](EXECUTION.md) · **API freeze:** [`API.md`](API.md) · **Perf gates:** [`BENCHMARKS.md`](BENCHMARKS.md) · **Evidence:** [`RESEARCH.md`](RESEARCH.md)
 
@@ -16,9 +16,16 @@ validating, and committing each packet before the next one starts.
 | [`PLAN.md`](PLAN.md) | One-page plan and the decisions that define the toolkit. |
 | [`../proposals/0016-native-ui.md`](../proposals/0016-native-ui.md) | The design: goals, architecture, decisions, scope, risks, acceptance. |
 | [`API.md`](API.md) | Frozen v1 public contracts (app model, keys, style, components, protocol). Read before writing code. |
+| [`CONTRACTS.md`](CONTRACTS.md) | Normative freeze amendments: frame/window, keys, virtualization, events/lifetimes, layout pipeline, raster, errors/panic/OOM, limits, threads, images/fonts. |
+| [`TEXT.md`](TEXT.md) | Text/font architecture: formats, shaping tiers, metrics, cache keys, bidi, IME, editing, WASM, determinism. |
+| [`HOST.md`](HOST.md) | Host presenter/surface/units, frame trigger, input/IME, a11y, threading, macOS/WASM. |
+| [`PROTOCOL.md`](PROTOCOL.md) | JSON-RPC schema, auth/limits/redaction, CLI commands, WASM bridge. |
+| [`CATALOG.md`](CATALOG.md) | ComponentMeta schema, API index, data views, test harness, goldens, lint rules. |
+| [`DESIGN.md`](DESIGN.md) | Exact v1 tokens: colors, spacing, type, elevation, motion, breakpoints, audit rules. |
 | [`BENCHMARKS.md`](BENCHMARKS.md) | Hard performance budgets, scenarios, measurement method, CI gates, comparison policy. |
 | [`EXECUTION.md`](EXECUTION.md) | The packet list, per-packet acceptance criteria, parent/subagent loop, anti-skip rules. |
 | [`RESEARCH.md`](RESEARCH.md) | Condensed web/codebase research and the decisions it forced. |
+| [`REVIEW_FINDINGS.md`](REVIEW_FINDINGS.md) | Six adversarial reviews and the resolution of every P0/P1 finding. |
 | [`STATUS.md`](STATUS.md) | Live progress table; the parent updates it after every packet. |
 
 ## Non-negotiable summary
@@ -50,8 +57,9 @@ validating, and committing each packet before the next one starts.
 6. **One source, every target.** Core is pure Chemical over a thin platform
    interface. v1 targets Linux (X11/Wayland through one host), Windows, macOS,
    and `wasm32-unknown-unknown` (canvas + DOM semantics); headless is a
-   first-class target used by CI. GPU (Vulkan/Metal/WebGPU) ships as an optional
-   v1.1 track, never a correctness dependency.
+   first-class target used by CI. Multi-window is v1; charts are v1 (`ui_charts`).
+   GPU (Vulkan/Metal/WebGPU) ships as an optional v1.1 track, never a
+   correctness dependency.
 7. **No default font payload.** The theme uses the platform UI font stack. Apps
    can pin a file, download an OFL font into a cache, or embed a ~42 KB Latin
    subset; goldens pin a test font. The library never links a font into every

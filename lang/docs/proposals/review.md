@@ -2,10 +2,10 @@
 
 **Chemical · Proposals**
 
-> 15 items. Eight proposals are approved with full documents. One (effects) was
+> 16 items. Eight proposals are approved with full documents. One (effects) was
 > analysed before approval. Deferred items wait on the native-GC decision.
 
-**8 approved · 3 deferred · 1 ongoing · 1 noted · 1 not-now · 1 candidate**
+**8 approved · 3 deferred · 1 ongoing · 1 noted · 1 not-now · 2 candidates**
 
 ## Second pass — 2026-10-13 (full log: [DECISIONS.md](DECISIONS.md))
 
@@ -38,6 +38,7 @@
 | 13 | [Async/await completion](0013-async-await-completion.md) | Language · runtime | 01      | Approved                   |
 | 14 | [Generic std-container JSON serialization](0014-generic-container-serialization.md) | Libraries · JSON | 03 | Approved |
 | 15 | [Shared IO abstraction (Reader/Stream)](#15-shared-io-abstraction-reader--stream) | Libraries | — | Candidate |
+| 16 | [Native UI library](0016-native-ui.md) | Libraries · UI | 01, 09 | Candidate — full plan written |
 
 ## All open decisions resolved
 
@@ -100,7 +101,23 @@ performance).
 `http`, `compression` and `archive` compose. Everything else in the stdlib
 analysis stays deferred. **Review:** approve · reject · changes.
 
+### 16. Native UI library
+
+**Candidate.** A native, memory-safe, AI-first UI toolkit shipped in
+`lang/libs/ui*`: declarative typed views → retained keyed tree, deterministic
+CPU reference renderer + optional GPU backends (Vulkan/Metal/D3D12/WebGPU)
+over one display list, semantic tree + local JSON-RPC/MCP debug protocol,
+typed design tokens, virtualised data views, system-first fonts (0 bytes
+embedded by default; opt-in pinned/downloaded subset), Linux/Windows/macOS/
+WASM/headless hosts, hard performance/safety/visual gates, and four public
+example apps in `chemicallang/ui-examples`. Full design:
+[`0016-native-ui.md`](0016-native-ui.md) · executable plan:
+[`../ui/EXECUTION.md`](../ui/EXECUTION.md) · contracts:
+[`../ui/API.md`](../ui/API.md) · budgets:
+[`../ui/BENCHMARKS.md`](../ui/BENCHMARKS.md). **Review:** approve · reject ·
+changes.
+
 ---
 
-Chemical feature proposals · status · 15 items · 8 approved.
+Chemical feature proposals · status · 16 items · 8 approved.
 Process: [README.md](README.md) · decisions: [DECISIONS.md](DECISIONS.md).

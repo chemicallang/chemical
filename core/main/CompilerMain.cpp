@@ -419,6 +419,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("use-c", "use-c", CmdOptionType::NoValue),
             CmdOption("use-bc", "use-bitcode", CmdOptionType::NoValue),
             CmdOption("use-lld", "use-lld", CmdOptionType::NoValue),
+            CmdOption("wasm-export", "wasm-export", CmdOptionType::MultiValued),
+            CmdOption("wasm-export-all", "wasm-export-all", CmdOptionType::NoValue),
             CmdOption("output", "o", CmdOptionType::SingleValue),
             CmdOption("resources", "res", CmdOptionType::SingleValue),
             CmdOption("ignore-extension", CmdOptionType::NoValue),
@@ -592,6 +594,10 @@ int compiler_main(int argc, char *argv[]) {
             opts->use_c = true;
         }
         opts->use_lld = options.has_value("use-lld", "use-lld");
+        opts->wasm_export_all = options.has_value("wasm-export-all", "wasm-export-all");
+        if (const auto found = options.data.find("wasm-export"); found != options.data.end()) {
+            found->second.get_multi_value_vec(opts->wasm_exports);
+        }
         opts->use_mod_obj_format = !options.has_value("use-bc", "use-bitcode");
         opts->out_ll_all = options.has_value("out-ll-all");
         opts->out_asm_all = options.has_value("out-asm-all");
@@ -765,6 +771,9 @@ int compiler_main(int argc, char *argv[]) {
 
     const auto is_lab_file = args[0].ends_with(".lab");
     const auto is_mod_file = args[0].ends_with(".mod");
+    const bool emit_c_requested = options.has_value("emit-c", "emit-c") ||
+                                   options.has_value("keepc", "keep-c");
+    const bool wasm_target = target.rfind("wasm32", 0) == 0 || target.rfind("wasm64", 0) == 0;
     if(is_mod_file && output.has_value() && output.value().ends_with(".lab")) {
         // conversion of a .mod file to .lab file
         return LabBuildCompiler::translate_mod_file_to_lab(chem::string_view(args[0]), chem::string_view(output.value()));
@@ -785,7 +794,7 @@ int compiler_main(int argc, char *argv[]) {
         prepare_options(&compiler_opts);
 
         // translate the build.lab to a c file (for debugging)
-        if(output.has_value() && output.value().ends_with(".c")) {
+        if(output.has_value() && output.value().ends_with(".c") && !emit_c_requested) {
             LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_dir), mode);
             LabModule module(LabModuleType::Files, chem::string(""), chem::string("[BuildLabFile]"));
             module.paths.emplace_back(std::string(args[0]));
@@ -839,6 +848,14 @@ int compiler_main(int argc, char *argv[]) {
             }
             auto job_type_opt = options.option_new("job-type", "jt");
             LabJobType final_job_type = getJobTypeFromOpt(job_type_opt, LabJobType::Executable);
+#ifdef TCC_BUILD
+            // The C emitter does not link wasm: `--target wasm32 --emit-c`
+            // translates the whole app to one C file at `-o` and exits. The C
+            // is then compiled by scripts/wasm-c-build.sh (clang + wasm-ld).
+            if (emit_c_requested && wasm_target) {
+                final_job_type = LabJobType::ToCTranslation;
+            }
+#endif
             LabJob final_job(final_job_type, chem::string("main"), std::move(outputPath), chem::string(compiler_opts.build_dir), mode);
             LabBuildContext::initialize_job(&final_job, &compiler_opts);
             if (options.has_value("download")) {

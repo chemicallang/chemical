@@ -3380,6 +3380,15 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         case llvm::Triple::aarch64:
             data.aarch64 = true;
             break;
+        // WebAssembly. It is a freestanding target: not POSIX, not Unix, not
+        // Windows, and it has no host libc. Source selection keys off
+        // `wasm32`/`wasm64` and must never see the host platform dirs.
+        case llvm::Triple::wasm32:
+            data.wasm32 = true;
+            break;
+        case llvm::Triple::wasm64:
+            data.wasm64 = true;
+            break;
         default:
             break;
     }
@@ -3388,8 +3397,9 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
     data.big_endian = !triple.isLittleEndian();
 
     // posix is not a host macro; derive it from the target OS like the manual
-    // (non-COMPILER_BUILD) parser does
-    data.posix = !data.windows;
+    // (non-COMPILER_BUILD) parser does. wasm is freestanding, so it must not
+    // select the POSIX platform layer.
+    data.posix = !data.windows && !triple.isWasm();
 
 }
 
@@ -3457,6 +3467,11 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
     } else if (arch == "aarch64") {
         data.aarch64 = true;
         data.is64Bit = true;
+    } else if (arch == "wasm32") {
+        data.wasm32 = true;
+    } else if (arch == "wasm64") {
+        data.wasm64 = true;
+        data.is64Bit = true;
     }
 
     // environment / libc detection: the trailing marker of the triple, e.g.
@@ -3519,10 +3534,11 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
     }
 
     // posix
-    data.posix = !data.windows;
+    data.posix = !data.windows && !data.wasm32 && !data.wasm64;
 
     // endianness
-    if (arch == "x86_64" || arch == "i386" || arch == "aarch64") {
+    if (arch == "x86_64" || arch == "i386" || arch == "aarch64"
+        || arch == "wasm32" || arch == "wasm64") {
         data.little_endian = true;
     } else if (arch == "arm") {
         if (target_triple.find("arm-be") != std::string::npos || abi == "be") {

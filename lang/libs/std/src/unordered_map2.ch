@@ -31,6 +31,44 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         return key.equals(key2)
     }
 
+    // Fallible resize: leaves the map untouched and returns false on overflow
+    // or allocation failure.
+    func try_resize(&mut self) : bool {
+        // SAFETY: capacity overflow is rejected, the allocation is null-checked,
+        // and the old table is freed only after every node is rehashed.
+        unsafe {
+            if(capacity > ((0 as size_t) - 1) / 2) {
+                return false
+            }
+            var newCapacity = capacity * 2;
+            if(newCapacity == 0) {
+                newCapacity = INITIAL_CAPACITY;
+            }
+            if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut unordered_map_node<Key, Value>)) {
+                return false
+            }
+            var newTable = unsafe(malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>))) as *mut *mut unordered_map_node<Key, Value>;
+            if(newTable == null) {
+                return false
+            }
+            unsafe { memset(newTable, 0, newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) };
+            for (var i = 0; i < capacity; i++) {
+                var currentNode = table[i];
+                while (currentNode != null) {
+                    var nextNode = currentNode.next;
+                    var index = hash_now(&currentNode.key) & (newCapacity - 1);
+                    currentNode.next = newTable[index];
+                    newTable[index] = currentNode;
+                    currentNode = nextNode;
+                }
+            }
+            dealloc table;
+            table = newTable;
+            capacity = newCapacity;
+            return true
+        }
+    }
+
     // Resize and rehash
     func resize(&mut self) : void {
         unsafe {
@@ -116,6 +154,45 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         }
     }
 
+    // Fallible insert. Returns false on allocation/capacity failure; the map
+    // is left unchanged and the passed key/value are dropped by the caller
+    // frame (no leak).
+    func try_insert(&mut self, key : Key, value : Value) : bool {
+        // SAFETY: the table has room after try_resize; the node allocation is
+        // null-checked before placement, and an existing key drops the old
+        // value before taking ownership of the new one.
+        unsafe {
+            if ((_size as float) / capacity > LOAD_FACTOR_THRESHOLD2) {
+                if(!try_resize()) { return false }
+            }
+
+            var index = hash_with_capacity(&key);
+            var currentNode = table[index];
+
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, &key)) {
+                    destruct &mut currentNode.value
+                    currentNode.value = value;
+                    return true;
+                }
+                currentNode = currentNode.next;
+            }
+
+            const newNode = unsafe(malloc(sizeof(unordered_map_node<Key, Value>))) as *mut unordered_map_node<Key, Value>;
+            if(newNode == null) {
+                return false
+            }
+            new (newNode) unordered_map_node<Key, Value> {
+                key : key,
+                value : value,
+                next : table[index]
+            }
+            table[index] = newNode;
+            _size++;
+            return true
+        }
+    }
+
     // Insert or update a key-value pair
     func insert(&mut self, key : Key, value : Value) {
         unsafe {
@@ -173,6 +250,18 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         const ptr = get_ptr(key)
         if(ptr == null) { return Option.None<&Value>() }
         return Option.Some<&Value>(unsafe(&*ptr))
+    }
+
+    public func get_mut(&mut self, key : &Key) : Option<&mut Value> {
+        const ptr = get_ptr(key)
+        if(ptr == null) { return Option.None<&mut Value>() }
+        return Option.Some<&mut Value>(unsafe(&mut *ptr))
+    }
+
+    public func at_mut(&mut self, key : &Key) : &mut Value {
+        const ptr = get_ptr(key)
+        if(ptr == null) { unsafe(panic("map key not found")) }
+        return unsafe(&mut *ptr)
     }
 
     func at(&self, key : &Key) : &Value {

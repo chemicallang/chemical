@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "status_file": "lang/docs/safety-sharpen/STATUS.md",
+  "phases": {
+    "1": "Baseline and sharpen",
+    "2": "Safe APIs and release",
+    "3": "Harden and shrink (post-release)"
+  },
+  "jobs": {
+    "P1.1": ["./scripts/safety-sharpen-metrics.sh"],
+    "P1.2": ["./scripts/test.sh --tcc --safety"],
+    "P1.3": ["./scripts/test.sh --tcc --removed", "./scripts/test.sh --tcc --negative"],
+    "P1.4": ["./scripts/test.sh --tcc --removed"],
+    "P1.5": ["./scripts/test.sh --tcc --removed", "./scripts/test.sh --tcc --negative"],
+    "P1.6": ["./scripts/test.sh --tcc --removed"],
+    "P1.7": ["./scripts/safety-sharpen-metrics.sh", "./scripts/test.sh --tcc --safety"],
+    "P1.8": ["./scripts/test.sh --tcc --removed"],
+    "P2.1a": ["./scripts/test.sh --tcc --libs"],
+    "P2.1": ["./scripts/test.sh --tcc --libs", "./scripts/test.sh --tcc --api"],
+    "P2.2": ["./scripts/test.sh --tcc --libs", "./scripts/test.sh --tcc --process"],
+    "P2.3": ["./scripts/test.sh --tcc --server", "./scripts/test.sh --tcc --async"],
+    "P2.4": ["./scripts/test.sh --tcc --fuzz", "./scripts/test.sh --tcc --cbor"],
+    "P2.5": ["./scripts/test.sh --tcc --plugins"],
+    "P2.6": ["./scripts/test.sh --tcc --async"],
+    "P2.7": ["./scripts/test.sh --tcc --plugins"],
+    "P2.8a": ["./scripts/safety-sharpen-api-audit.sh"],
+    "P2.8": ["./scripts/safety-sharpen-api-audit.sh", "./scripts/safety-audit.sh", "./scripts/safety-sharpen-metrics.sh"],
+    "P3.1": ["./scripts/test.sh --tcc --safety", "./scripts/test.sh --tcc --negative"],
+    "P3.2": ["./scripts/test.sh --tcc --libs", "./scripts/test.sh --tcc --api"],
+    "P3.3": ["./scripts/test.sh --tcc --negative", "./scripts/test.sh --tcc --safety"],
+    "P3.4": ["./scripts/test.sh --tcc --negative", "./cmake-build-debug/MIRTests"],
+    "P3.5": ["./scripts/test.sh --tcc --async", "./scripts/test.sh --llvm --thread-tsan"],
+    "P3.6": ["./scripts/safety-sharpen-metrics.sh", "./scripts/test.sh --tcc --safety"],
+    "P3.7": ["./scripts/test.sh --tcc --fuzz", "./scripts/safety-audit.sh"]
+  }
+}

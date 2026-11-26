@@ -185,6 +185,18 @@ void BasicParser::parseModuleFile(ASTAllocator& allocator, ModuleFileData& data)
                             goto loop_break;
                         }
                         break;
+                    // Proposal 0005 module policy also accepts the bare
+                    // `no_panic = true` form (without a leading `option`).
+                    case hash_fn("no_panic"):
+                    case hash_fn("no_alloc"):
+                    case hash_fn("no_unsafe"):
+                    case hash_fn("no_blocking"):
+                    case hash_fn("pure"):
+                        if(!parseOptionStmt(allocator, data)) {
+                            error("couldn't parse an effect option statement");
+                            goto loop_break;
+                        }
+                        break;
                     case hash_fn("index_with"):
                         if(!parseIndexWithStmt(allocator, data)) {
                             error("couldn't parse an index_with statement");

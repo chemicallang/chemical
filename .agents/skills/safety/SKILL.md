@@ -44,19 +44,18 @@ for the safe API surface we currently expose**, not full language parity.
 | Validity / runtime | Bounds, overflow/div/shift, float→int, allocation/layout, packed/transparent, abort-only panic |
 | Async | Shipped, `Pin`/Waker/frame loans; `FutureHandle<'a, T>` frame lifetime, `SAFE-LIFE-005` retaining-API escapes, and `spawn_send` `'static` check. Public executor raw-state entry points are explicit `unsafe func`s; runtime state structs are explicitly `!Send`/`!Sync`; TSAN covers `Mutex`, `RwLock`, `channel`, thread pool, and executor spawn/yield |
 | Threads | Safe `spawn`/`spawn_closure`/scoped threads, `Send`-checked captures, TSAN smoke (`Mutex`, `RwLock`, `channel`, thread pool, executor spawn/yield) |
-| Type-system / stdlib parity | M1 feature work is frozen under the safety-parity policy. Existing safe-surface support includes tuples/tuple structs, fixed-array/slice patterns, `&str` views, associated types/projections/bounds/equality, and inherent impls. GATs, const generics, `impl Trait`, default-method projections, derive, match-position patterns, tuple trait impls, and raw unsized `[T]` are deferred, not release blockers. M7/M2/M8 remain. |
+| Type-system / stdlib parity | M1 feature work is frozen under the safety-parity policy. Existing safe-surface support includes tuples/tuple structs, flat fixed-array/slice destructuring, `&str` views, in-body (non-external) methods on structs/tuple structs, and generic impls (`impl<T> Trait for T`). Phase 1 removed associated types/projections/bounds/equality, external/generic inherent impls, nested/slice patterns, `Box<[T]>`, and range slicing. GATs, const generics, `impl Trait`, default-method projections, derive, match-position patterns, tuple trait impls, and raw unsized `[T]` are deferred, not release blockers. M7/M2/M8 remain. |
 
 Latest measured baseline:
 
 | Gate | Result |
 |---|---|
-| TCC main | `2478/2478` (Phase 1 removals) |
-| LLVM main | `2476/2476` (Phase 1 removals) |
-| `@test` runner | `57/57` |
-| TCC/LLVM negative | `861/861` (plus 12 `--removed` checks) |
-| TCC/LLVM safety | `190/190` |
-| TCC/LLVM async | `83/83` |
-| TCC libs | `734/734` (Box<[T]> tests removed) |
+| TCC main | `2495/2495` (latest recorded green, 2026-11-22) |
+| LLVM main | `2476/2476` (last recorded LLVM green, 2026-11-08) |
+| TCC/LLVM negative | `902/902` (plus 12 `--removed` checks) |
+| TCC/LLVM safety | `193/193` |
+| TCC/LLVM async | `84/84` |
+| TCC libs | `904/904` |
 | TCC plugins | `1305/1305` |
 | TCC interpret | `1938/1938` |
 | `MIRTests` | `4749 checks` |
@@ -99,6 +98,10 @@ func parse(x : &int) : int [no_panic] { return *x }
 - Not implemented yet: `[no_alloc]`, `[no_unsafe]`, `[no_blocking]`, `[pure]`,
   module-default policy, and effect propagation through generic/async bodies.
   `[no_panic]` on an async function is rejected for now.
+- Phase 3 (P3.1) adds the remaining proposal-0005 effects and combined forms as
+  opt-in syntax; existing code keeps compiling because no module or declaration
+  turns them on. See `lang/tests/negative/src/effects.ch` and
+  `lang/tests/safety/src/no_panic_sample.ch`.
 - Tests: `lang/tests/negative/src/effects.ch`.
 
 ### Unsafe boundaries
@@ -594,39 +597,36 @@ memory safety.
 12. **Panic unwinding is withdrawn.** Panic always aborts; there is no
     `catch_unwind`, `UnwindSafe`, or drop-on-unwind surface.
 
-13. **Slices and `&str` are view/owning aliases.** `[T]`/`&[T]` map to
-    `std::span<T>`, `&mut [T]` to `std::mut_span<T>`, `Box<[T]>` to the owning
-    vector-backed `std::boxed_slice<T>`, and `&str` to UTF-8-validated
-    `std::str` (`lang/docs/slices.md`). Indexing, mutable writes, ownership
-    moves, UTF-8 validation, and local-escape rejection are implemented. The
-    `IndexMut` interface now declares `index_mut`. `split(delim)` and
-    `split_by(predicate)` cover delimiter/predicate splitting, and `&'a [T]` /
-    `&'a str` carry explicit region lifetimes. Slice patterns and a raw unsized
-    `[T]` remain M1 work.
+13. **Slices and `&str` are view aliases.** `[T]`/`&[T]` map to
+    `std::span<T>`, `&mut [T]` to `std::mut_span<T>`, and `&str` to
+    UTF-8-validated `std::str` (`lang/docs/slices.md`). `Box<[T]>` was removed
+    in Phase 1 (use `vector<T>` for ownership, `[T]`/`&[T]` for a view).
+    Indexing, mutable writes, ownership moves, UTF-8 validation, and
+    local-escape rejection are implemented; `span`/`mut_span`/`str` carry a
+    borrow lifetime. `split(delim)`/`split_by(predicate)` cover
+    delimiter/predicate splitting. Range slicing syntax and slice patterns were
+    removed in Phase 1 (use `subview`/`split_at` and `get(i)`); a raw unsized
+    `[T]` remains M1 work.
 
 14. **Tuples are implemented for the current slice.** `(T1, T2)` types,
     `(e1, e2)` literals, `._0` access, parameters/returns, nested tuples,
     `Copy`/`Send`/`Sync`/`Unpin` facts, field-wise drops, flat destructuring
     (`var (a, b) = value`), named/generic tuple structs
     (`struct Point(int, int)`), and unit tuple `()` are implemented
-    (`lang/docs/tuples.md`). Nested tuple destructuring, wildcard elements,
-    tuple patterns in `if` conditions, nested fixed-array patterns, and
-    inline/external inherent methods on tuple structs (including generic ones)
-    are implemented; match/switch patterns and `impl Trait for (T1, T2)`
-    remain M1 work.
+    (`lang/docs/tuples.md`). Flat destructuring and flat fixed-array
+    exact/rest destructuring stay; nested tuple destructuring, tuple patterns
+    in `if` conditions, and nested fixed-array patterns were removed in Phase 1.
+    In-body methods on tuple structs and trait impls for tuple structs stay;
+    external/generic inherent `impl Type {}` was removed (declare methods in the
+    body or use `impl Trait for Type`). Match/switch patterns and
+    `impl Trait for (T1, T2)` remain frozen/deferred work.
 
-15. **Associated types are a declaration/binding/projection slice.**
-    Interface `type Item` declarations, impl `type Item = T` bindings, and
-    completeness checking are implemented. Return-position `Self::Item`,
-    abstract-method parameter-position `Self::Item`, and `T::Item` through
-    inline, `where`, and inherited interface bounds work for static dispatch.
-    Generic struct fields, nested generic containers, and generic impl bindings
-    that project a type parameter are covered. Associated-type bounds
-    (`type Item: Copy`) are checked against implementation bindings.
-    Equality bounds (`T: Iterator<Item = int>`) are checked against the
-    concrete implementation binding at instantiation. Default-method parameter
-    projections, dyn projections, and GAT parameters remain M1
-    (`lang/docs/associated-types.md`).
+15. **Associated types were removed in Phase 1.** Interface `type Item`
+    declarations/bindings/projections/bounds/equality constraints and
+    `Self::Item`/`T::Item` are rejected with `REMOVED-001`; use a generic
+    parameter on the interface/function instead. Ordinary `type Alias = T`
+    aliases stay. Default-method parameter projections, dyn projections, and GAT
+    parameters remain frozen, not release blockers.
 
 16. **Stdlib auto-trait audit (2026-11-02).** Every explicit stdlib
     `Send`/`Sync` impl was reviewed in `lang/docs/safety/auto-traits-audit.md`.
@@ -889,7 +889,7 @@ When compiler C++ changed, omit `--no-build` or rebuild first:
 | Interpreter guards | `compiler/mir/MIRInterpreter.*`, `MIRComptime.*` |
 | Standard library | `lang/libs/core`, `lang/libs/std`, `lang/libs/cstd`, `lang/libs/async` |
 | Tests | `lang/tests/negative/src/safety_*.ch`, `lang/tests/safety/`, `lang/tests/async/`, `lang/tests/thread_tsan/` |
-| Plan | `lang/docs/safety-implementation-plan.md` |
+| Plan | `lang/docs/safety/current-status.md` (status), `lang/docs/safety/design.md` (design), `lang/docs/safety/history.md` (history), `lang/docs/safety-sharpen-plan.md` (active Phase 3 plan) |
 | Audit metrics | `lang/docs/safety/migration-metrics.md` |
 
 ## Current architecture reminders

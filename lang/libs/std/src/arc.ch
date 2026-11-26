@@ -45,6 +45,11 @@ public struct Arc<T> {
         return arc(value)
     }
 
+    /** Fallible allocation; returns `AllocError` instead of aborting. */
+    public func try_new(value : T) : std::Result<Arc<T>, std::alloc::AllocError> {
+        return try_arc<T>(value)
+    }
+
     @delete
     func delete(&mut self) {
         if(self.ptr == null) {
@@ -296,6 +301,31 @@ public func <T> arc(value : T) : Arc<T> {
         value_state : 0
     }
     return unsafe(arc_unchecked<T>(inner))
+}
+
+/** Fallible `Arc` construction; reports allocation failure instead of aborting. */
+public func <T> try_arc(value : T) : std::Result<Arc<T>, std::alloc::AllocError> {
+    var bytes : size_t = sizeof(ArcInner<T>)
+    if(bytes == 0) { bytes = 1 }
+    var mem = std::alloc.alloc_bytes(bytes)
+    if(mem is std::Result.Err) {
+        var Err(err) = mem else unsafe { unreachable }
+        return std::Result.Err<Arc<T>, std::alloc::AllocError>(err)
+    }
+    var Ok(raw) = mem else unsafe { unreachable }
+    var inner = raw as *mut ArcInner<T>
+    // SAFETY: `raw` is a checked non-null allocation large enough for
+    // ArcInner<T>; the value is placed exactly once and owned by the handle.
+    unsafe {
+        new (inner) ArcInner<T> {
+            lock : mutex(),
+            strong : 1 as size_t,
+            weak : 0 as size_t,
+            value : manually_drop(value),
+            value_state : 0
+        }
+    }
+    return std::Result.Ok<Arc<T>, std::alloc::AllocError>(unsafe(arc_unchecked<T>(inner)))
 }
 
 public unsafe func <T> arc_unchecked(inner : *mut ArcInner<T>) : Arc<T> {

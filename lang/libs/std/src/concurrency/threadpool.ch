@@ -510,6 +510,52 @@ public namespace std {
         }
     }
 
+    // Fallible construction for the allocation that owns the pool state.
+    // Thread creation still uses the platform spawn primitive, which aborts on
+    // failure; this reports the pool/queue allocation path without changing the
+    // panicking `create_pool` convenience.
+    public func try_create_pool(n:uint) : std::Result<ThreadPool, std::alloc::AllocError> {
+        // SAFETY: zero workers is rejected, PoolData is null-checked before
+        // placement, and every worker arg points at the live PoolData owned by
+        // the returned handle.
+        unsafe {
+            if(n==0u){
+                return std::Result.Err<ThreadPool, std::alloc::AllocError>(std::alloc::AllocError.InvalidLayout())
+            }
+            var p=unsafe(malloc(sizeof(PoolData))) as *mut PoolData;
+            if(p == null) {
+                return std::Result.Err<ThreadPool, std::alloc::AllocError>(std::alloc::AllocError.OutOfMemory())
+            }
+            new(p) PoolData {
+                m:std.mutex(),
+                cv:std.CondVar(),
+                q:std.vector<Task>(),
+                workers:std.vector<usize>(),
+                run:true,
+                active_workers:n as size_t,
+                delete_requested:false,
+                owner_frees:false,
+                worker_ids:std.vector<usize>()
+            };
+            var id_slot:uint=0u;
+            while(id_slot<n){
+                p.worker_ids.push_back(0 as usize);
+                id_slot=id_slot+1u
+            }
+            var i:uint=0u;
+            while(i<n){
+                var worker_arg = new WorkerArg {
+                    pool : p,
+                    index : i as size_t
+                };
+                var h=unsafe(spawn_native(worker_main, worker_arg as *void));
+                p.workers.push_back(h);
+                i=i+1u
+            }
+            return std::Result.Ok<ThreadPool, std::alloc::AllocError>(unsafe(ThreadPool.from_raw(p)))
+        }
+    }
+
     }
 
     public namespace thread {

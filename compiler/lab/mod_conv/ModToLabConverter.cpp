@@ -447,7 +447,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             output << "\t__mod_opts." << opt.key << " = ";
             switch(opt.value.kind) {
                 case ModOptionValueKind::Boolean:
-                    output << (opt.value.bool_val ? "true" : "false");
+                    // The proposal-0005 policy defaults are `int` ABI fields in
+                    // the Chemical mirror (`ModuleOptions.no_panic : int`), so a
+                    // boolean option is written as 1/0 rather than `true`.
+                    output << (opt.value.bool_val ? "1" : "0");
                     break;
                 case ModOptionValueKind::Integer:
                     output << opt.value.int_val;

@@ -695,8 +695,9 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
         decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints), std::move(lifetime_bounds));
     }
 
-    // Effect restrictions/declarations. v1 currently implements the panic
-    // effect; unknown effect names are rejected rather than silently ignored.
+    // Effect restrictions/declarations. v1 implements the panic effect; Phase 3
+    // adds alloc/unsafe/blocking restrictions plus the `[pure]` combination.
+    // Unknown effect names are rejected rather than silently ignored.
     if (token->type == TokenType::LBracket) {
         token++;
         bool first_effect = true;
@@ -712,14 +713,48 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
                 decl->attrs.forbids_panic = true;
             } else if (effect->value == chem::string_view("panic")) {
                 decl->attrs.declares_panic = true;
+            } else if (effect->value == chem::string_view("no_alloc")) {
+                decl->attrs.forbids_alloc = true;
+            } else if (effect->value == chem::string_view("alloc")) {
+                decl->attrs.declares_alloc = true;
+            } else if (effect->value == chem::string_view("no_unsafe")) {
+                decl->attrs.forbids_unsafe = true;
+            } else if (effect->value == chem::string_view("unsafe")) {
+                decl->attrs.declares_unsafe = true;
+            } else if (effect->value == chem::string_view("no_blocking")) {
+                decl->attrs.forbids_blocking = true;
+            } else if (effect->value == chem::string_view("blocking")) {
+                decl->attrs.declares_blocking = true;
+            } else if (effect->value == chem::string_view("pure")) {
+                decl->attrs.forbids_pure = true;
+                decl->attrs.forbids_panic = true;
+                decl->attrs.forbids_alloc = true;
+                decl->attrs.forbids_unsafe = true;
+                decl->attrs.forbids_blocking = true;
+            } else if (effect->value == chem::string_view("noreturn")) {
+                decl->attrs.noreturn = true;
             } else {
                 std::string message("unsupported function effect '");
                 message.append(effect->value.data(), effect->value.size());
-                message += "' (only panic and no_panic are implemented)";
+                message += "' (supported: panic, no_panic, alloc, no_alloc, unsafe, no_unsafe, blocking, no_blocking, pure, noreturn)";
                 error(chem::string_view(message.data(), message.size()));
             }
             if (decl->attrs.forbids_panic && decl->attrs.declares_panic) {
                 error("a function cannot declare both [panic] and [no_panic]");
+            }
+            if (decl->attrs.forbids_alloc && decl->attrs.declares_alloc) {
+                error("a function cannot declare both [alloc] and [no_alloc]");
+            }
+            if (decl->attrs.forbids_unsafe && decl->attrs.declares_unsafe) {
+                error("a function cannot declare both [unsafe] and [no_unsafe]");
+            }
+            if (decl->attrs.forbids_blocking && decl->attrs.declares_blocking) {
+                error("a function cannot declare both [blocking] and [no_blocking]");
+            }
+            if (decl->attrs.forbids_pure &&
+                (decl->attrs.declares_panic || decl->attrs.declares_alloc ||
+                 decl->attrs.declares_unsafe || decl->attrs.declares_blocking)) {
+                error("[pure] cannot be combined with a positive effect declaration");
             }
             first_effect = false;
             consumeNewLines();

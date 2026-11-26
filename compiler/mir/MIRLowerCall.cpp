@@ -9604,6 +9604,10 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
                                                                   : MIRLinkage::Internal;
     rec.has_body = !decl->is_extern();
     rec.panic_free = decl->attrs.forbids_panic;
+    rec.alloc_free = decl->attrs.forbids_alloc;
+    rec.unsafe_free = decl->attrs.forbids_unsafe;
+    rec.blocking_free = decl->attrs.forbids_blocking;
+    rec.noreturn = decl->attrs.noreturn || decl->attrs.is_noReturn;
     rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     if (mir_needs_c_abi(decl)) {

@@ -27,6 +27,16 @@ struct LabModuleOptions {
     // A module with host 1 (js) is declarations-only on a non-JS job (see
     // `LabBuildCompiler::mark_declaration_only_modules`).
     int host = 0;
+
+    // Proposal 0005 module policy defaults. 1 means every function body defined
+    // in this module forbids the effect unless it declares the positive effect
+    // (`[panic]`, `[alloc]`, ...). ABI: `int`, matching
+    // `ModuleOptions.no_panic : int` in lang/libs/lab/src/lab.ch.
+    int no_panic = 0;
+    int no_alloc = 0;
+    int no_unsafe = 0;
+    int no_blocking = 0;
+    int pure = 0;
 };
 
 static_assert(std::is_same_v<decltype(LabModuleOptions::host), int>,

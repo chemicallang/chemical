@@ -31,6 +31,15 @@ void init_module_option_registry(
     // Spelled as a string in chemical.mod, stored as the integer ABI field
     // `LabModuleOptions::host` / `ModuleOptions.host` (0 = any, 1 = js, 2 = native).
     registry["host"]                 = OptionDescriptor::string_val(kHostValues);
+
+    // Proposal 0005 module policy: a default restriction applied to every
+    // function body defined in the module. Spelled either `option no_panic =
+    // true` or the bare `no_panic = true` form from the proposal.
+    registry["no_panic"]             = OptionDescriptor::boolean();
+    registry["no_alloc"]             = OptionDescriptor::boolean();
+    registry["no_unsafe"]            = OptionDescriptor::boolean();
+    registry["no_blocking"]          = OptionDescriptor::boolean();
+    registry["pure"]                 = OptionDescriptor::boolean();
 }
 
 // ---------------------------------------------------------------------------

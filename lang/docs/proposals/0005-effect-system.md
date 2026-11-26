@@ -141,3 +141,28 @@ real no-panic guarantee (R2), non-blocking async enforcement.
 - Data: `unreachable` used 332× in `lang/libs`; `ThrowStatement` exists; MIR tags
   opcodes with `OF_Pure`.
 - `lang/docs/proposals/DECISIONS.md` (decisions).
+
+## 12. Implementation status (Phase 3, 2026-11-26)
+
+Implemented for synchronous functions:
+
+- Square-bracket parsing of the negative (`no_panic`, `no_alloc`, `no_unsafe`,
+  `no_blocking`), positive (`panic`, `alloc`, `unsafe`, `blocking`,
+  `noreturn`) and `pure` forms, including conflict diagnostics.
+- Per-function restrictions enforced on lowered MIR: direct `unsafe`/
+  `unsafe(expr)`/inline asm/trap/throw/dealloc use for `no_unsafe`, coroutine
+  frame allocation for `no_alloc`, and the transitive callee rule for every
+  effect. Indirect and dynamic calls fail closed.
+- Generic propagation: instantiations copy the master declaration's attributes,
+  so a generic callee's symbol record carries the same effect flags.
+- Module policy in `chemical.mod`: `no_panic`/`no_alloc`/`no_unsafe`/
+  `no_blocking`/`pure` booleans (bare or `option`), applied to bodies defined in
+  that module. A function overrides one default by declaring the positive
+  effect; extern/interface declarations are never defaulted.
+- Library sample: `Option`/`Result` predicates are `[no_panic]`.
+
+Deferred (recorded in `lang/docs/safety-sharpen/NONBREAKING_DEFERRED.md`):
+async-function effect propagation, module defaults on compiler-plugin-generated
+functions, and `[no_panic]` on the generic `vector::try_*` family (allocator,
+div-zero guard, and generic destructor effects are not provable yet).
+

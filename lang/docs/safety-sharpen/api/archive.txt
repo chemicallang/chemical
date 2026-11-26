@@ -6,60 +6,60 @@ lang/libs/archive/src/raw.ch:1014:    func align_to_byte(&mut self) {
 lang/libs/archive/src/raw.ch:1026:struct HuffEntry {
 lang/libs/archive/src/raw.ch:1033:struct HuffTable {
 lang/libs/archive/src/raw.ch:1039:func build_huffman_table(lengths : *u8, num_codes : int, output : *mut HuffTable) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:107:public func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:107:public unsafe func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:1099:func decode_huffman(reader : *mut BitReader, table : *mut HuffTable) : u16 {
-lang/libs/archive/src/raw.ch:1121:public func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8, output_capacity : size_t) : std::Result<size_t, ArchiveError> {
-lang/libs/archive/src/raw.ch:1303:public func read_u16_le(data : *u8, offset : size_t) : u16 {
-lang/libs/archive/src/raw.ch:1310:public func read_u32_le(data : *u8, offset : size_t) : u32 {
-lang/libs/archive/src/raw.ch:1318:public func read_u64_le(data : *u8, offset : size_t) : u64 {
-lang/libs/archive/src/raw.ch:1328:public func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
-lang/libs/archive/src/raw.ch:1336:public func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
-lang/libs/archive/src/raw.ch:1346:public func write_u64_le(out : *mut u8, offset : size_t, val : u64) {
+lang/libs/archive/src/raw.ch:1121:public unsafe func deflate_decompress(input : *u8, input_len : size_t, output : *mut u8, output_capacity : size_t) : std::Result<size_t, ArchiveError> {
+lang/libs/archive/src/raw.ch:1303:public unsafe func read_u16_le(data : *u8, offset : size_t) : u16 {
+lang/libs/archive/src/raw.ch:1310:public unsafe func read_u32_le(data : *u8, offset : size_t) : u32 {
+lang/libs/archive/src/raw.ch:1318:public unsafe func read_u64_le(data : *u8, offset : size_t) : u64 {
+lang/libs/archive/src/raw.ch:1328:public unsafe func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
+lang/libs/archive/src/raw.ch:1336:public unsafe func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
+lang/libs/archive/src/raw.ch:1346:public unsafe func write_u64_le(out : *mut u8, offset : size_t, val : u64) {
 lang/libs/archive/src/raw.ch:137:public struct ZipArchive {
-lang/libs/archive/src/raw.ch:143:public func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:165:public func open_zip_bytes(data : *u8, data_len : size_t, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:143:public unsafe func open_zip(path : *char, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:165:public unsafe func open_zip_bytes(data : *u8, data_len : size_t, output : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:188:func parse_zip_central_dir(archive : *mut ZipArchive) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:21:public struct Archive {
-lang/libs/archive/src/raw.ch:272:public func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
-lang/libs/archive/src/raw.ch:279:public func zip_entry_count(archive : *mut ZipArchive) : size_t {
+lang/libs/archive/src/raw.ch:272:public unsafe func zip_entries(archive : *mut ZipArchive) : *mut vector<ArchiveEntry> {
+lang/libs/archive/src/raw.ch:279:public unsafe func zip_entry_count(archive : *mut ZipArchive) : size_t {
 lang/libs/archive/src/raw.ch:286:func str_equals_cstr(s : *mut string, cstr : *char) : bool {
-lang/libs/archive/src/raw.ch:28:public func open(path : *char) : std::Result<Archive, ArchiveError> {
-lang/libs/archive/src/raw.ch:300:public func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:322:public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:381:public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-lang/libs/archive/src/raw.ch:395:public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
-lang/libs/archive/src/raw.ch:409:public func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:446:public func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:28:public unsafe func open(path : *char) : std::Result<Archive, ArchiveError> {
+lang/libs/archive/src/raw.ch:300:public unsafe func zip_find_entry(archive : *mut ZipArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:322:public unsafe func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:381:public unsafe func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+lang/libs/archive/src/raw.ch:395:public unsafe func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
+lang/libs/archive/src/raw.ch:409:public unsafe func zip_extract_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:446:public unsafe func zip_extract_all(archive : *mut ZipArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:466:public struct TarArchive {
-lang/libs/archive/src/raw.ch:472:public func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:472:public unsafe func open_tar(path : *char, output : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:502:func parse_tar_entries(archive : *mut TarArchive) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:52:public func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
+lang/libs/archive/src/raw.ch:52:public unsafe func entries(archive : *mut Archive) : *mut vector<ArchiveEntry> {
 lang/libs/archive/src/raw.ch:576:func tar_parse_octal(str : *mut string) : u64 {
-lang/libs/archive/src/raw.ch:592:public func tar_entries(archive : *mut TarArchive) : *mut vector<ArchiveEntry> {
-lang/libs/archive/src/raw.ch:599:public func tar_entry_count(archive : *mut TarArchive) : size_t {
-lang/libs/archive/src/raw.ch:606:public func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:628:public func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:63:public func entry_count(archive : *mut Archive) : size_t {
-lang/libs/archive/src/raw.ch:654:public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-lang/libs/archive/src/raw.ch:668:public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
-lang/libs/archive/src/raw.ch:682:public func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-lang/libs/archive/src/raw.ch:713:public func tar_extract_all(archive : *mut TarArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:592:public unsafe func tar_entries(archive : *mut TarArchive) : *mut vector<ArchiveEntry> {
+lang/libs/archive/src/raw.ch:599:public unsafe func tar_entry_count(archive : *mut TarArchive) : size_t {
+lang/libs/archive/src/raw.ch:606:public unsafe func tar_find_entry(archive : *mut TarArchive, name : *char, output : *mut ArchiveEntry) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:628:public unsafe func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, output : *mut vector<u8>) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:63:public unsafe func entry_count(archive : *mut Archive) : size_t {
+lang/libs/archive/src/raw.ch:654:public unsafe func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+lang/libs/archive/src/raw.ch:668:public unsafe func tar_contains(archive : *mut TarArchive, name : *char) : bool {
+lang/libs/archive/src/raw.ch:682:public unsafe func tar_extract_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:713:public unsafe func tar_extract_all(archive : *mut TarArchive, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:734:public struct ZipWriter {
 lang/libs/archive/src/raw.ch:739:public struct ZipWriteEntry {
-lang/libs/archive/src/raw.ch:748:public func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
-lang/libs/archive/src/raw.ch:74:public func contains(archive : *mut Archive, name : *char) : bool {
-lang/libs/archive/src/raw.ch:775:public func zip_writer_add_bytes(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
-lang/libs/archive/src/raw.ch:779:public func zip_writer_add_store(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
+lang/libs/archive/src/raw.ch:748:public unsafe func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
+lang/libs/archive/src/raw.ch:74:public unsafe func contains(archive : *mut Archive, name : *char) : bool {
+lang/libs/archive/src/raw.ch:775:public unsafe func zip_writer_add_bytes(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
+lang/libs/archive/src/raw.ch:779:public unsafe func zip_writer_add_store(writer : *mut ZipWriter, name : *char, data : *u8, data_len : size_t) {
 lang/libs/archive/src/raw.ch:783:func write_local_header(writer : *mut ZipWriter, name : *char, size : u32, crc : u32) {
-lang/libs/archive/src/raw.ch:824:public func zip_writer_close(writer : *mut ZipWriter) {
-lang/libs/archive/src/raw.ch:85:public func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-lang/libs/archive/src/raw.ch:893:public func zip_writer_to_bytes(writer : *mut ZipWriter) : *mut vector<u8> {
-lang/libs/archive/src/raw.ch:901:public func zip_writer_save(writer : *mut ZipWriter, path : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:824:public unsafe func zip_writer_close(writer : *mut ZipWriter) {
+lang/libs/archive/src/raw.ch:85:public unsafe func read(archive : *mut Archive, name : *char) : std::Result<vector<u8>, ArchiveError> {
+lang/libs/archive/src/raw.ch:893:public unsafe func zip_writer_to_bytes(writer : *mut ZipWriter) : *mut vector<u8> {
+lang/libs/archive/src/raw.ch:901:public unsafe func zip_writer_save(writer : *mut ZipWriter, path : *char) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:918:func crc32_table_entry(i : u32) : u32 {
-lang/libs/archive/src/raw.ch:932:public func crc32_compute(data : *u8, data_len : size_t) : u32 {
-lang/libs/archive/src/raw.ch:947:public func crc32_update(crc : u32, data : *u8, data_len : size_t) : u32 {
+lang/libs/archive/src/raw.ch:932:public unsafe func crc32_compute(data : *u8, data_len : size_t) : u32 {
+lang/libs/archive/src/raw.ch:947:public unsafe func crc32_update(crc : u32, data : *u8, data_len : size_t) : u32 {
 lang/libs/archive/src/raw.ch:966:struct BitReader {
-lang/libs/archive/src/raw.ch:96:public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Unit, ArchiveError> {
+lang/libs/archive/src/raw.ch:96:public unsafe func extract(archive : *mut Archive, dest : *char) : std::Result<std::Unit, ArchiveError> {
 lang/libs/archive/src/raw.ch:973:    func init(d : *u8, d_len : size_t) : BitReader {
 lang/libs/archive/src/raw.ch:983:    func read_bits(&mut self, n : int) : u32 {
 lang/libs/archive/src/safe.ch:101:    func contains(&self, name : &str) : bool {

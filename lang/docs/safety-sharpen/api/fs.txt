@@ -8,41 +8,41 @@ lang/libs/fs/posix/api.ch:5:public struct statvfs {
 lang/libs/fs/posix/api.ch:60:    public type ssize_t = isize;
 lang/libs/fs/posix/directory.ch:1:func posix_mkdir(pathname : *char, mode : uint) : int {
 lang/libs/fs/posix/raw.ch:1005:func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
-lang/libs/fs/posix/raw.ch:100:public func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
-lang/libs/fs/posix/raw.ch:1030:public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:1079:public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
+lang/libs/fs/posix/raw.ch:100:public unsafe func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
+lang/libs/fs/posix/raw.ch:1030:public unsafe func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:1079:public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 lang/libs/fs/posix/raw.ch:10:func __fs_posix_write(fd : int, buf : *void, count : size_t) : isize {
-lang/libs/fs/posix/raw.ch:111:public func file_metadata(f : *mut File) : Result<Metadata, FsError> {
-lang/libs/fs/posix/raw.ch:1153:public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:1181:public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:1201:public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:111:public unsafe func file_metadata(f : *mut File) : Result<Metadata, FsError> {
+lang/libs/fs/posix/raw.ch:1153:public unsafe func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:1181:public unsafe func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:1201:public unsafe func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:122:public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:1243:public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:1317:public func exists(path : *char) : bool {
+lang/libs/fs/posix/raw.ch:1243:public unsafe func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:1317:public unsafe func exists(path : *char) : bool {
 lang/libs/fs/posix/raw.ch:131:func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:1322:public func is_file(path : *char) : Result<bool, FsError> {
-lang/libs/fs/posix/raw.ch:1329:public func is_dir(path : *char) : Result<bool, FsError> {
+lang/libs/fs/posix/raw.ch:1322:public unsafe func is_file(path : *char) : Result<bool, FsError> {
+lang/libs/fs/posix/raw.ch:1329:public unsafe func is_dir(path : *char) : Result<bool, FsError> {
 lang/libs/fs/posix/raw.ch:146:func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:193:func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mut_path_ptr,
-lang/libs/fs/posix/raw.ch:236:public func remove_file(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:244:public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:236:public unsafe func remove_file(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:244:public unsafe func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:252:func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:259:public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+lang/libs/fs/posix/raw.ch:259:public unsafe func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
 lang/libs/fs/posix/raw.ch:25:func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
-lang/libs/fs/posix/raw.ch:267:public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:267:public unsafe func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:276:public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:287:public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:287:public unsafe func create_dir_all(path : *char) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:329:public func remove_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:344:func remove_dir_all_at(dirfd : int) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:45:public func file_close_ref(f : &mut File) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:472:public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:508:public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:522:public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:55:public func file_close(f : *mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:571:public func create_dir(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:578:public func remove_dir(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:585:public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:592:public func mkdir(pathname : *char) : int {
+lang/libs/fs/posix/raw.ch:508:public unsafe func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:522:public unsafe func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:55:public unsafe func file_close(f : *mut File) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:571:public unsafe func create_dir(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:578:public unsafe func remove_dir(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:585:public unsafe func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:592:public unsafe func mkdir(pathname : *char) : int {
 lang/libs/fs/posix/raw.ch:601:func create_hard_link_native(existing : path_ptr, newpath : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:610:func create_symlink_native(target : path_ptr, linkpath : path_ptr, dir : bool) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:619:func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
@@ -52,22 +52,22 @@ lang/libs/fs/posix/raw.ch:647:func read_link(path : *char, out : *mut char, out_
 lang/libs/fs/posix/raw.ch:654:func create_hard_link(existing : *char, newpath : *char) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:662:func lock_file_shared(path : *char) : Result<File, FsError> {
 lang/libs/fs/posix/raw.ch:675:func lock_file_exclusive(path : *char) : Result<File, FsError> {
-lang/libs/fs/posix/raw.ch:67:public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:67:public unsafe func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/posix/raw.ch:689:public func set_permissions_native(path : path_ptr, mode : u32) : Result<UnitTy, FsError> {
-lang/libs/fs/posix/raw.ch:695:public func set_permissions(path : *char, mode : u32) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:695:public unsafe func set_permissions(path : *char, mode : u32) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:700:func disk_space_native(path : path_ptr, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> { unsafe {
 lang/libs/fs/posix/raw.ch:710:func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:715:public func stat_to_metadata(st : Stat) : Metadata {
-lang/libs/fs/posix/raw.ch:729:public func metadata(path : *char) : Result<Metadata, FsError> {
+lang/libs/fs/posix/raw.ch:729:public unsafe func metadata(path : *char) : Result<Metadata, FsError> {
 lang/libs/fs/posix/raw.ch:738:func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:753:public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:780:public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:78:public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:753:public unsafe func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:780:public unsafe func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:78:public unsafe func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/posix/raw.ch:7:func __fs_posix_read(fd : int, buf : *mut void, count : size_t) : isize {
-lang/libs/fs/posix/raw.ch:808:public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:832:public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:862:public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/posix/raw.ch:89:public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+lang/libs/fs/posix/raw.ch:808:public unsafe func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:832:public unsafe func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:862:public unsafe func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/posix/raw.ch:89:public unsafe func file_flush(f : *mut File) : Result<UnitTy, FsError> {
 lang/libs/fs/posix/raw.ch:929:func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
 lang/libs/fs/posix/raw.ch:946:public func parent_path_view(str : std::string_view) : std::string {
 lang/libs/fs/posix/raw.ch:965:func file_read_exact(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<UnitTy, FsError> {
@@ -83,21 +83,22 @@ lang/libs/fs/src/io.ch:180:public func remove_dir(path : &Path) : Result<UnitTy,
 lang/libs/fs/src/io.ch:188:public func remove_dir_all(path : &Path) : Result<UnitTy, FsError> {
 lang/libs/fs/src/io.ch:196:public func remove_file(path : &Path) : Result<UnitTy, FsError> {
 lang/libs/fs/src/io.ch:204:public func copy_file(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
-lang/libs/fs/src/io.ch:216:public func move_path(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
-lang/libs/fs/src/io.ch:223:public func metadata(path : &Path) : Result<Metadata, FsError> {
-lang/libs/fs/src/io.ch:229:public func exists(path : &Path) : bool {
-lang/libs/fs/src/io.ch:234:public func is_file(path : &Path) : bool {
-lang/libs/fs/src/io.ch:241:public func is_dir(path : &Path) : bool {
-lang/libs/fs/src/io.ch:249:struct ReadDirState {
-lang/libs/fs/src/io.ch:257:public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
-lang/libs/fs/src/io.ch:312:    func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/fs/src/io.ch:322:    func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
-lang/libs/fs/src/io.ch:339:    func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:223:public func copy_directory(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
+lang/libs/fs/src/io.ch:230:public func move_path(src : &Path, dst : &Path) : Result<UnitTy, FsError> {
+lang/libs/fs/src/io.ch:237:public func metadata(path : &Path) : Result<Metadata, FsError> {
+lang/libs/fs/src/io.ch:243:public func exists(path : &Path) : bool {
+lang/libs/fs/src/io.ch:248:public func is_file(path : &Path) : bool {
+lang/libs/fs/src/io.ch:255:public func is_dir(path : &Path) : bool {
+lang/libs/fs/src/io.ch:263:struct ReadDirState {
+lang/libs/fs/src/io.ch:271:public func read_dir(path : &Path) : Result<vector<DirEntry>, FsError> {
+lang/libs/fs/src/io.ch:326:    func read(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:336:    func read_exact(&mut self, buf : &mut [u8]) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:353:    func try_read_to_end(&mut self, out : &mut std::vector<u8>) : Result<size_t, std::io::IoError> {
 lang/libs/fs/src/io.ch:35:public func fs_error_from_io(e : std::io::IoError) : FsError {
-lang/libs/fs/src/io.ch:365:    func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-lang/libs/fs/src/io.ch:375:    func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
-lang/libs/fs/src/io.ch:392:    func flush(&mut self) : Result<size_t, std::io::IoError> {
-lang/libs/fs/src/io.ch:404:    func seek(&mut self, pos : std::io::SeekFrom) : Result<u64, std::io::IoError> {
+lang/libs/fs/src/io.ch:379:    func write(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:389:    func write_all(&mut self, buf : &[u8]) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:406:    func flush(&mut self) : Result<size_t, std::io::IoError> {
+lang/libs/fs/src/io.ch:418:    func seek(&mut self, pos : std::io::SeekFrom) : Result<u64, std::io::IoError> {
 lang/libs/fs/src/io.ch:68:public func open_file(path : &Path) : Result<File, FsError> {
 lang/libs/fs/src/io.ch:74:public func create_file(path : &Path) : Result<File, FsError> {
 lang/libs/fs/src/io.ch:79:public func close_file(f : &mut File) : Result<UnitTy, FsError> {
@@ -112,10 +113,10 @@ lang/libs/fs/src/types.ch:126:    func metadata(&self) : Result<Metadata, FsErro
 lang/libs/fs/src/types.ch:131:    func delete(&mut self) {
 lang/libs/fs/src/types.ch:146:public struct DirEntry {
 lang/libs/fs/src/types.ch:150:    func delete(&mut self) {
-lang/libs/fs/src/types.ch:158:    func path(&self) : PathBuf {
-lang/libs/fs/src/types.ch:162:    func file_name(&self) : string {
-lang/libs/fs/src/types.ch:166:    func is_dir(&self) : bool {
-lang/libs/fs/src/types.ch:170:    func metadata(&self) : Result<Metadata, FsError> {
+lang/libs/fs/src/types.ch:158:    public func path(&self) : PathBuf {
+lang/libs/fs/src/types.ch:163:    public func file_name(&self) : string {
+lang/libs/fs/src/types.ch:167:    public func is_dir(&self) : bool {
+lang/libs/fs/src/types.ch:171:    func metadata(&self) : Result<Metadata, FsError> {
 lang/libs/fs/src/types.ch:23:    func message(&self) : std::string {
 lang/libs/fs/src/types.ch:49:public struct Metadata {
 lang/libs/fs/src/types.ch:61:public struct OpenOptions {
@@ -129,7 +130,7 @@ lang/libs/fs/win/api.ch:104:public func GetDiskFreeSpaceExW(
 lang/libs/fs/win/api.ch:114:public func LockFileEx(
 lang/libs/fs/win/api.ch:126:public func SetEndOfFile(
 lang/libs/fs/win/api.ch:134:public func SetFileAttributesW(
-lang/libs/fs/win/api.ch:142:public func SetFileTime(
+lang/libs/fs/win/api.ch:142:public unsafe func SetFileTime(
 lang/libs/fs/win/api.ch:152:public func CreateDirectoryW(
 lang/libs/fs/win/api.ch:157:public struct _WIN32_FILE_ATTRIBUTE_DATA {
 lang/libs/fs/win/api.ch:166:public type WIN32_FILE_ATTRIBUTE_DATA = _WIN32_FILE_ATTRIBUTE_DATA
@@ -147,7 +148,7 @@ lang/libs/fs/win/api.ch:243:public func GetTempPathW(
 lang/libs/fs/win/api.ch:260:public func CopyFileW(
 lang/libs/fs/win/api.ch:269:public func CreateHardLinkW(
 lang/libs/fs/win/api.ch:278:public func CreateSymbolicLinkW(
-lang/libs/fs/win/api.ch:74:public func GetFullPathNameW(
+lang/libs/fs/win/api.ch:74:public unsafe func GetFullPathNameW(
 lang/libs/fs/win/api.ch:84:public func CreateFileW(
 lang/libs/fs/win/api.ch:97:public func FlushFileBuffers(
 lang/libs/fs/win/raw.ch:1009:public func parent_path_view(str : std::string_view) : std::string {
@@ -155,45 +156,45 @@ lang/libs/fs/win/raw.ch:1028:func file_read_exact(f : *mut File, buf : *mut u8, 
 lang/libs/fs/win/raw.ch:102:public func remove_dir_all_recursive_native(path : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:1048:func file_write_all(f : *mut File, buf : *u8, buf_len : size_t) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:1068:func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
-lang/libs/fs/win/raw.ch:1093:public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:1142:public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
-lang/libs/fs/win/raw.ch:1216:public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:1244:public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:1264:public func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:1306:public func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:1380:public func exists(path : *char) : bool {
-lang/libs/fs/win/raw.ch:1385:public func is_file(path : *char) : Result<bool, FsError> {
-lang/libs/fs/win/raw.ch:1392:public func is_dir(path : *char) : Result<bool, FsError> {
+lang/libs/fs/win/raw.ch:1093:public unsafe func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:1142:public unsafe func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
+lang/libs/fs/win/raw.ch:1216:public unsafe func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:1244:public unsafe func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:1264:public unsafe func move_path(src : *char, dst : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:1306:public unsafe func copy_directory(src : *char, dst : *char, preserve_metadata : bool) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:1380:public unsafe func exists(path : *char) : bool {
+lang/libs/fs/win/raw.ch:1385:public unsafe func is_file(path : *char) : Result<bool, FsError> {
+lang/libs/fs/win/raw.ch:1392:public unsafe func is_dir(path : *char) : Result<bool, FsError> {
 lang/libs/fs/win/raw.ch:17:public func create_dir_native(path : path_ptr) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:221:public func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:239:public func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:288:public func create_dir(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:300:public func remove_dir(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:30:public func create_dir_all(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:312:public func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:321:public func mkdir(pathname : *char) : int {
+lang/libs/fs/win/raw.ch:221:public unsafe func temp_dir(out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:239:public unsafe func read_dir(path : *char, callback : std::function<(name : *char, name_len : size_t, is_dir : bool) => bool>) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:288:public unsafe func create_dir(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:300:public unsafe func remove_dir(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:30:public unsafe func create_dir_all(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:312:public unsafe func remove_dir_all_recursive(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:321:public unsafe func mkdir(pathname : *char) : int {
 lang/libs/fs/win/raw.ch:328:func file_open_native(path : path_ptr, opts : OpenOptions) : Result<File, FsError> {
 lang/libs/fs/win/raw.ch:362:public func file_close_ref(f : &mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:370:public func file_close(f : *mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:381:public func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:392:public func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:403:public func file_flush(f : *mut File) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:370:public unsafe func file_close(f : *mut File) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:381:public unsafe func file_read(f : *mut File, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:392:public unsafe func file_write(f : *mut File, buf : *u8, buf_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:403:public unsafe func file_flush(f : *mut File) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:412:public func remove_file_native(path : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:421:func set_times_native(path : path_ptr, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:435:func copy_file_native(src : path_ptr, dst : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:443:func create_temp_file_in_native(dir : path_ptr, prefix : path_ptr, out_path : mut_path_ptr, fh : *mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:461:public func remove_file(path : *char) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:471:public func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:461:public unsafe func remove_file(path : *char) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:471:public unsafe func copy_file(src : *char, dst : *char) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:489:func create_temp_file_in(dir : *char, prefix : *char, out_path : *mut char, out_len : size_t, fh : *mut File) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:516:public func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
-lang/libs/fs/win/raw.ch:530:public func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:545:public func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
-lang/libs/fs/win/raw.ch:561:public func file_metadata(f : *mut File) : Result<Metadata, FsError> {
+lang/libs/fs/win/raw.ch:516:public unsafe func file_open(path : *char, opts : OpenOptions) : Result<File, FsError> {
+lang/libs/fs/win/raw.ch:530:public unsafe func set_times(path : *char, atime : i64, mtime : i64) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:545:public unsafe func file_seek(f : *mut File, offset : i64, whence : int) : Result<u64, FsError> {
+lang/libs/fs/win/raw.ch:561:public unsafe func file_metadata(f : *mut File) : Result<Metadata, FsError> {
 lang/libs/fs/win/raw.ch:581:func metadata_native(path : path_ptr) : Result<Metadata, FsError> {
-lang/libs/fs/win/raw.ch:602:public func metadata(path : *char) : Result<Metadata, FsError> {
+lang/libs/fs/win/raw.ch:602:public unsafe func metadata(path : *char) : Result<Metadata, FsError> {
 lang/libs/fs/win/raw.ch:615:func canonicalize(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/win/raw.ch:640:public func set_permissions_native(path : path_ptr, perms : u32) : Result<UnitTy, FsError> {
-lang/libs/fs/win/raw.ch:651:public func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
+lang/libs/fs/win/raw.ch:651:public unsafe func set_permissions(path : *char, perms : u32) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:666:func create_hard_link_native(existing : path_ptr, newpath : path_ptr) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:674:func create_symlink_native(target : path_ptr, linkpath : path_ptr, dir : bool) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:684:func read_link_native(path : path_ptr, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
@@ -207,13 +208,13 @@ lang/libs/fs/win/raw.ch:779:func lock_file_exclusive(path : *char) : Result<File
 lang/libs/fs/win/raw.ch:795:func disk_space_native(path : path_ptr, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:803:func disk_space(path : *char, total_out : *mut u64, free_out : *mut u64, avail_out : *mut u64) : Result<UnitTy, FsError> {
 lang/libs/fs/win/raw.ch:80:struct CustomDeletor<T> {
-lang/libs/fs/win/raw.ch:816:public func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:816:public unsafe func basename(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/win/raw.ch:83:    func make(value: *mut T) {
-lang/libs/fs/win/raw.ch:843:public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:871:public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-lang/libs/fs/win/raw.ch:895:public func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:843:public unsafe func dirname(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:871:public unsafe func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:895:public unsafe func join_path(a : *char, b : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/win/raw.ch:91:    func delete(&self) {
-lang/libs/fs/win/raw.ch:925:public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
+lang/libs/fs/win/raw.ch:925:public unsafe func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_t) : Result<size_t, FsError> {
 lang/libs/fs/win/raw.ch:992:func find_last_pos_of_or(str : *char, len : size_t, value : char, value2 : char) : int {
 lang/libs/fs/win/utf.ch:15:func utf16_to_utf8_str(src : *u16) : std::string {
 lang/libs/fs/win/utf.ch:5:func utf8_to_utf16_inplace(src : *char, out : *mut u16, out_len : size_t) : Result<size_t, FsError> {

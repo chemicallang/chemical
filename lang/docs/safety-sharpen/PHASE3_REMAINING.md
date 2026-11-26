@@ -1,0 +1,52 @@
+# Safety Sharpen — remaining non-breaking work (Phase 3 follow-ups)
+
+These items are still open after the Phase 3 non-breaking wave, but **none of
+them requires rejecting code that compiles today, renaming/removing a public
+API, or otherwise breaking the safe-API release**. They are additive (accept
+more annotations/programs, add APIs, fix codegen bugs) or internal
+(compiler size/compile-time). They therefore do **not** belong in
+[`NONBREAKING_DEFERRED.md`](NONBREAKING_DEFERRED.md), which is restricted to
+true breaking-branch work.
+
+The Phase 3 rows in [`STATUS.md`](STATUS.md) use `[~]` where this file still
+lists work for that job, so the status script's percentage does not claim these
+follow-ups are done.
+
+Each entry states **why it is non-breaking**, the **exact blocker**, and the
+**next task**.
+
+| Item | Why non-breaking | Exact blocker | Next task |
+|---|---|---|---|
+| **P3.1 async effect propagation** | Accepting an effect annotation on an `async func` only lets more programs compile; today such an annotation is rejected explicitly instead of being silently ignored. | An `async func` lowers to a coroutine ramp plus generated poll/drop/resume functions. The ramp always allocates a frame (`[no_alloc]` is inherently impossible), its div-zero/OOM guards are compiler-generated aborts, and `await` reaches the child through generated poll calls. Attributing those operations to the source effect set needs a coroutine-specific analysis, not the call-site bitset the synchronous checker uses. | Add an async-effect model: annotate the frame allocator as an alloc effect, treat compiler-generated guards as part of the allocation effect, and prove `await` through the child's `FutureHandle` contract. Then accept `[no_panic]`/`[no_unsafe]`/`[no_blocking]`/`[pure]` on async functions and test TCC+LLVM. |
+| **P3.1 module defaults on plugin-generated declarations** | Applying the module policy to generated declarations only adds effect restrictions to functions that today keep their explicit attributes; no existing valid call site is rejected by *accepting* the policy, and the change is opt-in per module. | The `chemical.mod` policy is applied after parsing. Functions CBI macros add during symres/generics (for example `#json` impls) are created later and therefore keep only their explicit attributes. Applying the policy to them requires threading the module policy into the CBI/macro emission boundary. | Thread the module effect policy into `ASTBuilder`/macro emission so a generated function inherits the default, with a macro regression test. |
+| **P3.1 `[no_panic]` on generic `vector::try_*` / `string` growth** | This only adds an annotation to functions that currently compile without it; no caller changes. | `try_reserve` calls the unannotated `malloc`/`realloc`; the compiler emits `__chc_div_zero_fail` for the element-size division even after the `elem_size == 0` branch proves it nonzero; `try_push` also runs the generic `T` destructor, whose effect set is unknown for an unbounded `T`. Annotating these now would either be unsound or require a false proof. | 1) annotate audited libc externs (`malloc`/`realloc`/`memcpy`) `[no_panic]`; 2) elide the div-zero guard for a provably nonzero divisor; 3) add an effect bound for destructors (`T: NoPanicDrop`) or make `try_push` return before constructing `T`'s drop glue. Then annotate the `try_*` family. |
+| **P3.3 pattern-bound variant payload field move** | Moving a field out of a pattern-bound payload (`var Some(v) = opt; v.field`) is currently rejected with `SAFE-MOVE-004`; allowing it accepts a program that is rejected today, so nothing that compiles now breaks. | Allowing it safely tracks the payload's drop flag through the pattern binding; the move/drop-flag analysis does not yet model a payload field as a movable place whose parent flag must be cleared. | Extend the move/drop-flag analysis to pattern-bound payload fields and add both a positive test and the still-rejected partial-move cases. The explicit `take`/`ManuallyDrop` API remains the safe alternative. |
+| **P3.3 remaining HRTB/async type-erasure shapes** | Source-to-stored/opaque/unsized HRTB cases and type erasure inside a non-`unsafe` generic container are rejected by `SAFE-LIFE-005`; accepting them is a widening. | A richer region/erasure model is needed to represent erased lifetime-carrying containers and prove the consumer contract. The explicit `unsafe` boundary remains the documented escape hatch. | Add representation for erased lifetime-carrying containers and prove the consumer contract; keep the explicit-`unsafe` path as the audited fallback. |
+| **P3.3 `regex::Regex` temporary codegen workaround** | This is a drop-scheduling bug fix: the workaround (binding to a local) keeps compiling, and the fix only makes a previously-corrupting temporary form work. | `lang/tests/regexp/helpers.ch` binds every `regex::compile(...)` result to a local because a temporary `Regex` in an expression corrupted the heap under the C backend. The cause is temporary lifetime/drop ordering in MIR (the temporary is destroyed while a borrowed method receiver is still live); a fix changes drop scheduling for every temporary. | Add a MIR temporary-lifetime regression (`regex::compile("a").is_match(...)`) and fix drop scheduling so a temporary borrowed as a receiver lives through the call. Remove the helper note after the suite passes with temporaries. |
+| **P3.4 `&raw local[0]` out-buffer codegen workaround** | This is a frame-layout bug fix; the TLS struct-field workaround already compiles, and the fix only makes the direct out-buffer form work. | `lang/libs/tls/src/raw.ch` writes output into struct fields instead of `&raw local[0]` for large-stack functions: the address of an array local is miscomputed at large stack offsets in the C backend. Fixing it is a stack-layout/frame-offset bug in MIR/emission, not an API issue. | Add a MIR/frame-layout regression with a large-stack function taking `&raw mut local[0]`, fix the offset calculation, then replace the TLS struct-field workaround with the direct out-buffer call. |
+| **`thread::scope` (new API, not shipped)** | Adding a new API is additive; `@scoped_callback` and the existing `scoped_*` surface stay. | The P2.6 spike is blocked on higher-ranked closure inference (`for<'s> (&'s mut Scope<'s>) => void`), capture-witness inference for a generic scoped closure, and the scoped-callback whitelist. Shipping it today would either weaken the `@scoped_callback` proof or add rejection-only closure rules. | Resolve HRTB inference for the scope receiver and make the capture witness inferable without a whitelist entry; then ship `thread::scope` as a *new* API while keeping `@scoped_callback`. |
+| **`&[N]T -> &[T]` coercion** | A new implicit conversion only accepts more programs; the explicit `span`/`as_span` forms remain. | Coercing a fixed-array reference to a slice reference is a new implicit-conversion rule across the type/borrow checker; it changes lifetime/region inference for every array view and is not needed by an existing API. | Add an explicit-`as_span`-equivalent inference path (or a coercion) with region/lifetime tests for array locals, fields and returns; do not remove the explicit forms. |
+| **Option/Result combinators** | Adding methods is additive; the fallible predicates and `unwrap_or` are already shipped. | Missing combinators such as `map`/`and_then`/`or_else`/`ok_or` need `FnOnce`/move semantics and borrow-sensitive receiver forms; a wrong receiver shape would silently move a payload. | Add the combinators with explicit `self`/`&mut self` shapes where each is correct, plus move/drop tests for owning payloads and `Option<&mut T>` payloads. |
+
+## Retired from this list
+
+- **P3.1 `[noreturn]` enforcement** — implemented in the MIR lowerer
+  (`SAFE-NORETURN-001`); see `STATUS.md` P3.1. A tail `panic(...)`/`@no_return`
+  call counts as divergence through MIR symbol flags, so the previous positive
+  test still compiles.
+- **P3.1 `[noreturn]` loop-divergence proof** — `function_can_return_normally`
+  now folds a compile-time-constant `CondBr` condition (a `ConstBool`/`ConstInt`
+  result carrying `VF_CONSTANT`, or a direct constant operand), so the exit edge
+  of `while(true)`/`loop` is unreachable and the appended fallthrough return is
+  dead. Positive test `noreturn_constant_true_loop_compiles` in
+  `lang/tests/negative/src/effects.ch` (negative suite 940/940).
+- **P3.6 4 MB size goal** — met by the selective release-only `-Os` list in
+  `CMakeLists.txt`: cold translation units (JS emitter, MIR interpreter/comptime,
+  CLI, build orchestration, intrinsic/comptime folding, CBI bindings) get
+  `-Os` after the target `-O2`; lowering/type-check/symres/generic-instantiation
+  units stay `-O2`. Release `TCCCompiler` is 3,989,304 B (down from 4,349,624 B;
+  hard 5,000,000 B gate met, 4 MB goal met). The final recorded sample compile
+  is 361 ms, inside the historical 339-382 ms baseline (same-session loaded
+  readings were 573-587 ms after vs 569-575 ms before the change). Further
+  object trimming (for example the generic runtime drop-path descriptor)
+  remains optional internal work, not a release gate.

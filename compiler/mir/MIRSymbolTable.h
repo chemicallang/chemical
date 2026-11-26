@@ -43,6 +43,18 @@ struct MIRSymbolRecord {
     bool has_body = false;
     /** The declaration carries `[no_panic]`; callers may trust its effect set. */
     bool panic_free = false;
+    /** `[no_alloc]`: the callee performs no heap allocation, directly or transitively. */
+    bool alloc_free = false;
+    /** `[no_unsafe]`: the callee performs no unsafe operation, directly or transitively. */
+    bool unsafe_free = false;
+    /** `[no_blocking]`: the callee performs no blocking operation, directly or transitively. */
+    bool blocking_free = false;
+    /**
+     * The callee never returns normally (`[noreturn]` or `@no_return`). Used by
+     * the `[noreturn]` body check to prove a call diverges; it does not change
+     * call-site codegen.
+     */
+    bool noreturn = false;
     /** The source declaration is `@stdcall`; codegen must honor it. */
     bool stdcall = false;
     TypeId type = MIR_INVALID_ID;

@@ -31,7 +31,7 @@ Known limits, tracked for Phase 3:
 - The 2026-11-09 API-freeze wave makes the safe names canonical for data/media,
   path/fs/process/environment, net/http/tls, web UI, and compiler/runtime
   libraries, with legacy pointer APIs under explicit `raw`/`ffi` namespaces.
-- `span`/`mut_span`/`str` are not frozen for lifetime parameters yet: the
-  compiler does not enforce lifetimes carried by user-defined generic structs,
-  so a library-only lifetime change would be unsound. This is the remaining
-  compiler blocker for the ideal std view API.
+- `span<'a, T>` / `mut_span<'a, T>` / `str 'a` / `CStr<'a>` / `Pin<'a, T>`
+  carry their borrow lifetime, and MIR view-escape checks fire. Static-lifetime
+  escapes are rejected. The frozen construction form is the vector-to-span
+  constructor; see `STATUS.md` (std view lifetime status).

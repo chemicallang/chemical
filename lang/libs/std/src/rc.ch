@@ -30,6 +30,11 @@ public struct Rc<T> {
         return rc(value)
     }
 
+    /** Fallible allocation; returns `AllocError` instead of aborting. */
+    public func try_new(value : T) : std::Result<Rc<T>, std::alloc::AllocError> {
+        return try_rc<T>(value)
+    }
+
     @delete
     func delete(&mut self) {
         if(self.ptr == null) {
@@ -196,6 +201,29 @@ public func <T> rc(value : T) : Rc<T> {
         value : manually_drop(value)
     }
     return unsafe(rc_unchecked<T>(inner))
+}
+
+/** Fallible `Rc` construction; reports allocation failure instead of aborting. */
+public func <T> try_rc(value : T) : std::Result<Rc<T>, std::alloc::AllocError> {
+    var bytes : size_t = sizeof(RcInner<T>)
+    if(bytes == 0) { bytes = 1 }
+    var mem = std::alloc.alloc_bytes(bytes)
+    if(mem is std::Result.Err) {
+        var Err(err) = mem else unsafe { unreachable }
+        return std::Result.Err<Rc<T>, std::alloc::AllocError>(err)
+    }
+    var Ok(raw) = mem else unsafe { unreachable }
+    var inner = raw as *mut RcInner<T>
+    // SAFETY: `raw` is a checked non-null allocation large enough for
+    // RcInner<T>; the value is placed exactly once and owned by the handle.
+    unsafe {
+        new (inner) RcInner<T> {
+            strong : 1 as size_t,
+            weak : 0 as size_t,
+            value : manually_drop(value)
+        }
+    }
+    return std::Result.Ok<Rc<T>, std::alloc::AllocError>(unsafe(rc_unchecked<T>(inner)))
 }
 
 public unsafe func <T> rc_unchecked(inner : *mut RcInner<T>) : Rc<T> {

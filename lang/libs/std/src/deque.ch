@@ -24,44 +24,75 @@ public struct deque<T> {
         }
     }
 
-    func reserve_blocks(&mut self, new_cap : size_t) {
-        if(new_cap <= block_cap) return
+    func try_reserve_blocks(&mut self, new_cap : size_t) : bool {
+        if(new_cap <= block_cap) return true
         if(new_cap > ((0 as size_t) - 1) / sizeof(deque_block<T>)) {
-            unsafe(panic("deque capacity overflow"))
+            return false
         }
+        // SAFETY: the element-count overflow was rejected above; realloc
+        // failure leaves the old block array owned by the deque.
         const new_blocks = unsafe(realloc(blocks, sizeof(deque_block<T>) * new_cap)) as *mut deque_block<T>
-        unsafe {
-            if(new_blocks != null) {
-                blocks = new_blocks
-                block_cap = new_cap
-            } else {
-                panic("failed to resize deque")
-            }
+        if(new_blocks == null) {
+            return false
+        }
+        blocks = new_blocks
+        block_cap = new_cap
+        return true
+    }
+
+    func reserve_blocks(&mut self, new_cap : size_t) {
+        if(!try_reserve_blocks(new_cap)) {
+            unsafe(panic("failed to resize deque"))
         }
     }
 
-    func add_block(&mut self) {
+    func try_add_block(&mut self) : bool {
+        // SAFETY: block reservation is checked before writing the new block,
+        // and a failed chunk allocation returns false without changing state.
         unsafe {
             if(block_count >= block_cap) {
                 if(block_cap == 0) {
-                    reserve_blocks(2)
+                    if(!try_reserve_blocks(2)) { return false }
                 } else {
                     if(block_cap > ((0 as size_t) - 1) / 2) {
-                        panic("deque capacity overflow")
+                        return false
                     }
-                    reserve_blocks(block_cap * 2)
+                    if(!try_reserve_blocks(block_cap * 2)) { return false }
                 }
             }
             const data = unsafe(malloc(sizeof(T) * DEQUE_CHUNK_SIZE)) as *mut T
             if(data == null) {
-                panic("failed to allocate deque block")
+                return false
             }
             blocks[block_count] = deque_block<T> {
                 data_ptr : data,
                 data_size : 0
             }
             block_count += 1
-    
+            return true
+        }
+    }
+
+    func add_block(&mut self) {
+        if(!try_add_block()) {
+            unsafe(panic("failed to allocate deque block"))
+        }
+    }
+
+    func try_push(&mut self, value : T) : bool {
+        // SAFETY: a writable block with a free slot is ensured first; memcpy
+        // consumes `value` and forget suppresses its source destructor.
+        unsafe {
+            if(block_count == 0 || blocks[block_count - 1].data_size == DEQUE_CHUNK_SIZE) {
+                if(!try_add_block()) { return false }
+            }
+            const block_index = block_count - 1
+            const elem_index = blocks[block_index].data_size
+            unsafe { memcpy(&raw mut blocks[block_index].data_ptr[elem_index], &raw value, sizeof(T)) }
+            intrinsics::forget(value)
+            blocks[block_index].data_size = elem_index + 1
+            data_size += 1
+            return true
         }
     }
 

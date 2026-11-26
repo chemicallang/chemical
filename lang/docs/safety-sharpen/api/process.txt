@@ -106,7 +106,7 @@ lang/libs/process/win/win.ch:36:public func WaitForSingleObject(hHandle : HANDLE
 lang/libs/process/win/win.ch:39:public func GetCurrentProcessId() : DWORD;
 lang/libs/process/win/win.ch:428:func win_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
 lang/libs/process/win/win.ch:42:public func Sleep(dwMilliseconds : DWORD) : void;
-lang/libs/process/win/win.ch:45:public func CreatePipe(
+lang/libs/process/win/win.ch:45:public unsafe func CreatePipe(
 lang/libs/process/win/win.ch:53:public func SetHandleInformation(hObject : HANDLE, dwMask : DWORD, dwFlags : DWORD) : BOOL;
 lang/libs/process/win/win.ch:551:func win_wait(child : *mut ChildProcess, out : *mut ProcessResult) : bool {
 lang/libs/process/win/win.ch:56:func SetEnvironmentVariableA(name : *char, value : *char) : int;

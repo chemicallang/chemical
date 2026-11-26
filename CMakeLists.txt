@@ -820,6 +820,65 @@ if(NOT MSVC)
     )
 endif()
 
+# ── P3.6 selective size optimization (release TCCCompiler only) ──────────────
+# The 4 MB goal needs more than target-wide -O2, but a blanket -Os regresses
+# the sample compile time (~339-382 ms idle -> ~427 ms), so -Os is applied
+# *only* to translation units that are provably off the per-expression hot path
+# of a normal compile:
+#
+#   compiler/mir/MIREmitterJs.cpp   JS target emission (not C/TCC builds)
+#   compiler/mir/MIRInterpreter.cpp MIR interpretation / comptime execution
+#   compiler/mir/MIRComptime.cpp    lowering-time comptime driver
+#   core/main/CompilerMain.cpp      one-shot CLI argument parsing/setup
+#   compiler/lab/LabBuildCompiler.cpp  build orchestration (JSON/mod parsing,
+#                                     job setup; not AST lowering/typecheck)
+#
+# The hot lowering/type-check/symres/generic-instantiation units listed in
+# PHASE3_REMAINING.md deliberately keep the target -O2 and are NOT in this list.
+#
+# We guard the source-level option with a target property so only TCCCompiler
+# opts in (the same sources are also compiled by the Compiler/MIRTests targets),
+# and with $<CONFIG:Release> so debug/sanitizer builds are untouched. GCC/Clang
+# use the last -O flag on the command line; source COMPILE_OPTIONS are emitted
+# after the target's options, so -Os overrides -O2 for exactly these files.
+if(NOT MSVC)
+    set_property(TARGET TCCCompiler PROPERTY TCC_RELEASE_OS_COLD_SOURCES 1)
+    set(TCC_RELEASE_OS_COLD_LIST
+            compiler/mir/MIREmitterJs.cpp
+            compiler/mir/MIRInterpreter.cpp
+            compiler/mir/MIRComptime.cpp
+            core/main/CompilerMain.cpp
+            compiler/lab/LabBuildCompiler.cpp
+            compiler/lab/LabBuildContext.cpp
+            # Intrinsic/reflection implementations and the comptime printer only
+            # run when a `comptime`/intrinsic call needs folding.
+            ast/utils/GlobalFunctions.cpp
+            preprocess/RepresentationVisitor.cpp
+            compiler/mir/MIRLowerComptime.cpp
+            # CBI bindings: only run while compiling a macro plugin, never on
+            # the per-expression path of an ordinary compile.
+            compiler/cbi/bindings/CBI.cpp
+            compiler/cbi/bindings/ASTBuilderCBI.cpp
+            compiler/cbi/bindings/BuildContextCBI.cpp
+            compiler/cbi/bindings/SymbolResolverCBI.cpp
+            compiler/cbi/bindings/AnnotationController.cpp
+            compiler/cbi/bindings/LabCBIAddons.cpp
+            compiler/cbi/bindings/ParserCBI.cpp
+            compiler/cbi/bindings/SourceProviderCBI.cpp
+            compiler/cbi/bindings/TransformerContextCBI.cpp
+            compiler/cbi/bindings/LexerCBI.cpp
+            compiler/cbi/bindings/PtrVecCBI.cpp
+            compiler/cbi/bindings/ASTDiagnoserCBI.cpp
+            compiler/cbi/bindings/BatchAllocatorCBI.cpp
+    )
+    set(TCC_RELEASE_OS_COLD_FLAG
+            "$<$<AND:$<CONFIG:Release>,$<BOOL:$<TARGET_PROPERTY:TCC_RELEASE_OS_COLD_SOURCES>>>:-Os>")
+    foreach(TCC_RELEASE_OS_SOURCE IN LISTS TCC_RELEASE_OS_COLD_LIST)
+        set_source_files_properties(${TCC_RELEASE_OS_SOURCE} PROPERTIES
+                COMPILE_OPTIONS "${TCC_RELEASE_OS_COLD_FLAG}")
+    endforeach()
+endif()
+
 # LSP has some definitions
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 

@@ -24,30 +24,49 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P2.7 | 2 | compiler | test/compiler/plugin/build APIs | [x] | agent | compiler::api, test_env::safe, test_report::safe, lab::safe; md_cbi migrated to parser facade; plugins 1305/1305; lab lifetime-generic handle limitation documented |
 | P2.8a | 2 | migration | transformer + consumer inventory | [x] | agent | consumers.md (209 in-tree modules, no remote deps); scripts/safety-migrate-removed.py mechanical migration + REMOVED hints; BREAKING policy |
 | P2.8 | 2 | release | API audit, docs, migration, gate | [x] | agent | snapshots + unsafe maps + audit allowlist (legacy raw migration debt recorded); ASAN/TSAN green; no-panic sample; release 4,037,816 B; full matrix green except documented GUI/Windows target execution exceptions |
+| P3.1 | 3 | language | no-panic completion (effects, propagation, corpus) | [~] | agent | 2026-11-26; P3.1 `f7642b5c8` + `[noreturn]` enforcement `d8666d7a7` (`SAFE-NORETURN-001`; 2 positive + 3 negative tests) + constant-true loop folding in `function_can_return_normally` (positive `noreturn_constant_true_loop_compiles`); `[no_alloc]`/`[no_unsafe]`/`[no_blocking]`/`[pure]`, module policy defaults, generic propagation, `Option`/`Result` `[no_panic]`; safety 196/196, negative 940/940, libs 953/953, main 2495/2495, plugins 1322/1322, MIRTests 4749; async effects, plugin-generated defaults and generic `try_*` annotations remain in `PHASE3_REMAINING.md` |
+| P3.2 | 3 | std | fallible std/alloc (`try_*`) coverage | [x] | agent | 2026-11-26; P3.2 `04a58981b` + `a393cdc44` (`async::try_channel`); libs 953/953, api 4/4; Box/Rc/Arc/string/deque/maps/ThreadPool + `async::try_channel` + `map::get_mut`/`at_mut` covered |
+| P3.3 | 3 | language | move/borrow/init closure (additive fixes only) | [~] | agent | 2026-11-26; P3.3 `426f8e657`, split `5f6771b37`; variant by-value `self` and `[no_panic] main` verified with runtime regressions; pattern-bound payload move, HRTB erasure widening and the regex temporary fix remain in `PHASE3_REMAINING.md`; the direct-reference loan is a true rejection in `NONBREAKING_DEFERRED.md` |
+| P3.4 | 3 | language | FFI/C ABI closure (additive fixes only) | [~] | agent | 2026-11-26; P3.4 `426f8e657`, split `5f6771b37`; generic-variant parameter now a concrete C struct (regression); the regex temporary and TLS `&raw local[0]` codegen bugs remain in `PHASE3_REMAINING.md` with exact blockers |
+| P3.5 | 3 | concurrency | Send/Sync/async hardening (widening only) | [x] | agent | 2026-11-26; P3.5 `896c6a8a0`; async 84/84, `--llvm --thread-tsan` pass; conditional negative auto-trait bounds already evaluated (existing test `conditional_generic_negative_skip`); no safe additional widening found, TSAN now exercises `try_channel` |
+| P3.6 | 3 | compiler | size/compile-time consolidation | [x] | agent | 2026-11-26; selective release-only `-Os` for cold TUs (`MIREmitterJs`, MIR interpreter/comptime, CLI, `LabBuildCompiler`/`LabBuildContext`, intrinsic/comptime folding, CBI bindings) after target `-O2`; hot lowering/type-check/symres/generics stay `-O2`; release 3,989,304 B (was 4,349,624 B; hard gate 5,000,000 and 4 MB goal met); final recorded sample compile 361 ms (historical idle baseline 339-382 ms), same-session under load 573-587 ms vs 569-575 ms before the change; 4 MB row retired in `PHASE3_REMAINING.md` |
+| P3.7 | 3 | quality | unsafe SAFETY comments, fuzz coverage, release docs | [x] | agent | 2026-11-26; fuzz 5/5 (`regex`, image/audio/archive added), SAFETY comments on new `try_*` blocks, `RELEASE_CHECKLIST.md` + API-stability notes; `safety-audit.sh` re-baselined and verified (`no growth`); raw-surface audit's 4 pre-existing offenders deferred |
 
-## Current baseline (safe-API release)
+## Current baseline (Phase 3 non-breaking wave, 2026-11-26)
 
-- Release `TCCCompiler`: **4,037,816 bytes** — under the 5,000,000-byte hard gate;
-  the 4 MB goal is missed by 37,816 bytes. `safety_sample_compile_ms` 286 ms,
-  `safety_sample_max_rss_kb` 35,120 (recorded in `metrics.json`).
-- Final TCC gates: main 2478/2478; negative 863/863; removed 12/12; safety
-  191/191; async 84/84; libs 882/882; regexp 154/154; cbor 23/23; fuzz 3/3;
-  api 4/4; process 128/128; server 10/10; plugins 1305/1305; interpret
-  1938/1938; TLS 605/605; webview 51/51; universal 368/368.
-- Final LLVM gates: main 2476/2476; negative 863/863; safety 191/191; libs
-  882/882; async 84/84; regexp 154/154; process 128/128; server 10/10.
-- `MIRTests`: 4749 checks. TSAN: pass. ASAN (actual instrumented compiler;
-  leak detection disabled for process-lifetime arenas): libs 882/882, process
-  128/128, server 10/10. Safety audit: no growth against
-  `lang/docs/safety/audit-baseline.json` (run with `--jobs 1` until the
-  parallel safety-report walk is fixed).
-- API snapshots are in `api/`, unsafe maps in `unsafe/`, and the reviewed
-  legacy-raw allowlist is `API_ALLOWLIST.md`. The safe surface is additive;
-  legacy raw-buffer entry points remain as explicit migration debt and are
-  counted by `scripts/safety-sharpen-api-audit.sh`.
-- GUI runtime execution is display/toolkit-gated; window/webview are
-  compile-checked and webview API tests pass in this environment. Windows/macOS
-  execution remains a cross-target exception recorded in `TARGETS.md`.
+**Classification split (2026-11-26).** `NONBREAKING_DEFERRED.md` now contains
+only true breaking-branch items (the direct-reference return loan and the four
+raw-surface offenders). Every additive/internal follow-up lives in
+[`PHASE3_REMAINING.md`](PHASE3_REMAINING.md); consequently P3.1, P3.3 and P3.4
+stay `[~]` and the status script reports Phase 3 as partially implemented
+instead of 7/7 (overall 22/25), so the percentage does not claim those
+follow-ups are done. `[noreturn]` is now enforced (`SAFE-NORETURN-001`) and the
+constant-true loop-divergence widening is implemented, so `[noreturn]` function
+bodies ending in `while(true)`/`loop` compile.
+
+- Release `TCCCompiler`: **3,989,304 bytes** — under the 5,000,000-byte hard
+  gate and under the **4 MB goal** (down from 4,349,624 B; 360,320 B saved,
+  8.3%). The saving comes from a release-only `-Os` list for cold translation
+  units (JS emitter, MIR interpreter/comptime, CLI, build orchestration,
+  intrinsic/comptime folding, CBI bindings) applied after the target `-O2`;
+  lowering/type-check/symres/generic-instantiation units keep `-O2`. On a
+  heavily loaded host the sample compile read 573-587 ms versus 569-575 ms
+  before the change in the same session (direct runs 530-550 ms); the final
+  quiet-window `--update` recorded **361 ms**, inside the historical 339-382 ms
+  baseline. `safety_sample_max_rss_kb` is 38,800 (recorded in `metrics.json`),
+  effectively unchanged. The earlier blanket `-Os` experiment (2,793,528 bytes,
+  427 ms) is still not enabled.
+- Phase 3 TCC gates: main 2495/2495; negative 939/939; safety 196/196; libs
+  953/953; async 84/84; interpret 1938/1938; api 4/4; fuzz 5/5; plugins
+  1322/1322; MIRTests 4749 checks; TSAN pass; `safety-audit.sh` re-baselined
+  and green.
+- Phase 3 LLVM gates (re-run after `[noreturn]`, `d8666d7a7`): main
+  2493/2493; negative 939/939; safety 196/196; libs 953/953; TSAN pass from
+  the pre-change run (the change adds no runtime code).
+- `MIRTests`: 4749 checks; TSAN pass; API snapshots in `api/`, unsafe maps in
+  `unsafe/`, reviewed legacy-raw allowlist in `API_ALLOWLIST.md`.
+- GUI runtime execution remains display/toolkit-gated; Windows/macOS execution
+  is the documented cross-target exception in `TARGETS.md`.
 - Release-blocker fixes: private `fs::File`/`http::Body` ownership state,
   unsafe `Client::set_ca_chain`, borrowed-lifetime `TlsServerConfig<'a>`,
   validated `Image`/`Font` safe boundaries, copied page parameter keys,

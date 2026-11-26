@@ -65,14 +65,14 @@ func run_threadpool_increments(shared : std::Arc<std::Mutex<int>>) {
 
 public func main() : int {
     var shared = std::arc(std::new_mutex(0))
-    var first = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        worker_increment, shared.clone())
-    var second = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        worker_increment, shared.clone())
-    var third = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        worker_increment, shared.clone())
-    var fourth = std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
-        worker_increment, shared.clone())
+    var first = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        worker_increment, shared.clone()))
+    var second = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        worker_increment, shared.clone()))
+    var third = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        worker_increment, shared.clone()))
+    var fourth = unsafe(std::thread.spawn<std::Arc<std::Mutex<int> >, int>(
+        worker_increment, shared.clone()))
     first.join()
     second.join()
     third.join()
@@ -84,14 +84,14 @@ public func main() : int {
 
     // RwLock write guards must serialize writers across threads as well.
     var rw = std::arc(std::new_rwlock(0))
-    var rw_first = std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
-        worker_rwlock_increment, rw.clone())
-    var rw_second = std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
-        worker_rwlock_increment, rw.clone())
-    var rw_third = std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
-        worker_rwlock_increment, rw.clone())
-    var rw_fourth = std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
-        worker_rwlock_increment, rw.clone())
+    var rw_first = unsafe(std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
+        worker_rwlock_increment, rw.clone()))
+    var rw_second = unsafe(std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
+        worker_rwlock_increment, rw.clone()))
+    var rw_third = unsafe(std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
+        worker_rwlock_increment, rw.clone()))
+    var rw_fourth = unsafe(std::thread.spawn<std::Arc<std::RwLock<int> >, int>(
+        worker_rwlock_increment, rw.clone()))
     rw_first.join()
     rw_second.join()
     rw_third.join()
@@ -105,8 +105,8 @@ public func main() : int {
     // every message without losing or duplicating one.
     var ch = async::channel<int>()
     var producer = ch.sender.clone_sender()
-    var producer_thread = std::thread.spawn<async::Sender<int>, int>(
-        worker_channel_send, producer)
+    var producer_thread = unsafe(std::thread.spawn<async::Sender<int>, int>(
+        worker_channel_send, producer))
     var received = 0
     var total = 0
     var spins = 0
@@ -123,6 +123,35 @@ public func main() : int {
     }
     producer_thread.join()
     if(received != 200 || total != 19900) {
+        return 1
+    }
+
+    // The fallible `try_channel` constructor must produce the same race-free
+    // shared state as the panicking form.
+    var fallible = async::try_channel<int>()
+    if(fallible is std::Result.Err) {
+        return 1
+    }
+    var Ok(fch) = fallible else unsafe { unreachable }
+    var fproducer = fch.sender.clone_sender()
+    var fproducer_thread = unsafe(std::thread.spawn<async::Sender<int>, int>(
+        worker_channel_send, fproducer))
+    var freceived = 0
+    var ftotal = 0
+    var fspins = 0
+    while(freceived < 200 && fspins < 200000) {
+        var next = fch.receiver.try_recv()
+        if(next is std::Result.Ok) {
+            var Ok(value) = next else unsafe { unreachable }
+            ftotal = ftotal + value
+            freceived = freceived + 1
+        } else {
+            std::concurrent.sleep_ms(1)
+            fspins = fspins + 1
+        }
+    }
+    fproducer_thread.join()
+    if(freceived != 200 || ftotal != 19900) {
         return 1
     }
 

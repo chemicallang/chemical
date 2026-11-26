@@ -29,7 +29,7 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P3.3 | 3 | language | move/borrow/init closure (additive fixes only) | [~] | agent | 2026-11-26; P3.3 `426f8e657`, split `5f6771b37`; variant by-value `self` and `[no_panic] main` verified with runtime regressions; pattern-bound payload move, HRTB erasure widening and the regex temporary fix remain in `PHASE3_REMAINING.md`; the direct-reference loan is a true rejection in `NONBREAKING_DEFERRED.md` |
 | P3.4 | 3 | language | FFI/C ABI closure (additive fixes only) | [~] | agent | 2026-11-26; P3.4 `426f8e657`, split `5f6771b37`; generic-variant parameter now a concrete C struct (regression); the regex temporary and TLS `&raw local[0]` codegen bugs remain in `PHASE3_REMAINING.md` with exact blockers |
 | P3.5 | 3 | concurrency | Send/Sync/async hardening (widening only) | [x] | agent | 2026-11-26; P3.5 `896c6a8a0`; async 84/84, `--llvm --thread-tsan` pass; conditional negative auto-trait bounds already evaluated (existing test `conditional_generic_negative_skip`); no safe additional widening found, TSAN now exercises `try_channel` |
-| P3.6 | 3 | compiler | size/compile-time consolidation | [~] | agent | 2026-11-26; release 4,341,432 B (hard gate 5,000,000 passes; 4 MB goal is 341,432 B away); `-Os` measured 2,793,528 B but regressed the sample compile 318-382 -> 427 ms, so no blanket `-Os`; split `5f6771b37`; the 4 MB goal and selective non-hot `-Os` remain in `PHASE3_REMAINING.md` |
+| P3.6 | 3 | compiler | size/compile-time consolidation | [~] | agent | 2026-11-26; release 4,349,624 B after `[noreturn]` (hard gate 5,000,000 passes; 4 MB goal is 349,624 B away); `-Os` measured 2,793,528 B but regressed the sample compile 318-382 -> 427 ms, so no blanket `-Os`; split `5f6771b37`; the 4 MB goal and selective non-hot `-Os` remain in `PHASE3_REMAINING.md` |
 | P3.7 | 3 | quality | unsafe SAFETY comments, fuzz coverage, release docs | [x] | agent | 2026-11-26; fuzz 5/5 (`regex`, image/audio/archive added), SAFETY comments on new `try_*` blocks, `RELEASE_CHECKLIST.md` + API-stability notes; `safety-audit.sh` re-baselined and verified (`no growth`); raw-surface audit's 4 pre-existing offenders deferred |
 
 ## Current baseline (Phase 3 non-breaking wave, 2026-11-26)
@@ -43,18 +43,21 @@ instead of 7/7 (overall 21/25), so the percentage does not claim those
 follow-ups are done. `[noreturn]` is now enforced (`SAFE-NORETURN-001`), with
 only the constant-true loop-divergence widening left in the remaining list.
 
-- Release `TCCCompiler`: **4,341,432 bytes** — under the 5,000,000-byte hard
-  gate; the 4 MB goal is missed by 341,432 bytes. `safety_sample_compile_ms`
-  382 ms, `safety_sample_max_rss_kb` 38,380 (recorded in `metrics.json`).
-  A `-Os` experiment produced 2,793,528 bytes but took 427 ms on the sample, so
-  it is not enabled (compile-time non-regression rule); the 4 MB goal is a
-  non-breaking future task in `PHASE3_REMAINING.md` (P3.6).
+- Release `TCCCompiler`: **4,349,624 bytes** — under the 5,000,000-byte hard
+  gate; the 4 MB goal is missed by 349,624 bytes. `safety_sample_max_rss_kb`
+  38,164 (recorded in `metrics.json`); the sample compile time recorded after a
+  release rebuild was 567 ms under a heavily loaded host (load average 8-17),
+  so it is not a like-for-like comparison with the earlier 339-382 ms baseline.
+  A `-Os` experiment produced 2,793,528 bytes but took 427 ms on the sample
+  idle, so it is not enabled (compile-time non-regression rule); the 4 MB goal
+  is a non-breaking future task in `PHASE3_REMAINING.md` (P3.6).
 - Phase 3 TCC gates: main 2495/2495; negative 939/939; safety 196/196; libs
   953/953; async 84/84; interpret 1938/1938; api 4/4; fuzz 5/5; plugins
   1322/1322; MIRTests 4749 checks; TSAN pass; `safety-audit.sh` re-baselined
   and green.
-- Phase 3 LLVM gates: main 2493/2493; negative 934/934; safety 196/196; libs
-  953/953; TSAN pass.
+- Phase 3 LLVM gates (re-run after `[noreturn]`, `d8666d7a7`): main
+  2493/2493; negative 939/939; safety 196/196; libs 953/953; TSAN pass from
+  the pre-change run (the change adds no runtime code).
 - `MIRTests`: 4749 checks; TSAN pass; API snapshots in `api/`, unsafe maps in
   `unsafe/`, reviewed legacy-raw allowlist in `API_ALLOWLIST.md`.
 - GUI runtime execution remains display/toolkit-gated; Windows/macOS execution

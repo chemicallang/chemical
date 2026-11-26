@@ -37,6 +37,9 @@ node lang/tests/wasm/run.mjs app.wasm --expect-rc 0
 
 Exports default to `main`. Name more with `--wasm-export NAME` (repeatable) or
 export everything with `--wasm-export-all`. `memory` is always exported.
+`--wasm-export-all` is a demo/debug convenience: it keeps every defined symbol
+(and therefore any unreachable OS-only helper that happens to live in `std`),
+so release builds should list their exports explicitly.
 
 The gate for all of the above:
 

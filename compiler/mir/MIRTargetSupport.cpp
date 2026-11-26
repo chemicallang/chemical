@@ -45,6 +45,13 @@ namespace mir {
             { MIRTargetKind::LLVM, "chx_dom_",
               "the 'dom' host API is client-only (JavaScript); call it from a 'client' "
               "module, not from server/shared code" },
+            // The freestanding wasm bridge (`lang/libs/browser`) deliberately
+            // uses a different prefix (`chc_wasm_dom_`) rather than `chx_dom_`:
+            // it is implemented by the wasm JS host, not the JS backend, and it
+            // must stay available to the LLVM/C backends when the target is
+            // wasm. It is not listed here because this table is keyed by
+            // backend, not by triple; a native build that calls it fails at
+            // link time with an undefined `chc_wasm_dom_*` symbol.
         };
     } // namespace
 

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chemical wasm UI</title>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; }
+        .wasm-counter { display: flex; gap: 1rem; align-items: center; }
+        .wasm-counter span { font-variant-numeric: tabular-nums; min-width: 2ch; }
+    </style>
+</head>
+<body>
+    <h1>Chemical wasm counter</h1>
+    <script type="module">
+        import { loadFromUrl } from './host.mjs';
+        const app = await loadFromUrl('./app.wasm');
+        app.instance.exports.start();
+        window.__chemical_wasm = app;
+    </script>
+</body>
+</html>

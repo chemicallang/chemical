@@ -24,6 +24,13 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P2.7 | 2 | compiler | test/compiler/plugin/build APIs | [x] | agent | compiler::api, test_env::safe, test_report::safe, lab::safe; md_cbi migrated to parser facade; plugins 1305/1305; lab lifetime-generic handle limitation documented |
 | P2.8a | 2 | migration | transformer + consumer inventory | [x] | agent | consumers.md (209 in-tree modules, no remote deps); scripts/safety-migrate-removed.py mechanical migration + REMOVED hints; BREAKING policy |
 | P2.8 | 2 | release | API audit, docs, migration, gate | [x] | agent | snapshots + unsafe maps + audit allowlist (legacy raw migration debt recorded); ASAN/TSAN green; no-panic sample; release 4,037,816 B; full matrix green except documented GUI/Windows target execution exceptions |
+| P3.1 | 3 | language | no-panic completion (effects, propagation, corpus) | [~] | agent | 2026-11-26; `./scripts/test.sh --tcc --safety` / `--negative`; see Phase 3 notes below |
+| P3.2 | 3 | std | fallible std/alloc (`try_*`) coverage | [~] | agent | 2026-11-26; `./scripts/test.sh --tcc --libs`; see Phase 3 notes below |
+| P3.3 | 3 | language | move/borrow/init closure (additive fixes only) | [~] | agent | 2026-11-26; additive compiler bug fixes only; rejection-only items deferred to `NONBREAKING_DEFERRED.md` |
+| P3.4 | 3 | language | FFI/C ABI closure (additive fixes only) | [~] | agent | 2026-11-26; `./scripts/test.sh --tcc --negative`; generic-variant MIR parameter fix |
+| P3.5 | 3 | concurrency | Send/Sync/async hardening (widening only) | [~] | agent | 2026-11-26; `./scripts/test.sh --tcc --async`; negative shapes stay rejected |
+| P3.6 | 3 | compiler | size/compile-time consolidation | [~] | agent | 2026-11-26; `./scripts/safety-sharpen-metrics.sh`; see release metrics |
+| P3.7 | 3 | quality | unsafe SAFETY comments, fuzz coverage, release docs | [~] | agent | 2026-11-26; `./scripts/test.sh --tcc --fuzz`; see Phase 3 notes below |
 
 ## Current baseline (safe-API release)
 

@@ -1761,20 +1761,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* nt = static_cast<NewTypedValue*>(value);
             BaseType* inner = const_cast<BaseType*>(nt->type.getType());
             const TypeId inner_t = types_.map(inner);
-            const TypeId u64t = types_.u64_type();
+            const TypeId usize_t = types_.usize_type();
             const TypeId ptr_t = types_.pointer_type(inner_t, true);
-            const ValueId size_v = builder_->size_of(inner_t, u64t);
-            return MIRExprResult::value(emit_malloc(size_v, u64t, ptr_t), ptr_t);
+            const ValueId size_v = builder_->size_of(inner_t, usize_t);
+            return MIRExprResult::value(emit_malloc(size_v, usize_t, ptr_t), ptr_t);
         }
         case ValueKind::NewValue: {
             // `new value` -> allocate, then store the value into the allocation
             auto* nv = static_cast<NewValue*>(value);
             BaseType* vt_ast = nv->value ? nv->value->getType() : nullptr;
             const TypeId vt = types_.map(vt_ast);
-            const TypeId u64t = types_.u64_type();
+            const TypeId usize_t = types_.usize_type();
             const TypeId ptr_t = types_.pointer_type(vt, true);
-            const ValueId size_v = builder_->size_of(vt, u64t);
-            const ValueId mem = emit_malloc(size_v, u64t, ptr_t);
+            const ValueId size_v = builder_->size_of(vt, usize_t);
+            const ValueId mem = emit_malloc(size_v, usize_t, ptr_t);
             MIRExprResult r = lower_expr(nv->value, error);
             if (!r.ok()) return r;
             if (r.kind == MIRExprKind::Place) {

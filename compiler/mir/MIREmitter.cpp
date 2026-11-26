@@ -321,8 +321,14 @@ void append_c_type_of(const MIRModule& module, TypeId type, std::string& out) {
             return;
         }
         case MIRTypeKind::Reference:
+            // C has no reference type. Spell both `&T` and `&mut T` as a plain
+            // pointer: a pointer-qualified `T*const` cannot be assigned after
+            // declaration, and the emitter initializes locals by declaration +
+            // assignment (and assigns reference-typed struct fields from
+            // aggregate initializers), which clang rejects. Immutability of
+            // `&T` is enforced by the front end, not by C's type system.
             append_c_type_of(module, r.element, out);
-            out += (r.flags & TF_MUTABLE) ? "*" : "*const";
+            out += "*";
             return;
         case MIRTypeKind::Array:
             append_c_type_of(module, r.element, out);

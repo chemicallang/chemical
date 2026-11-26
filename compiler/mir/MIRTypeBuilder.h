@@ -113,6 +113,27 @@ public:
     /** Unsigned 64-bit integer type (`size_t`-sized values). */
     TypeId u64_type() { return int_type(false, 64); }
 
+    /**
+     * The target's `size_t` spelling: pointer-sized, spelled like the C
+     * typedef the AST declares (`ulong` on LP64 and 32-bit targets, `unsigned
+     * long long` for 64-bit Windows' `ubigint`). `new T` / malloc use this so
+     * their declaration matches the app's `malloc(size_t)` on every target
+     * (a 64-bit size argument against a 32-bit wasm `malloc` is a link error).
+     */
+    TypeId usize_type() {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Int;
+        r.flags = 0; // unsigned
+        r.size = module_.layout.pointer_size;
+        r.alignment = r.size;
+        r.decl = 1u;
+        r.element = r.size * 8u;
+        r.int_kind = (module_.layout.windows && module_.layout.is64Bit)
+                         ? IK_ULONGLONG
+                         : IK_ULONG;
+        return intern(r);
+    }
+
     /** The C `char` type (string literals and `char` arithmetic). */
     TypeId char_type() {
         MIRTypeRecord r;

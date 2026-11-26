@@ -3015,6 +3015,8 @@ int ASTProcessor::implement_module(
     std::recursive_mutex& mir_visitor_mutex =
         mir_interp_program ? mir_interp_program->visitor_mutex : mir_mutex_local;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
+    mir_module.layout.pointer_size = mir_module.layout.is64Bit ? 8u : 4u;
+    mir_module.layout.pointer_alignment = mir_module.layout.pointer_size;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
     // The C emitter writes a `#line` before each source line when the module
@@ -3425,6 +3427,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_module.set_single_threaded(!kEnableParallelLowering);
     mir_module.unavailable_symbols = unavailable_symbols;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
+    mir_module.layout.pointer_size = mir_module.layout.is64Bit ? 8u : 4u;
+    mir_module.layout.pointer_alignment = mir_module.layout.pointer_size;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir_module.layout.c_abi = mir_c_abi_kind(c_visitor.comptime_scope.target_data);
     mir_module.emit_debug_info = c_visitor.line_directives;

@@ -170,17 +170,21 @@ public:
      */
     WebSide web_side = WebSide::None;
 
+    /**
+     * Sanitizers the build asked for (`--tsan`, `--sanitize=…`). Kept outside the
+     * `COMPILER_BUILD` block on purpose: a tcc-only compiler must still *record*
+     * the request, so it can refuse it. Dropping the flag silently in that build
+     * is what once made `--tsan` compile to an uninstrumented binary that looked
+     * race-checked.
+     */
+    SanitizerType sanitizers = SanitizerType::None;
+
 #ifdef COMPILER_BUILD
 
     /**
      * no pie flag allows to control PIE, we simply pass the flag to clang when linking, if enabled
      */
     bool no_pie = false;
-
-    /**
-     * sanitizer flags for enabling various sanitizers
-     */
-    SanitizerType sanitizers = SanitizerType::None;
 
     /**
      * should the lld be used directly

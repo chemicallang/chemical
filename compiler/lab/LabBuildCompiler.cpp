@@ -929,6 +929,21 @@ int compile_c_to_obj_w_opts(const std::string& out_c_path, const std::string_vie
     }
 #endif
 
+    // The tcc backend writes no instrumentation: it compiles and links the
+    // program itself, so a sanitizer flag here would produce a perfectly normal
+    // binary that merely looks sanitized. A data race then goes unreported and
+    // the build is read as "clean", which is worse than not offering the flag.
+    // Fail instead of linking a false negative.
+    if (options->sanitizers != SanitizerType::None) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                  << "--sanitize/--tsan are implemented only by the clang backend; "
+                     "the tcc backend would instrument nothing and produce an "
+                     "uninstrumented binary. Rebuild with --use-clang, or pass "
+                     "--emit-c and compile the generated C with a system compiler "
+                     "(-fsanitize=thread / -fsanitize=address)." << std::endl;
+        return 1;
+    }
+
     // compiling the entire C to a single object file
     int compile_c_result;
     if (emit_c) {

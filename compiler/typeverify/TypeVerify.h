@@ -74,6 +74,21 @@ public:
     bool is_unsafe = false;
 
     /**
+     * Mutable globals already reported by SAFE-GLOBAL-003. A `&mut` to a global
+     * is warned about once, at its first site: the fix belongs at the global's
+     * declaration (lock it), not at each of its accessors.
+     */
+    std::unordered_set<ASTNode*> reported_mutable_globals;
+
+    /**
+     * Warn (once per global) when a mutable reference to a mutable top-level
+     * global escapes, unless its type is a shareable `Sync` handle (a mutex).
+     * See the definition for why this is a warning. `at` is the reference's
+     * location.
+     */
+    void check_mutable_global_ref(Value* ref_target, SourceLocation at, bool is_mutable);
+
+    /**
      * Set while visiting the arguments of a join-before-return scoped API.
      * Its closure may borrow caller storage because the worker is joined before
      * the call returns; the API implementation is audited to never store it.

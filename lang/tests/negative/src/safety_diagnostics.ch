@@ -1014,6 +1014,18 @@ func neg_immutable_global_declared_not_sync(env : &mut TestEnv) {
 }
 
 @test
+func mutable_global_ref_escape_warns(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A `&mut` handed out from an accessor is a `&mut` every caller holds at
+    // once; `unsafe` (which SAFE-GLOBAL-001 requires) asserts the lock exists.
+    // SAFE-GLOBAL-003 reports it, once per global.
+    // a raw-pointer field makes the type structurally `!Sync` — the shape of the
+    // site struct that was shared across request threads
+    var ch = "public struct Site {\n    var p : *mut int\n}\n@never_destructed var site : Site\npublic func site_mut() : &mut Site {\n    return unsafe(&mut site)\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_warning_id(env, "mutable_global_ref_escape", ch, "SAFE-GLOBAL-003")
+}
+
+@test
 func neg_safe_send_impl_rejected(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"

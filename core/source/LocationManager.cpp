@@ -41,6 +41,11 @@ std::string LocationManager::formatLocation(SourceLocation location) {
 }
 
 std::string_view LocationManager::getPathForFileId(unsigned int fileId) {
+    // File id 0 is the first file the parser encoded, not a "no file" sentinel,
+    // so callers that want to reject an unknown id must not test for 0. Bounds
+    // check instead: an out-of-range id (or an empty table) yields "", which is
+    // also what a caller tests for.
+    if (fileId >= file_paths.size()) return std::string_view();
     return (file_paths.begin() + fileId)->first;
 }
 

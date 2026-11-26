@@ -828,6 +828,55 @@ static void set_unavailable_symbol_error(const MIRModule& module,
     error += ")";
 }
 
+/**
+ * Append a `#line` directive for `loc` when it is not the source line already in
+ * effect, updating `last_file` / `last_line`.
+ *
+ * The C backend compiles one concatenated translation unit, so without this the
+ * only position the C compiler can report is a line in that unit
+ * (`Translated.c:1387202`), and a build that compiles the buffer in memory gets
+ * `<string>:1387202` instead. TCC's `-g` line table is built by its
+ * preprocessor, which honours `#line`, so this is what makes a runtime backtrace
+ * and a TCC diagnostic name `lib/src/web_page.ch:36`.
+ *
+ * Only emitted for builds that carry debug info: one directive per source line
+ * is a real size cost in the generated C, and a release build never reads it.
+ * Consecutive instructions from the same source line share one directive, so the
+ * count is bounded by the number of distinct lines the module was lowered from.
+ */
+static void append_line_directive_at(const MIRModule& module, const MIRSourceLoc& loc,
+                                     std::string& out, uint32_t& last_file, uint32_t& last_line) {
+    if (loc.file == last_file && loc.line == last_line) return;
+    // Copy under the intern lock: another lowering worker may still be interning
+    // a path while this one emits, and a reallocation would dangle an index.
+    std::string path;
+    if (!module.source_file_at(loc.file, path)) return;
+    // A directive has to begin its own line. Emitted statements and labels end
+    // with '\n', so this normally holds; the guard keeps a statement that is still
+    // being written from swallowing the directive.
+    if (!out.empty() && out.back() != '\n') out += '\n';
+    out += "#line ";
+    append_uint(out, static_cast<uint64_t>(loc.line) + 1);
+    out += " \"";
+    for (const char c : path) {
+        // a Windows path contains backslashes, and the directive takes a C string
+        if (c == '\\' || c == '"') out += '\\';
+        out += c;
+    }
+    out += "\"\n";
+    last_file = loc.file;
+    last_line = loc.line;
+}
+
+/** The directive for the source line `inst` begins, if it has one. */
+static void append_line_directive(const MIRFunction& function, const MIRInstruction& inst,
+                                  const MIRModule& module, std::string& out,
+                                  uint32_t& last_file, uint32_t& last_line) {
+    if (inst.source_index == MIR_NO_SOURCE || inst.source_index >= function.sources.size()) return;
+    append_line_directive_at(module, function.sources[inst.source_index], out, last_file,
+                             last_line);
+}
+
 } // namespace
 
 bool emit_function_c(const MIRFunction& function, const MIRModule& module,
@@ -852,6 +901,24 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     const bool is_static = function.symbol != MIR_INVALID_ID &&
                            function.symbol < module.symbols.size() &&
                            module.symbols.get(function.symbol).linkage == MIRLinkage::Internal;
+
+    // Debug builds carry a `#line` before every source line (see
+    // append_line_directive); release builds pay nothing for it.
+    const bool line_directives = module.emit_debug_info && !function.sources.empty();
+    uint32_t last_src_file = MIR_INVALID_ID;
+    uint32_t last_src_line = 0;
+    if (line_directives) {
+        // The caller appends this buffer straight after the previous text, which
+        // ends with a prototype's `;` and no newline. A `#line` directive has to be
+        // the first token on its line, so start on a fresh one (debug builds only;
+        // a release build's output is untouched).
+        out += '\n';
+        // Point the function's own signature (and the STABS `FUN` record TCC
+        // derives from it) at its declaration, not at the previous last line.
+        if (function.has_decl_loc) {
+            append_line_directive_at(module, function.decl_loc, out, last_src_file, last_src_line);
+        }
+    }
 
     // reused across calls so the parameter-type list does not reallocate per function
     static thread_local std::vector<TypeId> ptypes;
@@ -1743,6 +1810,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 facts.param_alias[d->id] != MIR_INVALID_ID) {
                 continue;
             }
+        }
+        if (line_directives) {
+            append_line_directive(function, inst, module, out, last_src_file, last_src_line);
         }
         out += "    ";
 

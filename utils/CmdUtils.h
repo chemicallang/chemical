@@ -345,12 +345,36 @@ struct CmdOptions {
 
                     const auto is_large_opt = user_arg[1] == '-';
                     const auto option_key_offset = is_large_opt ? 2 : 1;
-                    const auto option_key = std::string_view(argv[i] + option_key_offset,user_arg.size() - option_key_offset);
+                    std::string_view option_key = std::string_view(argv[i] + option_key_offset,user_arg.size() - option_key_offset);
+                    // `--opt=value` — the form the help text advertises, e.g.
+                    // `--sanitize=address,undefined`. Split at the first '=' so the
+                    // value reaches the option; without this the whole
+                    // `opt=value` string became a key nothing reads and the
+                    // request was silently dropped. Long options only: `-o=file`
+                    // is not GNU syntax, and short flags are also how arguments
+                    // are forwarded to clang unchanged.
+                    std::string_view inline_value;
+                    bool has_inline_value = false;
+                    if (is_large_opt) {
+                        if (const auto eq = option_key.find('='); eq != std::string_view::npos) {
+                            inline_value = option_key.substr(eq + 1);
+                            option_key = option_key.substr(0, eq);
+                            has_inline_value = true;
+                        }
+                    }
 
                     if (!option.empty()) {
                         // has an option, however user writes another option
                         // put previous option with a default value first
                         put_option(option, is_option_large_opt, defOptValue);
+                    }
+
+                    if (has_inline_value) {
+                        put_option(option_key, is_large_opt, inline_value);
+                        option = "";
+                        is_option_large_opt = false;
+                        i++;
+                        continue;
                     }
 
                     // set this option as current opt

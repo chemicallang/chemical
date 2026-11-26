@@ -61,7 +61,7 @@ void print_help() {
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
                  "configure           -[empty]      configures the compiler for this OS\n"
-                 "--mode              -m            debug or release mode : debug, debug_quick, release_small, release_fast\n"
+                 "--mode              -m            debug or release mode : debug, debug_quick, debug_complete, release_small, release_fast\n"
                  "--plugin-mode       -pm           debug or release mode : debug, debug_quick, release_small, release_fast\n"
                  "--output            -o            specify a output file, output determined by it's extension\n"
                  "--out-ll  <path>    -[empty]      specify a path to output a .ll file containing llvm ir\n"
@@ -89,9 +89,11 @@ void print_help() {
                  "--cpp-like          -[empty]      configure output of c translation to be like c++\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
                   "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
-                  "--tsan              -[empty]      enable thread sanitizer (data race detection)\n"
+                  "--tsan              -[empty]      enable thread sanitizer (data race detection); requires the clang backend\n"
                   "--sanitize          -fsanitize    enable sanitizers: address, memory, thread, undefined, leak, hwaddress, dataflow\n"
                   "                                    can combine: --sanitize=address,undefined\n"
+                  "                                    requires the clang backend (--use-clang); the tcc backend refuses rather than\n"
+                  "                                    linking an uninstrumented binary\n"
                   "" << std::endl;
 
 }
@@ -547,6 +549,40 @@ int compiler_main(int argc, char *argv[]) {
         // lang/docs/web-stack-plan.md §3.1.
         opts->web_build = options.has_value("web", "web");
         opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
+        // Parsed outside `COMPILER_BUILD`: a tcc-only compiler must record the
+        // request so it can refuse it, instead of dropping the flag and linking
+        // an uninstrumented binary that looks sanitized.
+        if (options.has_value("tsan")) {
+            opts->sanitizers |= SanitizerType::Thread;
+        }
+        auto& sanitize_opt = options.option_new("sanitize", "fsanitize");
+        if (sanitize_opt.has_value()) {
+            std::string sanitize_value(sanitize_opt.value());
+            // Parse comma-separated sanitizer names
+            size_t pos = 0;
+            while (pos < sanitize_value.length()) {
+                size_t comma = sanitize_value.find(',', pos);
+                std::string token = sanitize_value.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+                if (token == "thread") opts->sanitizers |= SanitizerType::Thread;
+                else if (token == "address") opts->sanitizers |= SanitizerType::Address;
+                else if (token == "memory") opts->sanitizers |= SanitizerType::Memory;
+                else if (token == "undefined") opts->sanitizers |= SanitizerType::UndefinedBehavior;
+                else if (token == "leak") opts->sanitizers |= SanitizerType::Leak;
+                else if (token == "hwaddress") opts->sanitizers |= SanitizerType::HWAddress;
+                else if (token == "dataflow") opts->sanitizers |= SanitizerType::DataFlow;
+                else {
+                    // A typo must not produce an un-instrumented build that the
+                    // user reads as sanitized: this is a usage error.
+                    std::cerr << rang::fg::red << "error: " << rang::fg::reset
+                              << "unknown sanitizer '" << token << "' (expected thread, "
+                              << "address, memory, undefined, leak, hwaddress or dataflow)"
+                              << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
+                if (comma == std::string::npos) break;
+                pos = comma + 1;
+            }
+        }
 #ifdef COMPILER_BUILD
         opts->resources_path = get_resources_path();
         if (options.has_value("use-tcc", "use-tcc")) {
@@ -614,29 +650,6 @@ int compiler_main(int argc, char *argv[]) {
             opts->def_static_on = true;
         }
 #ifdef COMPILER_BUILD
-        // Parse sanitizer options
-        if (options.has_value("tsan")) {
-            opts->sanitizers |= SanitizerType::Thread;
-        }
-        auto& sanitize_opt = options.option_new("sanitize", "fsanitize");
-        if (sanitize_opt.has_value()) {
-            std::string sanitize_value(sanitize_opt.value());
-            // Parse comma-separated sanitizer names
-            size_t pos = 0;
-            while (pos < sanitize_value.length()) {
-                size_t comma = sanitize_value.find(',', pos);
-                std::string token = sanitize_value.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
-                if (token == "thread") opts->sanitizers |= SanitizerType::Thread;
-                else if (token == "address") opts->sanitizers |= SanitizerType::Address;
-                else if (token == "memory") opts->sanitizers |= SanitizerType::Memory;
-                else if (token == "undefined") opts->sanitizers |= SanitizerType::UndefinedBehavior;
-                else if (token == "leak") opts->sanitizers |= SanitizerType::Leak;
-                else if (token == "hwaddress") opts->sanitizers |= SanitizerType::HWAddress;
-                else if (token == "dataflow") opts->sanitizers |= SanitizerType::DataFlow;
-                if (comma == std::string::npos) break;
-                pos = comma + 1;
-            }
-        }
         if(options.has_value("no-pie", "no-pie")) {
             opts->no_pie = true;
         }

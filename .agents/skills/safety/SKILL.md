@@ -135,6 +135,12 @@ func parse(x : &int) : int [no_panic] { return *x }
   global access outside `unsafe`; thread-local/comptime globals exempt.
 - `SAFE-GLOBAL-002` — immutable global whose type is not `Sync` (including
   explicit/conditional `!Sync` and nested generic fields).
+- `SAFE-GLOBAL-003` — *warning*, once per global: a mutable reference (`&mut` /
+  `&raw mut`) to a mutable top-level global escapes into a caller. `unsafe` is
+  the whole assertion `SAFE-GLOBAL-001` demands, so the compiler cannot see the
+  lock; this makes the hazard visible. Globals whose type is a structural `Sync`
+  handle (a mutex, an atomic) are exempt — `&mut` to those is how a caller locks
+  them. Scalars are not exempt (`&mut i32` to a global is still two writers).
 - `SAFE-TRAIT-001` — implementing an `unsafe interface` without `unsafe impl`.
 - `SAFE-VIS-001` — private/internal member initialized or accessed outside its
   type/module (covers forged handles such as `Sender`, `Mutex`, `Arc`, …).
@@ -746,6 +752,7 @@ Coded output renders `error[SAFE-*]:` / `warn[SAFE-*]:`; uncoded output keeps
 | `SAFE-FFI-006` | variadic `@stdcall` or non-x86 32-bit `@stdcall` |
 | `SAFE-GLOBAL-001` | mutable/extern global access in safe context |
 | `SAFE-GLOBAL-002` | immutable global whose type is not `Sync` |
+| `SAFE-GLOBAL-003` | (warning) mutable reference to a mutable global escapes |
 | `SAFE-INIT-001` | use/move/drop of an uninitialized place |
 | `SAFE-LIFE-001` | reference/local-storage escape |
 | `SAFE-LIFE-002` | loan outlives referent storage |

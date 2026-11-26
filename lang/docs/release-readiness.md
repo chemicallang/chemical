@@ -169,15 +169,15 @@ Open (documented, not silent):
   loan in one `return` branch is not path-sensitive and conflicted with a
   `&mut` in a later branch. Fixing the direct-reference case needs the escaped
   loan to be path-scoped first.
-- **A by-value `self` method on a variant segfaults the compiler.**
-  ```chemical
-  public variant Q<T> { Has(v : T)  Empty()
-      func byvalue(self) : int { return 0 } }
-  ```
-  By-value `self` works on structs (`Pin::into_inner`, `SafeHasher::finish`,
-  `http::Server::serve`), so this is variant-specific.
-- **`[no_panic]` on `main` is ignored, and the entry symbol is not emitted**
-  (`unresolved reference to 'main'` at link). Annotate a helper instead.
+- **By-value `self` on a variant (resolved).** A by-value receiver on a
+  variant no longer crashes the compiler on either backend; `lang/tests/safety/
+  src/mir_regressions.ch` runs non-generic and generic variant `by_value(self)`
+  cases. By-value `self` on structs (`Pin::into_inner`, `SafeHasher::finish`,
+  `http::Server::serve`) is unchanged.
+- **`[no_panic]` on `main` (resolved).** The entry symbol is emitted and the
+  effect annotation is honored; `lang/tests/negative/src/effects.ch`
+  (`no_panic_main_entry_point_compiles`) compiles and runs an application whose
+  `main` is `[no_panic]`.
 - A misspelled qualified name can resolve to an imported C function
   (`net::connect(...)` → cstd `connect`), producing a confusing parameter
   error instead of "unresolved". Prefer the real spelling

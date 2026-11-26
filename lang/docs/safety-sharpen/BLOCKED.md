@@ -74,9 +74,10 @@ with a minimal repro, fixed, and is now covered by a regression test in
 
 ### Remaining known gap (not blocking the server wave)
 
-- A parameter whose type is a *generic variant instantiation*
-  (`func set(&mut self, value : Option<&'a Chain>)` on a generic struct) is
-  still lowered as `void*` in the C backend when the method is emitted for an
-  instantiation. Reference-typed parameters (`value : &'a Chain`) work, which is
-  what the TLS configuration needs; passing the variant by value needs a MIR
-  type-mapping fix.
+- **Resolved/verified:** a parameter whose type is a *generic variant
+  instantiation* (`func set(&mut self, value : Option<&'a Chain>)` on a generic
+  struct) now lowers to the concrete variant struct in the C backend rather than
+  `void*`; `lang/tests/safety/src/mir_regressions.ch`
+  (`generic_variant_parameter_runs`) exercises `Option<T>` on a generic struct
+  method on TCC and LLVM. The TLS configuration's reference-typed parameter path
+  is unchanged.

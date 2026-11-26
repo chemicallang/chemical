@@ -303,3 +303,13 @@ func module_default_positive_override(env : &mut TestEnv) {
     var ch = "using namespace std;\nfunc may_panic() [panic] { panic(\"boom\") }\npublic func main() : int [panic] { may_panic(); return 0 }\n"
     expect_compile_success_with_mod(env, "module_default_override", ch, mod)
 }
+
+// `[no_panic]` on the entry point used to be ignored and drop the `main`
+// symbol (unresolved reference at link). It must link and run.
+@test
+func no_panic_main_entry_point_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "public func main() : int [no_panic] { return 7 }\n"
+    var mod = "application neg_test\nsource \".\"\n"
+    expect_compile_and_exit(env, "no_panic_main_entry", ch, mod, 7)
+}

@@ -31,7 +31,7 @@
 | 06 | [Native GC mode](0006-native-gc-mode.md)             | Memory model        | 01, 04     | Approved                   |
 | 07 | [JavaScript backend](0007-javascript-backend.md)     | Backend · web       | 01, 04     | Approved                   |
 | 08 | [Web/DOM type declarations](0008-web-dom-types.md)   | Language · types    | 07         | Approved                   |
-| 09 | WASM backend                                         | Backend             | 01, 06     | Deferred                   |
+| 09 | WASM backend                                         | Backend             | 01, 06     | Implemented — freestanding wasm32 slice |
 | 10 | JVM bytecode backend                                 | Backend · managed   | 06         | Deferred — revisit after 06 |
 | 11 | Android target & cross-compilation                   | Target · toolchain  | 06         | Deferred — after 06        |
 | 12 | Stdlib & ecosystem integration                       | Libraries           | 03         | Not now                    |
@@ -71,7 +71,13 @@ shrink without losing features.
 
 ### 09 — WASM backend
 
-**Deferred.** No present need; TinyCC may add WASM. Revisit when the need appears.
+**Implemented — first slice (2026-11-26).** The LLVM backend targets
+`wasm32-unknown-unknown` end-to-end (target data, in-process wasm-ld, freestanding
+runtime, wasm-safe `cstd`/`std`, browser DOM bridge, UI demo in Chromium). The C
+emitter also produces wasm-compatible C compiled by clang + wasm-ld. WASI,
+by-value aggregate ABI, threads/SIMD, and wasm64 remain W4 backlog; see
+[`../wasm-target.md`](../wasm-target.md) and
+[`../wasm-target-plan.md`](../wasm-target-plan.md).
 
 ### 10 — JVM bytecode backend
 

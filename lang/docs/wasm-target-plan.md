@@ -339,3 +339,81 @@ counter, no runtime trap/console error; Node unit test passes.
    suites remain green; no native target regressions.
 6. `lang/docs/wasm-target-plan.md` (this file) records the final status and the
    W4 backlog.
+
+---
+
+## 6. Final status (2026-11-26)
+
+**W0–W3 are implemented and verified; W4 remains backlog.** User guide:
+[`wasm-target.md`](wasm-target.md).
+
+### W0 — target plumbing + freestanding link
+
+- `init_target_data` maps `llvm::Triple::wasm32/wasm64`, clears `posix` for wasm,
+  and the non-LLVM target parser accepts `wasm32`/`wasm64` (so `TCCCompiler
+  --target wasm32` selects the wasm profile and `if wasm32` works).
+- `invoke_lld` selects `wasm-ld` for a wasm triple; `lld_link_objects` has a
+  wasm branch with no host crt/libc/rpath flags (`--no-entry`,
+  `--export-memory`, `--allow-undefined`, `--gc-sections`, 1 MiB stack first).
+  Wasm always uses the in-process LLD wasm driver, regardless of `--use-lld`.
+- `--wasm-export NAME` (repeatable) / `--wasm-export-all`; default export is
+  `main`.
+- Acceptance: `Compiler hello/chemical.mod --target wasm32-unknown-unknown -o
+  app.wasm` → Node `main() == 42`, no manual link. `--out-ll-all` still writes
+  per-module IR (wasm target/datalayout), and the emitted module object is a
+  wasm object (`\0asm` magic; the existing `--out-obj` path is not changed).
+
+### W1 — freestanding runtime + wasm-safe std core
+
+- `lang/runtime/wasm/runtime.c`: coalescing free-list allocator over
+  `__heap_base` + `memory.grow`, mem/str primitives, minimal printf family,
+  trap-based abort, console via `env.chc_log`; linked by
+  `link c "../../runtime/wasm/runtime.c" if wasm32` in `cstd`.
+- `cstd`/`std` source selection excludes POSIX/Windows for wasm and adds
+  `cstd/wasm` + `std/wasm`; `threadpool` is unreachable and GC'd, while the
+  single-threaded lock/time stubs keep shared `std` sources compiling.
+- Acceptance: a wasm app using `std::string`, `std::vector`,
+  `std::unordered_map`, `Option`, `Result`, and `printf` builds with no manual
+  objects and prints the expected line in Node (`lang/tests/wasm/std_smoke`).
+
+### W2 — C emitter parity
+
+- `TCCCompiler --target wasm32 --emit-c -o app.c` now treats a `.mod` as an app
+  build and writes the combined multi-module C (no TCC compile/link, C file
+  modules skipped; the script compiles the runtime).
+- `scripts/wasm-c-build.sh` compiles the emitted C + `runtime.c` with
+  clang-for-wasm32 (the embedded `Compiler cc`, or `clang`) and links with
+  `out/host/bin/wasm-ld`.
+- Codegen fixes required by a real C compiler and by 32-bit targets:
+  immutable references are spelled as plain pointers in C (`T*const` cannot be
+  assigned and broke aggregate init), `MIRModuleLayout.pointer_size` is now set
+  from the target, and `new T`/malloc use a pointer-sized `usize` signature
+  (was a 64-bit `malloc` argument against wasm's 32-bit one).
+- Acceptance: the W1 app through the C path produces the identical output line
+  and exit status as the LLVM path (`scripts/wasm-test.sh` W2 case). The UI demo
+  also builds and runs through this path.
+
+### W3 — browser DOM bridge + UI demo
+
+- `lang/libs/browser`: opaque `Node` handles and scalar `chc_wasm_dom_*`
+  externs; a listener table dispatches through exported
+  `chc_wasm_on_event`.
+- `lang/runtime/wasm/host.mjs` (Node/browser host, handle table, event wiring)
+  and `serve.mjs`; `lang/compiled/wasm_ui` counter demo with `index.html`.
+- Acceptance: `wasm_ui` passes the Node DOM-shim test and the Chromium
+  Playwright test (`lang/compiled/wasm_ui/wasm_ui.spec.ts`): initial `0`,
+  click → `1`, repeated clicks → `3`, no console errors or traps.
+
+### Gates run
+
+- `./scripts/wasm-test.sh` → 5/5 (W0, W1, W2, W3 Node, W3 Chromium).
+- Native regression suites: `--tcc` 2495 passed, `--llvm` 2493 passed,
+  `--libs` 953 passed, `--safety` 196 passed, `--negative` 940 passed,
+  `--plugins` 1322 passed; 0 failures.
+
+### W4 backlog (unchanged, detailed in `wasm-target.md`)
+
+WASI sysroot/host, `MIRABIKind::Wasm32` for by-value extern aggregates and
+`string_view` interop, explicit export lists for release, debug info/source
+maps, size/perf measurements, cross-target CI, memory64/SIMD/threads, and
+reconciling `browser` with the JS `dom`.

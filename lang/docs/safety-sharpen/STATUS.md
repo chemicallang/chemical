@@ -24,24 +24,35 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
 | P2.7 | 2 | compiler | test/compiler/plugin/build APIs | [x] | agent | compiler::api, test_env::safe, test_report::safe, lab::safe; md_cbi migrated to parser facade; plugins 1305/1305; lab lifetime-generic handle limitation documented |
 | P2.8a | 2 | migration | transformer + consumer inventory | [x] | agent | consumers.md (209 in-tree modules, no remote deps); scripts/safety-migrate-removed.py mechanical migration + REMOVED hints; BREAKING policy |
 | P2.8 | 2 | release | API audit, docs, migration, gate | [x] | agent | snapshots + unsafe maps + audit allowlist (legacy raw migration debt recorded); ASAN/TSAN green; no-panic sample; release 4,037,816 B; full matrix green except documented GUI/Windows target execution exceptions |
-| P3.1 | 3 | language | no-panic completion (effects, propagation, corpus) | [x] | agent | 2026-11-26; P3.1 `f7642b5c8`; `[no_alloc]`/`[no_unsafe]`/`[no_blocking]`/`[pure]`, module policy defaults, generic propagation, `Option`/`Result` `[no_panic]`; safety 196/196, negative 934/934, libs 953/953, interpret 1938/1938, MIRTests 4749; async effects + vector try_* deferred |
+| P3.1 | 3 | language | no-panic completion (effects, propagation, corpus) | [~] | agent | 2026-11-26; P3.1 `f7642b5c8` + `[noreturn]` enforcement `d8666d7a7` (`SAFE-NORETURN-001`; 2 positive + 3 negative tests); `[no_alloc]`/`[no_unsafe]`/`[no_blocking]`/`[pure]`, module policy defaults, generic propagation, `Option`/`Result` `[no_panic]`; safety 196/196, negative 939/939, libs 953/953, main 2495/2495, plugins 1322/1322, MIRTests 4749; async effects, plugin-generated defaults, generic `try_*` annotations and loop-divergence proof remain in `PHASE3_REMAINING.md` |
 | P3.2 | 3 | std | fallible std/alloc (`try_*`) coverage | [x] | agent | 2026-11-26; P3.2 `04a58981b` + `a393cdc44` (`async::try_channel`); libs 953/953, api 4/4; Box/Rc/Arc/string/deque/maps/ThreadPool + `async::try_channel` + `map::get_mut`/`at_mut` covered |
-| P3.3 | 3 | language | move/borrow/init closure (additive fixes only) | [x] | agent | 2026-11-26; P3.3 `426f8e657`; variant by-value `self` and `[no_panic] main` verified with runtime regressions; rejection-only closures in `NONBREAKING_DEFERRED.md` |
-| P3.4 | 3 | language | FFI/C ABI closure (additive fixes only) | [x] | agent | 2026-11-26; P3.4 `426f8e657`; generic-variant parameter now a concrete C struct (regression); regex temporary / TLS out-buffer codegen deferred with exact blockers |
+| P3.3 | 3 | language | move/borrow/init closure (additive fixes only) | [~] | agent | 2026-11-26; P3.3 `426f8e657`, split `5f6771b37`; variant by-value `self` and `[no_panic] main` verified with runtime regressions; pattern-bound payload move, HRTB erasure widening and the regex temporary fix remain in `PHASE3_REMAINING.md`; the direct-reference loan is a true rejection in `NONBREAKING_DEFERRED.md` |
+| P3.4 | 3 | language | FFI/C ABI closure (additive fixes only) | [~] | agent | 2026-11-26; P3.4 `426f8e657`, split `5f6771b37`; generic-variant parameter now a concrete C struct (regression); the regex temporary and TLS `&raw local[0]` codegen bugs remain in `PHASE3_REMAINING.md` with exact blockers |
 | P3.5 | 3 | concurrency | Send/Sync/async hardening (widening only) | [x] | agent | 2026-11-26; P3.5 `896c6a8a0`; async 84/84, `--llvm --thread-tsan` pass; conditional negative auto-trait bounds already evaluated (existing test `conditional_generic_negative_skip`); no safe additional widening found, TSAN now exercises `try_channel` |
-| P3.6 | 3 | compiler | size/compile-time consolidation | [x] | agent | 2026-11-26; release 4,341,432 B (hard gate 5,000,000; 4 MB goal is 341,432 B away, delta recorded); `-Os` measured 2,793,528 B but regressed the sample compile 318-382 -> 427 ms, so it is deferred as a policy decision; next: generic drop-path descriptor / selective non-hot `-Os` |
+| P3.6 | 3 | compiler | size/compile-time consolidation | [~] | agent | 2026-11-26; release 4,341,432 B (hard gate 5,000,000 passes; 4 MB goal is 341,432 B away); `-Os` measured 2,793,528 B but regressed the sample compile 318-382 -> 427 ms, so no blanket `-Os`; split `5f6771b37`; the 4 MB goal and selective non-hot `-Os` remain in `PHASE3_REMAINING.md` |
 | P3.7 | 3 | quality | unsafe SAFETY comments, fuzz coverage, release docs | [x] | agent | 2026-11-26; fuzz 5/5 (`regex`, image/audio/archive added), SAFETY comments on new `try_*` blocks, `RELEASE_CHECKLIST.md` + API-stability notes; `safety-audit.sh` re-baselined and verified (`no growth`); raw-surface audit's 4 pre-existing offenders deferred |
 
 ## Current baseline (Phase 3 non-breaking wave, 2026-11-26)
+
+**Classification split (2026-11-26).** `NONBREAKING_DEFERRED.md` now contains
+only true breaking-branch items (the direct-reference return loan and the four
+raw-surface offenders). Every additive/internal follow-up lives in
+[`PHASE3_REMAINING.md`](PHASE3_REMAINING.md); consequently P3.1, P3.3, P3.4 and
+P3.6 stay `[~]` and the status script reports Phase 3 as partially implemented
+instead of 7/7 (overall 21/25), so the percentage does not claim those
+follow-ups are done. `[noreturn]` is now enforced (`SAFE-NORETURN-001`), with
+only the constant-true loop-divergence widening left in the remaining list.
 
 - Release `TCCCompiler`: **4,341,432 bytes** — under the 5,000,000-byte hard
   gate; the 4 MB goal is missed by 341,432 bytes. `safety_sample_compile_ms`
   382 ms, `safety_sample_max_rss_kb` 38,380 (recorded in `metrics.json`).
   A `-Os` experiment produced 2,793,528 bytes but took 427 ms on the sample, so
-  it is not enabled (compile-time non-regression rule); see P3.6.
-- Phase 3 TCC gates: main 2495/2495; negative 934/934; safety 196/196; libs
-  953/953; async 84/84; interpret 1938/1938; api 4/4; fuzz 5/5; MIRTests 4749
-  checks; TSAN pass; `safety-audit.sh` re-baselined and green.
+  it is not enabled (compile-time non-regression rule); the 4 MB goal is a
+  non-breaking future task in `PHASE3_REMAINING.md` (P3.6).
+- Phase 3 TCC gates: main 2495/2495; negative 939/939; safety 196/196; libs
+  953/953; async 84/84; interpret 1938/1938; api 4/4; fuzz 5/5; plugins
+  1322/1322; MIRTests 4749 checks; TSAN pass; `safety-audit.sh` re-baselined
+  and green.
 - Phase 3 LLVM gates: main 2493/2493; negative 934/934; safety 196/196; libs
   953/953; TSAN pass.
 - `MIRTests`: 4749 checks; TSAN pass; API snapshots in `api/`, unsafe maps in

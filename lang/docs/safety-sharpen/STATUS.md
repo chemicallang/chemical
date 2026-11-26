@@ -41,7 +41,9 @@ Status values: `[ ]` not started, `[~]` in progress, `[x]` done, `[!]` blocked.
   it is not enabled (compile-time non-regression rule); see P3.6.
 - Phase 3 TCC gates: main 2495/2495; negative 934/934; safety 196/196; libs
   953/953; async 84/84; interpret 1938/1938; api 4/4; fuzz 5/5; MIRTests 4749
-  checks; TSAN pass.
+  checks; TSAN pass; `safety-audit.sh` re-baselined and green.
+- Phase 3 LLVM gates: main 2493/2493; negative 934/934; safety 196/196; libs
+  953/953; TSAN pass.
 - `MIRTests`: 4749 checks; TSAN pass; API snapshots in `api/`, unsafe maps in
   `unsafe/`, reviewed legacy-raw allowlist in `API_ALLOWLIST.md`.
 - GUI runtime execution remains display/toolkit-gated; Windows/macOS execution

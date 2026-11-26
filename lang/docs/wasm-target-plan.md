@@ -410,6 +410,9 @@ counter, no runtime trap/console error; Node unit test passes.
 - Native regression suites: `--tcc` 2495 passed, `--llvm` 2493 passed,
   `--libs` 953 passed, `--safety` 196 passed, `--negative` 940 passed,
   `--plugins` 1322 passed; 0 failures.
+- Release `TCCCompiler` after this wave: **3,993,400 B** — the safety-sharpen
+  hard gate (5,000,000 B) passes and the 4 MB goal still passes with ~6.6 KB
+  margin. The margin is tight; future changes need a release-size re-check.
 
 ### W4 backlog (unchanged, detailed in `wasm-target.md`)
 

@@ -1104,11 +1104,45 @@ static bool call_instruction_never_returns(const MIRModule& module,
 }
 
 /**
+ * The value of a compile-time-constant branch condition, if the operand is one.
+ * A literal condition lowers to a `ConstBool`/`ConstInt` instruction whose
+ * result carries `VF_CONSTANT`; a directly materialized constant operand is
+ * accepted too. Folding those edges is what makes `while(true)`/`loop` with no
+ * exit reachable and lets an appended fallthrough return stay dead.
+ */
+static bool constant_condition_value(const MIRModule& module, const MIRFunction& fn,
+                                     const MIROperand* operand, bool& value) {
+    if (operand == nullptr) return false;
+    ConstantId cid = MIR_INVALID_ID;
+    if (operand->kind() == MIROperandKind::Constant) {
+        cid = operand->id;
+    } else if (operand->kind() == MIROperandKind::Value && operand->id < fn.values.size()) {
+        const MIRValueDef& def = fn.values[operand->id];
+        if ((def.flags & VF_CONSTANT) == 0) return false;
+        if (def.def_inst >= fn.instructions.size()) return false;
+        const MIRInstruction& def_inst = fn.instructions[def.def_inst];
+        if (def_inst.opcode() != MIROpcode::ConstBool &&
+            def_inst.opcode() != MIROpcode::ConstInt) return false;
+        if (def_inst.operand_count == 0) return false;
+        cid = fn.operands[def_inst.operand_offset].id;
+    } else {
+        return false;
+    }
+    if (cid >= module.constants.size()) return false;
+    const MIRConstant& c = module.constants.get(cid);
+    if (c.kind != MIRConstantKind::Bool && c.kind != MIRConstantKind::Int) return false;
+    value = c.bits != 0;
+    return true;
+}
+
+/**
  * Whether a `[noreturn]` body can reach a normal `return` (explicit or the
  * implicit fallthrough the lowering appends). Reachability is over the lowered
  * CFG; a noreturn call makes the rest of its block unreachable, which also
  * makes a `return` that follows it dead. Noreturn calls are only known through
- * direct `Call` symbols — an indirect call is not assumed to diverge.
+ * direct `Call` symbols — an indirect call is not assumed to diverge. A
+ * constant branch condition folds to its taken edge, so an exit block guarded
+ * by `while(true)` is not considered reachable.
  */
 static bool function_can_return_normally(const MIRModule& module,
                                          const MIRFunction& fn) {
@@ -1149,10 +1183,16 @@ static bool function_can_return_normally(const MIRModule& module,
             case MIROpcode::Br:
                 push_block(no_panic_operand(fn, term, 0));
                 break;
-            case MIROpcode::CondBr:
-                push_block(no_panic_operand(fn, term, 1));
-                push_block(no_panic_operand(fn, term, 2));
+            case MIROpcode::CondBr: {
+                bool cond = false;
+                if (constant_condition_value(module, fn, no_panic_operand(fn, term, 0), cond)) {
+                    push_block(no_panic_operand(fn, term, cond ? 1 : 2));
+                } else {
+                    push_block(no_panic_operand(fn, term, 1));
+                    push_block(no_panic_operand(fn, term, 2));
+                }
                 break;
+            }
             case MIROpcode::Switch:
                 push_block(no_panic_operand(fn, term, 1));
                 for (uint32_t i = 2; i + 1 < term.operand_count; i += 2) {

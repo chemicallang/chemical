@@ -213,6 +213,15 @@ func noreturn_both_branches_panic_compiles(env : &mut TestEnv) {
 }
 
 @test
+func noreturn_constant_true_loop_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // The constant-true condition folds to the body edge, so the loop exit (and
+    // the implicit fallthrough return after it) is unreachable.
+    var ch = "func spin() [noreturn] { while(true) { } }\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "noreturn_while_true", ch)
+}
+
+@test
 func neg_noreturn_rejects_return(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
     var ch = "func f() [noreturn] { return }\npublic func main() : int { return 0 }\n"

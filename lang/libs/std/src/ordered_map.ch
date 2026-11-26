@@ -31,6 +31,42 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
         return key.equals(key2)
     }
 
+    // Fallible resize: leaves the map untouched and returns false on overflow
+    // or allocation failure.
+    func try_resize(&mut self) : bool {
+        unsafe {
+            if(capacity > ((0 as size_t) - 1) / 2) {
+                return false
+            }
+            var newCapacity = capacity * 2;
+            if(newCapacity == 0) {
+                newCapacity = 16
+            }
+            if(newCapacity > ((0 as size_t) - 1) / sizeof(*mut ordered_map_node<Key, Value>)) {
+                return false
+            }
+            var newTable = unsafe(malloc(newCapacity * sizeof(*mut ordered_map_node<Key, Value>))) as *mut *mut ordered_map_node<Key, Value>;
+            if(newTable == null) {
+                return false
+            }
+            unsafe { memset(newTable, 0, newCapacity * sizeof(*mut ordered_map_node<Key, Value>)) };
+
+            var node = head;
+            while (node != null) {
+                var nextNode = node.order_next;
+                var index = hash_now(&node.key) & (newCapacity - 1);
+                node.hash_next = newTable[index];
+                newTable[index] = node;
+                node = nextNode;
+            }
+
+            dealloc table;
+            table = newTable;
+            capacity = newCapacity;
+            return true
+        }
+    }
+
     func resize(&mut self) : void {
         unsafe {
             if(capacity > ((0 as size_t) - 1) / 2) {
@@ -94,6 +130,50 @@ public struct ordered_map<Key : Hashable + Eq, Value> {
             }
             dealloc table;
     
+        }
+    }
+
+    // Fallible insert. Returns false on allocation/capacity failure; the map
+    // is left unchanged and the passed key/value are dropped by the caller
+    // frame (no leak).
+    func try_insert(&mut self, key : Key, value : Value) : bool {
+        unsafe {
+            if ((_size as float) / capacity > ORDERED_LOAD_FACTOR_THRESHOLD) {
+                if(!try_resize()) { return false }
+            }
+
+            var index = hash_with_capacity(&key);
+            var currentNode = table[index];
+
+            while (currentNode != null) {
+                if (compare_now(&currentNode.key, &key)) {
+                    destruct &mut currentNode.value
+                    currentNode.value = value;
+                    return true;
+                }
+                currentNode = currentNode.hash_next;
+            }
+
+            const newNode = unsafe(malloc(sizeof(ordered_map_node<Key, Value>))) as *mut ordered_map_node<Key, Value>;
+            if(newNode == null) {
+                return false
+            }
+            new (newNode) ordered_map_node<Key, Value> {
+                key : key,
+                value : value,
+                hash_next : table[index],
+                order_prev : tail,
+                order_next : null
+            }
+            table[index] = newNode;
+            if (tail != null) {
+                tail.order_next = newNode;
+            } else {
+                head = newNode;
+            }
+            tail = newNode;
+            _size++;
+            return true
         }
     }
 

@@ -263,6 +263,26 @@ public struct string {
         state = '1'
     }
 
+    func try_move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) : bool {
+        unsafe {
+            if(capacity >= ((0 as size_t) - 1) || length > capacity) {
+                return false
+            }
+            // +1 is for safety, we need to add a null terminator (always)
+            var d = unsafe(malloc(capacity + 1)) as *mut char
+            if(d == null) {
+                return false
+            }
+            unsafe { memcpy(d, from_data, length) }
+            d[length] = '\0'
+            storage.heap.data = d;
+            storage.heap.length = length;
+            storage.heap.capacity = capacity
+            state = '2'
+            return true
+        }
+    }
+
     func move_data_to_heap(&mut self, from_data : *char, length : size_t, capacity : size_t) {
         unsafe {
             if(capacity >= ((0 as size_t) - 1) || length > capacity) {
@@ -280,6 +300,25 @@ public struct string {
             storage.heap.capacity = capacity
             state = '2'
     
+        }
+    }
+
+    // this is a private function
+    // new_capacity is always > length
+    func try_resize_heap(&mut self, new_capacity : size_t) : bool {
+        unsafe {
+            if(new_capacity >= ((0 as size_t) - 1)) {
+                return false
+            }
+            // +1 for the null terminator
+            var d = unsafe(realloc(storage.heap.data, new_capacity + 1)) as *mut char
+            if(d == null) {
+                return false
+            }
+            d[storage.heap.length] = '\0'
+            storage.heap.data = d;
+            storage.heap.capacity = new_capacity
+            return true
         }
     }
 
@@ -325,6 +364,69 @@ public struct string {
                 // ensure at least some growth if capacity was small
                 if (new_cap < length + 16) { new_cap = length + 64; }
                 resize_heap(new_cap);
+            }
+        }
+    }
+
+    // Fallible counterpart of `ensure_mut`: returns false instead of aborting
+    // when the capacity would overflow or the allocation fails. The string is
+    // left in its previous representation on failure.
+    func try_ensure_mut(&mut self, length : size_t) : bool {
+        if(length > ((0 as size_t) - 1) / 2) {
+            return false
+        }
+        if((state == '0' || state == '1') && length < STR_BUFF_SIZE) {
+            if(state == '0') {
+                move_const_to_buffer();
+            }
+            return true
+        }
+        if(state == '0') {
+            return try_move_data_to_heap(storage.constant.data, storage.constant.length, length)
+        } else if(state == '1') {
+            var new_cap = if (length < STR_BUFF_SIZE * 2u) STR_BUFF_SIZE * 2u else length * 2u;
+            return try_move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, new_cap)
+        } else if(state == '2') {
+            if(storage.heap.capacity <= length) {
+                var new_cap = if (length < storage.heap.capacity * 2) storage.heap.capacity * 2 else length;
+                // ensure at least some growth if capacity was small
+                if (new_cap < length + 16) { new_cap = length + 64; }
+                return try_resize_heap(new_cap)
+            }
+            return true
+        }
+        return false
+    }
+
+    func try_reserve(&mut self, new_capacity : size_t) : bool {
+        switch(state) {
+            '0' => {
+                if(new_capacity < STR_BUFF_SIZE && storage.constant.length < STR_BUFF_SIZE) {
+                    move_const_to_buffer();
+                    return true
+                }
+                const len = storage.constant.length
+                var cap = len
+                if(new_capacity > len) {
+                    // user requested capacity is greater than current length of string
+                    cap = new_capacity
+                }
+                return try_move_data_to_heap(storage.constant.data, len, cap)
+            }
+            '1' => {
+                if(new_capacity >= STR_BUFF_SIZE) {
+                    return try_move_data_to_heap(&raw storage.sso.buffer[0], storage.sso.length, new_capacity)
+                }
+                return true
+            }
+            '2' => {
+                if(new_capacity > storage.heap.capacity) {
+                    return try_resize_heap(new_capacity)
+                }
+                return true
+            }
+            default => {
+                return false
             }
         }
     }
@@ -456,6 +558,52 @@ public struct string {
                 storage.heap.length = new_size
             }
     
+        }
+    }
+
+    // Fallible append of a raw byte range. Returns false (leaving the string
+    // unchanged) on a length overflow or allocation failure. Internal because
+    // it accepts a raw pointer.
+    func try_append_with_len(&mut self, value : *char, len : size_t) : bool {
+        unsafe {
+            if(len == 0) { return true }
+            if(value == null) { return false }
+            const offset = size()
+            const max_size = (0 as size_t) - 1
+            if(offset >= max_size || len > max_size - offset - 1) {
+                return false
+            }
+            const new_size = offset + len
+            const old_data = data()
+            const old_begin = old_data as ubigint
+            const old_end = old_begin + offset
+            const src_addr = value as ubigint
+            var src_offset : size_t = 0
+            var self_source = false
+            if(src_addr >= old_begin && src_addr < old_end) {
+                self_source = true
+                src_offset = (src_addr - old_begin) as size_t
+            }
+            // +1 for null terminator
+            if(!try_ensure_mut(new_size + 1)) {
+                return false
+            }
+            var source = value
+            if(self_source) {
+                source = data() + src_offset
+            }
+            if(state == '1') {
+                unsafe { memcpy(&raw mut storage.sso.buffer[offset], source, len) }
+                storage.sso.buffer[new_size] = '\0'
+                storage.sso.length = new_size
+            } else if(state == '2') {
+                unsafe { memcpy(&raw mut storage.heap.data[offset], source, len) }
+                storage.heap.data[new_size] = '\0';
+                storage.heap.length = new_size
+            } else {
+                return false
+            }
+            return true
         }
     }
 
@@ -1143,6 +1291,41 @@ public struct string {
             }
     
         }
+    }
+
+    // Fallible append forms. They keep the panicking `append*` convenience
+    // methods unchanged and report capacity/allocation failure with `false`.
+    func try_append(&mut self, value : char) : bool {
+        const length = size()
+        const max_size = (0 as size_t) - 1
+        if(length >= max_size || 2 > max_size - length) {
+            return false
+        }
+        if(!try_ensure_mut(length + 2)) {
+            return false
+        }
+        unsafe {
+            if(state == '1') {
+                storage.sso.buffer[length] = value
+                storage.sso.buffer[length + 1] = '\0'
+                storage.sso.length = length + 1
+                return true
+            } else if(state == '2') {
+                storage.heap.data[length] = value
+                storage.heap.data[length + 1] = '\0'
+                storage.heap.length = length + 1
+                return true
+            }
+            return false
+        }
+    }
+
+    func try_append_string(&mut self, value : &string) : bool {
+        return try_append_with_len(value.data(), value.size())
+    }
+
+    func try_append_view(&mut self, value : &std::string_view) : bool {
+        return try_append_with_len(value.data(), value.size())
     }
 
     func find_or_npos(&self, needle : &std::string_view) : size_t {

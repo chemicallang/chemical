@@ -5,44 +5,44 @@ lang/libs/image/src/bmp.ch:109:func impl_encode_bmp(img : *mut Image) : std::Res
 lang/libs/image/src/bmp.ch:171:func impl_save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
 lang/libs/image/src/bmp.ch:18:func impl_parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
 lang/libs/image/src/bmp.ch:9:func impl_load_bmp(path : *char) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:100:public func image_width(img : *mut Image) : int {
-lang/libs/image/src/core.ch:107:public func image_height(img : *mut Image) : int {
-lang/libs/image/src/core.ch:114:public func image_channels(img : *mut Image) : int {
-lang/libs/image/src/core.ch:121:public func image_pixels(img : *mut Image) : *mut u8 {
-lang/libs/image/src/core.ch:128:public func image_pixel_count(img : *mut Image) : size_t {
-lang/libs/image/src/core.ch:135:public func image_bytes_per_row(img : *mut Image) : size_t {
-lang/libs/image/src/core.ch:142:public func image_total_bytes(img : *mut Image) : size_t {
-lang/libs/image/src/core.ch:151:public func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGBA8, ImageError> {
+lang/libs/image/src/core.ch:100:public unsafe func image_width(img : *mut Image) : int {
+lang/libs/image/src/core.ch:107:public unsafe func image_height(img : *mut Image) : int {
+lang/libs/image/src/core.ch:114:public unsafe func image_channels(img : *mut Image) : int {
+lang/libs/image/src/core.ch:121:public unsafe func image_pixels(img : *mut Image) : *mut u8 {
+lang/libs/image/src/core.ch:128:public unsafe func image_pixel_count(img : *mut Image) : size_t {
+lang/libs/image/src/core.ch:135:public unsafe func image_bytes_per_row(img : *mut Image) : size_t {
+lang/libs/image/src/core.ch:142:public unsafe func image_total_bytes(img : *mut Image) : size_t {
+lang/libs/image/src/core.ch:151:public unsafe func image_get_rgba(img : *mut Image, x : int, y : int) : std::Result<RGBA8, ImageError> {
 lang/libs/image/src/core.ch:16:func read_u32_be(data : *u8, offset : size_t) : u32 {
-lang/libs/image/src/core.ch:177:public func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/core.ch:208:public func image_fill(img : *mut Image, color : RGBA8) {
-lang/libs/image/src/core.ch:224:public func image_copy(src : *mut Image) : Image {
-lang/libs/image/src/core.ch:240:public func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:177:public unsafe func image_set_rgba(img : *mut Image, x : int, y : int, color : RGBA8) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/core.ch:208:public unsafe func image_fill(img : *mut Image, color : RGBA8) {
+lang/libs/image/src/core.ch:224:public unsafe func image_copy(src : *mut Image) : Image {
+lang/libs/image/src/core.ch:240:public unsafe func image_crop(img : *mut Image, x : int, y : int, w : int, h : int) : std::Result<Image, ImageError> {
 lang/libs/image/src/core.ch:24:func read_u16_le(data : *u8, offset : size_t) : u16 {
-lang/libs/image/src/core.ch:266:public func image_flip_h(img : *mut Image) {
-lang/libs/image/src/core.ch:293:public func image_flip_v(img : *mut Image) {
-lang/libs/image/src/core.ch:316:public func image_rotate90(img : *mut Image) : Image {
+lang/libs/image/src/core.ch:266:public unsafe func image_flip_h(img : *mut Image) {
+lang/libs/image/src/core.ch:293:public unsafe func image_flip_v(img : *mut Image) {
+lang/libs/image/src/core.ch:316:public unsafe func image_rotate90(img : *mut Image) : Image {
 lang/libs/image/src/core.ch:31:func read_u32_le(data : *u8, offset : size_t) : u32 {
-lang/libs/image/src/core.ch:344:public func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/core.ch:376:public func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int, color : RGBA8) {
+lang/libs/image/src/core.ch:344:public unsafe func image_blit(dst : *mut Image, src : *mut Image, dx : int, dy : int) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/core.ch:376:public unsafe func image_line(img : *mut Image, x0 : int, y0 : int, x1 : int, y1 : int, color : RGBA8) {
 lang/libs/image/src/core.ch:39:func read_i32_le(data : *u8, offset : size_t) : i32 {
-lang/libs/image/src/core.ch:400:public func image_rectangle(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
-lang/libs/image/src/core.ch:407:public func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
-lang/libs/image/src/core.ch:432:public func image_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
-lang/libs/image/src/core.ch:455:public func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
-lang/libs/image/src/core.ch:471:public func load_bmp(path : *char) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:475:public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:479:public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/core.ch:483:public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/core.ch:487:public func load_png(path : *char) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:400:public unsafe func image_rectangle(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
+lang/libs/image/src/core.ch:407:public unsafe func image_fill_rect(img : *mut Image, x : int, y : int, w : int, h : int, color : RGBA8) {
+lang/libs/image/src/core.ch:432:public unsafe func image_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
+lang/libs/image/src/core.ch:455:public unsafe func image_fill_circle(img : *mut Image, cx : int, cy : int, radius : int, color : RGBA8) {
+lang/libs/image/src/core.ch:471:public unsafe func load_bmp(path : *char) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:475:public unsafe func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:479:public unsafe func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/core.ch:483:public unsafe func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/core.ch:487:public unsafe func load_png(path : *char) : std::Result<Image, ImageError> {
 lang/libs/image/src/core.ch:48:func write_u16_le(out : *mut u8, offset : size_t, val : u16) {
-lang/libs/image/src/core.ch:491:public func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:495:public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/core.ch:499:public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
-lang/libs/image/src/core.ch:503:public func load_ppm(path : *char) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:507:public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
-lang/libs/image/src/core.ch:511:public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
-lang/libs/image/src/core.ch:515:public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/core.ch:491:public unsafe func parse_png(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:495:public unsafe func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/core.ch:499:public unsafe func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
+lang/libs/image/src/core.ch:503:public unsafe func load_ppm(path : *char) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:507:public unsafe func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageError> {
+lang/libs/image/src/core.ch:511:public unsafe func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+lang/libs/image/src/core.ch:515:public unsafe func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
 lang/libs/image/src/core.ch:56:func write_u32_le(out : *mut u8, offset : size_t, val : u32) {
 lang/libs/image/src/core.ch:69:public func image_create(w : int, h : int, ch : int) : Image {
 lang/libs/image/src/core.ch:88:public func image_create_rgba(w : int, h : int) : Image {

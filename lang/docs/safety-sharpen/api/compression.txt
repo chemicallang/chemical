@@ -5,8 +5,39 @@ lang/libs/compression/src/compression.ch:17:public struct RleCompressor {
 lang/libs/compression/src/compression.ch:20:public func (c : &mut RleCompressor) compress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
 lang/libs/compression/src/compression.ch:47:public func (c : &mut RleCompressor) decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
 lang/libs/compression/src/compression.ch:72:public func (c : &mut RleCompressor) name() : std::string_view {
-lang/libs/compression/src/compression.ch:80:public func compress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
-lang/libs/compression/src/compression.ch:85:public func decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
+lang/libs/compression/src/compression.ch:80:public unsafe func compress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
+lang/libs/compression/src/compression.ch:85:public unsafe func decompress(data : *u8, data_len : size_t, out : *mut u8, out_len : *mut size_t, out_capacity : size_t) : Result<size_t, CompressionError> {
+lang/libs/compression/src/gzip.ch:103:func gz_align(out : &mut GzOut) {
+lang/libs/compression/src/gzip.ch:110:func gz_put_u32_le(out : &mut GzOut, value : uint) {
+lang/libs/compression/src/gzip.ch:119:func gz_put_literal(out : &mut GzOut, sym : uint) {
+lang/libs/compression/src/gzip.ch:132:func gz_length_code(len : uint) : uint {
+lang/libs/compression/src/gzip.ch:142:func gz_length_extra(code : uint) : uint {
+lang/libs/compression/src/gzip.ch:153:func gz_length_base(code : uint) : uint {
+lang/libs/compression/src/gzip.ch:164:func gz_dist_code(dist : uint) : uint {
+lang/libs/compression/src/gzip.ch:197:func gz_dist_extra(code : uint) : uint {
+lang/libs/compression/src/gzip.ch:206:func gz_dist_base(code : uint) : uint {
+lang/libs/compression/src/gzip.ch:221:func gz_hash_slot(src : &[u8], p : size_t, hsize : size_t) : size_t {
+lang/libs/compression/src/gzip.ch:227:func gz_hash_at_raw(src : &[u8], p : size_t) : size_t {
+lang/libs/compression/src/gzip.ch:237:func gz_insert(src : &[u8], head : &mut vector<size_t>, prev : &mut vector<size_t>, p : size_t) {
+lang/libs/compression/src/gzip.ch:250:func gz_deflate_fixed(src : &[u8], out : &mut GzOut) {
+lang/libs/compression/src/gzip.ch:346:func gz_crc32_ptr(data : *u8, n : size_t) : uint {
+lang/libs/compression/src/gzip.ch:36:func gz_shl(value : uint, n : uint) : uint {
+lang/libs/compression/src/gzip.ch:375:public func gzip(data : &[u8]) : Result<vector<u8>, CompressionError> {
+lang/libs/compression/src/gzip.ch:40:func gz_shr(value : uint, n : uint) : uint {
+lang/libs/compression/src/gzip.ch:421:struct GzIn {
+lang/libs/compression/src/gzip.ch:428:func gz_read_bit(rd : &mut GzIn, src : &[u8]) : uint {
+lang/libs/compression/src/gzip.ch:445:func gz_read_bits(rd : &mut GzIn, src : &[u8], n : uint) : uint {
+lang/libs/compression/src/gzip.ch:457:func gz_read_code(rd : &mut GzIn, src : &[u8], n : uint) : uint {
+lang/libs/compression/src/gzip.ch:469:func gz_read_fixed(rd : &mut GzIn, src : &[u8]) : uint {
+lang/libs/compression/src/gzip.ch:47:struct GzOut {
+lang/libs/compression/src/gzip.ch:487:func gz_inflate_fixed(rd : &mut GzIn, src : &[u8], out : &mut vector<u8>) {
+lang/libs/compression/src/gzip.ch:517:func gz_read_u32_le(data : &[u8], at : size_t) : uint {
+lang/libs/compression/src/gzip.ch:536:public func gunzip(data : &[u8]) : Result<vector<u8>, CompressionError> {
+lang/libs/compression/src/gzip.ch:62:func gz_out_init(out : &mut GzOut) {
+lang/libs/compression/src/gzip.ch:66:func gz_push_byte(out : &mut GzOut, value : uint) {
+lang/libs/compression/src/gzip.ch:71:func gz_put_bit(out : &mut GzOut, bit : uint) {
+lang/libs/compression/src/gzip.ch:76:func gz_put_bits(out : &mut GzOut, value : uint, n : uint) {
+lang/libs/compression/src/gzip.ch:92:func gz_put_code(out : &mut GzOut, code : uint, n : uint) {
 lang/libs/compression/src/safe.ch:19:public func compress(data : &[u8]) : Result<vector<u8>, CompressionError> {
 lang/libs/compression/src/safe.ch:53:public func decompress(data : &[u8]) : Result<vector<u8>, CompressionError> {
 lang/libs/compression/src/types.ch:11:    func message(&self) : string {

@@ -67,3 +67,55 @@ func test_vector_try_reserve_overflow(env : &mut TestEnv) {
         env.error("try_reserve must reject an impossible capacity")
     }
 }
+
+@test
+func test_string_try_append_and_reserve(env : &mut TestEnv) {
+    var s = string()
+    if(!s.try_append('a')) { env.error("string.try_append small") }
+    if(!s.try_append_string(&s)) { env.error("string.try_append_string self") }
+    if(s.size() != 2) { env.error("string.try_append self-alias size") }
+    var view : std::string_view = "xyz"
+    if(!s.try_append_view(&view)) { env.error("string.try_append_view") }
+    if(s.size() != 5) { env.error("string.try_append_view size") }
+    var huge = ((0 as size_t) - 1) / 2
+    if(s.try_reserve(huge)) { env.error("string.try_reserve impossible capacity") }
+    // A failed reserve/append leaves the string usable and unchanged.
+    if(!s.try_append('!')) { env.error("string.try_append after failed reserve") }
+    if(s.size() != 6) { env.error("string.try_append after failed reserve size") }
+}
+
+@test
+func test_rc_arc_try_new(env : &mut TestEnv) {
+    var r = std::try_rc(7)
+    if(!r.is_ok()) { env.error("Rc.try_new") }
+    var a = std::try_arc(9)
+    if(!a.is_ok()) { env.error("Arc.try_new") }
+}
+
+@test
+func test_deque_try_push(env : &mut TestEnv) {
+    var d = std::deque<int>()
+    if(!d.try_push(1)) { env.error("deque.try_push first") }
+    var i = 0
+    while(i < 20) {
+        if(!d.try_push(i)) { env.error("deque.try_push growth") ; return }
+        i = i + 1
+    }
+    if(d.size() != 21) { env.error("deque.try_push size") }
+    if(*d.get_ref(0) != 1) { env.error("deque.try_push value") }
+    var huge = ((0 as size_t) - 1)
+    if(d.try_reserve_blocks(huge)) { env.error("deque.try_reserve_blocks impossible") }
+}
+
+@test
+func test_map_try_insert(env : &mut TestEnv) {
+    var m = std::unordered_map<int, int>()
+    if(!m.try_insert(1, 10)) { env.error("unordered_map.try_insert first") }
+    if(!m.try_insert(2, 20)) { env.error("unordered_map.try_insert second") }
+    if(!m.try_insert(1, 30)) { env.error("unordered_map.try_insert update") }
+    if(m.size() != 2) { env.error("unordered_map.try_insert size") }
+    var o = std::ordered_map<int, int>()
+    if(!o.try_insert(1, 10)) { env.error("ordered_map.try_insert first") }
+    if(!o.try_insert(2, 20)) { env.error("ordered_map.try_insert second") }
+    if(o.size() != 2) { env.error("ordered_map.try_insert size") }
+}

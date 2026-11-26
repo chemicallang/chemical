@@ -11,6 +11,7 @@
 #include <iostream>
 #include <optional>
 #include <chrono>
+#include <vector>
 
 namespace mir {
 
@@ -312,6 +313,7 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     rec.alloc_free = decl->attrs.forbids_alloc;
     rec.unsafe_free = decl->attrs.forbids_unsafe;
     rec.blocking_free = decl->attrs.forbids_blocking;
+    rec.noreturn = decl->attrs.noreturn || decl->attrs.is_noReturn;
     rec.stdcall = decl->is_std_call();
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
@@ -1086,6 +1088,88 @@ static bool check_function_effects(const MIRModule& module,
 }
 
 /**
+ * A call instruction whose callee never returns normally. Callee symbols carry
+ * `[noreturn]` / `@no_return`, so a `[noreturn]` body may end with `panic(...)`
+ * (which lowers to a call to `raw_panic`/`__chc_panic`) without the lowerer
+ * having to rewrite control flow.
+ */
+static bool call_instruction_never_returns(const MIRModule& module,
+                                           const MIRFunction& fn,
+                                           const MIRInstruction& inst) {
+    if (inst.opcode() != MIROpcode::Call || inst.operand_count == 0) return false;
+    const MIROperand& callee = fn.operands[inst.operand_offset];
+    if (callee.kind() != MIROperandKind::Symbol) return false;
+    if (callee.id >= module.symbols.size()) return false;
+    return module.symbols.get(callee.id).noreturn;
+}
+
+/**
+ * Whether a `[noreturn]` body can reach a normal `return` (explicit or the
+ * implicit fallthrough the lowering appends). Reachability is over the lowered
+ * CFG; a noreturn call makes the rest of its block unreachable, which also
+ * makes a `return` that follows it dead. Noreturn calls are only known through
+ * direct `Call` symbols — an indirect call is not assumed to diverge.
+ */
+static bool function_can_return_normally(const MIRModule& module,
+                                         const MIRFunction& fn) {
+    const uint32_t nblocks = static_cast<uint32_t>(fn.blocks.size());
+    if (nblocks == 0) return true;
+    std::vector<uint8_t> visited(nblocks, 0);
+    std::vector<BlockId> work;
+    work.push_back(fn.entry_block);
+    auto push_block = [&](const MIROperand* operand) {
+        if (operand != nullptr && operand->kind() == MIROperandKind::Block &&
+            operand->id < nblocks) {
+            work.push_back(operand->id);
+        }
+    };
+    while (!work.empty()) {
+        const BlockId bid = work.back();
+        work.pop_back();
+        if (bid >= nblocks || visited[bid]) continue;
+        visited[bid] = 1;
+        const MIRBlock& block = fn.blocks[bid];
+        if (block.inst_start == MIR_INVALID_ID) continue;
+        bool diverges = false;
+        for (uint32_t i = 0; i < block.inst_count; ++i) {
+            const uint32_t idx = block.inst_start + i;
+            if (idx < fn.instructions.size() &&
+                call_instruction_never_returns(module, fn, fn.instructions[idx])) {
+                diverges = true;
+                break;
+            }
+        }
+        if (diverges) continue;
+        const uint32_t term_idx = block.inst_start + block.inst_count;
+        if (term_idx >= fn.instructions.size()) continue;
+        const MIRInstruction& term = fn.instructions[term_idx];
+        switch (term.opcode()) {
+            case MIROpcode::Return:
+                return true;
+            case MIROpcode::Br:
+                push_block(no_panic_operand(fn, term, 0));
+                break;
+            case MIROpcode::CondBr:
+                push_block(no_panic_operand(fn, term, 1));
+                push_block(no_panic_operand(fn, term, 2));
+                break;
+            case MIROpcode::Switch:
+                push_block(no_panic_operand(fn, term, 1));
+                for (uint32_t i = 2; i + 1 < term.operand_count; i += 2) {
+                    push_block(no_panic_operand(fn, term, i + 1));
+                }
+                break;
+            case MIROpcode::Throw:
+                push_block(no_panic_operand(fn, term, 1));
+                break;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
+/**
  * The enclosing function's linker name reduced to C-identifier characters. Lambda
  * helpers are named from it: a backend may emit every module into one translation
  * unit, where a bare `__chemda_<n>` (one counter per module) is a redefinition.
@@ -1125,6 +1209,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     } lower_timer;
 #endif
     if (decl->is_async()) {
+        if (decl->attrs.noreturn) {
+            error = "SAFE-NORETURN-001: [noreturn] is not supported on async functions "
+                    "(an async function returns a FutureHandle)";
+            return false;
+        }
         if (decl->attrs.forbids_panic || decl->attrs.forbids_alloc ||
             decl->attrs.forbids_unsafe || decl->attrs.forbids_blocking ||
             decl->attrs.forbids_pure) {
@@ -1405,6 +1494,13 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     builder_ = nullptr;
     if (!b.ok()) {
         error = b.error() ? b.error() : "MIR builder failure";
+        return false;
+    }
+    if (decl->attrs.noreturn && function_can_return_normally(module_, func)) {
+        error = "SAFE-NORETURN-001: [noreturn] function '";
+        error.append(decl->name_view().data(), decl->name_view().size());
+        error += "' can return normally; remove the return or end every path with "
+                 "a diverging call (panic/unreachable or another [noreturn] function)";
         return false;
     }
     if ((decl->attrs.forbids_panic || decl->attrs.forbids_alloc ||

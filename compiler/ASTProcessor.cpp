@@ -2572,6 +2572,7 @@ bool mir_translate_after_declaration(
         rec.alloc_free = decl->attrs.forbids_alloc;
         rec.unsafe_free = decl->attrs.forbids_unsafe;
         rec.blocking_free = decl->attrs.forbids_blocking;
+        rec.noreturn = decl->attrs.noreturn || decl->attrs.is_noReturn;
         rec.stdcall = decl->is_std_call();
         rec.type = mir::mir_function_signature(types, module, decl);
         mir::SymbolId sym = module.symbols.add(

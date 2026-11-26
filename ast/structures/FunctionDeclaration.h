@@ -242,6 +242,15 @@ struct FuncDeclAttributes {
     bool declares_unsafe = false;
     bool declares_blocking = false;
 
+    /**
+     * `[noreturn]` effect property: this function never returns normally.
+     * Enforced at MIR lowering (a return / fallthrough is `SAFE-NORETURN-001`).
+     * `@no_return` keeps the older `is_noReturn` flag; a MIR callee symbol is
+     * noreturn when either is set so a `[noreturn]` body may end in such a call.
+     * Appended at the end so any positional aggregate initialization stays valid.
+     */
+    bool noreturn = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {

@@ -194,6 +194,45 @@ func positive_effect_declarations_compile(env : &mut TestEnv) {
     expect_compile_success_with_mod(env, "positive_effects", ch, NEG_MOD_STD_CORE)
 }
 
+// ── [noreturn] enforcement ─────────────────────────────────────────────────
+
+@test
+func noreturn_panic_body_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    // A tail `panic(...)` lowers to a call to a declaration marked `@no_return`,
+    // so the implicit fallthrough return is unreachable.
+    var ch = "func die() [noreturn] { panic(\"always\") }\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "noreturn_panic_body", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func noreturn_both_branches_panic_compiles(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func die(x : bool) [noreturn] {\n    if(x) { panic(\"yes\") } else { panic(\"no\") }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success_with_mod(env, "noreturn_both_branches", ch, NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_noreturn_rejects_return(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func f() [noreturn] { return }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "noreturn_return", ch, "SAFE-NORETURN-001")
+}
+
+@test
+func neg_noreturn_rejects_fallthrough(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func f() [noreturn] { }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "noreturn_fallthrough", ch, "SAFE-NORETURN-001")
+}
+
+@test
+func neg_noreturn_rejects_conditional_fallthrough(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func f(x : bool) [noreturn] { if(x) { } else { } }\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "noreturn_conditional_fallthrough", ch, "SAFE-NORETURN-001")
+}
+
 @test
 func neg_no_alloc_conflict(env : &mut TestEnv) {
     unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }

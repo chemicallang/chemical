@@ -732,8 +732,7 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
                 decl->attrs.forbids_unsafe = true;
                 decl->attrs.forbids_blocking = true;
             } else if (effect->value == chem::string_view("noreturn")) {
-                // Accepted as a documented property; it does not restrict a
-                // caller and has no checker yet.
+                decl->attrs.noreturn = true;
             } else {
                 std::string message("unsupported function effect '");
                 message.append(effect->value.data(), effect->value.size());

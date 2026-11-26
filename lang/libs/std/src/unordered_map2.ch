@@ -252,6 +252,18 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
         return Option.Some<&Value>(unsafe(&*ptr))
     }
 
+    public func get_mut(&mut self, key : &Key) : Option<&mut Value> {
+        const ptr = get_ptr(key)
+        if(ptr == null) { return Option.None<&mut Value>() }
+        return Option.Some<&mut Value>(unsafe(&mut *ptr))
+    }
+
+    public func at_mut(&mut self, key : &Key) : &mut Value {
+        const ptr = get_ptr(key)
+        if(ptr == null) { unsafe(panic("map key not found")) }
+        return unsafe(&mut *ptr)
+    }
+
     func at(&self, key : &Key) : &Value {
         const ptr = get_ptr(key)
         if(ptr == null) { unsafe(panic("map key not found")) }

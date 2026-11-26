@@ -1,5 +1,9 @@
 using namespace std;
 
+struct MapBox {
+    var n : int
+}
+
 @test
 func test_option_result_safe_methods(env : &mut TestEnv) {
     var o = Option.Some<int>(7)
@@ -118,6 +122,33 @@ func test_map_try_insert(env : &mut TestEnv) {
     if(!o.try_insert(1, 10)) { env.error("ordered_map.try_insert first") }
     if(!o.try_insert(2, 20)) { env.error("ordered_map.try_insert second") }
     if(o.size() != 2) { env.error("ordered_map.try_insert size") }
+}
+
+@test
+func test_map_get_mut(env : &mut TestEnv) {
+    var key = 1
+    var m = std::unordered_map<int, MapBox>()
+    m.insert(1, MapBox { n : 10 })
+    var slot = m.get_mut(&key)
+    if(slot is Option.None) {
+        env.error("unordered_map.get_mut present")
+    } else {
+        m.at_mut(&key).n = 20
+        if(m.at(&key).n != 20) { env.error("unordered_map.get_mut write") }
+    }
+    var missing = 9
+    if(m.get_mut(&missing) is Option.Some) { env.error("unordered_map.get_mut missing") }
+
+    var o = std::ordered_map<int, MapBox>()
+    o.insert(1, MapBox { n : 10 })
+    var oslot = o.get_mut(&key)
+    if(oslot is Option.None) {
+        env.error("ordered_map.get_mut present")
+    } else {
+        o.at_mut(&key).n = 30
+        if(o.at(&key).n != 30) { env.error("ordered_map.get_mut write") }
+    }
+    if(o.get_mut(&missing) is Option.Some) { env.error("ordered_map.get_mut missing") }
 }
 
 @test

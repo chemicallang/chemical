@@ -11,7 +11,9 @@ public func test_webview_defaults(env : &mut TestEnv) {
     var wv = webview::NativeWebView.make()
     if(wv.width != 800) { env.error("default width should be 800"); return }
     if(wv.height != 600) { env.error("default height should be 600"); return }
-    if(!string_eq(&raw wv.title, string_view("Chemical WebView"))) {
+    // The NativeWebView.make() default is "Chemical NativeWebView" in the
+    // current library; the test still expected the older "Chemical WebView".
+    if(!string_eq(&raw wv.title, string_view("Chemical NativeWebView"))) {
         env.error("default title mismatch");
         return
     }

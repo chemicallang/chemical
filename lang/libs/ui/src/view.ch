@@ -636,6 +636,20 @@ public func new_view_builder_debug(capacity : u32, width : float, height : float
     return ViewBuilder.make_internal(capacity, width, height, true)
 }
 public func component_root_of(c : &Component) : NodeId { return c.root }
+public func reset_view_builder(b : &mut ViewBuilder) {
+    b.arena.clear()
+    b.node_count_value = 0u32
+    b.spans.clear()
+    b.metas.clear()
+    b.scope_state.count = 0u32
+    b.diagnostic_count = 0u32
+    b.diagnostic_code = ErrorCode.Other
+    b.style_hits = 0u32
+    b.style_misses = 0u32
+    b.frame_storage.reset()
+    b.root = zeroed<NodeId>()
+    b.root = b.add_node(ViewKind.Root, key("root"), 0u32)
+}
 public func view_root(b : &ViewBuilder) : NodeId { return b.root }
 public func view_node_count(b : &ViewBuilder) : u32 { return b.node_count_value }
 public func view_arena_capacity(b : &ViewBuilder) : u32 { return b.arena.capacity() }

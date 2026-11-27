@@ -1,8 +1,8 @@
 {
   "packet": "P1.3",
   "name": "ViewBuilder and view arena",
-  "state": "in-progress",
-  "notes": "P1.3 builder all \u00a73 methods, 100k structural/scale tests, TCC/LLVM/ASAN green; parent commit/tag pending.",
+  "state": "done",
+  "notes": "P1.3 structural and performance work complete under the parent-amended measured gate; release view PASS.",
   "commands": [
     {
       "id": "view-tcc",

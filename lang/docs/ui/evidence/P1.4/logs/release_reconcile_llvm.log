@@ -1,0 +1,5 @@
+reconcile differential ops=10000 live=7
+reconcile reorder p50_us=1852 p95_us=2228 live=10001
+reconcile release gate BLOCKER p50=1852 limit=1000
+reconcile branch FAIL reorder
+ui-test: FAIL (exit 1)

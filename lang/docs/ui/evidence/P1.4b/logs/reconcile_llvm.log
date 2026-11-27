@@ -1,0 +1,4 @@
+ui reconcile PASS
+reconcile differential ops=10000 live=7
+reconcile reorder p50_us=2736 p95_us=3051 live=10001
+ui-test: PASS (llvm, filter=reconcile)

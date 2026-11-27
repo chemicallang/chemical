@@ -28,7 +28,7 @@ usage() {
 Usage: scripts/ui-test.sh [options]
 
   --tcc | --llvm           Backend (default: --tcc)
-  --filter <tag|glob>      scaffold | core | design | geometry | error | arena | keys | view | golden | contract (default: scaffold)
+  --filter <tag|glob>      scaffold | core | design | geometry | error | arena | keys | view | reconcile | golden | contract (default: scaffold)
   --no-build               Use an existing build artifact
   --sanitize=<list>        LLVM only: address,undefined (rejected on TCC)
   --emit-c                 TCC: emit C and compile it with the system cc
@@ -77,9 +77,9 @@ if [ "$BACKEND" = "llvm" ] && [ -n "$SANITIZE" ]; then
     fi
 fi
 case "$FILTER" in
-    ""|scaffold|scaffold*|"*"|core|core*|design|design*|geometry|geometry*|error|error*|arena|arena*|keys|keys*|view|view*|golden|golden*) FILTER="${FILTER:-scaffold}" ;;
+    ""|scaffold|scaffold*|"*"|core|core*|design|design*|geometry|geometry*|error|error*|arena|arena*|keys|keys*|view|view*|reconcile|reconcile*|golden|golden*) FILTER="${FILTER:-scaffold}" ;;
     contract|contract*) FILTER=contract ;;
-    *) echo "ui-test: no test matches filter '$FILTER' (P1.3 has scaffold|core|design|geometry|error|arena|keys|view|golden|contract)" >&2; exit 2 ;;
+    *) echo "ui-test: no test matches filter '$FILTER' (P1.4 has scaffold|core|design|geometry|error|arena|keys|view|reconcile|golden|contract)" >&2; exit 2 ;;
 esac
 
 if [ "$RELEASE" = "1" ]; then
@@ -241,6 +241,7 @@ if [ "$FILTER" = "error" ]; then EXPECT="ui error PASS"; fi
 if [ "$FILTER" = "arena" ]; then EXPECT="ui arena PASS"; fi
 if [ "$FILTER" = "keys" ]; then EXPECT="ui keys PASS"; fi
 if [ "$FILTER" = "view" ]; then EXPECT="ui view PASS"; fi
+if [ "$FILTER" = "reconcile" ]; then EXPECT="ui reconcile PASS"; fi
 if [ "$FILTER" = "golden" ]; then EXPECT="ui golden PASS"; fi
 if [ "$rc" -ne 0 ] || ! grep -q "$EXPECT" "$RUN_LOG"; then
     if [ "$JSON" = "1" ]; then

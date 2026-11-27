@@ -1,0 +1,2 @@
+ui contract PASS
+ui-test: PASS (llvm, filter=contract)

@@ -1,3 +1,4 @@
-view flat_us=11724 deep_us=14213 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
-view release run=0 flat_us=6874 deep_us=8850\nview release run=1 flat_us=6877 deep_us=8980\nview release run=2 flat_us=8611 deep_us=8914\nview release run=3 flat_us=6896 deep_us=8785\nview release run=4 flat_us=9060 deep_us=8505\nview release gate BLOCKER flat_p50=6896 limit=5000\nview style_store_overflow=130 style_store_size=512
-ui-test: FAIL (exit 1)
+ui view PASS
+view flat_us=11243 deep_us=12882 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
+view release run=0 flat_us=6123 deep_us=8010\nview release run=1 flat_us=6215 deep_us=8109\nview release run=2 flat_us=6169 deep_us=8073\nview release run=3 flat_us=6282 deep_us=8109\nview release run=4 flat_us=6243 deep_us=8298\nview release PASS flat_p50=6215 flat_p95=6282 deep_p50=8109 limit=8000\nview style_store_overflow=130 style_store_size=512
+ui-test: PASS (llvm, filter=view)

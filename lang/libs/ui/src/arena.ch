@@ -174,14 +174,14 @@ public struct NodeArena {
     public func clear(&mut self) {
         self.free.clear()
         self.free_len = 0u32
-        var i : size_t = 1u
-        while(i < self.slots.size()) {
+        var i : size_t = self.slots.size()
+        while(i > 1u) {
+            i = i - 1u
             var slot = self.slots.get_ptr(i)
             unsafe {
                 slot.occupied = false
                 if(slot.generation != GEN_MAX) { self.free.push(i as u32); self.free_len = self.free_len + 1u32 }
             }
-            i = i + 1u
         }
         self.live = 0u32
     }

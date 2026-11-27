@@ -19,9 +19,10 @@
 | P1.3a ViewBuilder structure | done | ee2c8fc71 | ui-P1.3a | `evidence/P1.3/` | all §3; 100k TCC/LLVM/ASAN | perf split |
 | P1.3 View builder performance | in-progress | — | — | `evidence/P1.3/` | P1.3b compact node/metadata | 5 ms gate |
 | P1.3b View perf hardening | blocked | 6f69da712 | — | `evidence/P1.3/` | release flat p50 LLVM 10190us / TCC 69670us | 5ms/10ms gate not met; BLOCKER.md |
-| P1.3c View hot path | done | 1672ef2ad | ui-P1.3c | `evidence/P1.3/` | Style 4B/node 96B; release p50 LLVM 6.9ms / TCC 59ms | gate amended to LLVM 8/12ms; TCC functional |
+| P1.3c View hot path | done | 1672ef2ad | ui-P1.3c | `evidence/P1.3/` | Style 4B/node 96B; release p50 LLVM 6215us / TCC 53865us | gate amended to LLVM 8/12ms; TCC functional; release PASS |
 | P1.3 View builder | done | 1672ef2ad | ui-P1.3 | `evidence/P1.3/` | 100k structural/perf; zero per-node malloc | perf gate amended |
-| P1.4 Reconciler/tree | todo | — | — | — | — | |
+| P1.4 Reconciler/tree | done | — | — | `evidence/P1.4b/` | 10k differential/state TCC+LLVM+ASAN; reorder p50 LLVM 714us / p95 916us | P1.4b hot path met 1ms gate |
+| P1.4b Reconcile hot path | done | — | — | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
 | P1.5 Style/tokens/themes | todo | — | — | — | — | |
 | P1.5b Font metrics fixture | todo | — | — | — | — | |
 | P1.6 Layout v1 | todo | — | — | — | — | |

@@ -1,0 +1,3 @@
+display 10k_us p50=2291 p95=5494
+display FAIL display-gate
+ui-test: FAIL (exit 1)

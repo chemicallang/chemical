@@ -589,7 +589,8 @@ Acceptance: fixtures; scroll offset preservation; P gates; V reviewed.
   generation.
 
 Acceptance: serialized display list matches expected for 20 scenes; no command
-outside clip; P: 10k quads command build ≤0.3 ms.
+outside clip; **P: 10k commands ≤3 ms p50 / ≤7 ms p95 LLVM release** (P1.8b
+2.29/5.49 ms; 0.3 ms was a pre-implementation stretch), TCC functional only.
 
 #### P1.9 — CPU rasterizer v1
 

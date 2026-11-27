@@ -8,14 +8,15 @@ what is a negative/runtime gate owned by a later packet.
 ```bash
 ./scripts/ui-test.sh --tcc  --filter contract
 ./scripts/ui-test.sh --llvm --filter contract
+./scripts/ui-test.sh --tcc  --filter contract --contract-check-only
 ```
 
-`scripts/ui-test.sh --filter contract` runs the compiler front end with
-`--check` on `lang/tests/ui/contracts/chemical.mod`. The module defines every
-public declaration in `API.md`; functions/methods are `@extern` or trivial
-default bodies, so no UI runtime is linked or called. `--check` performs parse,
-symbol resolution, generic/where-clause checks and type verification on both
-TCC and LLVM.
+`scripts/ui-test.sh --filter contract` builds `lang/tests/ui/contracts/chemical.mod`
+to an executable, runs it, and requires `ui contract PASS` on both TCC and LLVM.
+The module defines every public declaration in `API.md`; functions/methods are
+`@extern` or trivial default bodies, so no UI runtime is called. The build also
+proves the C/LLVM symbol tables agree on method mangling. A front-end-only run is
+available with `--contract-check-only`.
 
 The module defines:
 

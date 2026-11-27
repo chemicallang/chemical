@@ -1,0 +1,14 @@
+{
+  "packet": "P0.2b",
+  "name": "Extern method mangling and full contract build",
+  "state": "done",
+  "commands": [
+    {"id": "contract-tcc", "run": "scripts/ui-test.sh --tcc --filter contract", "artifacts": ["lang/tests/ui/contracts/chemical.mod"]},
+    {"id": "contract-llvm", "run": "scripts/ui-test.sh --llvm --filter contract", "artifacts": ["lang/tests/ui/contracts/chemical.mod"]},
+    {"id": "api-index", "run": "scripts/ui-api-index.sh --check", "artifacts": ["lang/docs/ui/ui_api_index.json"]}
+  ],
+  "artifacts": ["compiler/frontend/AnnotationController.cpp", "lang/tests/src/basic/extern_method_mangle.ch", "lang/tests/ui/contracts/src/main.ch"],
+  "evidence": {"dir": "lang/docs/ui/evidence/P0.2", "required": true, "files": ["REPORT.md"]},
+  "benchmarks": {"keys": [], "compare": false},
+  "stubs": []
+}

@@ -1,7 +1,7 @@
 {
   "packet": "P0.2",
   "name": "Freeze contracts v1",
-  "state": "in-progress",
+  "state": "done",
   "commands": [
     {
       "id": "contract-tcc",
@@ -15,6 +15,13 @@
       "run": "scripts/ui-test.sh --llvm --filter contract",
       "artifacts": [
         "lang/tests/ui/contracts/chemical.mod"
+      ]
+    },
+    {
+      "id": "regression",
+      "run": "./scripts/test.sh --tcc --no-build --skip-sequential --test-names extern_method_names_are_owner_mangled",
+      "artifacts": [
+        "lang/tests/src/basic/extern_method_mangle.ch"
       ]
     },
     {
@@ -45,5 +52,5 @@
     "compare": false
   },
   "stubs": [],
-  "notes": "Every API.md declaration compile-checked on TCC+LLVM; awaiting parent review/commit."
+  "notes": "P0.2b fixed @extern method mangling; contract builds/links/runs TCC+LLVM. Awaiting parent commit/tag."
 }

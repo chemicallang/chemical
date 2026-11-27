@@ -1,0 +1,3161 @@
+==> Building negative tests...
+cmake-build-debug/Compiler lang/tests/build.lab -o lang/tests/build/negative-tests-llvm.exe --mode debug_quick --arg-negative --no-cache
+File order seed: 4697750581594369109 (set FILE_ORDER_SEED to reproduce)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+<string>:3822: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3823: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3838: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3839: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3901: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3902: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3908: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3909: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4044: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4065: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4696: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4697: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4712: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4713: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4816: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4817: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4823: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4824: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5929: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5930: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5945: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5946: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6027: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6028: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6034: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6035: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7354: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7355: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7370: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7371: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7433: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7434: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7440: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7441: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8634: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8641: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8648: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8655: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8663: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8671: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8679: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8687: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8695: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:8703: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:9645: warning: function might return no value: 'std_stdioIoErrorhas_message' in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10256: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:17874: warning: function might return no value: 'std_stdstringmutable_data' in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:19983: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:19984: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20004: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20005: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20120: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20121: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20181: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20182: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20202: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20203: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20318: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20319: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20728: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20729: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20744: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20745: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20807: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20808: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20814: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20815: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21301: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21302: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21317: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21318: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21380: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21381: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21387: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21388: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22053: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22054: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22121: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22122: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22195: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22196: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22216: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22217: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22332: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22333: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22742: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22743: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22758: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22759: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22821: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22822: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22828: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22829: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23235: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23236: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23301: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23302: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23322: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23323: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23438: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23439: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23654: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23655: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23720: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23741: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23856: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23891: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24783: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24852: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24940: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:25094: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:25229: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41699: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41721: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41748: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41775: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:3822: warning: assignment from incompatible pointer type in 
+<string>:3823: warning: assignment from incompatible pointer type in 
+<string>:3838: warning: assignment from incompatible pointer type in 
+<string>:3839: warning: assignment from incompatible pointer type in 
+<string>:3901: warning: assignment from incompatible pointer type in 
+<string>:3902: warning: assignment from incompatible pointer type in 
+<string>:3908: warning: assignment from incompatible pointer type in 
+<string>:3909: warning: assignment from incompatible pointer type in 
+<string>:4044: warning: assignment discards qualifiers from pointer target type in 
+<string>:4065: warning: assignment discards qualifiers from pointer target type in 
+<string>:4696: warning: assignment from incompatible pointer type in 
+<string>:4697: warning: assignment from incompatible pointer type in 
+<string>:4712: warning: assignment from incompatible pointer type in 
+<string>:4713: warning: assignment from incompatible pointer type in 
+<string>:4816: warning: assignment from incompatible pointer type in 
+<string>:4817: warning: assignment from incompatible pointer type in 
+<string>:4823: warning: assignment from incompatible pointer type in 
+<string>:4824: warning: assignment from incompatible pointer type in 
+<string>:5929: warning: assignment from incompatible pointer type in 
+<string>:5930: warning: assignment from incompatible pointer type in 
+<string>:5945: warning: assignment from incompatible pointer type in 
+<string>:5946: warning: assignment from incompatible pointer type in 
+<string>:6027: warning: assignment from incompatible pointer type in 
+<string>:6028: warning: assignment from incompatible pointer type in 
+<string>:6034: warning: assignment from incompatible pointer type in 
+<string>:6035: warning: assignment from incompatible pointer type in 
+<string>:7354: warning: assignment from incompatible pointer type in 
+<string>:7355: warning: assignment from incompatible pointer type in 
+<string>:7370: warning: assignment from incompatible pointer type in 
+<string>:7371: warning: assignment from incompatible pointer type in 
+<string>:7433: warning: assignment from incompatible pointer type in 
+<string>:7434: warning: assignment from incompatible pointer type in 
+<string>:7440: warning: assignment from incompatible pointer type in 
+<string>:7441: warning: assignment from incompatible pointer type in 
+<string>:8634: warning: assignment from incompatible pointer type in 
+<string>:8641: warning: assignment from incompatible pointer type in 
+<string>:8648: warning: assignment from incompatible pointer type in 
+<string>:8655: warning: assignment from incompatible pointer type in 
+<string>:8663: warning: assignment from incompatible pointer type in 
+<string>:8671: warning: assignment from incompatible pointer type in 
+<string>:8679: warning: assignment from incompatible pointer type in 
+<string>:8687: warning: assignment from incompatible pointer type in 
+<string>:8695: warning: assignment from incompatible pointer type in 
+<string>:8703: warning: assignment from incompatible pointer type in 
+<string>:9645: warning: function might return no value: 'std_stdioIoErrorhas_message' in 
+<string>:10256: warning: assignment from incompatible pointer type in 
+<string>:17874: warning: function might return no value: 'std_stdstringmutable_data' in 
+<string>:19983: warning: assignment from incompatible pointer type in 
+<string>:19984: warning: assignment from incompatible pointer type in 
+<string>:20004: warning: assignment from incompatible pointer type in 
+<string>:20005: warning: assignment from incompatible pointer type in 
+<string>:20120: warning: assignment from incompatible pointer type in 
+<string>:20121: warning: assignment from incompatible pointer type in 
+<string>:20181: warning: assignment from incompatible pointer type in 
+<string>:20182: warning: assignment from incompatible pointer type in 
+<string>:20202: warning: assignment from incompatible pointer type in 
+<string>:20203: warning: assignment from incompatible pointer type in 
+<string>:20318: warning: assignment from incompatible pointer type in 
+<string>:20319: warning: assignment from incompatible pointer type in 
+<string>:20728: warning: assignment from incompatible pointer type in 
+<string>:20729: warning: assignment from incompatible pointer type in 
+<string>:20744: warning: assignment from incompatible pointer type in 
+<string>:20745: warning: assignment from incompatible pointer type in 
+<string>:20807: warning: assignment from incompatible pointer type in 
+<string>:20808: warning: assignment from incompatible pointer type in 
+<string>:20814: warning: assignment from incompatible pointer type in 
+<string>:20815: warning: assignment from incompatible pointer type in 
+<string>:21301: warning: assignment from incompatible pointer type in 
+<string>:21302: warning: assignment from incompatible pointer type in 
+<string>:21317: warning: assignment from incompatible pointer type in 
+<string>:21318: warning: assignment from incompatible pointer type in 
+<string>:21380: warning: assignment from incompatible pointer type in 
+<string>:21381: warning: assignment from incompatible pointer type in 
+<string>:21387: warning: assignment from incompatible pointer type in 
+<string>:21388: warning: assignment from incompatible pointer type in 
+<string>:22053: warning: assignment from incompatible pointer type in 
+<string>:22054: warning: assignment from incompatible pointer type in 
+<string>:22121: warning: assignment from incompatible pointer type in 
+<string>:22122: warning: assignment from incompatible pointer type in 
+<string>:22195: warning: assignment from incompatible pointer type in 
+<string>:22196: warning: assignment from incompatible pointer type in 
+<string>:22216: warning: assignment from incompatible pointer type in 
+<string>:22217: warning: assignment from incompatible pointer type in 
+<string>:22332: warning: assignment from incompatible pointer type in 
+<string>:22333: warning: assignment from incompatible pointer type in 
+<string>:22742: warning: assignment from incompatible pointer type in 
+<string>:22743: warning: assignment from incompatible pointer type in 
+<string>:22758: warning: assignment from incompatible pointer type in 
+<string>:22759: warning: assignment from incompatible pointer type in 
+<string>:22821: warning: assignment from incompatible pointer type in 
+<string>:22822: warning: assignment from incompatible pointer type in 
+<string>:22828: warning: assignment from incompatible pointer type in 
+<string>:22829: warning: assignment from incompatible pointer type in 
+<string>:23235: warning: assignment from incompatible pointer type in 
+<string>:23236: warning: assignment from incompatible pointer type in 
+<string>:23301: warning: assignment from incompatible pointer type in 
+<string>:23302: warning: assignment from incompatible pointer type in 
+<string>:23322: warning: assignment from incompatible pointer type in 
+<string>:23323: warning: assignment from incompatible pointer type in 
+<string>:23438: warning: assignment from incompatible pointer type in 
+<string>:23439: warning: assignment from incompatible pointer type in 
+<string>:23654: warning: assignment from incompatible pointer type in 
+<string>:23655: warning: assignment from incompatible pointer type in 
+<string>:23720: warning: assignment discards qualifiers from pointer target type in 
+<string>:23741: warning: assignment discards qualifiers from pointer target type in 
+<string>:23856: warning: assignment discards qualifiers from pointer target type in 
+<string>:23891: warning: assignment discards qualifiers from pointer target type in 
+<string>:24783: warning: assignment discards qualifiers from pointer target type in 
+<string>:24852: warning: assignment discards qualifiers from pointer target type in 
+<string>:24940: warning: assignment discards qualifiers from pointer target type in 
+<string>:25094: warning: assignment discards qualifiers from pointer target type in 
+<string>:25229: warning: assignment discards qualifiers from pointer target type in 
+<string>:41699: warning: assignment discards qualifiers from pointer target type in 
+<string>:41721: warning: assignment discards qualifiers from pointer target type in 
+<string>:41748: warning: assignment discards qualifiers from pointer target type in 
+<string>:41775: warning: assignment discards qualifiers from pointer target type in 
+[build.lab] current file path : lang/tests/build.lab
+[build.lab] current dir path : lang/tests/
+[build.lab] interested relative path : lang/tests/ext/file.c
+Compiler Version = 0.6.0
+[lab] Building executable 'chemical-negative-tests' at path 'lang/tests/build/negative-tests-llvm.exe'
+[lab] Compiling module 1 of 13 (core)
+[lab] Building module 'core' at path 'lang/tests/build/chemical-negative-tests.dir/modules/core/object.o'
+[lab] Compiling module 2 of 13 (cstd)
+[lab] Building module 'cstd' at path 'lang/tests/build/chemical-negative-tests.dir/modules/cstd/object.o'
+[lab] Compiling module 3 of 13 (std)
+[lab] Building module 'std' at path 'lang/tests/build/chemical-negative-tests.dir/modules/std/object.o'
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[lab] Compiling module 4 of 13 (path)
+[lab] Building module 'path' at path 'lang/tests/build/chemical-negative-tests.dir/modules/path/object.o'
+[lab] Compiling module 5 of 13 (osrand)
+[lab] Building module 'osrand' at path 'lang/tests/build/chemical-negative-tests.dir/modules/osrand/object.o'
+[lab] Compiling module 6 of 13 (crypto)
+[lab] Building module 'crypto' at path 'lang/tests/build/chemical-negative-tests.dir/modules/crypto/object.o'
+[lab] Compiling module 7 of 13 (encoding)
+[lab] Building module 'encoding' at path 'lang/tests/build/chemical-negative-tests.dir/modules/encoding/object.o'
+[lab] Compiling module 8 of 13 (async)
+[lab] Building module 'async' at path 'lang/tests/build/chemical-negative-tests.dir/modules/async/object.o'
+[TypeCheck] warn[SAFE-GLOBAL-003]: mutable reference to the global 'g_exec' escapes into a caller: every caller gets a `&mut` to the same object, so two threads can write it at once. The unsafe boundary asserts they are synchronized — hold a lock across every access, or make the global thread-local at /home/wakaztahir/work/Chemical/chemical/lang/libs/async/src/raw.ch:121:16
+[TypeCheck] warn[SAFE-GLOBAL-003]: mutable reference to the global 'g_reactor' escapes into a caller: every caller gets a `&mut` to the same object, so two threads can write it at once. The unsafe boundary asserts they are synchronized — hold a lock across every access, or make the global thread-local at /home/wakaztahir/work/Chemical/chemical/lang/libs/async/src/raw.ch:501:16
+[lab] Compiling module 9 of 13 (fs)
+[lab] Building module 'fs' at path 'lang/tests/build/chemical-negative-tests.dir/modules/fs/object.o'
+[lab] Compiling module 10 of 13 (test_env)
+[lab] Building module 'test_env' at path 'lang/tests/build/chemical-negative-tests.dir/modules/test_env/object.o'
+[lab] Compiling module 11 of 13 (test_report)
+[lab] Building module 'test_report' at path 'lang/tests/build/chemical-negative-tests.dir/modules/test_report/object.o'
+[lab] Compiling module 12 of 13 (test)
+[Parsed] /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch:21:22
+[Parser] warn: deprecated syntax, pointer should be before type at /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch:146:32
+[lab] Building module 'test' at path 'lang/tests/build/chemical-negative-tests.dir/modules/test/object.o'
+[lab] Compiling module 13 of 13 (negative_tests)
+[Parsed] /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:66:20
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:102:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:153:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:157:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:161:24
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:169:21
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:224:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:226:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:229:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:260:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:262:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:265:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:290:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:292:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:295:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:316:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:318:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:321:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:419:28
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:421:27
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:424:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:456:28
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:458:27
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:461:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:489:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:491:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:494:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:510:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:512:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:514:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:516:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:540:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:542:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:544:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:546:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:561:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:563:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:565:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:567:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:586:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:588:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:591:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:617:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:619:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:622:31
+[lab] Building module 'negative_tests' at path 'lang/tests/build/chemical-negative-tests.dir/modules/negative_tests/object.o'
+==> Running negative tests...
+[1m[34mGroup: [90m(no-group)[0m
+  [32m- [1mneg_p25_window_handle_is_not_send[0m[0m 1073741823
+    [32mPASS[0m
+
+  [32m- [1mneg_p25_webview_handle_is_not_send[0m[0m 1073741824
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_wrong_param_count[0m[0m 1073741825
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_param_type_mismatch[0m[0m 1073741826
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_member_self_reference[0m[0m 1073741827
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_var_mutation[0m[0m 1073741828
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_return_type_mismatch[0m[0m 1073741829
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_non_const_expr[0m[0m 1073741830
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_member_self_reference_unused[0m[0m 1073741831
+    [32mPASS[0m
+
+  [32m- [1mcomptime_block_outside_func_allowed[0m[0m 1073741832
+    [32mPASS[0m
+
+  [32m- [1mneg_mutate_struct_immutable_self[0m[0m 1073741833
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_captures_outside_scope[0m[0m 1073741834
+    [32mPASS[0m
+
+  [32m- [1mneg_else_without_if[0m[0m 1073741835
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_missing_field_type[0m[0m 1073741836
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_to_reference[0m[0m 1073741837
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_wrong_arg_count[0m[0m 1073741838
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_member_mutual_cycle[0m[0m 1073741839
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_calling_non_function[0m[0m 1073741840
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_duplicate_field[0m[0m 1073741841
+    [32mPASS[0m
+
+  [32m- [1mif_int_condition_allowed[0m[0m 1073741842
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_no_capture_type[0m[0m 1073741843
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_missing_type_arg[0m[0m 1073741844
+    [32mPASS[0m
+
+  [32m- [1mneg_variant_no_members[0m[0m 1073741845
+    [32mPASS[0m
+
+  [32m- [1mneg_while_condition_not_bool[0m[0m 1073741846
+    [32mPASS[0m
+
+  [32m- [1mneg_expression_not_assignable[0m[0m 1073741847
+    [32mPASS[0m
+
+  [32m- [1mneg_self_referential_struct[0m[0m 1073741848
+    [32mPASS[0m
+
+  [32m- [1mneg_fn_expects_lambda_wrong_param[0m[0m 1073741849
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_non_type_arg[0m[0m 1073741850
+    [32mPASS[0m
+
+  [32m- [1mneg_for_loop_bad_range[0m[0m 1073741851
+    [32mPASS[0m
+
+  [32m- [1mneg_function_not_takes_self[0m[0m 1073741852
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_where_clause_fail[0m[0m 1073741853
+    [32mPASS[0m
+
+  [32m- [1mneg_inherit_non_struct[0m[0m 1073741854
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_field_void[0m[0m 1073741855
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_to_const_ptr_field[0m[0m 1073741856
+    [32mPASS[0m
+
+  [32m- [1mneg_for_loop_float_condition[0m[0m 1073741857
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_split_missing_partial_eq[0m[0m 1073741858
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_enum_value[0m[0m 1073741859
+    [32mPASS[0m
+
+  [32m- [1mneg_inherit_non_struct_second[0m[0m 1073741860
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_destructible[0m[0m 1073741861
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_recursive[0m[0m 1073741862
+    [32mPASS[0m
+
+  [32m- [1mneg_interface_inherit_non_interface[0m[0m 1073741863
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_enum_value_signed[0m[0m 1073741864
+    [32mPASS[0m
+
+  [32m- [1mneg_await_outside_async_errors[0m[0m 1073741865
+    [32mPASS[0m
+
+  [32m- [1mneg_for_in_non_iterable[0m[0m 1073741866
+    [32mPASS[0m
+
+  [32m- [1mneg_import_non_existent[0m[0m 1073741867
+    [32mPASS[0m
+
+  [32m- [1mneg_destruct_on_non_pointer[0m[0m 1073741868
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_const_mismatch_int[0m[0m 1073741869
+    [32mPASS[0m
+
+  [32m- [1mneg_interface_missing_method_full[0m[0m 1073741870
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_no_expr[0m[0m 1073741871
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_member_three_way_cycle[0m[0m 1073741872
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_value_valid_fits[0m[0m 1073741873
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_duplicate_case[0m[0m 1073741874
+    [32mPASS[0m
+
+  [32m- [1mneg_enum_member_cross_enum_cycle[0m[0m 1073741875
+    [32mPASS[0m
+
+  [32m- [1masync_coroutine_runs[0m[0m 1073741876
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_wrong_method_sig_full[0m[0m 1073741877
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_missing_constraint[0m[0m 1073741878
+    [32mPASS[0m
+
+  [32m- [1mneg_destruct_on_non_ptr_expr[0m[0m 1073741879
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_with_underscore_only_fields[0m[0m 1073741880
+    [32mPASS[0m
+
+  [32m- [1mneg_interface_missing_method[0m[0m 1073741881
+    [32mPASS[0m
+
+  [32m- [1mneg_duplicate_generic_param_name[0m[0m 1073741882
+    [32mPASS[0m
+
+  [32m- [1mno_panic_simple_function_compiles[0m[0m 1073741883
+    [32mPASS[0m
+
+  [32m- [1mneg_while_loop_no_body[0m[0m 1073741884
+    [32mPASS[0m
+
+  [32m- [1mneg_lifetime_dep_syntax[0m[0m 1073741885
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_missing_method_name[0m[0m 1073741886
+    [32mPASS[0m
+
+  [32m- [1masync_coroutine_debug_info_compiles[0m[0m 1073741887
+    [32mPASS[0m
+
+  [32m- [1mneg_variant_duplicate_constructor[0m[0m 1073741888
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_void_value[0m[0m 1073741889
+    [32mPASS[0m
+
+  [32m- [1mneg_interface_wrong_method_sig[0m[0m 1073741890
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_struct_no_impl[0m[0m 1073741891
+    [32mPASS[0m
+
+  [32m- [1mno_panic_annotated_callee_compiles[0m[0m 1073741892
+    [32mPASS[0m
+
+  [32m- [1mneg_for_loop_no_body[0m[0m 1073741893
+    [32mPASS[0m
+
+  [32m- [1masync_main_trampoline_runs[0m[0m 1073741894
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_missing_brace[0m[0m 1073741895
+    [32mPASS[0m
+
+  [32m- [1menum_member_previous_reference_allowed[0m[0m 1073741896
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_to_function_result[0m[0m 1073741897
+    [32mPASS[0m
+
+  [32m- [1mneg_inheritance_recursive[0m[0m 1073741898
+    [32mPASS[0m
+
+  [32m- [1mneg_mutate_const_field[0m[0m 1073741899
+    [32mPASS[0m
+
+  [32m- [1mneg_undeclared_type[0m[0m 1073741900
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_annotation[0m[0m 1073741901
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_struct_with_non_type_param[0m[0m 1073741902
+    [32mPASS[0m
+
+  [32m- [1mneg_if_else_chain_type_mismatch[0m[0m 1073741903
+    [32mPASS[0m
+
+  [32m- [1mneg_using_on_non_module[0m[0m 1073741904
+    [32mPASS[0m
+
+  [32m- [1mneg_inheritance_self[0m[0m 1073741905
+    [32mPASS[0m
+
+  [32m- [1mneg_async_closure_reusable_target_errors[0m[0m 1073741906
+    [32mPASS[0m
+
+  [32m- [1mneg_mutate_const_nested_field[0m[0m 1073741907
+    [32mPASS[0m
+
+  [32m- [1mneg_struct_lifetime_too_many[0m[0m 1073741908
+    [32mPASS[0m
+
+  [32m- [1mneg_async_closure_static_borrowed_capture_errors[0m[0m 1073741909
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_rejects_unannotated_callee[0m[0m 1073741910
+    [32mPASS[0m
+
+  [32m- [1mneg_inheritance_cycle_three[0m[0m 1073741911
+    [32mPASS[0m
+
+  [32m- [1mneg_namespace_conflict[0m[0m 1073741912
+    [32mPASS[0m
+
+  [32m- [1menum_empty_member_values_allowed[0m[0m 1073741913
+    [32mPASS[0m
+
+  [32m- [1mneg_unresolved_identifier[0m[0m 1073741914
+    [32mPASS[0m
+
+  [32m- [1mneg_missing_return_in_else[0m[0m 1073741915
+    [32mPASS[0m
+
+  [32m- [1mneg_inheritance_interface_self[0m[0m 1073741916
+    [32mPASS[0m
+
+  [32m- [1mneg_async_destructor_errors[0m[0m 1073741917
+    [32mPASS[0m
+
+  [32m- [1mneg_void_variable[0m[0m 1073741918
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_rejects_explicit_panic[0m[0m 1073741919
+    [32mPASS[0m
+
+  [32m- [1mneg_async_extern_errors[0m[0m 1073741920
+    [32mPASS[0m
+
+  [32m- [1mneg_inherit_pointer_type[0m[0m 1073741921
+    [32mPASS[0m
+
+  [32m- [1mneg_return_type_mismatch2[0m[0m 1073741922
+    [32mPASS[0m
+
+  [32m- [1mimpl_for_primitive_allowed[0m[0m 1073741923
+    [32mPASS[0m
+
+  [32m- [1mneg_deref_void_ptr[0m[0m 1073741924
+    [32mPASS[0m
+
+  [32m- [1mneg_duplicate_function[0m[0m 1073741925
+    [32mPASS[0m
+
+  [32m- [1mneg_interface_duplicate_method[0m[0m 1073741926
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_rejects_bounds_check[0m[0m 1073741927
+    [32mPASS[0m
+
+  [32m- [1mneg_self_param_non_method[0m[0m 1073741928
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_block_in_safe[0m[0m 1073741929
+    [32mPASS[0m
+
+  [32m- [1mneg_addr_of_temporary[0m[0m 1073741930
+    [32mPASS[0m
+
+  [32m- [1mneg_static_interface_multi_impl[0m[0m 1073741931
+    [32mPASS[0m
+
+  [32m- [1mneg_double_deref_non_ptr[0m[0m 1073741932
+    [32mPASS[0m
+
+  [32m- [1mzeroed_reference_field_rejected[0m[0m 1073741933
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_rejects_function_pointer_call[0m[0m 1073741934
+    [32mPASS[0m
+
+  [32m- [1mneg_async_missing_library_errors[0m[0m 1073741935
+    [32mPASS[0m
+
+  [32m- [1mneg_break_outside_loop[0m[0m 1073741936
+    [32mPASS[0m
+
+  [32m- [1mzeroed_plain_struct_ok[0m[0m 1073741937
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_rejects_may_panic_callee[0m[0m 1073741938
+    [32mPASS[0m
+
+  [32m- [1mneg_pointer_to_mut_mismatch[0m[0m 1073741939
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_to_immutable[0m[0m 1073741940
+    [32mPASS[0m
+
+  [32m- [1mneg_inherit_duplicate_field[0m[0m 1073741941
+    [32mPASS[0m
+
+  [32m- [1mneg_continue_outside_loop[0m[0m 1073741942
+    [32mPASS[0m
+
+  [32m- [1mzeroed_phantom_data_reference_ok[0m[0m 1073741943
+    [32mPASS[0m
+
+  [32m- [1mneg_inherit_duplicate_field_deep_base[0m[0m 1073741944
+    [32mPASS[0m
+
+  [32m- [1mneg_return_outside_func[0m[0m 1073741945
+    [32mPASS[0m
+
+  [32m- [1mno_panic_allows_unsafe_trap[0m[0m 1073741946
+    [32mPASS[0m
+
+  [32m- [1mneg_infinite_loop_no_progress[0m[0m 1073741947
+    [32mPASS[0m
+
+  [32m- [1mneg_wrong_return_type[0m[0m 1073741948
+    [32mPASS[0m
+
+  [32m- [1minherit_distinct_field_allowed[0m[0m 1073741949
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_missing_for[0m[0m 1073741950
+    [32mPASS[0m
+
+  [32m- [1mneg_typealias_invalid[0m[0m 1073741951
+    [32mPASS[0m
+
+  [32m- [1mneg_missing_return_value[0m[0m 1073741952
+    [32mPASS[0m
+
+  [32m- [1mzeroed_generic_reference_rejected[0m[0m 1073741953
+    [32mPASS[0m
+
+  [32m- [1mno_alloc_simple_function_compiles[0m[0m 1073741954
+    [32mPASS[0m
+
+  [32m- [1mneg_cannot_take_addr_of_rvalue[0m[0m 1073741955
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_missing_target_type[0m[0m 1073741956
+    [32mPASS[0m
+
+  [32m- [1mneg_null_not_in_pointer_context[0m[0m 1073741957
+    [32mPASS[0m
+
+  [32m- [1mneg_access_private_other_file[0m[0m 1073741958
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_with_body[0m[0m 1073741959
+    [32mPASS[0m
+
+  [32m- [1mneg_type_mismatch_var_init[0m[0m 1073741960
+    [32mPASS[0m
+
+  [32m- [1mno_alloc_annotated_callee_compiles[0m[0m 1073741961
+    [32mPASS[0m
+
+  [32m- [1mneg_namespace_expected[0m[0m 1073741962
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_to_const_ptr[0m[0m 1073741963
+    [32mPASS[0m
+
+  [32m- [1mzeroable_impl_does_not_bypass_reference_check[0m[0m 1073741964
+    [32mPASS[0m
+
+  [32m- [1mneg_annotation_on_wrong_target[0m[0m 1073741965
+    [32mPASS[0m
+
+  [32m- [1mneg_no_alloc_rejects_unannotated_callee[0m[0m 1073741966
+    [32mPASS[0m
+
+  [32m- [1mneg_nonretained_call[0m[0m 1073741967
+    [32mPASS[0m
+
+  [32m- [1mneg_undefined_field_in_struct[0m[0m 1073741968
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_generic_params_nested[0m[0m 1073741969
+    [32mPASS[0m
+
+  [32m- [1muninit_member_write_on_destructible_ok[0m[0m 1073741970
+    [32mPASS[0m
+
+  [32m- [1mneg_no_alloc_rejects_heap_allocation[0m[0m 1073741971
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_capture_list[0m[0m 1073741972
+    [32mPASS[0m
+
+  [32m- [1mneg_namespace_not_found[0m[0m 1073741973
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_number_conversion[0m[0m 1073741974
+    [32mPASS[0m
+
+  [32m- [1mneg_subtract_pointers_diff_types[0m[0m 1073741975
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_self_as_target[0m[0m 1073741976
+    [32mPASS[0m
+
+  [32m- [1mneg_unresolved_child_field[0m[0m 1073741977
+    [32mPASS[0m
+
+  [32m- [1mno_unsafe_simple_function_compiles[0m[0m 1073741978
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_missing_interface_name[0m[0m 1073741979
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_ptr_compare[0m[0m 1073741980
+    [32mPASS[0m
+
+  [32m- [1mneg_value_not_namespace[0m[0m 1073741981
+    [32mPASS[0m
+
+  [32m- [1mneg_variadic_param_not_last[0m[0m 1073741982
+    [32mPASS[0m
+
+  [32m- [1mneg_cannot_assign_non_mutable[0m[0m 1073741983
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_read_on_destructible_errors[0m[0m 1073741984
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_struct_to_pointer[0m[0m 1073741985
+    [32mPASS[0m
+
+  [32m- [1mno_unsafe_annotated_callee_compiles[0m[0m 1073741986
+    [32mPASS[0m
+
+  [32m- [1mzeroed_unchecked_escape_allowed[0m[0m 1073741987
+    [32mPASS[0m
+
+  [32m- [1mneg_access_specifier_namespace[0m[0m 1073741988
+    [32mPASS[0m
+
+  [32m- [1mneg_no_unsafe_rejects_unsafe_block[0m[0m 1073741989
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_struct_to_bool[0m[0m 1073741990
+    [32mPASS[0m
+
+  [32m- [1mneg_export_not_top_level[0m[0m 1073741991
+    [32mPASS[0m
+
+  [32m- [1mneg_func_redefined_param[0m[0m 1073741992
+    [32mPASS[0m
+
+  [32m- [1mimpl_inside_generic_struct_allowed[0m[0m 1073741993
+    [32mPASS[0m
+
+  [32m- [1mzeroed_generic_missing_bound_rejected[0m[0m 1073741994
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_full_assignment_ok[0m[0m 1073741995
+    [32mPASS[0m
+
+  [32m- [1mpointer_indexing_allowed[0m[0m 1073741996
+    [32mPASS[0m
+
+  [32m- [1mneg_no_unsafe_rejects_unsafe_expression[0m[0m 1073741997
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_primitive_to_struct[0m[0m 1073741998
+    [32mPASS[0m
+
+  [32m- [1muninit_addr_of_without_unsafe_ok[0m[0m 1073741999
+    [32mPASS[0m
+
+  [32m- [1mneg_assign_different_ptr_types[0m[0m 1073742000
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_for_array_type[0m[0m 1073742001
+    [32mPASS[0m
+
+  [32m- [1mneg_no_unsafe_rejects_trap[0m[0m 1073742002
+    [32mPASS[0m
+
+  [32m- [1mneg_explicit_slice_lifetimes[0m[0m 1073742003
+    [32mPASS[0m
+
+  [32m- [1mneg_no_unsafe_rejects_unannotated_callee[0m[0m 1073742004
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_addr_of_with_unsafe_ok[0m[0m 1073742005
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_bool_to_struct[0m[0m 1073742006
+    [32mPASS[0m
+
+  [32m- [1mneg_symbol_outside_lambda[0m[0m 1073742007
+    [32mPASS[0m
+
+  [32m- [1mzeroed_generic_bound_ok[0m[0m 1073742008
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_double_to_struct[0m[0m 1073742009
+    [32mPASS[0m
+
+  [32m- [1mno_blocking_annotated_callee_compiles[0m[0m 1073742010
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_var_decl_accepted[0m[0m 1073742011
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_if_not_const[0m[0m 1073742012
+    [32mPASS[0m
+
+  [32m- [1mneg_alias_incompatible_value[0m[0m 1073742013
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_no_default_last[0m[0m 1073742014
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_var_decl_rejected[0m[0m 1073742015
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_unreachable[0m[0m 1073742016
+    [32mPASS[0m
+
+  [32m- [1mneg_no_blocking_rejects_unannotated_callee[0m[0m 1073742017
+    [32mPASS[0m
+
+  [32m- [1mneg_incompatible_alias[0m[0m 1073742018
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_const_decl_rejected[0m[0m 1073742019
+    [32mPASS[0m
+
+  [32m- [1mzeroed_explicit_impl_with_dtor_ok[0m[0m 1073742020
+    [32mPASS[0m
+
+  [32m- [1mgeneric_body_resolves_using_imports[0m[0m 1073742021
+    [32mPASS[0m
+
+  [32m- [1mneg_const_with_runtime_init[0m[0m 1073742022
+    [32mPASS[0m
+
+  [32m- [1mpin_unpin_type_ok[0m[0m 1073742023
+    [32mPASS[0m
+
+  [32m- [1mpure_arithmetic_compiles[0m[0m 1073742024
+    [32mPASS[0m
+
+  [32m- [1mneg_cast_null_to_struct[0m[0m 1073742025
+    [32mPASS[0m
+
+  [32m- [1mneg_expect_interface_type[0m[0m 1073742026
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_array_index_write_ok[0m[0m 1073742027
+    [32mPASS[0m
+
+  [32m- [1mgeneric_variant_payload_is_substituted[0m[0m 1073742028
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_pointer_deref[0m[0m 1073742029
+    [32mPASS[0m
+
+  [32m- [1mzeroed_struct_with_nonzero_enum_field_rejected[0m[0m 1073742030
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_not_integer_type[0m[0m 1073742031
+    [32mPASS[0m
+
+  [32m- [1mneg_call_not_retained_delete[0m[0m 1073742032
+    [32mPASS[0m
+
+  [32m- [1mcast_between_pointer_types_allowed[0m[0m 1073742033
+    [32mPASS[0m
+
+  [32m- [1mpin_phantom_pinned_rejected[0m[0m 1073742034
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_for_unsupported_type[0m[0m 1073742035
+    [32mPASS[0m
+
+  [32m- [1mneg_pure_rejects_unannotated_callee[0m[0m 1073742036
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_branch_maybe_errors[0m[0m 1073742037
+    [32mPASS[0m
+
+  [32m- [1mpointer_to_int_cast_allowed[0m[0m 1073742038
+    [32mPASS[0m
+
+  [32m- [1mgeneric_function_infers_payload_inside_generic_body[0m[0m 1073742039
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_not_all_cases[0m[0m 1073742040
+    [32mPASS[0m
+
+  [32m- [1mneg_call_mutable_self_immutable[0m[0m 1073742041
+    [32mPASS[0m
+
+  [32m- [1mimpl_for_pointer_type_allowed[0m[0m 1073742042
+    [32mPASS[0m
+
+  [32m- [1mpin_get_mut_phantom_pinned_rejected[0m[0m 1073742043
+    [32mPASS[0m
+
+  [32m- [1mneg_pure_rejects_unsafe_block[0m[0m 1073742044
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_branch_both_ok[0m[0m 1073742045
+    [32mPASS[0m
+
+  [32m- [1mcombined_restrictions_compile[0m[0m 1073742046
+    [32mPASS[0m
+
+  [32m- [1mneg_call_no_implicit_self[0m[0m 1073742047
+    [32mPASS[0m
+
+  [32m- [1mpin_unchecked_mut_requires_unsafe[0m[0m 1073742048
+    [32mPASS[0m
+
+  [32m- [1mlifetime_generic_self_receiver[0m[0m 1073742049
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_for_not_const_iter[0m[0m 1073742050
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_nondestructor_read_ok[0m[0m 1073742051
+    [32mPASS[0m
+
+  [32m- [1mneg_impl_unsupported_decl[0m[0m 1073742052
+    [32mPASS[0m
+
+  [32m- [1mneg_call_comptime_with_runtime[0m[0m 1073742053
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_fn_runtime_arg[0m[0m 1073742054
+    [32mPASS[0m
+
+  [32m- [1masync_interface_method_awaits_through_generic_bound[0m[0m 1073742055
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_primitive_literal[0m[0m 1073742056
+    [32mPASS[0m
+
+  [32m- [1mpin_get_ref_does_not_require_unpin[0m[0m 1073742057
+    [32mPASS[0m
+
+  [32m- [1mpositive_effect_declarations_compile[0m[0m 1073742058
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_infinite_recursion[0m[0m 1073742059
+    [32mPASS[0m
+
+  [32m- [1mnoreturn_panic_body_compiles[0m[0m 1073742060
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_from_function_call[0m[0m 1073742061
+    [32mPASS[0m
+
+  [32m- [1mneg_call_function_sig_unresolved[0m[0m 1073742062
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_unbounded_recursion_depth[0m[0m 1073742063
+    [32mPASS[0m
+
+  [32m- [1mgeneric_variant_default_type_wins_over_literal_inference[0m[0m 1073742064
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_top_level_allowed[0m[0m 1073742065
+    [32mPASS[0m
+
+  [32m- [1mneg_call_unresolved_signature[0m[0m 1073742066
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_from_initialized_var[0m[0m 1073742067
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_unused_parameter[0m[0m 1073742068
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_error_during_codegen_fails_build[0m[0m 1073742069
+    [32mPASS[0m
+
+  [32m- [1mnoreturn_both_branches_panic_compiles[0m[0m 1073742070
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_nested_block[0m[0m 1073742071
+    [32mPASS[0m
+
+  [32m- [1mnoreturn_constant_true_loop_compiles[0m[0m 1073742072
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_last_stmt_no_default[0m[0m 1073742073
+    [32mPASS[0m
+
+  [32m- [1mneg_export_from_current_module[0m[0m 1073742074
+    [32mPASS[0m
+
+  [32m- [1mneg_borrow_mutable_alias_warns[0m[0m 1073742075
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_reassign[0m[0m 1073742076
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_enum_missing_cases[0m[0m 1073742077
+    [32mPASS[0m
+
+  [32m- [1mneg_noreturn_rejects_return[0m[0m 1073742078
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_destructible_literal[0m[0m 1073742079
+    [32mPASS[0m
+
+  [32m- [1mneg_borrow_shared_mutable_alias_warns[0m[0m 1073742080
+    [32mPASS[0m
+
+  [32m- [1mneg_export_unresolved_symbol[0m[0m 1073742081
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_non_generic_target[0m[0m 1073742082
+    [32mPASS[0m
+
+  [32m- [1msequential_mutable_borrows_do_not_conflict[0m[0m 1073742083
+    [32mPASS[0m
+
+  [32m- [1mneg_export_unsupported_decl[0m[0m 1073742084
+    [32mPASS[0m
+
+  [32m- [1mneg_call_wrong_args_count_str[0m[0m 1073742085
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_destructible_via_func[0m[0m 1073742086
+    [32mPASS[0m
+
+  [32m- [1mneg_export_top_level_stmt[0m[0m 1073742087
+    [32mPASS[0m
+
+  [32m- [1mneg_noreturn_rejects_fallthrough[0m[0m 1073742088
+    [32mPASS[0m
+
+  [32m- [1mneg_string_to_int_assign[0m[0m 1073742089
+    [32mPASS[0m
+
+  [32m- [1mshared_borrows_do_not_conflict[0m[0m 1073742090
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_duplicate_parameter[0m[0m 1073742091
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_destructible_in_unsafe_block[0m[0m 1073742092
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_variant_missing_cases[0m[0m 1073742093
+    [32mPASS[0m
+
+  [32m- [1mneg_export_unresolved_parent[0m[0m 1073742094
+    [32mPASS[0m
+
+  [32m- [1mneg_int_to_float_explicit[0m[0m 1073742095
+    [32mPASS[0m
+
+  [32m- [1mneg_move_while_borrowed_warns[0m[0m 1073742096
+    [32mPASS[0m
+
+  [32m- [1mneg_noreturn_rejects_conditional_fallthrough[0m[0m 1073742097
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_destructible_nested_block[0m[0m 1073742098
+    [32mPASS[0m
+
+  [32m- [1mneg_call_not_enough_args_str[0m[0m 1073742099
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_argument_count[0m[0m 1073742100
+    [32mPASS[0m
+
+  [32m- [1mneg_import_bad_module_path[0m[0m 1073742101
+    [32mPASS[0m
+
+  [32m- [1mneg_bool_arithmetic[0m[0m 1073742102
+    [32mPASS[0m
+
+  [32m- [1mdisjoint_branch_borrows_do_not_conflict[0m[0m 1073742103
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_array_in_loop[0m[0m 1073742104
+    [32mPASS[0m
+
+  [32m- [1mneg_no_alloc_conflict[0m[0m 1073742105
+    [32mPASS[0m
+
+  [32m- [1mneg_export_non_public[0m[0m 1073742106
+    [32mPASS[0m
+
+  [32m- [1mneg_no_unsafe_conflict[0m[0m 1073742107
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_default_missing_last_stmt[0m[0m 1073742108
+    [32mPASS[0m
+
+  [32m- [1mneg_string_multiply[0m[0m 1073742109
+    [32mPASS[0m
+
+  [32m- [1mneg_router_orphan_route[0m[0m 1073742110
+    [32mPASS[0m
+
+  [32m- [1mneg_call_comptime_with_runtime_complex[0m[0m 1073742111
+    [32mPASS[0m
+
+  [32m- [1mneg_no_blocking_conflict[0m[0m 1073742112
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_init_read_after_first_init[0m[0m 1073742113
+    [32mPASS[0m
+
+  [32m- [1mneg_reference_returning_call_extends_loan[0m[0m 1073742114
+    [32mPASS[0m
+
+  [32m- [1mint_to_pointer_cast_allowed[0m[0m 1073742115
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_duplicate[0m[0m 1073742116
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_top_level_read_errors[0m[0m 1073742117
+    [32mPASS[0m
+
+  [32m- [1mneg_router_duplicate_id[0m[0m 1073742118
+    [32mPASS[0m
+
+  [32m- [1mvalue_returning_call_ends_loan[0m[0m 1073742119
+    [32mPASS[0m
+
+  [32m- [1mneg_router_duplicate_name[0m[0m 1073742120
+    [32mPASS[0m
+
+  [32m- [1mneg_array_index_on_non_array[0m[0m 1073742121
+    [32mPASS[0m
+
+  [32m- [1mneg_call_temporary_with_lifetime[0m[0m 1073742122
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_unsatisfied_bound[0m[0m 1073742123
+    [32mPASS[0m
+
+  [32m- [1mneg_switch_non_exhaustive_cases[0m[0m 1073742124
+    [32mPASS[0m
+
+  [32m- [1mneg_router_fallback_not_last[0m[0m 1073742125
+    [32mPASS[0m
+
+  [32m- [1mpointer_arithmetic_allowed[0m[0m 1073742126
+    [32mPASS[0m
+
+  [32m- [1mneg_no_panic_conflict[0m[0m 1073742127
+    [32mPASS[0m
+
+  [32m- [1mswitch_on_bool_allowed[0m[0m 1073742128
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_top_level_never_assigned_unread_ok[0m[0m 1073742129
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_unused_emits_no_code[0m[0m 1073742130
+    [32mPASS[0m
+
+  [32m- [1mneg_return_local_reference_errors[0m[0m 1073742131
+    [32mPASS[0m
+
+  [32m- [1mneg_missing_struct_field[0m[0m 1073742132
+    [32mPASS[0m
+
+  [32m- [1mneg_router_body_no_root[0m[0m 1073742133
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_top_level_assigned_by_startup_ok[0m[0m 1073742134
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_used_emits_code[0m[0m 1073742135
+    [32mPASS[0m
+
+  [32m- [1mneg_return_with_value_in_void[0m[0m 1073742136
+    [32mPASS[0m
+
+  [32m- [1mreturned_parameter_reference_ok[0m[0m 1073742137
+    [32mPASS[0m
+
+  [32m- [1mneg_pure_conflicts_with_positive[0m[0m 1073742138
+    [32mPASS[0m
+
+  [32m- [1mneg_router_body_two_roots[0m[0m 1073742139
+    [32mPASS[0m
+
+  [32m- [1mneg_reference_in_field_outlives_local[0m[0m 1073742140
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_call_runtime_func[0m[0m 1073742141
+    [32mPASS[0m
+
+  [32m- [1mneg_wrong_arg_type_call[0m[0m 1073742142
+    [32mPASS[0m
+
+  [32m- [1mneg_json_vector_non_serializable_element[0m[0m 1073742143
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_top_level_initialized_ok[0m[0m 1073742144
+    [32mPASS[0m
+
+  [32m- [1mneg_too_many_args[0m[0m 1073742145
+    [32mPASS[0m
+
+  [32m- [1msame_scope_field_reference_ok[0m[0m 1073742146
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_expr_runtime[0m[0m 1073742147
+    [32mPASS[0m
+
+  [32m- [1mneg_too_few_args[0m[0m 1073742148
+    [32mPASS[0m
+
+  [32m- [1mneg_return_region_does_not_outlive[0m[0m 1073742149
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_addr_of[0m[0m 1073742150
+    [32mPASS[0m
+
+  [32m- [1mneg_void_var_init[0m[0m 1073742151
+    [32mPASS[0m
+
+  [32m- [1mneg_unsupported_effect_name_rejected[0m[0m 1073742152
+    [32mPASS[0m
+
+  [32m- [1mgeneric_no_alloc_propagates[0m[0m 1073742153
+    [32mPASS[0m
+
+  [32m- [1mreturn_region_with_outlives_ok[0m[0m 1073742154
+    [32mPASS[0m
+
+  [32m- [1mneg_different_pointer_types[0m[0m 1073742155
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_deref[0m[0m 1073742156
+    [32mPASS[0m
+
+  [32m- [1mneg_op_assign_no_overload[0m[0m 1073742157
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_inc_dec[0m[0m 1073742158
+    [32mPASS[0m
+
+  [32m- [1mneg_for_in_non_iterable_full[0m[0m 1073742159
+    [32mPASS[0m
+
+  [32m- [1mgeneric_no_panic_propagates[0m[0m 1073742160
+    [32mPASS[0m
+
+  [32m- [1mneg_aggregate_return_region_does_not_outlive[0m[0m 1073742161
+    [32mPASS[0m
+
+  [32m- [1mneg_router_unsupported_pattern[0m[0m 1073742162
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_no_alloc_body_is_checked[0m[0m 1073742163
+    [32mPASS[0m
+
+  [32m- [1maggregate_return_region_with_outlives_ok[0m[0m 1073742164
+    [32mPASS[0m
+
+  [32m- [1mneg_move_after_use[0m[0m 1073742165
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_assignment[0m[0m 1073742166
+    [32mPASS[0m
+
+  [32m- [1mneg_router_runtime_internals[0m[0m 1073742167
+    [32mPASS[0m
+
+  [32m- [1mneg_for_in_non_container[0m[0m 1073742168
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_bare_value[0m[0m 1073742169
+    [32mPASS[0m
+
+  [32m- [1mneg_move_non_struct_to_struct[0m[0m 1073742170
+    [32mPASS[0m
+
+  [32m- [1mneg_op_equal_no_partial_eq[0m[0m 1073742171
+    [32mPASS[0m
+
+  [32m- [1mgeneric_method_effect_propagates[0m[0m 1073742172
+    [32mPASS[0m
+
+  [32m- [1mneg_aggregate_return_local_field[0m[0m 1073742173
+    [32mPASS[0m
+
+  [32m- [1mneg_router_unknown_activate_id[0m[0m 1073742174
+    [32mPASS[0m
+
+  [32m- [1mneg_for_in_unknown_size[0m[0m 1073742175
+    [32mPASS[0m
+
+  [32m- [1mneg_move_twice[0m[0m 1073742176
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_index[0m[0m 1073742177
+    [32mPASS[0m
+
+  [32m- [1mneg_router_nested_duplicate_id[0m[0m 1073742178
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_span_escape[0m[0m 1073742179
+    [32mPASS[0m
+
+  [32m- [1mmodule_no_panic_default_compiles[0m[0m 1073742180
+    [32mPASS[0m
+
+  [32m- [1mneg_use_after_move_has_code[0m[0m 1073742181
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_lambda[0m[0m 1073742182
+    [32mPASS[0m
+
+  [32m- [1mneg_reverse_iter_no_rev[0m[0m 1073742183
+    [32mPASS[0m
+
+  [32m- [1mneg_op_assign_overload_not_two_params[0m[0m 1073742184
+    [32mPASS[0m
+
+  [32m- [1mneg_router_nested_body_no_root[0m[0m 1073742185
+    [32mPASS[0m
+
+  [32m- [1mneg_static_span_lifetime[0m[0m 1073742186
+    [32mPASS[0m
+
+  [32m- [1mneg_global_var_no_type[0m[0m 1073742187
+    [32mPASS[0m
+
+  [32m- [1mneg_move_twice_has_code[0m[0m 1073742188
+    [32mPASS[0m
+
+  [32m- [1mneg_module_no_panic_default_is_enforced[0m[0m 1073742189
+    [32mPASS[0m
+
+  [32m- [1mneg_global_var_infer_missing[0m[0m 1073742190
+    [32mPASS[0m
+
+  [32m- [1mneg_op_shift_negative[0m[0m 1073742191
+    [32mPASS[0m
+
+  [32m- [1mneg_empty_access_chain[0m[0m 1073742192
+    [32mPASS[0m
+
+  [32m- [1mneg_iter_current_not_ref[0m[0m 1073742193
+    [32mPASS[0m
+
+  [32m- [1mneg_router_nested_fallback_not_last[0m[0m 1073742194
+    [32mPASS[0m
+
+  [32m- [1mneg_zeroed_with_dtor[0m[0m 1073742195
+    [32mPASS[0m
+
+  [32m- [1mmodule_no_alloc_default_compiles[0m[0m 1073742196
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_comptime_self_ref[0m[0m 1073742197
+    [32mPASS[0m
+
+  [32m- [1mneg_router_nested_unknown_activate_id[0m[0m 1073742198
+    [32mPASS[0m
+
+  [32m- [1mneg_array_size_not_known[0m[0m 1073742199
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_as_mut_span_static_escape[0m[0m 1073742200
+    [32mPASS[0m
+
+  [32m- [1mneg_move_into_fun_twice[0m[0m 1073742201
+    [32mPASS[0m
+
+  [32m- [1mneg_op_mul_string[0m[0m 1073742202
+    [32mPASS[0m
+
+  [32m- [1mneg_iter_linear_data_not_ptr[0m[0m 1073742203
+    [32mPASS[0m
+
+  [32m- [1mmodule_default_positive_override[0m[0m 1073742204
+    [32mPASS[0m
+
+  [32m- [1mneg_top_level_alias_incompatible[0m[0m 1073742205
+    [32mPASS[0m
+
+  [32m- [1mneg_router_lazy_on_default[0m[0m 1073742206
+    [32mPASS[0m
+
+  [32m- [1mneg_deref_non_copy_generic[0m[0m 1073742207
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_as_span_escape[0m[0m 1073742208
+    [32mPASS[0m
+
+  [32m- [1mrouter_lazy_on_hidden_route_is_ok[0m[0m 1073742209
+    [32mPASS[0m
+
+  [32m- [1mneg_index_non_copy_generic[0m[0m 1073742210
+    [32mPASS[0m
+
+  [32m- [1mneg_iter_chunked_wrong_return[0m[0m 1073742211
+    [32mPASS[0m
+
+  [32m- [1mno_panic_main_entry_point_compiles[0m[0m 1073742212
+    [32mPASS[0m
+
+  [32m- [1mneg_op_mod_float[0m[0m 1073742213
+    [32mPASS[0m
+
+  [32m- [1marray_of_destructible_elements_allowed[0m[0m 1073742214
+    [32mPASS[0m
+
+  [32m- [1mneg_direct_reference_field_return_region[0m[0m 1073742215
+    [32mPASS[0m
+
+  [32m- [1mneg_router_two_modes[0m[0m 1073742216
+    [32mPASS[0m
+
+  [32m- [1mmove_out_of_array_dynamic_index_compiles[0m[0m 1073742217
+    [32mPASS[0m
+
+  [32m- [1mneg_op_bitwise_not_bool[0m[0m 1073742218
+    [32mPASS[0m
+
+  [32m- [1mmove_generated_glue_small_array_dynamic_compiles[0m[0m 1073742219
+    [32mPASS[0m
+
+  [32m- [1mneg_multi_reference_call_maps_return_loan[0m[0m 1073742220
+    [32mPASS[0m
+
+  [32m- [1mneg_router_ambiguous_patterns[0m[0m 1073742221
+    [32mPASS[0m
+
+  [32m- [1mpartial_small_array_dynamic_read_is_allowed[0m[0m 1073742222
+    [32mPASS[0m
+
+  [32m- [1mneg_router_ambiguous_nested_patterns[0m[0m 1073742223
+    [32mPASS[0m
+
+  [32m- [1mneg_op_bitwise_not_float[0m[0m 1073742224
+    [32mPASS[0m
+
+  [32m- [1mmulti_reference_call_unrelated_argument_ok[0m[0m 1073742225
+    [32mPASS[0m
+
+  [32m- [1mneg_uninitialized_large_array_dynamic_move[0m[0m 1073742226
+    [32mPASS[0m
+
+  [32m- [1mwarn_router_no_default[0m[0m 1073742227
+     [32m[32m+[0m[0m [32mSUCCESS[0m
+       [90mcompiler emitted the expected diagnostic[0m
+    [32mPASS[0m
+
+  [32m- [1mneg_op_sub_bool[0m[0m 1073742228
+    [32mPASS[0m
+
+  [32m- [1mneg_ref_guard_outlives_cell[0m[0m 1073742229
+    [32mPASS[0m
+
+  [32m- [1mmove_out_of_array_constant_index_compiles[0m[0m 1073742230
+    [32mPASS[0m
+
+  [32m- [1mwarn_router_no_default_absent_when_fallback[0m[0m 1073742231
+    [32mPASS[0m
+
+  [32m- [1mneg_move_out_of_const_array_rejected[0m[0m 1073742232
+    [32mPASS[0m
+
+  [32m- [1mneg_op_shift_bool[0m[0m 1073742233
+    [32mPASS[0m
+
+  [32m- [1mneg_move_out_of_global_array_rejected[0m[0m 1073742234
+    [32mPASS[0m
+
+  [32m- [1mref_guard_same_scope_drops_first_ok[0m[0m 1073742235
+    [32mPASS[0m
+
+  [32m- [1mneg_router_undeclared_prop_read[0m[0m 1073742236
+    [32mPASS[0m
+
+  [32m- [1mmove_out_of_array_field_compiles[0m[0m 1073742237
+    [32mPASS[0m
+
+  [32m- [1mneg_op_compare_struct[0m[0m 1073742238
+    [32mPASS[0m
+
+  [32m- [1mneg_router_declared_prop_is_ok_but_undeclared_is_not[0m[0m 1073742239
+    [32mPASS[0m
+
+  [32m- [1mneg_move_out_of_const_array_field_rejected[0m[0m 1073742240
+    [32mPASS[0m
+
+  [32m- [1mneg_ambiguous_reference_result_aliases_all_candidates[0m[0m 1073742241
+    [32mPASS[0m
+
+  [32m- [1mneg_move_out_of_array_field_through_reference_rejected[0m[0m 1073742242
+    [32mPASS[0m
+
+  [32m- [1mneg_op_string_ordering[0m[0m 1073742243
+    [32mPASS[0m
+
+  [32m- [1mneg_router_param_raw_html[0m[0m 1073742244
+    [32mPASS[0m
+
+  [32m- [1mneg_op_assign_plus_non_mut[0m[0m 1073742245
+    [32mPASS[0m
+
+  [32m- [1mneg_move_out_of_array_parameter_rejected[0m[0m 1073742246
+    [32mPASS[0m
+
+  [32m- [1mambiguous_reference_result_unrelated_place_ok[0m[0m 1073742247
+    [32mPASS[0m
+
+  [32m- [1mmove_out_of_temporary_array_field_compiles[0m[0m 1073742248
+    [32mPASS[0m
+
+  [32m- [1mmove_out_of_temporary_array_compiles[0m[0m 1073742249
+    [32mPASS[0m
+
+  [32m- [1mneg_op_ptr_subtract_non_ptr[0m[0m 1073742250
+    [32mPASS[0m
+
+  [32m- [1maggregate_parameter_field_uses_declared_lifetime[0m[0m 1073742251
+    [32mPASS[0m
+
+  [32m- [1marray_index_copy_is_allowed[0m[0m 1073742252
+    [32mPASS[0m
+
+  [32m- [1mneg_op_lt_string[0m[0m 1073742253
+    [32mPASS[0m
+
+  [32m- [1mneg_aggregate_parameter_field_wrong_lifetime[0m[0m 1073742254
+    [32mPASS[0m
+
+  [32m- [1mneg_move_unknown_type[0m[0m 1073742255
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_does_not_disable_init[0m[0m 1073742256
+    [32mPASS[0m
+
+  [32m- [1maggregate_parameter_field_with_outlives_ok[0m[0m 1073742257
+    [32mPASS[0m
+
+  [32m- [1mneg_conditional_init_use_errors[0m[0m 1073742258
+    [32mPASS[0m
+
+  [32m- [1mconditional_init_without_use_is_allowed[0m[0m 1073742259
+    [32mPASS[0m
+
+  [32m- [1mdisjoint_constant_array_indices_ok[0m[0m 1073742260
+    [32mPASS[0m
+
+  [32m- [1mneg_constant_array_index_out_of_bounds[0m[0m 1073742261
+    [32mPASS[0m
+
+  [32m- [1mneg_dynamic_array_indices_overlap[0m[0m 1073742262
+    [32mPASS[0m
+
+  [32m- [1mconstant_array_index_in_bounds_is_allowed[0m[0m 1073742263
+    [32mPASS[0m
+
+  [32m- [1mpartial_owned_field_init_is_allowed[0m[0m 1073742264
+    [32mPASS[0m
+
+  [32m- [1mneg_move_partially_initialized_user_dtor[0m[0m 1073742265
+    [32mPASS[0m
+
+  [32m- [1mmutable_reborrow_through_reference_ok[0m[0m 1073742266
+    [32mPASS[0m
+
+  [32m- [1mpartial_init_user_dtor_constructor_ok[0m[0m 1073742267
+    [32mPASS[0m
+
+  [32m- [1mmethod_reference_field_matches_return_lifetime[0m[0m 1073742268
+    [32mPASS[0m
+
+  [32m- [1mpartial_owned_field_init_after_whole_value_is_allowed[0m[0m 1073742269
+    [32mPASS[0m
+
+  [32m- [1mpartial_array_element_init_is_allowed[0m[0m 1073742270
+    [32mPASS[0m
+
+  [32m- [1mneg_method_reference_field_wrong_lifetime[0m[0m 1073742271
+    [32mPASS[0m
+
+  [32m- [1mpartial_large_array_element_init_is_allowed[0m[0m 1073742272
+    [32mPASS[0m
+
+  [32m- [1mneg_string_view_outlives_local[0m[0m 1073742273
+    [32mPASS[0m
+
+  [32m- [1mpartial_large_array_dynamic_index_is_allowed[0m[0m 1073742274
+    [32mPASS[0m
+
+  [32m- [1mneg_span_outlives_local[0m[0m 1073742275
+    [32mPASS[0m
+
+  [32m- [1mneg_move_partially_initialized_generated_glue_array[0m[0m 1073742276
+    [32mPASS[0m
+
+  [32m- [1mview_from_parameter_or_same_scope_ok[0m[0m 1073742277
+    [32mPASS[0m
+
+  [32m- [1mtwo_dynamic_indices_generated_glue_compiles[0m[0m 1073742278
+    [32mPASS[0m
+
+  [32m- [1mdynamic_outer_constant_inner_compiles[0m[0m 1073742279
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_cannot_be_forged[0m[0m 1073742280
+    [32mPASS[0m
+
+  [32m- [1mneg_three_dimensional_dynamic_middle[0m[0m 1073742281
+    [32mPASS[0m
+
+  [32m- [1mneg_async_move_while_borrowed[0m[0m 1073742282
+    [32mPASS[0m
+
+  [32m- [1mdynamic_read_generated_glue_compiles[0m[0m 1073742283
+    [32mPASS[0m
+
+  [32m- [1mpartial_large_array_dynamic_read_is_allowed[0m[0m 1073742284
+    [32mPASS[0m
+
+  [32m- [1masync_borrow_across_await_ok[0m[0m 1073742285
+    [32mPASS[0m
+
+  [32m- [1mneg_move_partially_initialized_large_array_whole[0m[0m 1073742286
+    [32mPASS[0m
+
+  [32m- [1mneg_view_from_data_pointer_escapes[0m[0m 1073742287
+    [32mPASS[0m
+
+  [32m- [1mpartial_large_array_nested_field_write_is_allowed[0m[0m 1073742288
+    [32mPASS[0m
+
+  [32m- [1mpartial_small_array_dynamic_index_is_allowed[0m[0m 1073742289
+    [32mPASS[0m
+
+  [32m- [1mneg_temporary_not_extended_through_call_argument[0m[0m 1073742290
+    [32mPASS[0m
+
+  [32m- [1mpartial_generated_glue_small_array_dynamic_is_allowed[0m[0m 1073742291
+    [32mPASS[0m
+
+  [32m- [1mneg_temporary_not_extended_through_assignment[0m[0m 1073742292
+    [32mPASS[0m
+
+  [32m- [1mneg_field_write_after_move[0m[0m 1073742293
+    [32mPASS[0m
+
+  [32m- [1mhrtb_elided_source_ok[0m[0m 1073742294
+    [32mPASS[0m
+
+  [32m- [1mneg_read_uninitialized_nested_field[0m[0m 1073742295
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_static_source_rejected[0m[0m 1073742296
+    [32mPASS[0m
+
+  [32m- [1mneg_read_uninitialized_grandchild_field[0m[0m 1073742297
+    [32mPASS[0m
+
+  [32m- [1mnested_field_init_is_allowed[0m[0m 1073742298
+    [32mPASS[0m
+
+  [32m- [1mhrtb_mutable_parameter_ok[0m[0m 1073742299
+    [32mPASS[0m
+
+  [32m- [1mneg_return_partially_initialized[0m[0m 1073742300
+    [32mPASS[0m
+
+  [32m- [1mhrtb_borrowed_return_ok[0m[0m 1073742301
+    [32mPASS[0m
+
+  [32m- [1mfull_field_init_is_returnable[0m[0m 1073742302
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_borrowed_return_keeps_loan[0m[0m 1073742303
+    [32mPASS[0m
+
+  [32m- [1mscalar_field_init_of_owned_free_local_is_allowed[0m[0m 1073742304
+    [32mPASS[0m
+
+  [32m- [1mconsuming_self_through_a_pointer_is_rejected[0m[0m 1073742305
+    [32mPASS[0m
+
+  [32m- [1mconsuming_self_by_value_binding_is_allowed[0m[0m 1073742306
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_nested_borrowed_return_rejected[0m[0m 1073742307
+    [32mPASS[0m
+
+  [32m- [1mmove_field_out_of_a_pointer_field_is_rejected[0m[0m 1073742308
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_mismatched_return_binder_rejected[0m[0m 1073742309
+    [32mPASS[0m
+
+  [32m- [1mmove_local_field_through_a_pointer_compiles[0m[0m 1073742310
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_aggregate_alias_rejected[0m[0m 1073742311
+    [32mPASS[0m
+
+  [32m- [1mhrtb_deep_aggregate_ok[0m[0m 1073742312
+    [32mPASS[0m
+
+  [32m- [1mhrtb_deep_aggregate_borrowed_result_ok[0m[0m 1073742313
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_deep_aggregate_borrowed_result_alias[0m[0m 1073742314
+    [32mPASS[0m
+
+  [32m- [1mhrtb_pair_lifetime_precision_ok[0m[0m 1073742315
+    [32mPASS[0m
+
+  [32m- [1mhrtb_nested_variant_array_params_ok[0m[0m 1073742316
+    [32mPASS[0m
+
+  [32m- [1mhrtb_variant_payload_borrowed_result_ok[0m[0m 1073742317
+    [32mPASS[0m
+
+  [32m- [1mhrtb_array_element_borrowed_result_ok[0m[0m 1073742318
+    [32mPASS[0m
+
+  [32m- [1mhrtb_large_array_element_borrowed_result_ok[0m[0m 1073742319
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_large_array_element_result_aliases[0m[0m 1073742320
+    [32mPASS[0m
+
+  [32m- [1mhrtb_struct_large_array_element_result_ok[0m[0m 1073742321
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_struct_large_array_element_result_aliases[0m[0m 1073742322
+    [32mPASS[0m
+
+  [32m- [1mhrtb_large_array_nested_struct_compiles[0m[0m 1073742323
+    [32mPASS[0m
+
+  [32m- [1mhrtb_large_array_nested_borrowed_result_ok[0m[0m 1073742324
+    [32mPASS[0m
+
+  [32m- [1mhrtb_large_array_array_of_structs_borrowed_result_ok[0m[0m 1073742325
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_large_array_nested_result_aliases[0m[0m 1073742326
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_large_array_array_of_structs_result_aliases[0m[0m 1073742327
+    [32mPASS[0m
+
+  [32m- [1mhrtb_generic_struct_borrowed_result_ok[0m[0m 1073742328
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_variant_array_result_aliases[0m[0m 1073742329
+    [32mPASS[0m
+
+  [32m- [1mhrtb_multiple_references_ok[0m[0m 1073742330
+    [32mPASS[0m
+
+  [32m- [1mhrtb_aggregate_multiple_references_ok[0m[0m 1073742331
+    [32mPASS[0m
+
+  [32m- [1mhrtb_global_multiple_references_ok[0m[0m 1073742332
+    [32mPASS[0m
+
+  [32m- [1mhrtb_mixed_local_parameter_ok[0m[0m 1073742333
+    [32mPASS[0m
+
+  [32m- [1mhrtb_distinct_parameter_regions_ok[0m[0m 1073742334
+    [32mPASS[0m
+
+  [32m- [1mhrtb_shared_reference_to_reference_ok[0m[0m 1073742335
+    [32mPASS[0m
+
+  [32m- [1mhrtb_shared_reference_to_aggregate_ok[0m[0m 1073742336
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_shared_interior_mutability_retains[0m[0m 1073742337
+    [32mPASS[0m
+
+  [32m- [1mhrtb_retaining_local_slot_mixed_ok[0m[0m 1073742338
+    [32mPASS[0m
+
+  [32m- [1mhrtb_retaining_aggregate_local_slot_ok[0m[0m 1073742339
+    [32mPASS[0m
+
+  [32m- [1mhrtb_retaining_nonlocal_slot_outlives_ok[0m[0m 1073742340
+    [32mPASS[0m
+
+  [32m- [1mhrtb_retaining_nonlocal_slot_type_proves_ok[0m[0m 1073742341
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_nonlocal_retaining_slot_distinct[0m[0m 1073742342
+    [32mPASS[0m
+
+  [32m- [1mhrtb_pointee_static_ok[0m[0m 1073742343
+    [32mPASS[0m
+
+  [32m- [1mhrtb_pointee_free_lifetime_ok[0m[0m 1073742344
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_opaque_retaining_storage_rejected[0m[0m 1073742345
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_pointee_free_lifetime_without_source[0m[0m 1073742346
+    [32mPASS[0m
+
+  [32m- [1mhrtb_pointee_mismatched_binders_ok[0m[0m 1073742347
+    [32mPASS[0m
+
+  [32m- [1mhrtb_pointee_mismatched_binders_caller_slot_ok[0m[0m 1073742348
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_pointee_mismatched_binders_distinct_source[0m[0m 1073742349
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_retaining_mixed_local_parameter_rejected[0m[0m 1073742350
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_duplicate_binder_rejected[0m[0m 1073742351
+    [32mPASS[0m
+
+  [32m- [1mneg_static_reference_assignment_rejected[0m[0m 1073742352
+    [32mPASS[0m
+
+  [32m- [1mneg_static_struct_literal_rejected[0m[0m 1073742353
+    [32mPASS[0m
+
+  [32m- [1mneg_static_lifetime_argument_rejected[0m[0m 1073742354
+    [32mPASS[0m
+
+  [32m- [1mneg_hrtb_binder_does_not_leak[0m[0m 1073742355
+    [32mPASS[0m
+
+  [32m- [1mneg_option_reference_borrow_survives_push[0m[0m 1073742356
+    [32mPASS[0m
+
+  [32m- [1mneg_option_reference_borrow_survives_clear[0m[0m 1073742357
+    [32mPASS[0m
+
+  [32m- [1moption_reference_loan_ends_at_last_use[0m[0m 1073742358
+    [32mPASS[0m
+
+  [32m- [1mneg_temp_to_view_with_dtor_errors[0m[0m 1073742359
+    [32mPASS[0m
+
+  [32m- [1mneg_named_to_view_succeeds[0m[0m 1073742360
+    [32mPASS[0m
+
+  [32m- [1mneg_temp_no_lifetime_type_succeeds[0m[0m 1073742361
+    [32mPASS[0m
+
+  [32m- [1mneg_temp_no_dtor_succeeds[0m[0m 1073742362
+    [32mPASS[0m
+
+  [32m- [1mneg_temp_no_return_lifetime_succeeds[0m[0m 1073742363
+    [32mPASS[0m
+
+  [32m- [1mneg_lambda_param_unresolved_child_prints_error[0m[0m 1073742364
+    [32mPASS[0m
+
+  [32m- [1mneg_get_on_destructible_struct_direct_errors[0m[0m 1073742365
+    [32mPASS[0m
+
+  [32m- [1mneg_copy_requires_explicit_impl[0m[0m 1073742366
+    [32mPASS[0m
+
+  [32m- [1mcopy_explicit_impl_satisfies_bound[0m[0m 1073742367
+    [32mPASS[0m
+
+  [32m- [1mcopy_impl_with_destructor_rejected[0m[0m 1073742368
+    [32mPASS[0m
+
+  [32m- [1mcopy_impl_with_non_copy_field_rejected[0m[0m 1073742369
+    [32mPASS[0m
+
+  [32m- [1mcopy_impl_with_copy_fields_compiles[0m[0m 1073742370
+    [32mPASS[0m
+
+  [32m- [1mneg_get_on_destructible_struct_nested_receiver_errors[0m[0m 1073742371
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_missing_prop_names_the_component[0m[0m 1073742372
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_unknown_prop_lists_declared_props[0m[0m 1073742373
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_props_type_not_found[0m[0m 1073742374
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_missing_typed_prop[0m[0m 1073742375
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_props_default_accepted[0m[0m 1073742376
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_prop_type_mismatch[0m[0m 1073742377
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_prop_literal_kind_mismatch[0m[0m 1073742378
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_optional_prop_with_default[0m[0m 1073742379
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_optional_prop_value_checked[0m[0m 1073742380
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_render_reads_clock[0m[0m 1073742381
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_render_reads_browser_state[0m[0m 1073742382
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_handler_reads_clock_allowed[0m[0m 1073742383
+    [32mPASS[0m
+
+  [32m- [1mneg_html_unsupported_value_type_is_diagnosed[0m[0m 1073742384
+     [32m[32m+[0m[0m [32mSUCCESS[0m
+       [90mcompiler emitted the expected diagnostic[0m
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_unsupported_attribute_value_is_diagnosed[0m[0m 1073742385
+     [32m[32m+[0m[0m [32mSUCCESS[0m
+       [90mcompiler emitted the expected diagnostic[0m
+    [32mPASS[0m
+
+  [32m- [1mneg_universal_unknown_component_names_the_symbol[0m[0m 1073742386
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_element_type_mismatch[0m[0m 1073742387
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_pattern_arity_mismatch[0m[0m 1073742388
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_array_pattern_arity[0m[0m 1073742389
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_array_pattern_requires_array[0m[0m 1073742390
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_tuple_pattern_arity[0m[0m 1073742391
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_tuple_pattern_requires_tuple[0m[0m 1073742392
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_pattern_requires_tuple[0m[0m 1073742393
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_pattern_const_binding_assign[0m[0m 1073742394
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_struct_constructor_arity[0m[0m 1073742395
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_arity_mismatch[0m[0m 1073742396
+    [32mPASS[0m
+
+  [32m- [1marray_pattern_non_copy_compiles[0m[0m 1073742397
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_non_copy_const[0m[0m 1073742398
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_non_copy_parameter[0m[0m 1073742399
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_non_copy_user_destructor_field[0m[0m 1073742400
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_non_copy_reference_field[0m[0m 1073742401
+    [32mPASS[0m
+
+  [32m- [1mneg_array_pattern_non_copy_field_partial_move[0m[0m 1073742402
+    [32mPASS[0m
+
+  [32m- [1marray_pattern_non_copy_nested_compiles[0m[0m 1073742403
+    [32mPASS[0m
+
+  [32m- [1mslice_rest_pattern_compiles[0m[0m 1073742404
+    [32mPASS[0m
+
+  [32m- [1mneg_associated_types_removed[0m[0m 1073742405
+    [32mPASS[0m
+
+  [32m- [1mneg_external_inherent_impl_removed[0m[0m 1073742406
+    [32mPASS[0m
+
+  [32m- [1mneg_tuple_pattern_in_condition_removed[0m[0m 1073742407
+    [32mPASS[0m
+
+  [32m- [1mneg_boxed_slice_removed[0m[0m 1073742408
+    [32mPASS[0m
+
+  [32m- [1mneg_range_slice_syntax_removed[0m[0m 1073742409
+    [32mPASS[0m
+
+  [32m- [1mneg_uninit_diagnostic_has_code[0m[0m 1073742410
+    [32mPASS[0m
+
+  [32m- [1mneg_safety_option_removed[0m[0m 1073742411
+    [32mPASS[0m
+
+  [32m- [1mlifetime_reference_syntax_compiles[0m[0m 1073742412
+    [32mPASS[0m
+
+  [32m- [1mlifetime_elision_method_and_single_input[0m[0m 1073742413
+    [32mPASS[0m
+
+  [32m- [1mneg_lifetime_elision_ambiguous[0m[0m 1073742414
+    [32mPASS[0m
+
+  [32m- [1mlifetime_where_outlives_compiles[0m[0m 1073742415
+    [32mPASS[0m
+
+  [32m- [1mneg_lifetime_where_unknown[0m[0m 1073742416
+    [32mPASS[0m
+
+  [32m- [1mlifetime_generic_impl_and_literal_compiles[0m[0m 1073742417
+    [32mPASS[0m
+
+  [32m- [1mlifetime_generic_impl_with_type_param_compiles[0m[0m 1073742418
+    [32mPASS[0m
+
+  [32m- [1mlifetime_static_and_type_bounds_compiles[0m[0m 1073742419
+    [32mPASS[0m
+
+  [32m- [1mneg_lifetime_type_bound_unknown[0m[0m 1073742420
+    [32mPASS[0m
+
+  [32m- [1mneg_unknown_lifetime_parameter[0m[0m 1073742421
+    [32mPASS[0m
+
+  [32m- [1mneg_duplicate_lifetime_parameter[0m[0m 1073742422
+    [32mPASS[0m
+
+  [32m- [1mgeneric_negative_send_impl_compiles[0m[0m 1073742423
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_negative_send_bound_rejected[0m[0m 1073742424
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_negative_sync_bound_rejected[0m[0m 1073742425
+    [32mPASS[0m
+
+  [32m- [1mgeneric_negative_with_bound_compiles[0m[0m 1073742426
+    [32mPASS[0m
+
+  [32m- [1mneg_conditional_generic_negative_applies[0m[0m 1073742427
+    [32mPASS[0m
+
+  [32m- [1mconditional_generic_negative_does_not_apply[0m[0m 1073742428
+    [32mPASS[0m
+
+  [32m- [1mnegative_send_impl_compiles[0m[0m 1073742429
+    [32mPASS[0m
+
+  [32m- [1mneg_negative_send_bound_rejected[0m[0m 1073742430
+    [32mPASS[0m
+
+  [32m- [1mneg_negative_sync_bound_rejected[0m[0m 1073742431
+    [32mPASS[0m
+
+  [32m- [1mneg_negative_impl_only_auto_traits[0m[0m 1073742432
+    [32mPASS[0m
+
+  [32m- [1mneg_negative_impl_conflicts_with_positive[0m[0m 1073742433
+    [32mPASS[0m
+
+  [32m- [1munsafe_send_impl_allows_raw_pointer[0m[0m 1073742434
+    [32mPASS[0m
+
+  [32m- [1munsafe_sync_impl_allows_raw_pointer[0m[0m 1073742435
+    [32mPASS[0m
+
+  [32m- [1mneg_erased_std_function_is_not_send[0m[0m 1073742436
+    [32mPASS[0m
+
+  [32m- [1mtyped_capture_owned_is_send[0m[0m 1073742437
+    [32mPASS[0m
+
+  [32m- [1mneg_spawn_closure_rc_capture_rejected[0m[0m 1073742438
+    [32mPASS[0m
+
+  [32m- [1mneg_tainted_callback_field_into_erased_api[0m[0m 1073742439
+    [32mPASS[0m
+
+  [32m- [1mneg_tainted_callback_wrapped_in_generic[0m[0m 1073742440
+    [32mPASS[0m
+
+  [32m- [1mneg_tainted_callback_in_struct_into_erased_api[0m[0m 1073742441
+    [32mPASS[0m
+
+  [32m- [1mneg_tainted_callback_into_erased_api[0m[0m 1073742442
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_spawn_closure_rc_capture_rejected[0m[0m 1073742443
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_future_handle_not_send[0m[0m 1073742444
+    [32mPASS[0m
+
+  [32m- [1mneg_async_spawn_send_rc_frame_rejected[0m[0m 1073742445
+    [32mPASS[0m
+
+  [32m- [1mneg_async_spawn_send_borrowed_frame_rejected[0m[0m 1073742446
+    [32mPASS[0m
+
+  [32m- [1mneg_async_spawn_send_borrowed_future_rejected[0m[0m 1073742447
+    [32mPASS[0m
+
+  [32m- [1mneg_async_spawn_send_stored_future_rejected[0m[0m 1073742448
+    [32mPASS[0m
+
+  [32m- [1mneg_spawn_closure_borrowed_capture_rejected[0m[0m 1073742449
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_scope_cannot_be_forged[0m[0m 1073742450
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_closure_scope_rc_capture_rejected[0m[0m 1073742451
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_closure_scope_cannot_be_forged[0m[0m 1073742452
+    [32mPASS[0m
+
+  [32m- [1mneg_send_function_rc_capture_rejected[0m[0m 1073742453
+    [32mPASS[0m
+
+  [32m- [1mneg_send_function_erased_capture_rejected[0m[0m 1073742454
+    [32mPASS[0m
+
+  [32m- [1mneg_send_function_borrowed_capture_rejected[0m[0m 1073742455
+    [32mPASS[0m
+
+  [32m- [1mneg_send_function_is_not_sync[0m[0m 1073742456
+    [32mPASS[0m
+
+  [32m- [1msend_sync_function_is_sync_and_send[0m[0m 1073742457
+    [32mPASS[0m
+
+  [32m- [1mneg_send_sync_function_non_sync_capture_rejected[0m[0m 1073742458
+    [32mPASS[0m
+
+  [32m- [1mneg_send_sync_function_rc_capture_rejected[0m[0m 1073742459
+    [32mPASS[0m
+
+  [32m- [1mneg_send_sync_function_borrowed_capture_rejected[0m[0m 1073742460
+    [32mPASS[0m
+
+  [32m- [1mneg_send_sync_function_erased_capture_rejected[0m[0m 1073742461
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_send_function_needs_contract[0m[0m 1073742462
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_send_function_is_not_send[0m[0m 1073742463
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_conditional_negative_send_rejected[0m[0m 1073742464
+    [32mPASS[0m
+
+  [32m- [1mnested_conditional_positive_send_allowed[0m[0m 1073742465
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_conditional_not_unpin_rejected[0m[0m 1073742466
+    [32mPASS[0m
+
+  [32m- [1mnested_conditional_positive_unpin_allowed[0m[0m 1073742467
+    [32mPASS[0m
+
+  [32m- [1mnested_conditional_positive_unpin_generic_param_allowed[0m[0m 1073742468
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_conditional_positive_unpin_generic_param_bounds[0m[0m 1073742469
+    [32mPASS[0m
+
+  [32m- [1mconditional_positive_unpin_nested_array_bound_compiles[0m[0m 1073742470
+    [32mPASS[0m
+
+  [32m- [1mneg_conditional_positive_unpin_nested_array_bound[0m[0m 1073742471
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_conditional_positive_unpin_bounds[0m[0m 1073742472
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_in_struct_cannot_escape_to_retaining_api[0m[0m 1073742473
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_consumer_namespace_spoof_rejected[0m[0m 1073742474
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_reference_cannot_escape_to_retaining_api[0m[0m 1073742475
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_direct_callback_capture_cannot_escape[0m[0m 1073742476
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_callback_field_capture_cannot_escape[0m[0m 1073742477
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_assigned_callback_capture_cannot_escape[0m[0m 1073742478
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_cannot_escape_to_retaining_api[0m[0m 1073742479
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_callback_cannot_store_parameter[0m[0m 1073742480
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_callback_cannot_return_parameter[0m[0m 1073742481
+    [32mPASS[0m
+
+  [32m- [1mscoped_callback_unannotated_forwarding_compiles[0m[0m 1073742482
+    [32mPASS[0m
+
+  [32m- [1mneg_scoped_callback_unannotated_sink_cannot_store[0m[0m 1073742483
+    [32mPASS[0m
+
+  [32m- [1mscoped_callback_forwarding_compiles[0m[0m 1073742484
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_cannot_return_local_borrow[0m[0m 1073742485
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_non_lifetime_wrapper_cannot_return_local_borrow[0m[0m 1073742486
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_cannot_outlive_local_borrow[0m[0m 1073742487
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_wrapper_cannot_return_local_borrow[0m[0m 1073742488
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_free_wrapper_cannot_return_local_borrow[0m[0m 1073742489
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_method_cannot_outlive_local_borrow[0m[0m 1073742490
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_aggregate_wrapper_cannot_return_local_borrow[0m[0m 1073742491
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_cannot_return_local_view[0m[0m 1073742492
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_wrapper_same_scope_compiles[0m[0m 1073742493
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_aggregate_wrapper_same_scope_compiles[0m[0m 1073742494
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_unsafe_custom_consumer_rejected[0m[0m 1073742495
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_aggregate_field_borrow_escape[0m[0m 1073742496
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_box_borrow_escape[0m[0m 1073742497
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_option_take_escape[0m[0m 1073742498
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_custom_consumer_alias_compiles[0m[0m 1073742499
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_custom_consumer_alias_escape[0m[0m 1073742500
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_static_callback_capture_compiles[0m[0m 1073742501
+    [32mPASS[0m
+
+  [32m- [1mneg_move_field_out_of_user_destructor_rejected[0m[0m 1073742502
+    [32mPASS[0m
+
+  [32m- [1mmove_field_from_temporary_compiles[0m[0m 1073742503
+    [32mPASS[0m
+
+  [32m- [1mneg_move_field_from_user_destructor_temporary_rejected[0m[0m 1073742504
+    [32mPASS[0m
+
+  [32m- [1masync_frame_field_move_compiles[0m[0m 1073742505
+    [32mPASS[0m
+
+  [32m- [1mneg_move_field_through_reference_rejected[0m[0m 1073742506
+    [32mPASS[0m
+
+  [32m- [1mneg_use_parent_after_field_move_rejected[0m[0m 1073742507
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_custom_consumer_compiles[0m[0m 1073742508
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_wrong_return_region_rejected[0m[0m 1073742509
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_aggregate_wrapper_erased_lifetime_rejected[0m[0m 1073742510
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_two_lifetime_region_inference_compiles[0m[0m 1073742511
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_method_same_scope_compiles[0m[0m 1073742512
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_free_callback_cannot_return_local_borrow[0m[0m 1073742513
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_callback_without_source_lifetime_rejected[0m[0m 1073742514
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_capturing_callback_cannot_return_capture_future[0m[0m 1073742515
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_hrtb_nested_aggregate_same_scope_compiles[0m[0m 1073742516
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_hrtb_nested_aggregate_local_borrow[0m[0m 1073742517
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_opaque_container_rejected[0m[0m 1073742518
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_hrtb_callback_cannot_return_local_borrow[0m[0m 1073742519
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_callback_future_parameter_same_scope_compiles[0m[0m 1073742520
+    [32mPASS[0m
+
+  [32m- [1mneg_future_handle_callback_future_parameter_escape[0m[0m 1073742521
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_hrtb_callback_same_scope_compiles[0m[0m 1073742522
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_free_callback_same_scope_compiles[0m[0m 1073742523
+    [32mPASS[0m
+
+  [32m- [1mfuture_handle_same_scope_compiles[0m[0m 1073742524
+    [32mPASS[0m
+
+  [32m- [1mfn_bound_accepts_callable[0m[0m 1073742525
+    [32mPASS[0m
+
+  [32m- [1mfn_bound_rejects_noncallable[0m[0m 1073742526
+    [32mPASS[0m
+
+  [32m- [1mfn_bound_rejects_fn_once_as_fn[0m[0m 1073742527
+    [32mPASS[0m
+
+  [32m- [1mfn_bound_generic_call_compiles[0m[0m 1073742528
+    [32mPASS[0m
+
+  [32m- [1minferred_fn_once_double_call_rejected[0m[0m 1073742529
+    [32mPASS[0m
+
+  [32m- [1mfn_once_bound_generic_call_compiles[0m[0m 1073742530
+    [32mPASS[0m
+
+  [32m- [1mfn_once_bound_double_call_rejected[0m[0m 1073742531
+    [32mPASS[0m
+
+  [32m- [1mfn_mut_field_const_receiver_rejected[0m[0m 1073742532
+    [32mPASS[0m
+
+  [32m- [1mfn_once_capture_move_compiles[0m[0m 1073742533
+    [32mPASS[0m
+
+  [32m- [1mfn_reusable_capture_move_rejected[0m[0m 1073742534
+    [32mPASS[0m
+
+  [32m- [1mfn_once_cannot_move_capture_twice[0m[0m 1073742535
+    [32mPASS[0m
+
+  [32m- [1mfn_once_cannot_be_called_twice[0m[0m 1073742536
+    [32mPASS[0m
+
+  [32m- [1mfn_once_single_call_compiles[0m[0m 1073742537
+    [32mPASS[0m
+
+  [32m- [1mfn_mut_requires_mutable_receiver[0m[0m 1073742538
+    [32mPASS[0m
+
+  [32m- [1mfn_mut_mutable_call_compiles[0m[0m 1073742539
+    [32mPASS[0m
+
+  [32m- [1mneg_boxed_dyn_view_cannot_return_local[0m[0m 1073742540
+    [32mPASS[0m
+
+  [32m- [1mneg_boxed_dyn_view_cannot_outlive_referent[0m[0m 1073742541
+    [32mPASS[0m
+
+  [32m- [1mneg_dyn_send_bound_requires_send_concrete_value[0m[0m 1073742542
+    [32mPASS[0m
+
+  [32m- [1mneg_dyn_unpin_bound_rejects_phantom_pinned[0m[0m 1073742543
+    [32mPASS[0m
+
+  [32m- [1mneg_dyn_static_method_is_not_object_safe[0m[0m 1073742544
+    [32mPASS[0m
+
+  [32m- [1mneg_dyn_object_is_not_send[0m[0m 1073742545
+    [32mPASS[0m
+
+  [32m- [1mneg_async_sender_forgery_rejected[0m[0m 1073742546
+    [32mPASS[0m
+
+  [32m- [1mneg_immutable_global_declared_not_sync[0m[0m 1073742547
+    [32mPASS[0m
+
+  [32m- [1mmutable_global_ref_escape_warns[0m[0m 1073742548
+    [32mPASS[0m
+
+  [32m- [1mneg_safe_send_impl_rejected[0m[0m 1073742549
+    [32mPASS[0m
+
+  [32m- [1mgeneric_function_inferred_bound_checked[0m[0m 1073742550
+    [32mPASS[0m
+
+  [32m- [1mgeneric_function_explicit_bound_checked[0m[0m 1073742551
+    [32mPASS[0m
+
+  [32m- [1mgeneric_function_bound_ok[0m[0m 1073742552
+    [32mPASS[0m
+
+  [32m- [1msend_bound_structural_ok[0m[0m 1073742553
+    [32mPASS[0m
+
+  [32m- [1msync_bound_structural_ok[0m[0m 1073742554
+    [32mPASS[0m
+
+  [32m- [1mneg_send_raw_pointer_field[0m[0m 1073742555
+    [32mPASS[0m
+
+  [32m- [1mneg_send_phantom_raw_pointer[0m[0m 1073742556
+    [32mPASS[0m
+
+  [32m- [1mclone_bound_copy_implies_clone[0m[0m 1073742557
+    [32mPASS[0m
+
+  [32m- [1mclone_bound_explicit_impl[0m[0m 1073742558
+    [32mPASS[0m
+
+  [32m- [1mneg_clone_bound_requires_impl[0m[0m 1073742559
+    [32mPASS[0m
+
+  [32m- [1mdefault_bound_uses_zero_arg_constructor[0m[0m 1073742560
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_where_clause_copy_compiles[0m[0m 1073742561
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_where_clause_canceled_by_missing_bound[0m[0m 1073742562
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_where_clause_bound_enforced[0m[0m 1073742563
+    [32mPASS[0m
+
+  [32m- [1mgeneric_impl_where_clause_bound_ok[0m[0m 1073742564
+    [32mPASS[0m
+
+  [32m- [1mdestructor_valid_signatures_compile[0m[0m 1073742565
+    [32mPASS[0m
+
+  [32m- [1mneg_destructor_value_self_rejected[0m[0m 1073742566
+    [32mPASS[0m
+
+  [32m- [1mneg_destructor_return_value_rejected[0m[0m 1073742567
+    [32mPASS[0m
+
+  [32m- [1mneg_destructor_non_self_param_rejected[0m[0m 1073742568
+    [32mPASS[0m
+
+  [32m- [1munsafe_deref_warning_has_code[0m[0m 1073742569
+    [32mPASS[0m
+
+  [32m- [1mreference_deref_is_safe[0m[0m 1073742570
+    [32mPASS[0m
+
+  [32m- [1mraw_pointer_reborrow_warns[0m[0m 1073742571
+    [32mPASS[0m
+
+  [32m- [1mraw_pointer_reference_cast_warns[0m[0m 1073742572
+    [32mPASS[0m
+
+  [32m- [1mraw_pointer_reborrow_in_unsafe_ok[0m[0m 1073742573
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_field_projection[0m[0m 1073742574
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_index[0m[0m 1073742575
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_arithmetic[0m[0m 1073742576
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_compound_arithmetic[0m[0m 1073742577
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_increment[0m[0m 1073742578
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_delete[0m[0m 1073742579
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_pointer_dealloc[0m[0m 1073742580
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_data_index_requires_unsafe[0m[0m 1073742581
+    [32mPASS[0m
+
+  [32m- [1mraw_pointer_projection_in_unsafe_ok[0m[0m 1073742582
+    [32mPASS[0m
+
+  [32m- [1mneg_placement_new_raw_pointer[0m[0m 1073742583
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_func_pointer_call[0m[0m 1073742584
+    [32mPASS[0m
+
+  [32m- [1munsafe_func_pointer_call_in_unsafe_ok[0m[0m 1073742585
+    [32mPASS[0m
+
+  [32m- [1munsafe_func_pointer_type_ok[0m[0m 1073742586
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_func_pointer_call[0m[0m 1073742587
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_func_pointer_coercion[0m[0m 1073742588
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_func_pointer_field_call[0m[0m 1073742589
+    [32mPASS[0m
+
+  [32m- [1mneg_inline_asm_requires_unsafe[0m[0m 1073742590
+    [32mPASS[0m
+
+  [32m- [1minline_asm_in_unsafe_ok[0m[0m 1073742591
+    [32mPASS[0m
+
+  [32m- [1mneg_mutable_global_access[0m[0m 1073742592
+    [32mPASS[0m
+
+  [32m- [1mmutable_global_access_in_unsafe_ok[0m[0m 1073742593
+    [32mPASS[0m
+
+  [32m- [1mneg_immutable_global_non_sync[0m[0m 1073742594
+    [32mPASS[0m
+
+  [32m- [1mimmutable_global_sync_ok[0m[0m 1073742595
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_global_access[0m[0m 1073742596
+    [32mPASS[0m
+
+  [32m- [1mneg_named_unsafe_flag_removed[0m[0m 1073742597
+    [32mPASS[0m
+
+  [32m- [1mneg_conditional_where_generic_negative_applies[0m[0m 1073742598
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_cell_is_not_sync[0m[0m 1073742599
+    [32mPASS[0m
+
+  [32m- [1munsafe_cell_is_send[0m[0m 1073742600
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_get_ref_is_immutable[0m[0m 1073742601
+    [32mPASS[0m
+
+  [32m- [1mnested_unsafe_send_impl_is_honored[0m[0m 1073742602
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_raw_without_send_impl[0m[0m 1073742603
+    [32mPASS[0m
+
+  [32m- [1mneg_non_null_is_not_send[0m[0m 1073742604
+    [32mPASS[0m
+
+  [32m- [1mneg_non_null_is_not_sync[0m[0m 1073742605
+    [32mPASS[0m
+
+  [32m- [1mneg_manually_drop_follows_inner_send[0m[0m 1073742606
+    [32mPASS[0m
+
+  [32m- [1mneg_maybe_uninit_follows_inner_send[0m[0m 1073742607
+    [32mPASS[0m
+
+  [32m- [1mneg_box_follows_inner_send[0m[0m 1073742608
+    [32mPASS[0m
+
+  [32m- [1mneg_box_follows_inner_sync[0m[0m 1073742609
+    [32mPASS[0m
+
+  [32m- [1mneg_rc_is_not_send[0m[0m 1073742610
+    [32mPASS[0m
+
+  [32m- [1mneg_rc_is_not_sync[0m[0m 1073742611
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_function_call_requires_unsafe[0m[0m 1073742612
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_method_call_requires_unsafe[0m[0m 1073742613
+    [32mPASS[0m
+
+  [32m- [1mneg_ref_cell_is_not_sync[0m[0m 1073742614
+    [32mPASS[0m
+
+  [32m- [1mref_cell_is_send_when_inner_is_send[0m[0m 1073742615
+    [32mPASS[0m
+
+  [32m- [1mmutex_is_sync_when_inner_is_send[0m[0m 1073742616
+    [32mPASS[0m
+
+  [32m- [1mneg_mutex_not_sync_when_inner_is_not_send[0m[0m 1073742617
+    [32mPASS[0m
+
+  [32m- [1mneg_deque_get_ref_is_immutable[0m[0m 1073742618
+    [32mPASS[0m
+
+  [32m- [1mdeque_get_mut_is_allowed[0m[0m 1073742619
+    [32mPASS[0m
+
+  [32m- [1mneg_unsafe_cell_get_ref_requires_unsafe[0m[0m 1073742620
+    [32mPASS[0m
+
+  [32m- [1mneg_maybe_uninit_assume_init_requires_unsafe[0m[0m 1073742621
+    [32mPASS[0m
+
+  [32m- [1mneg_manually_drop_take_requires_unsafe[0m[0m 1073742622
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_set_len_requires_unsafe[0m[0m 1073742623
+    [32mPASS[0m
+
+  [32m- [1mvector_set_len_allowed_in_unsafe[0m[0m 1073742624
+    [32mPASS[0m
+
+  [32m- [1mneg_function_instance_make2_requires_unsafe[0m[0m 1073742625
+    [32mPASS[0m
+
+  [32m- [1mneg_by_reference_callback_requires_unsafe[0m[0m 1073742626
+    [32mPASS[0m
+
+  [32m- [1mneg_by_reference_callback_argument_requires_unsafe[0m[0m 1073742627
+    [32mPASS[0m
+
+  [32m- [1mneg_by_value_reference_capture_requires_unsafe[0m[0m 1073742628
+    [32mPASS[0m
+
+  [32m- [1mby_reference_callback_in_unsafe_is_allowed[0m[0m 1073742629
+    [32mPASS[0m
+
+  [32m- [1mneg_returning_by_reference_capture_rejected[0m[0m 1073742630
+    [32mPASS[0m
+
+  [32m- [1mneg_returning_tainted_capture_variable_rejected[0m[0m 1073742631
+    [32mPASS[0m
+
+  [32m- [1mneg_returning_struct_with_by_reference_capture_rejected[0m[0m 1073742632
+    [32mPASS[0m
+
+  [32m- [1mreturning_by_value_capture_is_allowed[0m[0m 1073742633
+    [32mPASS[0m
+
+  [32m- [1mneg_function_instance_cannot_be_forged[0m[0m 1073742634
+    [32mPASS[0m
+
+  [32m- [1mneg_option_take_requires_mutable_receiver[0m[0m 1073742635
+    [32mPASS[0m
+
+  [32m- [1mrwlock_is_send_and_sync_when_inner_qualifies[0m[0m 1073742636
+    [32mPASS[0m
+
+  [32m- [1mrwlock_is_send_when_inner_is_send[0m[0m 1073742637
+    [32mPASS[0m
+
+  [32m- [1mneg_rwlock_not_sync_when_inner_is_not_sync[0m[0m 1073742638
+    [32mPASS[0m
+
+  [32m- [1marc_is_send_and_sync_when_inner_qualifies[0m[0m 1073742639
+    [32mPASS[0m
+
+  [32m- [1mneg_arc_not_send_when_inner_is_not_send[0m[0m 1073742640
+    [32mPASS[0m
+
+  [32m- [1mneg_option_clone_requires_clone[0m[0m 1073742641
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_clone_requires_clone[0m[0m 1073742642
+    [32mPASS[0m
+
+  [32m- [1mwaker_is_send_and_sync[0m[0m 1073742643
+    [32mPASS[0m
+
+  [32m- [1mwaker_private_fields_cannot_be_initialized_directly[0m[0m 1073742644
+    [32mPASS[0m
+
+  [32m- [1mwaker_from_raw_requires_unsafe[0m[0m 1073742645
+    [32mPASS[0m
+
+  [32m- [1mwaker_from_raw_unsafe_and_empty_are_usable[0m[0m 1073742646
+    [32mPASS[0m
+
+  [32m- [1mextern_call_requires_unsafe[0m[0m 1073742647
+    [32mPASS[0m
+
+  [32m- [1mextern_call_in_unsafe_ok[0m[0m 1073742648
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_unsafe_function_requires_unsafe[0m[0m 1073742649
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_requires_unsafe[0m[0m 1073742650
+    [32mPASS[0m
+
+  [32m- [1mneg_async_spawn_requires_unsafe[0m[0m 1073742651
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_from_raw_requires_unsafe[0m[0m 1073742652
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_handle_cannot_be_forged[0m[0m 1073742653
+    [32mPASS[0m
+
+  [32m- [1mneg_by_value_extern_on_unsupported_target_rejected[0m[0m 1073742654
+    [32mPASS[0m
+
+  [32m- [1mffi_i386_and_arm32_by_value_extern_are_classified[0m[0m 1073742655
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_callback_by_value_aggregate_rejected[0m[0m 1073742656
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_callback_returning_aggregate_rejected[0m[0m 1073742657
+    [32mPASS[0m
+
+  [32m- [1mextern_scalar_callback_compiles[0m[0m 1073742658
+    [32mPASS[0m
+
+  [32m- [1mextern_pointer_aggregate_callback_compiles[0m[0m 1073742659
+    [32mPASS[0m
+
+  [32m- [1mextern_callback_conventions_on_i386_windows[0m[0m 1073742660
+    [32mPASS[0m
+
+  [32m- [1mwindows_i386_cstd_has_no_safety_diagnostics[0m[0m 1073742661
+    [32mPASS[0m
+
+  [32m- [1mmacos_target_libs_safety[0m[0m 1073742662
+     [32m[32m+[0m[0m [32mSUCCESS[0m
+       [90mtarget safety check was accepted[0m
+    [32mPASS[0m
+
+  [32m- [1mfreebsd_target_libs_safety[0m[0m 1073742663
+     [32m[32m+[0m[0m [32mSUCCESS[0m
+       [90mtarget safety check was accepted[0m
+    [32mPASS[0m
+
+  [32m- [1mneg_stdcall_unsupported_targets_rejected[0m[0m 1073742664
+    [32mPASS[0m
+
+  [32m- [1mneg_variadic_extern_aggregate_argument_rejected[0m[0m 1073742665
+    [32mPASS[0m
+
+  [32m- [1mneg_extern_variant_by_value_rejected[0m[0m 1073742666
+    [32mPASS[0m
+
+  [32m- [1mneg_packed_field_shared_reference_rejected[0m[0m 1073742667
+    [32mPASS[0m
+
+  [32m- [1mneg_packed_field_mut_reference_rejected[0m[0m 1073742668
+    [32mPASS[0m
+
+  [32m- [1mneg_nested_packed_field_reference_rejected[0m[0m 1073742669
+    [32mPASS[0m
+
+  [32m- [1mneg_packed_array_element_reference_rejected[0m[0m 1073742670
+    [32mPASS[0m
+
+  [32m- [1mneg_transparent_requires_one_field[0m[0m 1073742671
+    [32mPASS[0m
+
+  [32m- [1mneg_transparent_rejects_union[0m[0m 1073742672
+    [32mPASS[0m
+
+  [32m- [1mneg_transparent_rejects_packed[0m[0m 1073742673
+    [32mPASS[0m
+
+  [32m- [1mneg_callback_cannot_move_noncopy_capture[0m[0m 1073742674
+    [32mPASS[0m
+
+  [32m- [1mneg_int_to_bool_rejected[0m[0m 1073742675
+    [32mPASS[0m
+
+  [32m- [1mneg_invalid_enum_literal_rejected[0m[0m 1073742676
+    [32mPASS[0m
+
+  [32m- [1mneg_zeroed_enum_without_zero_rejected[0m[0m 1073742677
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_heap_out_of_bounds_rejected[0m[0m 1073742678
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_heap_use_after_free_rejected[0m[0m 1073742679
+    [32mPASS[0m
+
+  [32m- [1mneg_non_null_private_field_rejected[0m[0m 1073742680
+    [32mPASS[0m
+
+  [32m- [1mneg_non_null_unchecked_requires_unsafe[0m[0m 1073742681
+    [32mPASS[0m
+
+  [32m- [1mruntime_enum_cast_is_checked[0m[0m 1073742682
+    [32mPASS[0m
+
+  [32m- [1mneg_box_private_field_rejected[0m[0m 1073742683
+    [32mPASS[0m
+
+  [32m- [1mneg_box_unchecked_requires_unsafe[0m[0m 1073742684
+    [32mPASS[0m
+
+  [32m- [1mneg_rc_private_field_rejected[0m[0m 1073742685
+    [32mPASS[0m
+
+  [32m- [1mneg_weak_private_field_rejected[0m[0m 1073742686
+    [32mPASS[0m
+
+  [32m- [1mneg_arc_private_field_rejected[0m[0m 1073742687
+    [32mPASS[0m
+
+  [32m- [1mneg_arc_weak_private_field_rejected[0m[0m 1073742688
+    [32mPASS[0m
+
+  [32m- [1mneg_vector_internal_storage_rejected[0m[0m 1073742689
+    [32mPASS[0m
+
+  [32m- [1mneg_string_private_state_rejected[0m[0m 1073742690
+    [32mPASS[0m
+
+  [32m- [1mneg_refcell_internal_state_rejected[0m[0m 1073742691
+    [32mPASS[0m
+
+  [32m- [1mneg_span_internal_size_rejected[0m[0m 1073742692
+    [32mPASS[0m
+
+  [32m- [1mneg_map_internal_size_rejected[0m[0m 1073742693
+    [32mPASS[0m
+
+  [32m- [1mneg_unordered_map_find_non_copy_value[0m[0m 1073742694
+    [32mPASS[0m
+
+  [32m- [1mneg_ordered_map_find_non_copy_value[0m[0m 1073742695
+    [32mPASS[0m
+
+  [32m- [1mneg_string_private_storage_rejected[0m[0m 1073742696
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_mutex_internal_storage_rejected[0m[0m 1073742697
+    [32mPASS[0m
+
+  [32m- [1mneg_pin_from_raw_requires_unsafe[0m[0m 1073742698
+    [32mPASS[0m
+
+  [32m- [1mneg_pin_internal_pointer_rejected[0m[0m 1073742699
+    [32mPASS[0m
+
+  [32m- [1mneg_chunk_private_fields_rejected[0m[0m 1073742700
+    [32mPASS[0m
+
+  [32m- [1mneg_linear_safe_impl_rejected[0m[0m 1073742701
+    [32mPASS[0m
+
+  [32m- [1mneg_threadpool_future_constructor_requires_unsafe[0m[0m 1073742702
+    [32mPASS[0m
+
+  [32m- [1mneg_u16_strlen_requires_unsafe[0m[0m 1073742703
+    [32mPASS[0m
+
+  [32m- [1mneg_unreachable_requires_unsafe[0m[0m 1073742704
+    [32mPASS[0m
+
+  [32m- [1munreachable_in_unsafe_compiles[0m[0m 1073742705
+    [32mPASS[0m
+
+  [32m- [1mneg_pattern_else_unreachable_requires_unsafe[0m[0m 1073742706
+    [32mPASS[0m
+
+  [32m- [1mpattern_else_unreachable_in_unsafe_compiles[0m[0m 1073742707
+    [32mPASS[0m
+
+  [32m- [1mneg_split_views_requires_unsafe[0m[0m 1073742708
+    [32mPASS[0m
+
+  [32m- [1mneg_dyn_box_fields_private[0m[0m 1073742709
+    [32mPASS[0m
+
+  [32m- [1mneg_dealloc_bytes_requires_unsafe[0m[0m 1073742710
+    [32mPASS[0m
+
+  [32m- [1mneg_global_allocator_debug_private[0m[0m 1073742711
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_safe_impl_of_unsafe_interface[0m[0m 1073742712
+    [32mPASS[0m
+
+  [32m- [1mneg_string_view_raw_constructor_requires_unsafe[0m[0m 1073742713
+    [32mPASS[0m
+
+  [32m- [1mneg_span_raw_constructor_requires_unsafe[0m[0m 1073742714
+    [32mPASS[0m
+
+  [32m- [1mneg_string_raw_constructor_requires_unsafe[0m[0m 1073742715
+    [32mPASS[0m
+
+  [32m- [1mneg_u16string_raw_constructor_requires_unsafe[0m[0m 1073742716
+    [32mPASS[0m
+
+  [32m- [1mneg_volatile_access_requires_unsafe[0m[0m 1073742717
+    [32mPASS[0m
+
+  [32m- [1mneg_union_field_access_requires_unsafe[0m[0m 1073742718
+    [32mPASS[0m
+
+  [32m- [1mneg_command_line_stream_raw_write_requires_unsafe[0m[0m 1073742719
+    [32mPASS[0m
+
+  [32m- [1mneg_static_mut_access[0m[0m 1073742720
+    [32mPASS[0m
+
+  [32m- [1mstatic_immutable_access_ok[0m[0m 1073742721
+    [32mPASS[0m
+
+  [32m- [1mneg_static_non_sync[0m[0m 1073742722
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_foreign_pointer_rejected[0m[0m 1073742723
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_cross_frame_pointer_rejected[0m[0m 1073742724
+    [32mPASS[0m
+
+  [32m- [1mneg_comptime_printf_foreign_string_rejected[0m[0m 1073742725
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_non_send_rejected[0m[0m 1073742726
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_non_static_reference_rejected[0m[0m 1073742727
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_void_non_static_reference_rejected[0m[0m 1073742728
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_struct_with_non_static_reference_rejected[0m[0m 1073742729
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_vector_of_non_send_rejected[0m[0m 1073742730
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_pool_future_of_rc_not_send[0m[0m 1073742731
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_mutex_guard_rejected[0m[0m 1073742732
+    [32mPASS[0m
+
+  [32m- [1mneg_shared_reference_to_explicit_not_sync_is_not_send[0m[0m 1073742733
+    [32mPASS[0m
+
+  [32m- [1mneg_shared_reference_to_ref_cell_is_not_send[0m[0m 1073742734
+    [32mPASS[0m
+
+  [32m- [1mneg_generic_impl_bound_shared_ref_not_sync[0m[0m 1073742735
+    [32mPASS[0m
+
+  [32m- [1mmutable_reference_to_send_not_sync_is_send[0m[0m 1073742736
+    [32mPASS[0m
+
+  [32m- [1mneg_ref_cell_shared_is_not_sync[0m[0m 1073742737
+    [32mPASS[0m
+
+  [32m- [1mneg_rc_value_is_not_send[0m[0m 1073742738
+    [32mPASS[0m
+
+  [32m- [1mneg_mutex_guard_is_not_sync[0m[0m 1073742739
+    [32mPASS[0m
+
+  [32m- [1mneg_lock_guard_is_not_send[0m[0m 1073742740
+    [32mPASS[0m
+
+  [32m- [1mneg_recursive_lock_guard_is_not_send[0m[0m 1073742741
+    [32mPASS[0m
+
+  [32m- [1mneg_rwlock_read_guard_is_not_sync[0m[0m 1073742742
+    [32mPASS[0m
+
+  [32m- [1mneg_thread_spawn_rwlock_guard_rejected[0m[0m 1073742743
+    [32mPASS[0m
+
+  [32m- [1mneg_slice_view_cannot_return_local_array[0m[0m 1073742744
+    [32mPASS[0m
+
+  [32m- [1mneg_str_view_cannot_return_local_string[0m[0m 1073742745
+    [32mPASS[0m
+
+  [32m- [1mneg_shared_slice_cannot_mutate[0m[0m 1073742746
+    [32mPASS[0m
+
+  [32m- [1mneg_mutable_slice_requires_mutable_source[0m[0m 1073742747
+    [32mPASS[0m
+
+  [32m- [1mneg_mutable_slice_view_cannot_return_local_vector[0m[0m 1073742748
+    [32mPASS[0m
+
+  [32m- [1mneg_mutable_slice_const_array_rejected[0m[0m 1073742749
+    [32mPASS[0m
+
+  [32m- [1mneg_mutable_slice_array_view_cannot_escape[0m[0m 1073742750
+    [32mPASS[0m
+
+  [32m- [1mneg_async_executor_state_not_send[0m[0m 1073742751
+    [32mPASS[0m
+
+  [32m- [1mneg_async_executor_enqueue_requires_unsafe[0m[0m 1073742752
+    [32mPASS[0m
+
+  [32m- [1mneg_async_executor_poll_requires_unsafe[0m[0m 1073742753
+    [32mPASS[0m
+
+  [32m- [1mstatic_view_send_sync[0m[0m 1073742754
+    [32mPASS[0m
+
+  [32m- [1mbare_view_is_not_send[0m[0m 1073742755
+    [32mPASS[0m
+
+  [32m- [1mstatic_span_element_borrow_not_static[0m[0m 1073742756
+    [32mPASS[0m
+
+  [32m- [1mneg_print_raw_char_has_no_length[0m[0m 1073742757
+    [32mPASS[0m
+
+  [32m- [1mneg_print_unsupported_type[0m[0m 1073742758
+    [32mPASS[0m
+
+  [32m- [1mneg_printf_spec_invalid_type[0m[0m 1073742759
+    [32mPASS[0m
+
+  [32m- [1mneg_printf_spec_on_hook_without_spec_param[0m[0m 1073742760
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_api_requires_unsafe[0m[0m 1073742761
+    [32mPASS[0m
+
+  [32m- [1mneg_raw_api_allowed_inside_unsafe[0m[0m 1073742762
+    [32mPASS[0m
+
+  [32m- [1mneg_named_function_signature_mismatch[0m[0m 1073742763
+    [32mPASS[0m
+
+[1m[36mTest run summary[0m
+  Total: 941 | [32mPassed: [32m941[0m | [90mFailed: [31m0[0m
+
+[1mSummary: 941 tests - [32m941 passed[0m, [90m0 failed[0m
+

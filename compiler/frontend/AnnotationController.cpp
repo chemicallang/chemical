@@ -217,9 +217,21 @@ void annot_handler_retained(Parser* parser, ASTNode* node, std::vector<Value*>& 
     }
 }
 
+static bool is_method_decl(ASTNode* node) {
+    if (node == nullptr || node->kind() != ASTNodeKind::FunctionDecl) return false;
+    ASTNode* parent = node->parent();
+    return parent != nullptr && ASTNode::isMembersContainer(parent->kind());
+}
+
 void annot_handler_extern(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
-    if(!node->set_no_mangle(true)) {
-        parser->error("couldn't make the node no_mangle");
+    // `@extern` on a top-level C function/global/struct means "use the C name
+    // verbatim". A method is different: its C symbol must keep the owner prefix,
+    // otherwise two structs with the same method name collide. An explicit
+    // `@no_mangle` on a method still requests the bare name.
+    if(!is_method_decl(node)) {
+        if(!node->set_no_mangle(true)) {
+            parser->error("couldn't make the node no_mangle");
+        }
     }
     switch(node->kind()) {
         case ASTNodeKind::FunctionDecl:

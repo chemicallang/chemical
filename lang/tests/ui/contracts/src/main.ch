@@ -894,6 +894,6 @@ impl ui::Application for App {
 }
 
 public func main() : int {
-    unsafe { write(1, "ui contract PASS\n" as *void, 18 as ulong) }
+    unsafe { write(1, "ui contract PASS\n" as *void, 17 as ulong) }
     return 0
 }

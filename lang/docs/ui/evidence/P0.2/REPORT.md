@@ -1,9 +1,9 @@
 # P0.2 — freeze contracts v1: report
 
 **Branch:** `feature/ui-v1` (no commit made by this subagent)
-**Status:** contract module and API index are green on both front ends; awaiting
-parent review/commit. No library behavior or components were implemented.
-`BENCHMARKS.md` was not modified.
+**Status:** contract module builds, links and runs on both TCC and LLVM; API
+index is green; awaiting parent review/commit. No library behavior or components
+were implemented. `BENCHMARKS.md` was not modified.
 
 ---
 
@@ -53,28 +53,29 @@ are not undefined types.
   text/font faces, style/theme/semantics, and the §10 protocol/CLI are frozen in
   `lang/docs/ui/contracts/protocol.json`.
 
-### Compile results
+### Compile/build/run results (P0.2b)
 
 ```bash
-cmake-build-debug/TCCCompiler lang/tests/ui/contracts/chemical.mod --check --mode debug_quick --no-cache
-# exit 0
-cmake-build-debug/Compiler lang/tests/ui/contracts/chemical.mod --check --mode debug_quick --no-cache
-# exit 0
-./scripts/ui-test.sh --tcc  --filter contract   # ui contract PASS
-./scripts/ui-test.sh --llvm --filter contract   # ui contract PASS
+cmake-build-debug/TCCCompiler lang/tests/ui/contracts/chemical.mod \
+    -o /tmp/ui_contract_tcc.exe --mode debug_quick --no-cache   # exit 0
+/tmp/ui_contract_tcc.exe                                        # ui contract PASS
+cmake-build-debug/Compiler lang/tests/ui/contracts/chemical.mod \
+    -o /tmp/ui_contract_llvm.exe --mode debug_quick --no-cache  # exit 0
+/tmp/ui_contract_llvm.exe                                       # ui contract PASS
+
+./scripts/ui-test.sh --tcc  --filter contract   # builds, links, runs -> PASS
+./scripts/ui-test.sh --llvm --filter contract   # builds, links, runs -> PASS
+./scripts/ui-test.sh --tcc  --filter contract --contract-check-only  # optional front-end check
 ```
 
-Raw: `logs/contract_tcc_check.log`, `logs/contract_llvm_check.log`,
+Raw: `logs/contract_build_tcc.log`, `logs/contract_build_llvm.log`,
+`logs/contract_tcc_check.log`, `logs/contract_llvm_check.log`,
 `logs/test_tcc.log`, `logs/test_llvm.log`.
 
-`--check` is deliberate: the contract's methods are `@extern` prototypes, and
-the existing C emitter does not owner-mangle `@extern` methods. Emitting/linking
-the prototype-only module produces a pre-existing C collision (`text`, `wrap`,
-`make`, …) unrelated to declarations; real library methods will have bodies and
-normal mangling. The front-end compile check is the contract gate. This is a
-compiler tooling limitation, not a declaration failure.
+`--contract-check-only` keeps the fast front-end-only gate. The normal contract
+filter now proves the full build/link/run path on both backends.
 
-**Declarations still failing: none** under the contract check.
+**Declarations still failing: none.**
 
 ---
 
@@ -144,21 +145,51 @@ No server or CLI behavior was added here.
 | `./scripts/ui-verify.sh --self-test` | PASS (bad red, good green) |
 | `./scripts/ui-verify.sh --packet P0.2` | PASS |
 | `./scripts/ui-api-index.sh --check` | PASS |
-| TCC/LLVM contract check | PASS |
+| TCC/LLVM contract build+link+run | PASS |
+| `ui-test --filter contract --contract-check-only` | PASS |
 
 Raw logs are in `lang/docs/ui/evidence/P0.2/logs/`.
 
-`STATUS.md` marks P0.2 `review`; `STATUS.json` is regenerated from it.
+`STATUS.md` marks P0.2 `done` (parent commit/tag pending); `STATUS.json` is
+regenerated from it.
 
 ---
 
-## 7. Residual limitations
+## 7. P0.2b — method mangling fix (resolved)
 
-- **Compiler tooling:** `@extern` methods are not owner-mangled in C emission,
-  so a module of only prototypes cannot be object-linked. The contract gate uses
-  `--check`; this does not affect real declarations with bodies. If the parent
-  requires object/link output for the contract module, the compiler name
-  mangler needs a targeted fix.
+P0.2a's residual tooling blocker is fixed. `@extern` on a method no longer sets
+`no_mangle`; the owner prefix is retained. `@extern` on a top-level
+function/global/struct stays bare, and explicit `@no_mangle` on a method still
+produces the bare name.
+
+- `compiler/frontend/AnnotationController.cpp`: `annot_handler_extern` only
+  applies `set_no_mangle(true)` when the function is not a member of a
+  struct/interface/union/variant/impl.
+- Before: `extern struct ... text(...)` for `ViewBuilder`, `Style`, `Theme`,
+  `UiCtx`, `Painter` → TCC C redefinition.
+- After: `ui_contracts_uiViewBuildertext`, `ui_contracts_uiStyletext`,
+  `ui_contracts_uiThemetext`, `ui_contracts_uiUiCtxtext`,
+  `ui_contracts_uiPaintertext` (and similarly `wrap`), all distinct.
+- Regression: `lang/tests/src/basic/extern_method_mangle.ch` + C definitions in
+  `lang/tests/ext/file.c` prove two `@extern func text` methods reach different
+  C functions, a top-level `@extern` stays bare, and `@no_mangle` on a method
+  remains bare.
+- `scripts/ui-test.sh --filter contract` now builds and runs the contract module
+  (both backends); `--contract-check-only` keeps the front-end check available.
+
+## 8. Residual limitations
+
+- The contract module is still a compile-time declaration surface; its methods
+  are `@extern` prototypes, so a *called* method would need a C definition. The
+  module's own `main` only prints `ui contract PASS`; it does not call UI code.
+- **TEXT.md drift:** its owned `Option<TextEditState>` snippet predates the
+  borrow-tied API; API/CONTRACTS win. P2.4 should reconcile the prose.
+- **CONTRACTS/FrameInfo drift:** API keeps `text_scale`; CONTRACTS is older prose.
+- **Catalog-owned** `TreeSource`/`ListProps`/`TableProps` remain outside API until
+  P4.8.
+- UI-specific negative tests (forged handles/Fatal/stale IDs) need the library
+  and are scheduled in P1.2/P1.13/P1.11.
+- macOS/Windows CI remain BLOCKED as recorded in P0.1/P0.3a.
 - **Catalog-owned data-view props** (`ListProps`, `TableProps`) and `TreeSource`
   are not in API.md; CATALOG.md owns them until P4.8. `ItemSource` and
   `TableSource` are frozen in API because `ViewBuilder`/table cells use them.
@@ -172,20 +203,24 @@ Raw logs are in `lang/docs/ui/evidence/P0.2/logs/`.
 
 ---
 
-## Parent audit (2026-11-27)
+## Parent audit and P0.2b resolution (2026-11-27)
 
-The front-end contract check is green on TCC and LLVM, and LLVM builds and links
-the contract module. A full **TCC object/link** of the contract module still fails
-because the C emitter does not owner-mangle `@extern` methods (`text` is
-redefined across `ViewBuilder`, `Style`, `Theme`, `UiCtx`, `Painter`). This is a
-pre-existing compiler name-mangling bug, not a declaration/type error.
+P0.2a's audit found the TCC object/link failure: `@extern` methods were emitted
+with bare names (`text`) and collided. **P0.2b fixes this** in
+`compiler/frontend/AnnotationController.cpp`: `@extern` on a method no longer
+sets `no_mangle`, so the owner prefix is retained; top-level `@extern` and
+explicit `@no_mangle` behavior is unchanged.
 
-Checkpoint split:
+- Before: `text`, `wrap` (bare) across `ViewBuilder`, `Style`, `Theme`, `UiCtx`,
+  `Painter`.
+- After: `ui_contracts_uiViewBuildertext`, `ui_contracts_uiStyletext`,
+  `ui_contracts_uiThemetext`, `ui_contracts_uiUiCtxtext`,
+  `ui_contracts_uiPaintertext`, etc.
+- `scripts/ui-test.sh --filter contract` now performs a real build+run on TCC and
+  LLVM; `--contract-check-only` keeps the front-end check.
+- Regression: `lang/tests/src/basic/extern_method_mangle.ch` + C definitions in
+  `lang/tests/ext/file.c` prove two same-named `@extern` methods reach different
+  C functions, top-level `@extern` stays bare, and explicit `@no_mangle` on a
+  method stays bare.
 
-- **P0.2a** (this commit): API consolidation, contract module, API-index diff
-  gate, protocol freeze, front-end `--check` on both backends.
-- **P0.2b** (next): fix `@extern` method owner-mangling, make the contract
-  module build/link/run on both backends, switch the contract filter from
-  `--check` to a real build+run, then mark P0.2 done.
-
-No public declaration is being skipped; the remaining issue is codegen/link.
+No public declaration was skipped.

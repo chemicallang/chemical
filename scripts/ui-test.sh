@@ -15,6 +15,7 @@ NO_BUILD=0
 SANITIZE=""
 EMIT_C=0
 CC_SANITIZE=0
+CONTRACT_CHECK_ONLY=0
 JSON=0
 BUILD_DIR="$ROOT/lang/tests/ui/build"
 MOD="$ROOT/lang/tests/ui/chemical.mod"
@@ -31,6 +32,7 @@ Usage: scripts/ui-test.sh [options]
   --emit-c                 TCC: emit C and compile it with the system cc
   --cc-sanitize            With --emit-c: add -fsanitize=address,undefined
   --update-goldens         Export CHEMICAL_UI_UPDATE_GOLDENS=1 for the run
+  --contract-check-only    Only run the front-end contract check (no build/run)
   --json                   Print one JSON result object
   --help                   Show this help
 EOF
@@ -48,6 +50,7 @@ while [ $# -gt 0 ]; do
         --emit-c) EMIT_C=1 ;;
         --cc-sanitize) CC_SANITIZE=1; EMIT_C=1 ;;
         --update-goldens) export CHEMICAL_UI_UPDATE_GOLDENS=1 ;;
+        --contract-check-only) CONTRACT_CHECK_ONLY=1 ;;
         --json) JSON=1 ;;
         --help|-h) usage; exit 0 ;;
         *) echo "ui-test: unknown argument '$1'" >&2; usage >&2; exit 2 ;;
@@ -82,13 +85,17 @@ EXE="$BUILD_DIR/ui_tests_${BACKEND}.exe"
 
 if [ "$FILTER" = "contract" ]; then
     CONTRACT_MOD="$ROOT/lang/tests/ui/contracts/chemical.mod"
+    CONTRACT_EXE="$BUILD_DIR/ui_contracts_${BACKEND}.exe"
+    CONTRACT_CHECK_BUILD="$BUILD_DIR/contract_check_${BACKEND}"
+    CONTRACT_BUILD="$BUILD_DIR/contract_build_${BACKEND}"
     if [ "$BACKEND" = "tcc" ]; then
         CHECKER="$ROOT/cmake-build-debug/TCCCompiler"
     else
         CHECKER="$ROOT/cmake-build-debug/Compiler"
     fi
-    if ! "$CHECKER" "$CONTRACT_MOD" --check --mode debug_quick \
-            >"$BUILD_LOG" 2>&1; then
+    rm -rf "$CONTRACT_CHECK_BUILD"
+    if ! "$CHECKER" "$CONTRACT_MOD" --check --build-dir "$CONTRACT_CHECK_BUILD" \
+            --mode debug_quick >"$BUILD_LOG" 2>&1; then
         cat "$BUILD_LOG" >&2
         echo "ui-test: contract check failed ($BACKEND)" >&2
         if [ "$JSON" = "1" ]; then
@@ -96,11 +103,64 @@ if [ "$FILTER" = "contract" ]; then
         fi
         exit 1
     fi
-    printf 'ui contract PASS\n' >"$RUN_LOG"
+    if [ "$CONTRACT_CHECK_ONLY" = "1" ]; then
+        echo "ui contract CHECK PASS"
+        if [ "$JSON" = "1" ]; then
+            printf '{"suite":"ui","backend":"%s","filter":"contract","mode":"check-only","status":"pass","exit_code":0}\n' "$BACKEND"
+        fi
+        exit 0
+    fi
+    if [ "$NO_BUILD" = "0" ]; then
+        if [ "$BACKEND" = "tcc" ]; then
+            rm -rf "$CONTRACT_BUILD"
+            if ! "$CHECKER" "$CONTRACT_MOD" -o "$CONTRACT_EXE" --build-dir "$CONTRACT_BUILD" \
+                    --mode debug_quick --no-cache >"$BUILD_LOG" 2>&1; then
+                cat "$BUILD_LOG" >&2
+                echo "ui-test: contract build failed ($BACKEND)" >&2
+                if [ "$JSON" = "1" ]; then
+                    printf '{"suite":"ui","backend":"%s","filter":"contract","status":"fail","exit_code":1}\n' "$BACKEND"
+                fi
+                exit 1
+            fi
+        else
+            SAN_FLAG=()
+            [ -n "$SANITIZE" ] && SAN_FLAG=("--sanitize=$SANITIZE")
+            rm -rf "$CONTRACT_BUILD"
+            if ! "$CHECKER" "$CONTRACT_MOD" -o "$CONTRACT_EXE" --build-dir "$CONTRACT_BUILD" \
+                    --mode debug_quick --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
+                cat "$BUILD_LOG" >&2
+                echo "ui-test: contract build failed ($BACKEND)" >&2
+                if [ "$JSON" = "1" ]; then
+                    printf '{"suite":"ui","backend":"%s","filter":"contract","status":"fail","exit_code":1}\n' "$BACKEND"
+                fi
+                exit 1
+            fi
+        fi
+    fi
+    if [ ! -x "$CONTRACT_EXE" ]; then
+        echo "ui-test: missing contract executable '$CONTRACT_EXE' (omit --no-build)" >&2
+        exit 1
+    fi
+    set +e
+    "$CONTRACT_EXE" >"$RUN_LOG" 2>&1
+    rc=$?
+    set -e
+    if [ "$JSON" = "1" ]; then
+        cat "$RUN_LOG" >&2
+    else
+        cat "$RUN_LOG"
+    fi
+    if [ "$rc" -ne 0 ] || ! grep -q "ui contract PASS" "$RUN_LOG"; then
+        if [ "$JSON" = "1" ]; then
+            printf '{"suite":"ui","backend":"%s","filter":"contract","status":"fail","exit_code":%d}\n' "$BACKEND" "$rc"
+        else
+            echo "ui-test: contract FAIL (exit $rc)" >&2
+        fi
+        exit 1
+    fi
     if [ "$JSON" = "1" ]; then
         printf '{"suite":"ui","backend":"%s","filter":"contract","status":"pass","tests":1,"exit_code":0}\n' "$BACKEND"
     else
-        cat "$RUN_LOG"
         echo "ui-test: PASS ($BACKEND, filter=contract)"
     fi
     exit 0

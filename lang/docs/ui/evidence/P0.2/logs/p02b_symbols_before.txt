@@ -1,0 +1,6 @@
+# Before P0.2b (parent audit): bare C prototypes collided
+extern struct ui_contracts_uiNodeId text(struct ui_contracts_uiViewBuilder*, ...);
+extern struct ui_contracts_uiStyle text(struct ui_contracts_uiStyle*, ...);
+extern struct ui_contracts_uiTextStyle text(struct ui_contracts_uiTheme*, ...);
+extern struct std_stdstr text(struct ui_contracts_uiUiCtx*, ...);
+extern void text(struct ui_contracts_uiPainter*, ...);

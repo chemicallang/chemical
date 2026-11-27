@@ -1,0 +1,11 @@
+extern struct ui_contracts_uiNodeId ui_contracts_uiViewBuilderwrap(struct ui_contracts_uiViewBuilder* __chx_a0, struct ui_contracts_uiKey __chx_a1, struct ui_contracts_uiStyle __chx_a2);
+extern struct ui_contracts_uiNodeId ui_contracts_uiViewBuildertext(struct ui_contracts_uiViewBuilder* __chx_a0, struct ui_contracts_uiKey __chx_a1, struct std_stdstring_view __chx_a2, struct ui_contracts_uiStyle __chx_a3);
+extern struct ui_contracts_uiNodeId ui_contracts_uiViewBuilderrich_text(struct ui_contracts_uiViewBuilder* __chx_a0, struct ui_contracts_uiKey __chx_a1, struct std_stdspan__cgs__67a6e5c2cf6c __chx_a2, struct ui_contracts_uiStyle __chx_a3);
+extern struct ui_contracts_uiStyle ui_contracts_uiStyletext(struct ui_contracts_uiStyle* __chx_a0, int __chx_a1);
+extern struct ui_contracts_uiStyle ui_contracts_uiStylewrap(struct ui_contracts_uiStyle* __chx_a0, int __chx_a1);
+extern struct ui_contracts_uiTextStyle ui_contracts_uiThemetext(struct ui_contracts_uiTheme* __chx_a0, int __chx_a1);
+extern struct std_stdstr ui_contracts_uiUiCtxtext(struct ui_contracts_uiUiCtx* __chx_a0, struct ui_contracts_uiKey __chx_a1);
+extern struct std_stdstring ui_contracts_uiUiCtxtake_text(struct ui_contracts_uiUiCtx* __chx_a0, struct ui_contracts_uiKey __chx_a1);
+extern struct ui_contracts_uiTextContext* ui_contracts_uiUiCtxtext_context(struct ui_contracts_uiUiCtx* __chx_a0);
+extern struct std_stdResult__cgs__e2e23038775d ui_contracts_uiUiCtxset_text(struct ui_contracts_uiUiCtx* __chx_a0, struct ui_contracts_uiKey __chx_a1, struct std_stdstring_view __chx_a2);
+extern void ui_contracts_uiPaintertext(struct ui_contracts_uiPainter* __chx_a0, struct std_stdstring_view __chx_a1, struct ui_contracts_uiPoint __chx_a2, struct ui_contracts_uiTextStyle __chx_a3, struct ui_contracts_uiColor __chx_a4);

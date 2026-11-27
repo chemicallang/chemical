@@ -1,3 +1,3 @@
 ui view PASS
-view flat_us=233611 deep_us=323204 flat_nodes=100001 deep_nodes=100001 frame_high=100000
+view flat_us=140773 deep_us=233770 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=1 hits=100000 misses=0 node_bytes=96 style_bytes=304
 ui-test: PASS (tcc, filter=view)

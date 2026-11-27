@@ -7,6 +7,7 @@ using std::vector;
 using std::Unit;
 using ui_internal::ViewKind;
 using ui_internal::new_view_builder;
+using ui_internal::new_view_builder_debug;
 using ui_internal::view_root;
 using ui_internal::view_node_count;
 using ui_internal::view_arena_capacity;
@@ -35,6 +36,9 @@ using ui_internal::view_grid_cell;
 using ui_internal::view_virtual_count;
 using ui_internal::view_scope_depth;
 using ui_internal::view_component_root;
+using ui_internal::view_style_hits;
+using ui_internal::view_style_misses;
+using ui_internal::view_style_pool_size;
 using ui_internal::view_image_placeholder;
 using ui_internal::view_has_command;
 
@@ -185,7 +189,7 @@ func check_scope() : bool {
 }
 
 func check_duplicate() : bool {
-    var b = new_view_builder(16u32, 100.0f, 100.0f)
+    var b = new_view_builder_debug(16u32, 100.0f, 100.0f)
     var r = view_root(&b)
     var a = b.text(key("dup"), "one", Style.new())
     var c = b.text(key("dup"), "two", Style.new())
@@ -279,6 +283,101 @@ func check_all_methods() : bool {
     return true
 }
 
+
+func release_mode() : bool {
+    var env = environment::get("CHEMICAL_UI_RELEASE")
+    if(env is Option.Some) {
+        var Some(v) = env else return false
+        return v.to_view().equals_with_len("1", 1u)
+    }
+    return false
+}
+
+func is_llvm() : bool {
+    var env = environment::get("CHEMICAL_UI_TEST_BACKEND")
+    if(env is Option.Some) {
+        var Some(v) = env else return false
+        return v.to_view().equals_with_len("llvm", 4u)
+    }
+    return false
+}
+
+func build_flat_once() : i64 {
+    var b = new_view_builder(120000u32, 1280.0f, 800.0f)
+    var root = view_root(&b)
+    var style = Style.new()
+    var start = std::chrono::Instant.now()
+    var i = 0u32
+    while(i < 100000u32) {
+        var n = b.text(key_of("flat", i as u64), "x", style)
+        b.child(root, n)
+        i = i + 1u32
+    }
+    return start.elapsed().as_micros()
+}
+
+func build_deep_once() : i64 {
+    var b = new_view_builder(120000u32, 1280.0f, 800.0f)
+    var root = view_root(&b)
+    var style = Style.new()
+    var start = std::chrono::Instant.now()
+    var chain = 0u32
+    while(chain < 10000u32) {
+        var parent = root
+        var d = 0u32
+        while(d < 10u32) {
+            var n = b.text(key_pair("deep", chain as u64, d as u64), "x", style)
+            b.child(parent, n)
+            parent = n
+            d = d + 1u32
+        }
+        chain = chain + 1u32
+    }
+    return start.elapsed().as_micros()
+}
+
+
+
+func check_release_gate() : bool {
+    if(!release_mode()) { return true }
+    var flat : [5]i64
+    var deep : [5]i64
+    var i = 0
+    while(i < 5) {
+        flat[i] = build_flat_once()
+        deep[i] = build_deep_once()
+        unsafe { printf("view release run=%d flat_us=%ld deep_us=%ld\\n", i, flat[i], deep[i]) }
+        i = i + 1
+    }
+    var a : [5]i64 = flat
+    var b : [5]i64 = deep
+    var x = 0
+    while(x < 5) {
+        var y = x + 1
+        while(y < 5) {
+            if(a[y] < a[x]) { var t = a[x]; a[x] = a[y]; a[y] = t }
+            if(b[y] < b[x]) { var t2 = b[x]; b[x] = b[y]; b[y] = t2 }
+            y = y + 1
+        }
+        x = x + 1
+    }
+    var p50 = a[2]
+    var p95 = a[4]
+    var d50 = b[2]
+    var limit : i64 = 10000i64
+    if(is_llvm()) { limit = 5000i64 }
+    if(p50 > limit) {
+        unsafe { printf("view release gate BLOCKER flat_p50=%ld limit=%ld\\n", p50, limit) }
+        return false
+    }
+    if(d50 > (p50 * 3i64) / 2i64) {
+        unsafe { printf("view release gate BLOCKER deep_p50=%ld flat_p50=%ld\\n", d50, p50) }
+        return false
+    }
+    unsafe { printf("view release PASS flat_p50=%ld flat_p95=%ld deep_p50=%ld limit=%ld\\n", p50, p95, d50, limit) }
+    return true
+}
+
 func check_build_scale() : bool {
     var style = Style.new()
     var capacity = 120000u32
@@ -313,7 +412,7 @@ func check_build_scale() : bool {
     var deep_us = start2.elapsed().as_micros()
     if(view_node_count(&deep) != 100001u32 || view_arena_live(&deep) != 100001u32) { return fail("deep-count") }
     if(view_arena_capacity(&deep) != capacity) { return fail("deep-arena") }
-    unsafe { printf("view flat_us=%ld deep_us=%ld flat_nodes=%u deep_nodes=%u frame_high=%lu\n", flat_us, deep_us, flat_count, view_node_count(&deep), view_frame_high_water(&deep)) }
+    unsafe { printf("view flat_us=%ld deep_us=%ld flat_nodes=%u deep_nodes=%u frame_high=%lu style_pool=%u hits=%u misses=%u node_bytes=%lu style_bytes=%lu\n", flat_us, deep_us, flat_count, view_node_count(&deep), view_frame_high_water(&deep), view_style_pool_size(&b), view_style_hits(&b), view_style_misses(&b), sizeof(ui_internal::ViewNode), sizeof(Style)) }
     // Hard ceiling is deliberately conservative for the TCC/ASAN paths; the
     // 5 ms target is recorded in evidence, not used as a flaky assertion.
     if(flat_us > 2000000i64 || deep_us > 4000000i64) { return fail("scale-time") }
@@ -331,6 +430,7 @@ public func run() : bool {
     if(!check_dump()) { ok = false }
     if(!check_all_methods()) { ok = false }
     if(!check_build_scale()) { ok = false }
+    if(!check_release_gate()) { ok = false }
     return ok
 }
 

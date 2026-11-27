@@ -18,6 +18,7 @@
 | P1.2 Arena/IDs/keys | done | e48c86184 | ui-P1.2 | `evidence/P1.2/` | 1M arena/10M keys TCC+LLVM+ASAN; 438 API decls | parent commit/tag pending |
 | P1.3a ViewBuilder structure | done | ee2c8fc71 | ui-P1.3a | `evidence/P1.3/` | all §3; 100k TCC/LLVM/ASAN | perf split |
 | P1.3 View builder performance | in-progress | — | — | `evidence/P1.3/` | P1.3b compact node/metadata | 5 ms gate |
+| P1.3b View perf hardening | blocked | — | — | `evidence/P1.3/` | release flat p50 LLVM 10190us / TCC 69670us | 5ms/10ms gate not met; BLOCKER.md |
 | P1.4 Reconciler/tree | todo | — | — | — | — | |
 | P1.5 Style/tokens/themes | todo | — | — | — | — | |
 | P1.5b Font metrics fixture | todo | — | — | — | — | |

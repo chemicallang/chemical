@@ -1,7 +1,9 @@
 # P1.3 — ViewBuilder and view arena: report
 
 **Branch:** `feature/ui-v1` (no commit made by this subagent)
-**Status:** all P1.3 commands green; P1.3 marked `done`; parent commit/tag pending.
+**Status:** P1.3a structural work is done/committed; P1.3b release
+performance is **BLOCKED** (see `BLOCKER.md`). P1.3 remains in-progress; parent
+commit/tag pending.
 
 No layout, paint, text shaping, or reconciler behavior was implemented. The
 builder creates frame-local nodes and copies owned text; P1.4 owns retained
@@ -160,3 +162,71 @@ build fast enough and turn the 5 ms target into an assertion (LLVM release),
 with a documented TCC-hardening result.
 
 No layout/reconciler was implemented; the structural contract is unchanged.
+
+---
+
+## 8. P1.3b release hardening — BLOCKED
+
+The compact-base/side-table/style-pool work is implemented, but the required
+release gate is not met. Full details and the concrete profile are in
+[`BLOCKER.md`](BLOCKER.md).
+
+### Before / after (release_fast)
+
+Parent audit before this packet:
+
+| Backend | Flat 100k | Deep 10k×10 |
+|---|---:|---:|
+| LLVM | 117,818 µs | 117,400 µs |
+| TCC | 209,360 µs | 244,269 µs |
+
+After compact P1.3b (5 runs; p50/p95):
+
+| Backend | Flat p50 | Flat p95 | Deep p50 | Deep p95 |
+|---|---:|---:|---:|---:|
+| LLVM release | 10,190 µs | 15,601 µs | 12,729 µs | 12,874 µs |
+| TCC release | 69,670 µs | 75,369 µs | 118,047 µs | 121,315 µs |
+
+The unmodified gates remain LLVM ≤5,000 µs and TCC ≤10,000 µs.
+
+### Representation / pooling
+
+- `ViewNode`: **96 bytes** (was ~500 bytes). Id/key/kind/parent/child chain/style
+  index/state index/meta index/text/virtual count; all heavy fields are in side
+  tables.
+- `Style`: **304 bytes** pooled; the 100k test uses **1 pool entry, 100,000
+  hits, 0 misses**. Default style uses the mask==0 fast path.
+- `NodeMeta`: 552 bytes, allocated only for nodes that use semantics, images,
+  component/slot, overlays, grid, transforms, animations, errors, or test ids.
+- Duplicate-key probing is **debug-builder-only** (`new_view_builder_debug`);
+  the release builder does no key-set work. Structural duplicate tests still run
+  in debug mode.
+- Frame text/span copies remain in `FrameArena`; node/style/span arrays are
+  reserved at construction and no per-node `malloc` path remains.
+
+### Release profile (same binary)
+
+| Probe | LLVM | TCC |
+|---|---:|---:|
+| `NodeArena.insert` only, 100k | 648 µs | 4,579 µs |
+| `fragment` add only, 100k | 6,771 µs | 14,365 µs |
+| `text` only, 100k | 10,830 µs | 35,261 µs |
+| `text` + `child(root)`, 100k | 14,060 µs | 63,162 µs |
+
+The base add path already exceeds the LLVM 5 ms gate before style/text:
+`ViewBuilder.add_node` / compact-node append and generated-call overhead dominate;
+`NodeArena.insert` alone is only 648 µs. Style-by-value adds ~4.7 ms LLVM /
+20.2 ms TCC, and `child(root)` adds ~0.6 ms LLVM / 29 ms TCC in this build.
+TCC add-only is already 16.6 ms, over its 10 ms gate.
+
+### Release test path
+
+`scripts/ui-test.sh` now accepts `--release`, builds with `--mode release_fast`,
+and exports `CHEMICAL_UI_RELEASE=1` / `CHEMICAL_UI_TEST_BACKEND`. The debug
+`view` test still passes; release view is expected to exit 1 with a `BLOCKER`
+line until the append/Style-copy gap is engineered down:
+
+```bash
+./scripts/ui-test.sh --llvm --release --filter view
+./scripts/ui-test.sh --tcc --release --filter view
+```

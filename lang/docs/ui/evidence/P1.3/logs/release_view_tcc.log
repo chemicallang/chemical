@@ -1,0 +1,2 @@
+view flat_us=74898 deep_us=126333 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=1 hits=100000 misses=0 node_bytes=96 style_bytes=304
+view release run=0 flat_us=75369 deep_us=121315\nview release run=1 flat_us=70395 deep_us=118184\nview release run=2 flat_us=69670 deep_us=118047\nview release run=3 flat_us=68166 deep_us=117526\nview release run=4 flat_us=67636 deep_us=117750\nview release gate BLOCKER flat_p50=69670 limit=10000\nui-test: FAIL (exit 1)

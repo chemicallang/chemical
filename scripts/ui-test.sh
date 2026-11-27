@@ -17,6 +17,8 @@ EMIT_C=0
 CC_SANITIZE=0
 CONTRACT_CHECK_ONLY=0
 JSON=0
+RELEASE=0
+MODE=debug_quick
 BUILD_DIR="$ROOT/lang/tests/ui/build"
 MOD="$ROOT/lang/tests/ui/chemical.mod"
 EXE=""
@@ -33,6 +35,7 @@ Usage: scripts/ui-test.sh [options]
   --cc-sanitize            With --emit-c: add -fsanitize=address,undefined
   --update-goldens         Export CHEMICAL_UI_UPDATE_GOLDENS=1 for the run
   --contract-check-only    Only run the front-end contract check (no build/run)
+  --release                Build with --mode release_fast (view gate)
   --json                   Print one JSON result object
   --help                   Show this help
 EOF
@@ -52,6 +55,7 @@ while [ $# -gt 0 ]; do
         --update-goldens) export CHEMICAL_UI_UPDATE_GOLDENS=1 ;;
         --contract-check-only) CONTRACT_CHECK_ONLY=1 ;;
         --json) JSON=1 ;;
+        --release) RELEASE=1; MODE=release_fast ;;
         --help|-h) usage; exit 0 ;;
         *) echo "ui-test: unknown argument '$1'" >&2; usage >&2; exit 2 ;;
     esac
@@ -78,6 +82,10 @@ case "$FILTER" in
     *) echo "ui-test: no test matches filter '$FILTER' (P1.3 has scaffold|core|design|geometry|error|arena|keys|view|golden|contract)" >&2; exit 2 ;;
 esac
 
+if [ "$RELEASE" = "1" ]; then
+    export CHEMICAL_UI_RELEASE=1
+fi
+export CHEMICAL_UI_TEST_BACKEND="$BACKEND"
 mkdir -p "$BUILD_DIR"
 BUILD_LOG="$BUILD_DIR/ui-test-build.log"
 RUN_LOG="$BUILD_DIR/ui-test-run.log"
@@ -95,7 +103,7 @@ if [ "$FILTER" = "contract" ]; then
     fi
     rm -rf "$CONTRACT_CHECK_BUILD"
     if ! "$CHECKER" "$CONTRACT_MOD" --check --build-dir "$CONTRACT_CHECK_BUILD" \
-            --mode debug_quick >"$BUILD_LOG" 2>&1; then
+            --mode "$MODE" >"$BUILD_LOG" 2>&1; then
         cat "$BUILD_LOG" >&2
         echo "ui-test: contract check failed ($BACKEND)" >&2
         if [ "$JSON" = "1" ]; then
@@ -114,7 +122,7 @@ if [ "$FILTER" = "contract" ]; then
         if [ "$BACKEND" = "tcc" ]; then
             rm -rf "$CONTRACT_BUILD"
             if ! "$CHECKER" "$CONTRACT_MOD" -o "$CONTRACT_EXE" --build-dir "$CONTRACT_BUILD" \
-                    --mode debug_quick --no-cache >"$BUILD_LOG" 2>&1; then
+                    --mode "$MODE" --no-cache >"$BUILD_LOG" 2>&1; then
                 cat "$BUILD_LOG" >&2
                 echo "ui-test: contract build failed ($BACKEND)" >&2
                 if [ "$JSON" = "1" ]; then
@@ -127,7 +135,7 @@ if [ "$FILTER" = "contract" ]; then
             [ -n "$SANITIZE" ] && SAN_FLAG=("--sanitize=$SANITIZE")
             rm -rf "$CONTRACT_BUILD"
             if ! "$CHECKER" "$CONTRACT_MOD" -o "$CONTRACT_EXE" --build-dir "$CONTRACT_BUILD" \
-                    --mode debug_quick --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
+                    --mode "$MODE" --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
                 cat "$BUILD_LOG" >&2
                 echo "ui-test: contract build failed ($BACKEND)" >&2
                 if [ "$JSON" = "1" ]; then
@@ -174,7 +182,7 @@ if [ "$NO_BUILD" = "0" ]; then
         mkdir -p "$EMIT_DIR"
         if ! "$ROOT/cmake-build-debug/TCCCompiler" "$MOD" --emit-c \
                 -o "$EMIT_DIR/ui_emitc.exe" --build-dir "$EMIT_DIR" \
-                --mode debug_quick >"$BUILD_LOG" 2>&1; then
+                --mode "$MODE" >"$BUILD_LOG" 2>&1; then
             cat "$BUILD_LOG" >&2
             echo "ui-test: C emission failed" >&2
             exit 1
@@ -194,7 +202,7 @@ if [ "$NO_BUILD" = "0" ]; then
         fi
     elif [ "$BACKEND" = "tcc" ]; then
         if ! "$ROOT/cmake-build-debug/TCCCompiler" "$MOD" -o "$EXE" \
-                --mode debug_quick --no-cache >"$BUILD_LOG" 2>&1; then
+                --mode "$MODE" --no-cache >"$BUILD_LOG" 2>&1; then
             cat "$BUILD_LOG" >&2
             echo "ui-test: TCCCompiler build failed" >&2
             exit 1
@@ -203,7 +211,7 @@ if [ "$NO_BUILD" = "0" ]; then
         SAN_FLAG=()
         [ -n "$SANITIZE" ] && SAN_FLAG=("--sanitize=$SANITIZE")
         if ! "$ROOT/cmake-build-debug/Compiler" "$MOD" -o "$EXE" \
-                --mode debug_quick --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
+                --mode "$MODE" --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
             cat "$BUILD_LOG" >&2
             echo "ui-test: Compiler build failed" >&2
             exit 1

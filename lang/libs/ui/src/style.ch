@@ -400,3 +400,116 @@ public struct Style {
         return merged
     }
 }
+
+func dim_equal(a : Dim, b : Dim) : bool {
+    switch(a) {
+        Auto() => { switch(b) { Auto() => return true; default => return false } }
+        Px(x) => { switch(b) { Px(y) => return x == y; default => return false } }
+        Percent(x) => { switch(b) { Percent(y) => return x == y; default => return false } }
+        Fill() => { switch(b) { Fill() => return true; default => return false } }
+    }
+    return false
+}
+
+func pos_equal(a : Position, b : Position) : bool {
+    switch(a) {
+        Relative() => { switch(b) { Relative() => return true; default => return false } }
+        Absolute(t,r,bo,l) => { switch(b) { Absolute(t2,r2,b2,l2) => return dim_equal(t,t2) && dim_equal(r,r2) && dim_equal(bo,b2) && dim_equal(l,l2); default => return false } }
+    }
+    return false
+}
+
+func text_style_equal(a : TextStyle, b : TextStyle) : bool {
+    if(a.family != b.family || a.weight != b.weight || a.italic != b.italic || a.size != b.size || a.line_height != b.line_height || a.letter_spacing != b.letter_spacing || a.tab_size != b.tab_size) { return false }
+    if(!a.family_name.equals(&b.family_name)) { return false }
+    if(a.features.ligatures != b.features.ligatures || a.features.tabular_numbers != b.features.tabular_numbers || a.features.slashed_zero != b.features.slashed_zero || a.features.stylistic_set != b.features.stylistic_set) { return false }
+    return true
+}
+
+public func style_equal(a : &Style, b : &Style) : bool {
+    return a.set_mask == b.set_mask &&
+           (a.f_padding.left == b.f_padding.left && a.f_padding.top == b.f_padding.top && a.f_padding.right == b.f_padding.right && a.f_padding.bottom == b.f_padding.bottom) &&
+           a.f_gap == b.f_gap &&
+           dim_equal(a.f_width, b.f_width) &&
+           dim_equal(a.f_height, b.f_height) &&
+           a.f_min_width == b.f_min_width &&
+           a.f_max_width == b.f_max_width &&
+           a.f_grow == b.f_grow &&
+           a.f_shrink == b.f_shrink &&
+           dim_equal(a.f_basis, b.f_basis) &&
+           a.f_align_items == b.f_align_items &&
+           a.f_justify == b.f_justify &&
+           a.f_align_self == b.f_align_self &&
+           a.f_background == b.f_background &&
+           a.f_foreground == b.f_foreground &&
+           (a.f_border.width == b.f_border.width && a.f_border.color == b.f_border.color) &&
+           a.f_radius == b.f_radius &&
+           a.f_shadow == b.f_shadow &&
+           a.f_opacity == b.f_opacity &&
+           a.f_clip == b.f_clip &&
+           a.f_overflow == b.f_overflow &&
+           a.f_text == b.f_text &&
+           a.f_weight == b.f_weight &&
+           a.f_cursor == b.f_cursor &&
+           a.f_z == b.f_z &&
+           a.f_aspect == b.f_aspect &&
+           pos_equal(a.f_position, b.f_position) &&
+           (a.f_inset.left == b.f_inset.left && a.f_inset.top == b.f_inset.top && a.f_inset.right == b.f_inset.right && a.f_inset.bottom == b.f_inset.bottom) &&
+           a.f_grid_col == b.f_grid_col &&
+           a.f_grid_col_span == b.f_grid_col_span &&
+           a.f_grid_row == b.f_grid_row &&
+           a.f_grid_row_span == b.f_grid_row_span &&
+           a.f_direction == b.f_direction &&
+           text_style_equal(a.f_text_style, b.f_text_style) &&
+           a.f_text_align == b.f_text_align &&
+           a.f_wrap == b.f_wrap &&
+           a.f_max_lines == b.f_max_lines &&
+           a.f_text_overflow == b.f_text_overflow &&
+           a.f_tab_size == b.f_tab_size
+}
+
+public func style_hash(s : &Style) : u64 {
+    var h = s.set_mask
+    h = (h ^ ((s.f_padding.left as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_padding.top as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_padding.right as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_padding.bottom as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_gap as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_min_width as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_max_width as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_grow as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_shrink as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_align_items as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_justify as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_align_self as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_background as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_foreground as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_border.width as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_border.color as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_radius as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_shadow as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_opacity as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_clip as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_overflow as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_text as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_weight as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_cursor as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_z as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_aspect as u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_inset.left as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_inset.top as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_inset.right as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_inset.bottom as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_grid_col as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_grid_col_span as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_grid_row as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_grid_row_span as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_direction as u64)) * 0x100000001b3u64
+    h = (h ^ ((s.f_text_style.size as u64) * 31u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_text_align as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_wrap as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_max_lines as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_text_overflow as u64)) * 0x100000001b3u64
+    h = (h ^ (s.f_tab_size as u64)) * 0x100000001b3u64
+    return h
+}

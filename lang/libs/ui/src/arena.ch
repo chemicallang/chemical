@@ -36,13 +36,15 @@ public struct NodeArena {
     var free : vector<u32>
     var max_nodes : u32
     var live : u32
+    var free_len : u32
 
     public func new(max_nodes : u32) : NodeArena {
         var a = NodeArena {
             slots : vector<ArenaSlot>(),
             free : vector<u32>(),
             max_nodes : max_nodes,
-            live : 0u32
+            live : 0u32,
+            free_len : 0u32
         }
         var cap = max_nodes as size_t
         a.slots.reserve(cap + 1u)
@@ -64,15 +66,20 @@ public struct NodeArena {
 
     public func capacity(&self) : u32 { return self.max_nodes }
     public func len(&self) : u32 { return self.live }
-    public func free_count(&self) : u32 { return self.free.size() as u32 }
+    public func free_count(&self) : u32 { return self.free_len }
 
     func slot_mut(&mut self, index : u32) : *mut ArenaSlot {
         if(index as size_t >= self.slots.size()) { return null }
         return self.slots.get_ptr(index as size_t)
     }
 
+    @inline
     public func insert(&mut self) : Result<NodeId, UiError> {
-        var reused = self.free.pop()
+        var reused = Option.None<u32>()
+        if(self.free_len > 0u32) {
+            reused = self.free.pop()
+            if(reused is Option.Some) { self.free_len = self.free_len - 1u32 }
+        }
         if(reused is Option.Some) {
             var Some(idx) = reused else return Result.Err<NodeId, UiError>(UiError.make(ErrorCode.Internal, "arena free-list corrupt"))
             var slot = self.slot_mut(idx)
@@ -130,6 +137,7 @@ public struct NodeArena {
                 }
                 slot.generation = slot.generation + 1u32
                 self.free.push(idx)
+                self.free_len = self.free_len + 1u32
                 return Result.Ok<Unit, UiError>(Unit{})
             }
         }
@@ -138,12 +146,13 @@ public struct NodeArena {
 
     public func clear(&mut self) {
         self.free.clear()
+        self.free_len = 0u32
         var i : size_t = 1u
         while(i < self.slots.size()) {
             var slot = self.slots.get_ptr(i)
             unsafe {
                 slot.occupied = false
-                if(slot.generation != GEN_MAX) { self.free.push(i as u32) }
+                if(slot.generation != GEN_MAX) { self.free.push(i as u32); self.free_len = self.free_len + 1u32 }
             }
             i = i + 1u
         }

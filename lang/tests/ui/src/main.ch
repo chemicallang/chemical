@@ -124,6 +124,10 @@ func core_checks() : bool {
     return ok
 }
 
+func design_checks() : bool {
+    return design::run()
+}
+
 func golden_checks() : bool {
     var ok = true
     var fixture : string_view = "/home/wakaztahir/work/Chemical/chemical/lang/tests/ui/fixtures/pixels/checker_128.png"
@@ -194,9 +198,10 @@ func golden_checks() : bool {
 func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("scaffold", 8u)) { return scaffold_checks() }
     if(filter.equals_with_len("core", 4u)) { return core_checks() }
+    if(filter.equals_with_len("design", 6u)) { return design_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
-        return scaffold_checks() && core_checks() && golden_checks()
+        return scaffold_checks() && core_checks() && design_checks() && golden_checks()
     }
     unsafe { printf("ui tests: unknown filter\n") }
     return false
@@ -217,6 +222,8 @@ public func main(argc : int, argv : **char) : int {
     if(run_filter(filter)) {
         if(filter.equals_with_len("core", 4u)) {
             unsafe { write(1, "ui core PASS\n" as *void, 13u) }
+        } else if(filter.equals_with_len("design", 6u)) {
+            unsafe { write(1, "ui design PASS\n" as *void, 15u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

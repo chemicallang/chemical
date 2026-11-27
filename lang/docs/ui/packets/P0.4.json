@@ -1,21 +1,92 @@
 {
   "packet": "P0.4",
   "name": "Design spec and exact tokens",
-  "state": "todo",
-  "commands": [],
+  "state": "done",
+  "notes": "P0.4 tokens/reference screens green TCC+LLVM; parent commit/tag pending.",
+  "commands": [
+    {
+      "id": "theme-check",
+      "run": "scripts/ui-gen-theme.sh --check",
+      "artifacts": [
+        "lang/docs/ui/tokens.json",
+        "lang/libs/ui/src/theme.ch"
+      ]
+    },
+    {
+      "id": "design-check",
+      "run": "scripts/ui-gen-design.sh --check",
+      "artifacts": [
+        "lang/docs/ui/design/reference-settings.html",
+        "lang/docs/ui/design/tokens.html"
+      ]
+    },
+    {
+      "id": "design-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter design",
+      "artifacts": [
+        "lang/tests/ui/src/design.ch"
+      ]
+    },
+    {
+      "id": "design-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter design",
+      "artifacts": [
+        "lang/tests/ui/src/design.ch"
+      ]
+    },
+    {
+      "id": "render",
+      "run": "scripts/ui-render-design.sh",
+      "artifacts": [
+        "lang/docs/ui/design/reference-settings.png",
+        "lang/docs/ui/design/reference-dashboard.png",
+        "lang/docs/ui/design/reference-chat.png",
+        "lang/docs/ui/design/tokens.png"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
   "artifacts": [
-    "lang/docs/ui/DESIGN.md"
+    "lang/docs/ui/tokens.json",
+    "lang/libs/ui/src/theme.ch",
+    "lang/docs/ui/GOLDEN-CHURN.md",
+    "lang/docs/ui/design/reference-settings.html",
+    "lang/docs/ui/design/reference-settings.png",
+    "lang/docs/ui/design/reference-dashboard.html",
+    "lang/docs/ui/design/reference-dashboard.png",
+    "lang/docs/ui/design/reference-chat.html",
+    "lang/docs/ui/design/reference-chat.png",
+    "lang/docs/ui/design/reference-dashboard-dark.png",
+    "lang/docs/ui/design/tokens.html",
+    "lang/docs/ui/design/tokens.png",
+    "lang/tests/ui/src/design.ch",
+    "scripts/ui-gen-theme.sh",
+    "scripts/ui-gen-design.sh",
+    "scripts/ui-render-design.sh",
+    "scripts/ui_gen_theme.py",
+    "scripts/ui_gen_design.py"
   ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P0.4",
-    "required": false,
+    "required": true,
     "files": [
-      "REPORT.md"
+      "REPORT.md",
+      "contrast-table.md"
     ]
   },
   "benchmarks": {
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "theme.ch exposes token accessors only until P1.5 style/paint integration",
+    "static reference screens are composition specs until P1.9/P1.10 renderer goldens",
+    "high-contrast missing tokens map to nearest palette values (see tokens.json deviations)"
+  ]
 }

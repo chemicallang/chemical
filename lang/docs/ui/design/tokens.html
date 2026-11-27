@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Chemical UI token sheet</title>
+<style>
+/* Generated from lang/docs/ui/tokens.json. Do not edit. */
+:root {
+  --color-transparent: rgba(0,0,0,0);
+  --color-surface: #F8FAFC;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-sunken: #F1F5F9;
+  --color-surface-overlay: #FFFFFF;
+  --color-on-surface: #0F172A;
+  --color-on-surface-muted: #475569;
+  --color-on-surface-faint: #64748B;
+  --color-primary: #2563EB;
+  --color-on-primary: #FFFFFF;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-pressed: #1E40AF;
+  --color-secondary: #E2E8F0;
+  --color-on-secondary: #0F172A;
+  --color-danger: #DC2626;
+  --color-on-danger: #FFFFFF;
+  --color-success: #15803D;
+  --color-on-success: #FFFFFF;
+  --color-warning: #B45309;
+  --color-on-warning: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+  --color-border-focus: #2563EB;
+  --color-focus-ring: #2563EB;
+  --color-selection: #DBEAFE;
+  --color-scrim: rgba(15,23,42,0.45);
+  --color-chart1: #2563EB;
+  --color-chart2: #0D9488;
+  --color-chart3: #D97706;
+  --color-chart4: #7C3AED;
+  --color-chart5: #DB2777;
+  --color-chart6: #64748B;
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --border-width: 1px;
+  --selected-border-width: 2px;
+  --disabled-opacity: 0.4;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --content-max: 1200px;
+  --prose-max: 65ch;
+  --table-max: 75ch;
+  --min-touch: 24px;
+  --preferred-touch: 44px;
+  --text-display-size: 40px;
+  --text-display-line: 48px;
+  --text-display-weight: 600;
+  --text-display-letter: -0.01em;
+  --text-display-family: var(--font-ui);
+  --text-h1-size: 32px;
+  --text-h1-line: 40px;
+  --text-h1-weight: 700;
+  --text-h1-letter: -0.01em;
+  --text-h1-family: var(--font-ui);
+  --text-h2-size: 24px;
+  --text-h2-line: 32px;
+  --text-h2-weight: 600;
+  --text-h2-letter: -0.01em;
+  --text-h2-family: var(--font-ui);
+  --text-h3-size: 20px;
+  --text-h3-line: 28px;
+  --text-h3-weight: 600;
+  --text-h3-letter: 0em;
+  --text-h3-family: var(--font-ui);
+  --text-h4-size: 16px;
+  --text-h4-line: 24px;
+  --text-h4-weight: 600;
+  --text-h4-letter: 0em;
+  --text-h4-family: var(--font-ui);
+  --text-body-size: 14px;
+  --text-body-line: 20px;
+  --text-body-weight: 400;
+  --text-body-letter: 0em;
+  --text-body-family: var(--font-ui);
+  --text-body-strong-size: 14px;
+  --text-body-strong-line: 20px;
+  --text-body-strong-weight: 600;
+  --text-body-strong-letter: 0em;
+  --text-body-strong-family: var(--font-ui);
+  --text-label-size: 13px;
+  --text-label-line: 18px;
+  --text-label-weight: 500;
+  --text-label-letter: 0em;
+  --text-label-family: var(--font-ui);
+  --text-caption-size: 12px;
+  --text-caption-line: 16px;
+  --text-caption-weight: 400;
+  --text-caption-letter: 0.01em;
+  --text-caption-family: var(--font-ui);
+  --text-code-size: 13px;
+  --text-code-line: 20px;
+  --text-code-weight: 400;
+  --text-code-letter: 0em;
+  --text-code-family: var(--font-mono);
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 999px;
+  --space-none: 0px;
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+  --space-xxxl: 48px;
+  --control-sm: 32px;
+  --control-md: 36px;
+  --control-lg: 40px;
+  --table-row: 36px;
+  --table-header: 40px;
+  --sidebar-lg: 240px;
+  --sidebar-xl: 280px;
+  --shadow-none: none;
+  --shadow-low: 0px 1px 2px 0px rgba(15,23,42,0.08), 0px 1px 1px 0px rgba(15,23,42,0.04);
+  --shadow-medium: 0px 4px 8px 0px rgba(15,23,42,0.08), 0px 2px 4px 0px rgba(15,23,42,0.06);
+  --shadow-high: 0px 12px 24px 0px rgba(15,23,42,0.14), 0px 4px 8px 0px rgba(15,23,42,0.08);
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 240ms;
+  --motion-spring: 220ms;
+  --ease-ease-out: cubic-bezier(0,0,0.2,1);
+  --ease-ease-in: cubic-bezier(0.4,0,1,1);
+  --ease-ease-in-out: cubic-bezier(0.4,0,0.2,1);
+  --bp-sm-max: 639px;
+  --bp-md-min: 640px;
+  --bp-md-max: 1023px;
+  --bp-lg-min: 1024px;
+  --bp-lg-max: 1439px;
+  --bp-xl-min: 1440px;
+  --page-padding: 32px;
+}
+
+[data-theme="dark"] {
+  --color-transparent: rgba(0,0,0,0);
+  --color-surface: #0B1220;
+  --color-surface-raised: #111827;
+  --color-surface-sunken: #020617;
+  --color-surface-overlay: #111827;
+  --color-on-surface: #F8FAFC;
+  --color-on-surface-muted: #CBD5E1;
+  --color-on-surface-faint: #94A3B8;
+  --color-primary: #60A5FA;
+  --color-on-primary: #0B1220;
+  --color-primary-hover: #93C5FD;
+  --color-primary-pressed: #3B82F6;
+  --color-secondary: #1F2937;
+  --color-on-secondary: #F8FAFC;
+  --color-danger: #F87171;
+  --color-on-danger: #0B1220;
+  --color-success: #4ADE80;
+  --color-on-success: #0B1220;
+  --color-warning: #FBBF24;
+  --color-on-warning: #0B1220;
+  --color-border: #1F2937;
+  --color-border-strong: #334155;
+  --color-border-focus: #93C5FD;
+  --color-focus-ring: #93C5FD;
+  --color-selection: #1E3A8A;
+  --color-scrim: rgba(0,0,0,0.6);
+  --color-chart1: #60A5FA;
+  --color-chart2: #2DD4BF;
+  --color-chart3: #FBBF24;
+  --color-chart4: #A78BFA;
+  --color-chart5: #F472B6;
+  --color-chart6: #94A3B8;
+  --focus-width: 2px;
+  --focus-offset: 2px;
+  --border-width: 1px;
+  --shadow-none: none;
+  --shadow-low: 0px 1px 2px 0px rgba(0,0,0,0.35);
+  --shadow-medium: 0px 4px 8px 0px rgba(0,0,0,0.45);
+  --shadow-high: 0px 12px 24px 0px rgba(0,0,0,0.55);
+}
+
+[data-theme="high-contrast"] {
+  --color-transparent: rgba(0,0,0,0);
+  --color-surface: #000000;
+  --color-surface-raised: #000000;
+  --color-surface-sunken: #000000;
+  --color-surface-overlay: #000000;
+  --color-on-surface: #FFFFFF;
+  --color-on-surface-muted: #FFFFFF;
+  --color-on-surface-faint: #FFFFFF;
+  --color-primary: #FFD400;
+  --color-on-primary: #000000;
+  --color-primary-hover: #FFD400;
+  --color-primary-pressed: #FFD400;
+  --color-secondary: #000000;
+  --color-on-secondary: #FFFFFF;
+  --color-danger: #FF6B6B;
+  --color-on-danger: #000000;
+  --color-success: #69F0AE;
+  --color-on-success: #000000;
+  --color-warning: #FFD400;
+  --color-on-warning: #000000;
+  --color-border: #FFFFFF;
+  --color-border-strong: #FFFFFF;
+  --color-border-focus: #FFD400;
+  --color-focus-ring: #FFD400;
+  --color-selection: #FFD400;
+  --color-scrim: rgba(0,0,0,0.85);
+  --color-chart1: #FFD400;
+  --color-chart2: #69F0AE;
+  --color-chart3: #FF6B6B;
+  --color-chart4: #FFFFFF;
+  --color-chart5: #FFD400;
+  --color-chart6: #69F0AE;
+  --focus-width: 3px;
+  --focus-offset: 2px;
+  --border-width: 2px;
+  --shadow-none: none;
+  --shadow-low: none;
+  --shadow-medium: none;
+  --shadow-high: none;
+}
+
+[data-density="compact"] {
+  --space-none: 0px;
+  --space-xxs: 2px;
+  --space-xs: 4px;
+  --space-sm: 6px;
+  --space-md: 10px;
+  --space-lg: 14px;
+  --space-xl: 20px;
+  --space-xxl: 28px;
+  --space-xxxl: 40px;
+  --control-sm: 28px;
+  --control-md: 32px;
+  --control-lg: 36px;
+  --table-row: 32px;
+  --table-header: 36px;
+  --sidebar-lg: 240px;
+  --sidebar-xl: 280px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  width: 1280px; min-height: 800px;
+  background: var(--color-surface);
+  color: var(--color-on-surface);
+  font-family: var(--font-ui);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  overflow: hidden;
+}
+a { color: var(--color-primary); text-decoration: underline; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.app { display: flex; width: 1280px; min-height: 800px; }
+.sidebar {
+  width: var(--sidebar-lg); flex: 0 0 var(--sidebar-lg);
+  background: var(--color-surface-raised);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-lg); display: flex; flex-direction: column;
+  gap: var(--space-lg);
+}
+.main { flex: 1; min-width: 0; padding: var(--page-padding); }
+.brand { display: flex; align-items: center; gap: var(--space-sm); font-weight: 700; }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: var(--color-primary); color: var(--color-on-primary);
+  display: grid; place-items: center; font-size: 14px; font-weight: 700;
+}
+.brand-sub { color: var(--color-on-surface-faint); font-size: var(--text-caption-size); line-height: var(--text-caption-line); }
+.nav { display: flex; flex-direction: column; gap: var(--space-xxs); }
+.nav-label { color: var(--color-on-surface-faint); font-size: var(--text-caption-size); line-height: var(--text-caption-line); letter-spacing: var(--text-caption-letter); text-transform: uppercase; font-weight: 600; margin-top: var(--space-sm); }
+.nav-item {
+  display: flex; align-items: center; gap: var(--space-sm);
+  min-height: var(--control-sm); padding: 0 var(--space-sm);
+  border-radius: var(--radius-sm); color: var(--color-on-surface-muted);
+  text-decoration: none; border: 1px solid transparent;
+}
+.nav-item.active { background: var(--color-selection); color: var(--color-on-surface); font-weight: 600; }
+.nav-item .dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--color-primary); }
+.nav-item .dot.muted { background: var(--color-on-surface-faint); }
+.sidebar-footer {
+  margin-top: auto; border-top: 1px solid var(--color-border); padding-top: var(--space-md);
+  display: flex; align-items: center; gap: var(--space-sm);
+}
+.avatar {
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  background: var(--color-selection); color: var(--color-on-surface);
+}
+.avatar.primary { background: var(--color-primary); color: var(--color-on-primary); }
+.avatar.danger { background: var(--color-danger); color: var(--color-on-danger); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); margin-bottom: var(--space-lg); }
+.title { font-size: var(--text-h1-size); line-height: var(--text-h1-line); font-weight: var(--text-h1-weight); letter-spacing: var(--text-h1-letter); margin: 0; }
+.subtitle { color: var(--color-on-surface-muted); margin: var(--space-xxs) 0 0; }
+.row { display: flex; align-items: center; gap: var(--space-md); }
+.row.wrap { flex-wrap: wrap; }
+.spacer { flex: 1; }
+.search {
+  display: flex; align-items: center; gap: var(--space-sm);
+  min-width: 320px; height: var(--control-md); padding: 0 var(--space-md);
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); color: var(--color-on-surface-faint);
+}
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-sm);
+  min-height: var(--control-md); padding: 0 var(--space-lg);
+  border-radius: var(--radius-md); border: 1px solid var(--color-border-strong);
+  background: var(--color-surface-raised); color: var(--color-on-surface); font-weight: 600;
+}
+.button.primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
+.button.secondary { background: var(--color-secondary); border-color: var(--color-border); color: var(--color-on-secondary); }
+.button.danger { background: var(--color-danger); border-color: var(--color-danger); color: var(--color-on-danger); }
+.button:disabled { opacity: var(--disabled-opacity); }
+.focus-ring { outline: var(--focus-width) solid var(--color-focus-ring); outline-offset: var(--focus-offset); }
+.card {
+  background: var(--color-surface-raised); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-low);
+}
+.card-pad { padding: var(--space-lg); }
+.h2 { font-size: var(--text-h2-size); line-height: var(--text-h2-line); font-weight: var(--text-h2-weight); letter-spacing: var(--text-h2-letter); margin: 0; }
+.h3 { font-size: var(--text-h3-size); line-height: var(--text-h3-line); font-weight: var(--text-h3-weight); margin: 0; }
+.h4 { font-size: var(--text-h4-size); line-height: var(--text-h4-line); font-weight: var(--text-h4-weight); margin: 0; }
+.muted { color: var(--color-on-surface-muted); }
+.faint { color: var(--color-on-surface-faint); }
+.caption { font-size: var(--text-caption-size); line-height: var(--text-caption-line); letter-spacing: var(--text-caption-letter); color: var(--color-on-surface-faint); }
+.label { font-size: var(--text-label-size); line-height: var(--text-label-line); font-weight: var(--text-label-weight); }
+.mono { font-family: var(--font-mono); font-size: var(--text-code-size); line-height: var(--text-code-line); }
+.badge {
+  display: inline-flex; align-items: center; gap: var(--space-xxs);
+  min-height: 22px; padding: 0 var(--space-xs); border-radius: var(--radius-xs);
+  background: var(--color-surface-sunken); color: var(--color-on-surface-muted);
+  font-size: var(--text-caption-size); line-height: var(--text-caption-line); font-size: var(--text-caption-size);
+}
+.badge.success { background: var(--color-success); color: var(--color-on-success); }
+.badge.warning { background: var(--color-warning); color: var(--color-on-warning); }
+.badge.danger { background: var(--color-danger); color: var(--color-on-danger); }
+.badge.primary { background: var(--color-selection); color: var(--color-on-surface); }
+.divider { height: 1px; background: var(--color-border); border: 0; margin: var(--space-md) 0; }
+.field { display: flex; flex-direction: column; gap: var(--space-xs); }
+.field label { font-size: var(--text-label-size); line-height: var(--text-label-line); font-weight: var(--text-label-weight); }
+.input, .select {
+  height: var(--control-md); border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm); background: var(--color-surface);
+  color: var(--color-on-surface); padding: 0 var(--space-md);
+  display: flex; align-items: center;
+}
+.input.invalid { border: 2px solid var(--color-danger); }
+.helper { font-size: var(--text-caption-size); line-height: var(--text-caption-line); color: var(--color-on-surface-faint); }
+.error-text { font-size: var(--text-caption-size); line-height: var(--text-caption-line); color: var(--color-danger); }
+.switch { width: 34px; height: 20px; border-radius: var(--radius-full); background: var(--color-primary); position: relative; }
+.switch::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: var(--radius-full); background: var(--color-on-primary); }
+.switch.off { background: var(--color-border-strong); }
+.switch.off::after { right: auto; left: 2px; background: var(--color-surface-raised); }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; height: var(--table-header); color: var(--color-on-surface-faint); font-size: var(--text-caption-size); font-weight: 600; border-bottom: 1px solid var(--color-border); padding: 0 var(--space-sm); }
+.table td { height: var(--table-row); border-bottom: 1px solid var(--color-border); padding: 0 var(--space-sm); }
+.table tr:last-child td { border-bottom: 0; }
+.progress { height: 8px; border-radius: var(--radius-full); background: var(--color-surface-sunken); overflow: hidden; }
+.progress > span { display: block; height: 100%; border-radius: var(--radius-full); background: var(--color-primary); }
+.metric { font-size: var(--text-h2-size); line-height: var(--text-h2-line); font-weight: 700; letter-spacing: var(--text-h2-letter); }
+.trend-up { color: var(--color-success); font-weight: 600; }
+.trend-down { color: var(--color-danger); font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+
+  body { height: auto; overflow: visible; }
+  .sheet { width: 1280px; min-height: 1500px; padding: 40px 48px; background: var(--color-surface); }
+  .sheet-section { margin-bottom: 32px; padding: 24px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-raised); box-shadow: var(--shadow-low); }
+  .swatch-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .swatches { display: grid; grid-template-columns: 1fr; gap: 4px 12px; margin-top: 8px; }
+  .swatch { display: flex; align-items: center; gap: 6px; min-height: 24px; }
+  .swatch-name { width: 96px; font-size: 12px; }
+  .chip { width: 20px; height: 20px; border-radius: var(--radius-xs); border: 1px solid var(--color-border-strong); flex: 0 0 20px; }
+  .type-ramp { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .type-row { display: grid; grid-template-columns: 1fr 240px; align-items: baseline; border-bottom: 1px solid var(--color-border); padding-bottom: 8px; }
+  .type-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 12px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 32px; margin-top: 12px; }
+  .scale-row { display: flex; align-items: center; gap: 10px; min-height: 28px; }
+  .scale-bar { height: 12px; border-radius: var(--radius-full); display: inline-block; }
+  .density-table { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; border-top: 1px solid var(--color-border); padding-top: 16px; }
+  .density-table > div { display: flex; flex-direction: column; gap: 4px; }
+  .elev-card { height: 42px; display: grid; place-items: center; background: var(--color-surface-raised); border-radius: var(--radius-md); margin: 10px 0; }
+  .focus-demo { display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: var(--radius-sm); background: var(--color-primary); color: var(--color-on-primary); font-weight: 600; margin: 8px 8px 8px 0; }
+  .focus-demo.hc { outline-width: 3px; }
+  .motion-track { width: 360px; height: 12px; background: var(--color-surface-sunken); border-radius: var(--radius-full); overflow: hidden; }
+  .motion-fill { display: block; height: 100%; border-radius: var(--radius-full); }
+</style>
+</style></head>
+<body><main class="sheet">
+<div class="h1" style="font-size:var(--text-display-size);line-height:var(--text-display-line);font-weight:var(--text-display-weight);letter-spacing:var(--text-display-letter);margin-bottom:4px">Chemical UI tokens</div>
+<p class="muted">P0.4 token sheet · light/dark/high-contrast · compact density · exact values from tokens.json.</p>
+<!--__TOKEN_SHEET__-->
+<section class="sheet-section">
+<div class="h2">Color tokens</div><p class="muted">Every ColorToken, by mode. Values are the generated CSS variables.</p>
+<div class="swatch-modes">
+<div class="swatch-column">
+<div class="label">Light</div><div class="swatches">
+<div class="swatch"><span class="chip" style="background:var(--color-transparent)"></span><span class="swatch-name">Transparent</span><span class="mono faint">rgba(0,0,0,0)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface)"></span><span class="swatch-name">Surface</span><span class="mono faint">#F8FAFC</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-raised)"></span><span class="swatch-name">SurfaceRaised</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-sunken)"></span><span class="swatch-name">SurfaceSunken</span><span class="mono faint">#F1F5F9</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-overlay)"></span><span class="swatch-name">SurfaceOverlay</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface)"></span><span class="swatch-name">OnSurface</span><span class="mono faint">#0F172A</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-muted)"></span><span class="swatch-name">OnSurfaceMuted</span><span class="mono faint">#475569</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-faint)"></span><span class="swatch-name">OnSurfaceFaint</span><span class="mono faint">#64748B</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary)"></span><span class="swatch-name">Primary</span><span class="mono faint">#2563EB</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-primary)"></span><span class="swatch-name">OnPrimary</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-hover)"></span><span class="swatch-name">PrimaryHover</span><span class="mono faint">#1D4ED8</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-pressed)"></span><span class="swatch-name">PrimaryPressed</span><span class="mono faint">#1E40AF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-secondary)"></span><span class="swatch-name">Secondary</span><span class="mono faint">#E2E8F0</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-secondary)"></span><span class="swatch-name">OnSecondary</span><span class="mono faint">#0F172A</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-danger)"></span><span class="swatch-name">Danger</span><span class="mono faint">#DC2626</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-danger)"></span><span class="swatch-name">OnDanger</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-success)"></span><span class="swatch-name">Success</span><span class="mono faint">#15803D</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-success)"></span><span class="swatch-name">OnSuccess</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-warning)"></span><span class="swatch-name">Warning</span><span class="mono faint">#B45309</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-warning)"></span><span class="swatch-name">OnWarning</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border)"></span><span class="swatch-name">Border</span><span class="mono faint">#E2E8F0</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-strong)"></span><span class="swatch-name">BorderStrong</span><span class="mono faint">#CBD5E1</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-focus)"></span><span class="swatch-name">BorderFocus</span><span class="mono faint">#2563EB</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-focus-ring)"></span><span class="swatch-name">FocusRing</span><span class="mono faint">#2563EB</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-selection)"></span><span class="swatch-name">Selection</span><span class="mono faint">#DBEAFE</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-scrim)"></span><span class="swatch-name">Scrim</span><span class="mono faint">rgba(15,23,42,0.45)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart1)"></span><span class="swatch-name">Chart1</span><span class="mono faint">#2563EB</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart2)"></span><span class="swatch-name">Chart2</span><span class="mono faint">#0D9488</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart3)"></span><span class="swatch-name">Chart3</span><span class="mono faint">#D97706</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart4)"></span><span class="swatch-name">Chart4</span><span class="mono faint">#7C3AED</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart5)"></span><span class="swatch-name">Chart5</span><span class="mono faint">#DB2777</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart6)"></span><span class="swatch-name">Chart6</span><span class="mono faint">#64748B</span></div>
+</div></div>
+<div class="swatch-column">
+<div class="label">Dark</div><div class="swatches">
+<div class="swatch"><span class="chip" style="background:var(--color-transparent)"></span><span class="swatch-name">Transparent</span><span class="mono faint">rgba(0,0,0,0)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface)"></span><span class="swatch-name">Surface</span><span class="mono faint">#0B1220</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-raised)"></span><span class="swatch-name">SurfaceRaised</span><span class="mono faint">#111827</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-sunken)"></span><span class="swatch-name">SurfaceSunken</span><span class="mono faint">#020617</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-overlay)"></span><span class="swatch-name">SurfaceOverlay</span><span class="mono faint">#111827</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface)"></span><span class="swatch-name">OnSurface</span><span class="mono faint">#F8FAFC</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-muted)"></span><span class="swatch-name">OnSurfaceMuted</span><span class="mono faint">#CBD5E1</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-faint)"></span><span class="swatch-name">OnSurfaceFaint</span><span class="mono faint">#94A3B8</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary)"></span><span class="swatch-name">Primary</span><span class="mono faint">#60A5FA</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-primary)"></span><span class="swatch-name">OnPrimary</span><span class="mono faint">#0B1220</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-hover)"></span><span class="swatch-name">PrimaryHover</span><span class="mono faint">#93C5FD</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-pressed)"></span><span class="swatch-name">PrimaryPressed</span><span class="mono faint">#3B82F6</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-secondary)"></span><span class="swatch-name">Secondary</span><span class="mono faint">#1F2937</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-secondary)"></span><span class="swatch-name">OnSecondary</span><span class="mono faint">#F8FAFC</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-danger)"></span><span class="swatch-name">Danger</span><span class="mono faint">#F87171</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-danger)"></span><span class="swatch-name">OnDanger</span><span class="mono faint">#0B1220</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-success)"></span><span class="swatch-name">Success</span><span class="mono faint">#4ADE80</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-success)"></span><span class="swatch-name">OnSuccess</span><span class="mono faint">#0B1220</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-warning)"></span><span class="swatch-name">Warning</span><span class="mono faint">#FBBF24</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-warning)"></span><span class="swatch-name">OnWarning</span><span class="mono faint">#0B1220</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border)"></span><span class="swatch-name">Border</span><span class="mono faint">#1F2937</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-strong)"></span><span class="swatch-name">BorderStrong</span><span class="mono faint">#334155</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-focus)"></span><span class="swatch-name">BorderFocus</span><span class="mono faint">#93C5FD</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-focus-ring)"></span><span class="swatch-name">FocusRing</span><span class="mono faint">#93C5FD</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-selection)"></span><span class="swatch-name">Selection</span><span class="mono faint">#1E3A8A</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-scrim)"></span><span class="swatch-name">Scrim</span><span class="mono faint">rgba(0,0,0,0.6)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart1)"></span><span class="swatch-name">Chart1</span><span class="mono faint">#60A5FA</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart2)"></span><span class="swatch-name">Chart2</span><span class="mono faint">#2DD4BF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart3)"></span><span class="swatch-name">Chart3</span><span class="mono faint">#FBBF24</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart4)"></span><span class="swatch-name">Chart4</span><span class="mono faint">#A78BFA</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart5)"></span><span class="swatch-name">Chart5</span><span class="mono faint">#F472B6</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart6)"></span><span class="swatch-name">Chart6</span><span class="mono faint">#94A3B8</span></div>
+</div></div>
+<div class="swatch-column">
+<div class="label">High contrast</div><div class="swatches">
+<div class="swatch"><span class="chip" style="background:var(--color-transparent)"></span><span class="swatch-name">Transparent</span><span class="mono faint">rgba(0,0,0,0)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface)"></span><span class="swatch-name">Surface</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-raised)"></span><span class="swatch-name">SurfaceRaised</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-sunken)"></span><span class="swatch-name">SurfaceSunken</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-surface-overlay)"></span><span class="swatch-name">SurfaceOverlay</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface)"></span><span class="swatch-name">OnSurface</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-muted)"></span><span class="swatch-name">OnSurfaceMuted</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-surface-faint)"></span><span class="swatch-name">OnSurfaceFaint</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary)"></span><span class="swatch-name">Primary</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-primary)"></span><span class="swatch-name">OnPrimary</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-hover)"></span><span class="swatch-name">PrimaryHover</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-primary-pressed)"></span><span class="swatch-name">PrimaryPressed</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-secondary)"></span><span class="swatch-name">Secondary</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-secondary)"></span><span class="swatch-name">OnSecondary</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-danger)"></span><span class="swatch-name">Danger</span><span class="mono faint">#FF6B6B</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-danger)"></span><span class="swatch-name">OnDanger</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-success)"></span><span class="swatch-name">Success</span><span class="mono faint">#69F0AE</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-success)"></span><span class="swatch-name">OnSuccess</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-warning)"></span><span class="swatch-name">Warning</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-on-warning)"></span><span class="swatch-name">OnWarning</span><span class="mono faint">#000000</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border)"></span><span class="swatch-name">Border</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-strong)"></span><span class="swatch-name">BorderStrong</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-border-focus)"></span><span class="swatch-name">BorderFocus</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-focus-ring)"></span><span class="swatch-name">FocusRing</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-selection)"></span><span class="swatch-name">Selection</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-scrim)"></span><span class="swatch-name">Scrim</span><span class="mono faint">rgba(0,0,0,0.85)</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart1)"></span><span class="swatch-name">Chart1</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart2)"></span><span class="swatch-name">Chart2</span><span class="mono faint">#69F0AE</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart3)"></span><span class="swatch-name">Chart3</span><span class="mono faint">#FF6B6B</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart4)"></span><span class="swatch-name">Chart4</span><span class="mono faint">#FFFFFF</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart5)"></span><span class="swatch-name">Chart5</span><span class="mono faint">#FFD400</span></div>
+<div class="swatch"><span class="chip" style="background:var(--color-chart6)"></span><span class="swatch-name">Chart6</span><span class="mono faint">#69F0AE</span></div>
+</div></div>
+</div></section>
+<section class="sheet-section">
+<div class="h2">Type ramp</div><p class="muted">System UI stack; mono for code. Sizes and line heights are exact.</p><div class="type-ramp">
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-display-size);line-height:var(--text-display-line);font-weight:var(--text-display-weight);letter-spacing:var(--text-display-letter);font-family:var(--text-display-family)">Aa The quick brown fox</div><div class="type-meta"><b>Display</b><span class="mono faint">40/48 · 600 · -0.01em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-h1-size);line-height:var(--text-h1-line);font-weight:var(--text-h1-weight);letter-spacing:var(--text-h1-letter);font-family:var(--text-h1-family)">Aa The quick brown fox</div><div class="type-meta"><b>H1</b><span class="mono faint">32/40 · 700 · -0.01em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-h2-size);line-height:var(--text-h2-line);font-weight:var(--text-h2-weight);letter-spacing:var(--text-h2-letter);font-family:var(--text-h2-family)">Aa The quick brown fox</div><div class="type-meta"><b>H2</b><span class="mono faint">24/32 · 600 · -0.01em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-h3-size);line-height:var(--text-h3-line);font-weight:var(--text-h3-weight);letter-spacing:var(--text-h3-letter);font-family:var(--text-h3-family)">Aa The quick brown fox</div><div class="type-meta"><b>H3</b><span class="mono faint">20/28 · 600 · 0em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-h4-size);line-height:var(--text-h4-line);font-weight:var(--text-h4-weight);letter-spacing:var(--text-h4-letter);font-family:var(--text-h4-family)">Aa The quick brown fox</div><div class="type-meta"><b>H4</b><span class="mono faint">16/24 · 600 · 0em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-body-size);line-height:var(--text-body-line);font-weight:var(--text-body-weight);letter-spacing:var(--text-body-letter);font-family:var(--text-body-family)">Aa The quick brown fox</div><div class="type-meta"><b>Body</b><span class="mono faint">14/20 · 400 · 0em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-body-strong-size);line-height:var(--text-body-strong-line);font-weight:var(--text-body-strong-weight);letter-spacing:var(--text-body-strong-letter);font-family:var(--text-body-strong-family)">Aa The quick brown fox</div><div class="type-meta"><b>BodyStrong</b><span class="mono faint">14/20 · 600 · 0em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-label-size);line-height:var(--text-label-line);font-weight:var(--text-label-weight);letter-spacing:var(--text-label-letter);font-family:var(--text-label-family)">Aa The quick brown fox</div><div class="type-meta"><b>Label</b><span class="mono faint">13/18 · 500 · 0em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-caption-size);line-height:var(--text-caption-line);font-weight:var(--text-caption-weight);letter-spacing:var(--text-caption-letter);font-family:var(--text-caption-family)">Aa The quick brown fox</div><div class="type-meta"><b>Caption</b><span class="mono faint">12/16 · 400 · 0.01em</span></div></div>
+<div class="type-row"><div class="type-sample" style="font-size:var(--text-code-size);line-height:var(--text-code-line);font-weight:var(--text-code-weight);letter-spacing:var(--text-code-letter);font-family:var(--text-code-family)">Aa The quick brown fox</div><div class="type-meta"><b>Code</b><span class="mono faint">13/20 · 400 · 0em</span></div></div>
+</div></section>
+<section class="sheet-section">
+<div class="h2">Spacing and density</div><p class="muted">8-pt grid; compact scale is audit-allowed. Comfortable and compact are side by side.</p>
+<div class="two-col"><div><div class="label">Comfortable</div>
+<div class="scale-row"><span class="mono faint">None</span><span class="scale-bar" style="width:2px;background:var(--color-primary)"></span><span class="mono">0px</span></div>
+<div class="scale-row"><span class="mono faint">XXS</span><span class="scale-bar" style="width:16px;background:var(--color-primary)"></span><span class="mono">2px</span></div>
+<div class="scale-row"><span class="mono faint">XS</span><span class="scale-bar" style="width:32px;background:var(--color-primary)"></span><span class="mono">4px</span></div>
+<div class="scale-row"><span class="mono faint">SM</span><span class="scale-bar" style="width:64px;background:var(--color-primary)"></span><span class="mono">8px</span></div>
+<div class="scale-row"><span class="mono faint">MD</span><span class="scale-bar" style="width:96px;background:var(--color-primary)"></span><span class="mono">12px</span></div>
+<div class="scale-row"><span class="mono faint">LG</span><span class="scale-bar" style="width:128px;background:var(--color-primary)"></span><span class="mono">16px</span></div>
+<div class="scale-row"><span class="mono faint">XL</span><span class="scale-bar" style="width:192px;background:var(--color-primary)"></span><span class="mono">24px</span></div>
+<div class="scale-row"><span class="mono faint">XXL</span><span class="scale-bar" style="width:256px;background:var(--color-primary)"></span><span class="mono">32px</span></div>
+<div class="scale-row"><span class="mono faint">XXXL</span><span class="scale-bar" style="width:384px;background:var(--color-primary)"></span><span class="mono">48px</span></div>
+</div><div><div class="label">Compact</div>
+<div class="scale-row"><span class="mono faint">None</span><span class="scale-bar" style="width:2px;background:var(--color-chart2)"></span><span class="mono">0px</span></div>
+<div class="scale-row"><span class="mono faint">XXS</span><span class="scale-bar" style="width:16px;background:var(--color-chart2)"></span><span class="mono">2px</span></div>
+<div class="scale-row"><span class="mono faint">XS</span><span class="scale-bar" style="width:32px;background:var(--color-chart2)"></span><span class="mono">4px</span></div>
+<div class="scale-row"><span class="mono faint">SM</span><span class="scale-bar" style="width:48px;background:var(--color-chart2)"></span><span class="mono">6px</span></div>
+<div class="scale-row"><span class="mono faint">MD</span><span class="scale-bar" style="width:80px;background:var(--color-chart2)"></span><span class="mono">10px</span></div>
+<div class="scale-row"><span class="mono faint">LG</span><span class="scale-bar" style="width:112px;background:var(--color-chart2)"></span><span class="mono">14px</span></div>
+<div class="scale-row"><span class="mono faint">XL</span><span class="scale-bar" style="width:160px;background:var(--color-chart2)"></span><span class="mono">20px</span></div>
+<div class="scale-row"><span class="mono faint">XXL</span><span class="scale-bar" style="width:224px;background:var(--color-chart2)"></span><span class="mono">28px</span></div>
+<div class="scale-row"><span class="mono faint">XXXL</span><span class="scale-bar" style="width:320px;background:var(--color-chart2)"></span><span class="mono">40px</span></div>
+</div></div>
+<div class="density-table"><div><b>Comfortable controls</b><span class="mono">32 / 36 / 40</span><span class="faint">table 36 / header 40</span></div><div><b>Compact controls</b><span class="mono">28 / 32 / 36</span><span class="faint">table 32 / header 36</span></div><div><b>Breakpoints</b><span class="mono">Sm &lt;640 · Md 640–1023 · Lg 1024–1439 · Xl ≥1440</span></div></div>
+</section>
+<section class="sheet-section">
+<div class="h2">Radii, elevation, focus</div><div class="three-col">
+<div><div class="label">Radii</div>
+<div class="scale-row"><span class="mono faint">None</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:0px"></span><span class="mono">0px</span></div>
+<div class="scale-row"><span class="mono faint">XS</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:2px"></span><span class="mono">2px</span></div>
+<div class="scale-row"><span class="mono faint">SM</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:4px"></span><span class="mono">4px</span></div>
+<div class="scale-row"><span class="mono faint">MD</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:6px"></span><span class="mono">6px</span></div>
+<div class="scale-row"><span class="mono faint">LG</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:8px"></span><span class="mono">8px</span></div>
+<div class="scale-row"><span class="mono faint">XL</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:12px"></span><span class="mono">12px</span></div>
+<div class="scale-row"><span class="mono faint">Full</span><span style="width:48px;height:22px;background:var(--color-selection);border:1px solid var(--color-border-strong);border-radius:999px"></span><span class="mono">999px</span></div>
+</div><div><div class="label">Elevation</div>
+<div class="elev-card" style="box-shadow:var(--shadow-low)">Low</div>
+<div class="elev-card" style="box-shadow:var(--shadow-medium)">Medium</div>
+<div class="elev-card" style="box-shadow:var(--shadow-high)">High</div>
+</div><div><div class="label">Focus ring</div><div class="focus-demo focus-ring">2px ring / 2px offset</div><div data-theme="high-contrast" class="focus-demo focus-ring hc" style="background:var(--color-surface);color:var(--color-on-surface)">3px ring high contrast</div><div class="caption">FocusRing vs Surface ≥ 3:1 in every mode.</div><button class="button primary" disabled style="margin-top:8px">Disabled 40%</button></div>
+</div></section>
+<section class="sheet-section">
+<div class="h2">Motion</div><p class="muted">120–240 ms, reduced motion collapses to the end state.</p>
+<div class="scale-row"><span class="mono faint">Fast</span><span class="motion-track"><span class="motion-fill" style="width:180.0px;background:var(--color-chart4)"></span></span><span class="mono">120ms</span></div>
+<div class="scale-row"><span class="mono faint">Base</span><span class="motion-track"><span class="motion-fill" style="width:240.0px;background:var(--color-chart4)"></span></span><span class="mono">160ms</span></div>
+<div class="scale-row"><span class="mono faint">Slow</span><span class="motion-track"><span class="motion-fill" style="width:360.0px;background:var(--color-chart4)"></span></span><span class="mono">240ms</span></div>
+<div class="scale-row"><span class="mono faint">Spring</span><span class="motion-track"><span class="motion-fill" style="width:330.0px;background:var(--color-chart4)"></span></span><span class="mono">220ms</span></div>
+<div class="caption">Ease-out cubic-bezier(0,0,0.2,1) · ease-in cubic-bezier(0.4,0,1,1) · ease-in-out cubic-bezier(0.4,0,0.2,1).</div>
+</section>
+</main>
+<script>
+const p = new URLSearchParams(location.search);
+if (p.get("theme")) document.documentElement.dataset.theme = p.get("theme");
+if (p.get("density")) document.documentElement.dataset.density = p.get("density");
+</script>
+</body></html>

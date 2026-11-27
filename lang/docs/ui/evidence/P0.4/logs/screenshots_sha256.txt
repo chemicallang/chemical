@@ -1,0 +1,10 @@
+7da76a8945459d3452b35c0dc077e8dc046c3865eb76d2040abe7466894a65e6  lang/docs/ui/design/reference-chat.png
+7822503866ecac7e870a8bba2dc4d2c2ef08b1fd5d1291b9bd61c34ce00f84d3  lang/docs/ui/design/reference-dashboard-dark.png
+daea2f12619c4d319e19556c53f309a760fe8ee04bc7985daa8123a7f9830e64  lang/docs/ui/design/reference-dashboard.png
+5327796ee5bce81b7c4d7a19f13eff04fe56025df6bf0ac2607cbe21e2150404  lang/docs/ui/design/reference-settings.png
+74774804e426feaf43289f980117c2e47434ab1f002d2bc0bb3503768e3fe591  lang/docs/ui/design/tokens.png
+lang/docs/ui/design/reference-chat.png:           PNG image data, 1280 x 800, 8-bit/color RGB, non-interlaced
+lang/docs/ui/design/reference-dashboard-dark.png: PNG image data, 1280 x 800, 8-bit/color RGB, non-interlaced
+lang/docs/ui/design/reference-dashboard.png:      PNG image data, 1280 x 800, 8-bit/color RGB, non-interlaced
+lang/docs/ui/design/reference-settings.png:       PNG image data, 1280 x 800, 8-bit/color RGB, non-interlaced
+lang/docs/ui/design/tokens.png:                   PNG image data, 1280 x 3245, 8-bit/color RGB, non-interlaced

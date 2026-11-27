@@ -1,0 +1,26 @@
+| Mode | Pair | Ratio | Gate |
+|---|---|---:|---|
+| light | OnSurface/Surface | 17.063:1 | ≥4.5:1 |
+| light | OnSurfaceMuted/Surface | 7.243:1 | ≥4.5:1 |
+| light | OnSurfaceFaint/Surface | 4.548:1 | ≥4.5:1 |
+| light | OnPrimary/Primary | 5.169:1 | ≥4.5:1 |
+| light | OnDanger/Danger | 4.829:1 | ≥4.5:1 |
+| light | OnSuccess/Success | 5.016:1 | ≥4.5:1 |
+| light | OnWarning/Warning | 5.022:1 | ≥4.5:1 |
+| light | FocusRing/Surface | 4.940:1 | ≥3.0:1 |
+| dark | OnSurface/Surface | 17.895:1 | ≥4.5:1 |
+| dark | OnSurfaceMuted/Surface | 12.611:1 | ≥4.5:1 |
+| dark | OnSurfaceFaint/Surface | 7.302:1 | ≥4.5:1 |
+| dark | OnPrimary/Primary | 7.364:1 | ≥4.5:1 |
+| dark | OnDanger/Danger | 6.769:1 | ≥4.5:1 |
+| dark | OnSuccess/Success | 10.745:1 | ≥4.5:1 |
+| dark | OnWarning/Warning | 11.216:1 | ≥4.5:1 |
+| dark | FocusRing/Surface | 10.383:1 | ≥3.0:1 |
+| high-contrast | OnSurface/Surface | 21.000:1 | ≥4.5:1 |
+| high-contrast | OnSurfaceMuted/Surface | 21.000:1 | ≥4.5:1 |
+| high-contrast | OnSurfaceFaint/Surface | 21.000:1 | ≥4.5:1 |
+| high-contrast | OnPrimary/Primary | 14.669:1 | ≥4.5:1 |
+| high-contrast | OnDanger/Danger | 7.567:1 | ≥4.5:1 |
+| high-contrast | OnSuccess/Success | 14.676:1 | ≥4.5:1 |
+| high-contrast | OnWarning/Warning | 14.669:1 | ≥4.5:1 |
+| high-contrast | FocusRing/Surface | 14.669:1 | ≥3.0:1 |

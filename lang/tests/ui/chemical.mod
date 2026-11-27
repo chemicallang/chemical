@@ -8,6 +8,7 @@ import font
 import core
 import image
 import crypto
+import encoding
 import fs
 import path
 import environment

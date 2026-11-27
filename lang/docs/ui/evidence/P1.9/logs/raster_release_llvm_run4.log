@@ -1,0 +1,6 @@
+raster solid10k_us p50=43502 p95=43670
+raster aa10k_us p50=82101 p95=82823
+raster clearfill1080p_us p50=39964 p95=40268
+raster damage200x120_us p50=343 p95=366
+raster FAIL solid-gate
+ui-test: FAIL (exit 1)

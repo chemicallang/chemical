@@ -1,0 +1,2 @@
+ui-verify: STATUS.json matches STATUS.md (100 entries)
+ui-verify: self-test PASS (bad red, good green)

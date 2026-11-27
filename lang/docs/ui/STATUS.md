@@ -21,10 +21,10 @@
 | P1.3b View perf hardening | blocked | 6f69da712 | — | `evidence/P1.3/` | release flat p50 LLVM 10190us / TCC 69670us | 5ms/10ms gate not met; BLOCKER.md |
 | P1.3c View hot path | done | 1672ef2ad | ui-P1.3c | `evidence/P1.3/` | Style 4B/node 96B; release p50 LLVM 6215us / TCC 53865us | gate amended to LLVM 8/12ms; TCC functional; release PASS |
 | P1.3 View builder | done | 1672ef2ad | ui-P1.3 | `evidence/P1.3/` | 100k structural/perf; zero per-node malloc | perf gate amended |
-| P1.4 Reconciler/tree | done | — | — | `evidence/P1.4b/` | 10k differential/state TCC+LLVM+ASAN; reorder p50 LLVM 714us / p95 916us | P1.4b hot path met 1ms gate |
+| P1.4 Reconciler/tree | done | 66a1db9d4 | ui-P1.4 | `evidence/P1.4b/` | 10k differential/state TCC+LLVM+ASAN; reorder p50 LLVM 714us / p95 916us | P1.4b hot path met 1ms gate |
 | P1.4b Reconcile hot path | done | — | — | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
-| P1.5 Style/tokens/themes | done | — | — | `evidence/P1.5/` | Theme/features/resolution TCC+LLVM+ASAN; contrast light 4.548 min; 438 API decls | no token/golden churn |
-| P1.5b Font metrics fixture | done | — | — | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster; P1.6 not started |
+| P1.5 Style/tokens/themes | done | 58dd0b8c5 | ui-P1.5 | `evidence/P1.5/` | Theme/features/resolution TCC+LLVM+ASAN; contrast light 4.548 min; 438 API decls | no token/golden churn |
+| P1.5b Font metrics fixture | done | 58dd0b8c5 | ui-P1.5b | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster; P1.6 not started |
 | P1.6 Layout v1 | todo | — | — | — | — | |
 | P1.7 Layout v2 | todo | — | — | — | — | |
 | P1.8 Display list/painter | todo | — | — | — | — | |

@@ -1,12 +1,87 @@
 {
   "packet": "P1.5b",
   "name": "Font metrics fixture before layout",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "cmap-4 fixed; pinned Liberation Sans OFL asset, deterministic metrics.json, TextContext metrics/wrap/rich tests, TCC/LLVM/ASAN green. No shaping/raster/TTC/cmap-12/composite.",
+  "commands": [
+    {
+      "id": "text-metrics-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter text_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "text-metrics-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter text_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "text-metrics-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter text_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "font-metrics-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter font_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "font-metrics-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter font_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "font-metrics-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter font_metrics",
+      "artifacts": [
+        "lang/tests/ui/src/text.ch"
+      ]
+    },
+    {
+      "id": "metrics-check",
+      "run": "python3 scripts/ui-font-metrics.py --check",
+      "artifacts": [
+        "lang/tests/ui/assets/metrics.json",
+        "lang/tests/ui/assets/fonts/LiberationSans-Regular.ttf"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/font/src/ttf.ch",
+    "lang/libs/font/src/safe.ch",
+    "lang/libs/ui/src/text.ch",
+    "lang/libs/ui/chemical.mod",
+    "lang/tests/ui/src/text.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "scripts/ui-font-metrics.py",
+    "lang/tests/ui/assets/README.md",
+    "lang/tests/ui/assets/fonts.json",
+    "lang/tests/ui/assets/metrics.json",
+    "lang/tests/ui/assets/fonts/LiberationSans-Regular.ttf",
+    "lang/tests/ui/assets/fonts/LiberationSans-OFL.txt",
+    "lang/docs/ui/evidence/P1.5b/REPORT.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.5b",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]

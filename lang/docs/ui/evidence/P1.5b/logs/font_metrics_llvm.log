@@ -1,0 +1,2 @@
+ui text_metrics PASS
+ui-test: PASS (llvm, filter=font_metrics)

@@ -1,12 +1,101 @@
 {
   "packet": "P1.5",
   "name": "Style, tokens, themes",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Complete generated Theme (light/dark/high-contrast, compact, text features, motion, helpers), concrete style resolution, state precedence, merge/padding/default/intern tests, and contrast gates. No token or golden churn.",
+  "commands": [
+    {
+      "id": "style-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter style",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "style-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter style",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "style-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter style",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "theme-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter theme",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "theme-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter theme",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "theme-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter theme",
+      "artifacts": [
+        "lang/tests/ui/src/style.ch"
+      ]
+    },
+    {
+      "id": "design-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter design",
+      "artifacts": [
+        "lang/tests/ui/src/design.ch"
+      ]
+    },
+    {
+      "id": "design-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter design",
+      "artifacts": [
+        "lang/tests/ui/src/design.ch"
+      ]
+    },
+    {
+      "id": "gen-theme",
+      "run": "scripts/ui-gen-theme.sh --check",
+      "artifacts": [
+        "lang/libs/ui/src/theme.ch",
+        "lang/docs/ui/tokens.json"
+      ]
+    },
+    {
+      "id": "gen-design",
+      "run": "scripts/ui-gen-design.sh --check",
+      "artifacts": [
+        "lang/docs/ui/tokens.json"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/theme.ch",
+    "scripts/ui_gen_theme.py",
+    "lang/libs/ui/src/style.ch",
+    "lang/tests/ui/src/style.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/evidence/P1.5/REPORT.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.5",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]

@@ -150,6 +150,18 @@ func reconcile_checks() : bool {
     return reconcile_tests::run()
 }
 
+func style_checks() : bool {
+    return style_tests::run_style()
+}
+
+func theme_checks() : bool {
+    return style_tests::run_theme()
+}
+
+func text_metrics_checks() : bool {
+    return text_tests::run_text_metrics()
+}
+
 func golden_checks() : bool {
     var ok = true
     var fixture : string_view = "/home/wakaztahir/work/Chemical/chemical/lang/tests/ui/fixtures/pixels/checker_128.png"
@@ -227,9 +239,13 @@ func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("keys", 4u)) { return keys_checks() }
     if(filter.equals_with_len("view", 4u)) { return view_checks() }
     if(filter.equals_with_len("reconcile", 9u)) { return reconcile_checks() }
+    if(filter.equals_with_len("style", 5u)) { return style_checks() }
+    if(filter.equals_with_len("theme", 5u)) { return theme_checks() }
+    if(filter.equals_with_len("text_metrics", 12u)) { return text_metrics_checks() }
+    if(filter.equals_with_len("font_metrics", 12u)) { return text_metrics_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
-        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks()
+        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks() && style_checks() && theme_checks() && text_metrics_checks()
     }
     unsafe { printf("ui tests: unknown filter\n") }
     return false
@@ -264,6 +280,12 @@ public func main(argc : int, argv : **char) : int {
             unsafe { write(1, "ui view PASS\n" as *void, 13u) }
         } else if(filter.equals_with_len("reconcile", 9u)) {
             unsafe { write(1, "ui reconcile PASS\n" as *void, 18u) }
+        } else if(filter.equals_with_len("style", 5u)) {
+            unsafe { write(1, "ui style PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("theme", 5u)) {
+            unsafe { write(1, "ui theme PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("text_metrics", 12u) || filter.equals_with_len("font_metrics", 12u)) {
+            unsafe { write(1, "ui text_metrics PASS\n" as *void, 21u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

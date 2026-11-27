@@ -4,6 +4,7 @@ source "src"
 
 import cstd
 import std
+import font
 import core
 import image
 import crypto

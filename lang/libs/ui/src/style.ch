@@ -10,6 +10,8 @@ func text_style_equal(a : TextStyle, b : TextStyle) : bool { if(a.family != b.fa
 @direct_init
 struct StyleData {
     internal var f_padding : Insets
+    internal var f_padding_space : Space
+    internal var f_padding_from_space : bool
     internal var f_gap : Space
     internal var f_width : Dim
     internal var f_height : Dim
@@ -51,7 +53,7 @@ struct StyleData {
 }
 func make_default_style_data() : StyleData {
     return StyleData {
-        f_padding : Insets.zero(), f_gap : Space.None, f_width : Dim.Auto(), f_height : Dim.Auto(), f_min_width : 0.0f, f_max_width : 0.0f, f_grow : 0.0f, f_shrink : 0.0f, f_basis : Dim.Auto(), f_align_items : Align.Start, f_justify : Justify.Start, f_align_self : Align.Start, f_background : ColorToken.Transparent, f_foreground : ColorToken.OnSurface, f_border : Border { width : 0.0f, color : ColorToken.Transparent }, f_radius : Radius.None, f_shadow : Elevation.None, f_opacity : 1.0f, f_clip : false, f_overflow : Overflow.Visible, f_text : TextRole.Body, f_weight : FontWeight.Regular, f_cursor : Cursor.Arrow, f_z : 0i32, f_aspect : 0.0f, f_position : Position.Relative(), f_inset : Insets.zero(), f_grid_col : 0u16, f_grid_col_span : 1u16, f_grid_row : 0u16, f_grid_row_span : 1u16, f_direction : Direction.Auto,
+        f_padding : Insets.zero(), f_padding_space : Space.None, f_padding_from_space : false, f_gap : Space.None, f_width : Dim.Auto(), f_height : Dim.Auto(), f_min_width : 0.0f, f_max_width : 0.0f, f_grow : 0.0f, f_shrink : 0.0f, f_basis : Dim.Auto(), f_align_items : Align.Start, f_justify : Justify.Start, f_align_self : Align.Start, f_background : ColorToken.Transparent, f_foreground : ColorToken.OnSurface, f_border : Border { width : 0.0f, color : ColorToken.Transparent }, f_radius : Radius.None, f_shadow : Elevation.None, f_opacity : 1.0f, f_clip : false, f_overflow : Overflow.Visible, f_text : TextRole.Body, f_weight : FontWeight.Regular, f_cursor : Cursor.Arrow, f_z : 0i32, f_aspect : 0.0f, f_position : Position.Relative(), f_inset : Insets.zero(), f_grid_col : 0u16, f_grid_col_span : 1u16, f_grid_row : 0u16, f_grid_row_span : 1u16, f_direction : Direction.Auto,
         f_text_style : TextStyle { family : FontFamily.Ui, family_name : "", size : 14.0f, weight : FontWeight.Regular, italic : false, line_height : 20.0f / 14.0f, letter_spacing : 0.0f, features : TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, tab_size : 4u8 },
         f_text_align : TextAlign.Start, f_wrap : WrapMode.NoWrap, f_max_lines : 0u16, f_text_overflow : TextOverflow.Clip, f_tab_size : 4u8, set_mask : 0u64
     }
@@ -66,6 +68,8 @@ func style_init() { if(STYLE_COUNT == 0u32) { STYLE_STORE[0] = make_default_styl
 func style_data(id : u32) : StyleData { style_init(); if(id >= STYLE_COUNT) { return STYLE_STORE[0] } return STYLE_STORE[id as size_t] }
 func style_data_equal(a : &StyleData, b : &StyleData) : bool { return (a.set_mask == b.set_mask &&
            (a.f_padding.left == b.f_padding.left && a.f_padding.top == b.f_padding.top && a.f_padding.right == b.f_padding.right && a.f_padding.bottom == b.f_padding.bottom) &&
+           a.f_padding_space == b.f_padding_space &&
+           a.f_padding_from_space == b.f_padding_from_space &&
            a.f_gap == b.f_gap &&
            dim_equal(a.f_width, b.f_width) &&
            dim_equal(a.f_height, b.f_height) &&
@@ -119,6 +123,7 @@ public struct Style {
     public func padding(&self, p : Insets) : Style {
         var d = style_data(self.id)
         d.f_padding = p
+        d.f_padding_from_space = false
         d.set_mask = d.set_mask | (1u64 << 0u64)
         return style_intern(d)
     }
@@ -357,6 +362,8 @@ public struct Style {
     public func padding_all(&self, s : Space) : Style {
         var d = style_data(self.id)
         d.f_padding = Insets.all(space_px(s))
+        d.f_padding_space = s
+        d.f_padding_from_space = true
         d.set_mask = d.set_mask | (1u64 << 0u64)
         return style_intern(d)
     }
@@ -378,7 +385,7 @@ public struct Style {
         style_init()
         var merged = style_data(self.id)
         var overlay_data = style_data(overlay.id)
-        if((overlay_data.set_mask & (1u64 << 0u64)) != 0u64) { merged.f_padding = overlay_data.f_padding; merged.set_mask = merged.set_mask | (1u64 << 0u64) }
+        if((overlay_data.set_mask & (1u64 << 0u64)) != 0u64) { merged.f_padding = overlay_data.f_padding; merged.f_padding_space = overlay_data.f_padding_space; merged.f_padding_from_space = overlay_data.f_padding_from_space; merged.set_mask = merged.set_mask | (1u64 << 0u64) }
         if((overlay_data.set_mask & (1u64 << 1u64)) != 0u64) { merged.f_gap = overlay_data.f_gap; merged.set_mask = merged.set_mask | (1u64 << 1u64) }
         if((overlay_data.set_mask & (1u64 << 2u64)) != 0u64) { merged.f_width = overlay_data.f_width; merged.set_mask = merged.set_mask | (1u64 << 2u64) }
         if((overlay_data.set_mask & (1u64 << 3u64)) != 0u64) { merged.f_height = overlay_data.f_height; merged.set_mask = merged.set_mask | (1u64 << 3u64) }
@@ -424,4 +431,131 @@ public func style_store_size() : u32 { style_init(); return STYLE_COUNT }
 public func style_store_hits() : u32 { return STYLE_HITS }
 public func style_store_misses() : u32 { return STYLE_MISSES }
 public func style_store_overflow() : u32 { return STYLE_OVERFLOW }
+public func style_id(s : Style) : u32 { return s.id_internal() }
+
+public func resolve_color(t : &Theme, token : ColorToken) : Color { return t.color(token) }
+public func resolve_space(t : &Theme, s : Space) : float { return t.space(s) }
+public func resolve_radius(t : &Theme, r : Radius) : float { return t.radius(r) }
+public func resolve_elevation(t : &Theme, e : Elevation) : Shadow { return t.elevation(e) }
+public func resolve_text(t : &Theme, r : TextRole) : TextStyle { return t.text(r) }
+public func resolve_weight(w : FontWeight) : FontWeight { return w }
+public func resolve_density(t : &Theme) : Density { return t.density() }
+
+@direct_init
+public struct ResolvedStyle {
+    var background : Color
+    var foreground : Color
+    var padding : Insets
+    var gap : float
+    var radius : float
+    var border_width : float
+    var border_color : Color
+    var shadow : Shadow
+    var opacity : float
+    var text : TextStyle
+    var text_color : Color
+    var text_role : TextRole
+    var text_weight : FontWeight
+    var width : Dim
+    var height : Dim
+    var min_width : float
+    var max_width : float
+    var grow : float
+    var shrink : float
+    var basis : Dim
+    var align_items : Align
+    var justify : Justify
+    var align_self : Align
+    var overflow : Overflow
+    var clip : bool
+    var cursor : Cursor
+    var z : i32
+    var aspect : float
+    var position : Position
+    var inset : Insets
+    var grid_col : u16
+    var grid_col_span : u16
+    var grid_row : u16
+    var grid_row_span : u16
+    var direction : Direction
+    var text_align : TextAlign
+    var wrap : WrapMode
+    var max_lines : u16
+    var text_overflow : TextOverflow
+    var tab_size : u8
+}
+
+@direct_init
+public struct StyleStateFlags {
+    var hover : bool
+    var focus : bool
+    var pressed : bool
+    var disabled : bool
+    var selected : bool
+    var checked : bool
+    var invalid : bool
+}
+
+@direct_init
+public struct StyleStateSet {
+    var hover : Style
+    var focus : Style
+    var pressed : Style
+    var disabled : Style
+    var selected : Style
+    var checked : Style
+    var invalid : Style
+}
+
+public func state_flags_none() : StyleStateFlags {
+    return StyleStateFlags { hover : false, focus : false, pressed : false, disabled : false,
+        selected : false, checked : false, invalid : false }
+}
+
+public func state_styles_empty() : StyleStateSet {
+    return StyleStateSet { hover : Style.new(), focus : Style.new(), pressed : Style.new(),
+        disabled : Style.new(), selected : Style.new(), checked : Style.new(), invalid : Style.new() }
+}
+
+public func style_resolve(s : Style, t : &Theme) : ResolvedStyle {
+    var d = style_data(s.id_internal())
+    var padding = d.f_padding
+    if(d.f_padding_from_space) { padding = Insets.all(t.space(d.f_padding_space)) }
+    var text = t.text(d.f_text)
+    if((d.set_mask & (1u64 << 32u64)) != 0u64) { text = d.f_text_style }
+    if((d.set_mask & (1u64 << 21u64)) != 0u64) { text.weight = d.f_weight }
+    if((d.set_mask & (1u64 << 37u64)) != 0u64) { text.tab_size = d.f_tab_size }
+    var fg = t.color(d.f_foreground)
+    return ResolvedStyle {
+        background : t.color(d.f_background), foreground : fg,
+        padding : padding, gap : t.space(d.f_gap), radius : t.radius(d.f_radius),
+        border_width : d.f_border.width, border_color : t.color(d.f_border.color),
+        shadow : t.elevation(d.f_shadow), opacity : d.f_opacity,
+        text : text, text_color : fg, text_role : d.f_text, text_weight : text.weight,
+        width : d.f_width, height : d.f_height, min_width : d.f_min_width,
+        max_width : d.f_max_width, grow : d.f_grow, shrink : d.f_shrink,
+        basis : d.f_basis, align_items : d.f_align_items, justify : d.f_justify,
+        align_self : d.f_align_self, overflow : d.f_overflow, clip : d.f_clip,
+        cursor : d.f_cursor, z : d.f_z, aspect : d.f_aspect, position : d.f_position,
+        inset : d.f_inset, grid_col : d.f_grid_col, grid_col_span : d.f_grid_col_span,
+        grid_row : d.f_grid_row, grid_row_span : d.f_grid_row_span,
+        direction : d.f_direction, text_align : d.f_text_align, wrap : d.f_wrap,
+        max_lines : d.f_max_lines, text_overflow : d.f_text_overflow, tab_size : d.f_tab_size
+    }
+}
+
+// Later states win; disabled is the final override. Invalid is above selected/checked.
+public func style_resolve_state(base : Style, states : StyleStateSet, flags : StyleStateFlags, t : &Theme) : ResolvedStyle {
+    var merged = base
+    if(flags.hover) { merged = merged.merge(states.hover) }
+    if(flags.focus) { merged = merged.merge(states.focus) }
+    if(flags.pressed) { merged = merged.merge(states.pressed) }
+    if(flags.selected) { merged = merged.merge(states.selected) }
+    if(flags.checked) { merged = merged.merge(states.checked) }
+    if(flags.invalid) { merged = merged.merge(states.invalid) }
+    if(flags.disabled) { merged = merged.merge(states.disabled) }
+    var r = style_resolve(merged, t)
+    if(flags.disabled) { r.opacity = r.opacity * t.disabled_opacity() }
+    return r
+}
 }

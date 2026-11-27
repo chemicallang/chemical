@@ -23,8 +23,8 @@
 | P1.3 View builder | done | 1672ef2ad | ui-P1.3 | `evidence/P1.3/` | 100k structural/perf; zero per-node malloc | perf gate amended |
 | P1.4 Reconciler/tree | done | — | — | `evidence/P1.4b/` | 10k differential/state TCC+LLVM+ASAN; reorder p50 LLVM 714us / p95 916us | P1.4b hot path met 1ms gate |
 | P1.4b Reconcile hot path | done | — | — | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
-| P1.5 Style/tokens/themes | todo | — | — | — | — | |
-| P1.5b Font metrics fixture | todo | — | — | — | — | |
+| P1.5 Style/tokens/themes | done | — | — | `evidence/P1.5/` | Theme/features/resolution TCC+LLVM+ASAN; contrast light 4.548 min; 438 API decls | no token/golden churn |
+| P1.5b Font metrics fixture | done | — | — | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster; P1.6 not started |
 | P1.6 Layout v1 | todo | — | — | — | — | |
 | P1.7 Layout v2 | todo | — | — | — | — | |
 | P1.8 Display list/painter | todo | — | — | — | — | |

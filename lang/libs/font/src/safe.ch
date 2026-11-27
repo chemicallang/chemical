@@ -15,6 +15,9 @@ public struct FontMetrics {
     var ascent : i32
     var descent : i32
     var line_height : i32
+    var line_gap : i32
+    var cap_height : i32
+    var x_height : i32
     var num_glyphs : u16
 }
 
@@ -60,6 +63,9 @@ func metrics_scaled(f : &Font, font_size : float) : FontMetrics {
         ascent : (f.ascent as float * scale) as i32,
         descent : (-f.descent as float * scale) as i32,
         line_height : (unsafe(raw::font_line_height(unsafe(f as *mut Font))) as float * scale) as i32,
+        line_gap : (f.line_gap() as float * scale) as i32,
+        cap_height : (f.cap_height() as float * scale) as i32,
+        x_height : (f.x_height() as float * scale) as i32,
         num_glyphs : f.num_glyphs
     }
 }

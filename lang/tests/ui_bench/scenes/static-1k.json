@@ -1,0 +1,32 @@
+{
+  "name": "static-1k",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "scale": 1.0,
+  "renderer": "none",
+  "seed": 1,
+  "warmup_frames": 10,
+  "frames": 60,
+  "node_kind": "card",
+  "node_count": 1000,
+  "node_size": {
+    "width": 48.0,
+    "height": 24.0
+  },
+  "overlap": 0.0,
+  "text": false,
+  "font_px": 0,
+  "max_width": 0,
+  "row_height": 0.0,
+  "overscan": 0,
+  "velocity": 0.0,
+  "digit_set": "",
+  "animation": {},
+  "gpu": {
+    "backend": "none",
+    "scene_texture": false
+  },
+  "scene_hash": "d973933015bffb1c7694c2e8a306498302ccb40e6f84992c4d6e5079a467b3a1"
+}

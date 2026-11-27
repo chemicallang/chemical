@@ -18,3 +18,8 @@ extern int check_vararg_promotions(int count, ...) {
     va_end(ap);
     return f == 2.5 && small == -7 && flag == 1 && byte == 200;
 }
+/* P0.2b: top-level @extern stays bare; methods keep the owner prefix. */
+extern int ext_p02b_bare(int x) { return x + 30; }
+extern int main_P02bAlphatext(void *self, int x) { (void)self; return x + 10; }
+extern int main_P02bBetatext(void *self, int x) { (void)self; return x + 20; }
+extern int p02b_explicit_bare(void *self, int x) { (void)self; return x + 40; }

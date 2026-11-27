@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemicallang.org/ui/STATUS.schema.json",
+  "title": "Chemical UI STATUS.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "source", "entries"],
+  "properties": {
+    "schema": {"const": 1},
+    "source": {"const": "lang/docs/ui/STATUS.md"},
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["packet", "label", "state", "commit", "tag", "evidence", "bench", "notes"],
+        "properties": {
+          "packet": {"type": "string", "pattern": "^P[0-9]+(\\.[0-9]+)?[a-z]?$"},
+          "label": {"type": "string"},
+          "state": {"enum": ["todo", "in-progress", "review", "done", "blocked", "deferred"]},
+          "commit": {"type": ["string", "null"]},
+          "tag": {"type": ["string", "null"]},
+          "evidence": {"type": ["string", "null"]},
+          "bench": {"type": ["string", "null"]},
+          "notes": {"type": ["string", "null"]}
+        }
+      }
+    }
+  }
+}

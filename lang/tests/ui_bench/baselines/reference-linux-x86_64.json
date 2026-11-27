@@ -1,0 +1,51 @@
+{
+  "profile": "reference-linux-x86_64",
+  "scenes": {
+    "empty": {
+      "build": "debug_quick",
+      "counters": {
+        "allocs": 0,
+        "commands": 0,
+        "frames": 1,
+        "nodes": 0
+      },
+      "frames": 1,
+      "notes": "scaffold counters; no real timing",
+      "profile": "reference-linux-x86_64",
+      "renderer": "none",
+      "scenario": "empty",
+      "scene_hash": "e6961bb8ee16caec52485fccb756a3a31dad15066735ec8b49ce3e8bfc941d5e"
+    },
+    "list-100k": {
+      "build": "debug_quick",
+      "counters": {
+        "allocs": 0,
+        "commands": 100000,
+        "frames": 2000,
+        "nodes": 100000
+      },
+      "frames": 2000,
+      "notes": "scaffold counters; no real timing",
+      "profile": "reference-linux-x86_64",
+      "renderer": "none",
+      "scenario": "list-100k",
+      "scene_hash": "27eea5dfcafe54214bc54ab7a7e07c0db388b5640cc5312760f6434eed40096a"
+    },
+    "static-1k": {
+      "build": "debug_quick",
+      "counters": {
+        "allocs": 0,
+        "commands": 1000,
+        "frames": 61,
+        "nodes": 1000
+      },
+      "frames": 61,
+      "notes": "scaffold counters; no real timing",
+      "profile": "reference-linux-x86_64",
+      "renderer": "none",
+      "scenario": "static-1k",
+      "scene_hash": "d973933015bffb1c7694c2e8a306498302ccb40e6f84992c4d6e5079a467b3a1"
+    }
+  },
+  "schema": 1
+}

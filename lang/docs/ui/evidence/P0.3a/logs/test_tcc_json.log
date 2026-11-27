@@ -1,0 +1,2 @@
+ui scaffold PASS
+{"suite":"ui","backend":"tcc","filter":"scaffold","status":"pass","tests":1,"exit_code":0}

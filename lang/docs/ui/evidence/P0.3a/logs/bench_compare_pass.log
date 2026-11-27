@@ -1,0 +1,3 @@
+ui-bench: counters within 2% of baseline (4 keys)
+{"scenario":"empty","profile":"scaffold","build":"debug_quick","renderer":"none","frames":1,"counters":{"nodes":0,"commands":0,"allocs":0,"frames":1},"notes":"P0.3a scaffold; P0.3b adds baselines"}
+ui-bench: PASS (empty, tcc)

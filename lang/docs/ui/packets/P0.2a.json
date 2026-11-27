@@ -1,0 +1,14 @@
+{
+  "packet": "P0.2a",
+  "name": "Contract consolidation and front-end check",
+  "state": "done",
+  "commands": [
+    {"id": "contract-tcc", "run": "scripts/ui-test.sh --tcc --filter contract", "artifacts": ["lang/tests/ui/contracts/chemical.mod"]},
+    {"id": "contract-llvm", "run": "scripts/ui-test.sh --llvm --filter contract", "artifacts": ["lang/tests/ui/contracts/chemical.mod"]},
+    {"id": "api-index", "run": "scripts/ui-api-index.sh --check", "artifacts": ["lang/docs/ui/ui_api_index.json"]}
+  ],
+  "artifacts": ["lang/docs/ui/API.md", "lang/docs/ui/CONTRACT_TESTS.md", "lang/docs/ui/contracts/protocol.json", "lang/tests/ui/contracts/src/main.ch"],
+  "evidence": {"dir": "lang/docs/ui/evidence/P0.2", "required": true, "files": ["REPORT.md"]},
+  "benchmarks": {"keys": [], "compare": false},
+  "stubs": ["full TCC link pending P0.2b"]
+}

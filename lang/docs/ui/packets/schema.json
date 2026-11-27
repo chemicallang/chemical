@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemicallang.org/ui/packets/schema.json",
+  "title": "Chemical UI packet manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packet", "name", "state", "commands", "artifacts", "evidence", "benchmarks", "stubs"],
+  "properties": {
+    "packet": {"type": "string", "pattern": "^P[0-9]+(\\.[0-9]+)?[a-z]?$"},
+    "name": {"type": "string", "minLength": 1},
+    "state": {"enum": ["todo", "in-progress", "review", "done", "blocked", "deferred"]},
+    "notes": {"type": "string"},
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "run", "artifacts"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "run": {"type": "string", "minLength": 1},
+          "artifacts": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "evidence": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dir", "required", "files"],
+          "properties": {
+            "dir": {"type": "string", "minLength": 1},
+            "required": {"type": "boolean"},
+            "files": {"type": "array", "items": {"type": "string"}},
+            "commit": {"type": ["string", "null"]},
+            "hashes": {"type": "object", "additionalProperties": {"type": "string"}}
+          }
+        }
+      ]
+    },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["keys", "compare"],
+      "properties": {
+        "keys": {"type": "array", "items": {"type": "string"}},
+        "compare": {"type": "boolean"}
+      }
+    },
+    "stubs": {"type": "array", "items": {"type": "string"}}
+  }
+}

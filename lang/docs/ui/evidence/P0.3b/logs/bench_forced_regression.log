@@ -1,0 +1,1 @@
+ui-bench: nodes: baseline=900 candidate=1000 (regression)

@@ -49,9 +49,19 @@ change construction or equality semantics.
 **Dependency direction is one-way.** `ui` never imports a host, a widget, or the
 debug server. `ui_kit` never imports a host. Hosts never contain widget logic.
 
-App template:
 
-```chemical
+**Namespace ownership (normative).** All declarations in §1–§9 and §11 belong to
+`ui` unless a fence explicitly opens another namespace (`ui_host`, `ui_images`,
+`ui_icons`, `ui_fonts`, `ui_test`). A fence may omit the `public namespace ui {`
+wrapper for readability; the package namespace is implicit. `main`, the app
+template, and the `button(...)` shape are **sample-only** and are not frozen
+declarations. `ui_kit` props/components are catalog-owned (P4); `TableSource`,
+`ItemSource`, and the data-view props in `CATALOG.md` are the exception because
+`ViewBuilder`/`TableSource` are part of the frozen core.
+
+App template (**sample-only, not a frozen declaration**):
+
+```chemical sample
 import ui
 import ui_kit
 import ui_host
@@ -156,7 +166,7 @@ public struct Options {
     var reduced_motion : bool = false
     var vsync : bool = true
     var max_frames : u32 = 0       // 0 = unlimited; headless/testing
-    var limits : Limits = Limits.make()
+    var limits : Limits                 // Options.make() sets Limits.make()
     var theme_override : Option<Theme> = Option.None<Theme>()
     var locale : string_view = "en-US"
     var max_fps : u8 = 0            // 0 = display refresh
@@ -171,7 +181,7 @@ public struct Options {
 
     // Typography. No font is embedded by default. An empty stack means the
     // platform UI stack; see ui_fonts for the optional download/pin package.
-    var font_stack : FontStack       // FontStack.system() by default
+    var font_stack : FontStack       // Options.make() sets FontStack.system()
     var font_file : string_view = ""       // optional app-pinned font
     var font_cache : string_view = ""      // default: platform cache dir
     var font_size_scale : float = 1.0
@@ -381,7 +391,7 @@ platform UI font stack; an app can pin a file, embed a small subset, or fetch an
 OFL font into a cache. Golden tests pin a test font.
 
 ```chemical
-public enum ImageState { Missing, Loading, Ready(ImageHandle), Failed(UiError) }
+public variant ImageState { Missing() Loading() Ready(value : ImageHandle) Failed(err : UiError) }
 public namespace ui_images {
     public func image(path : string_view) : ImageState
     public func image_bytes(bytes : &[u8], hash : u64) : ImageState
@@ -533,6 +543,18 @@ public struct TransformGuard { /* private; drop closes */ }
     var state : Option<WidgetState>; var within : Option<NodeId>
     var all : bool; var limit : u32
 }
+// A component root + named slots. Private; created by `ViewBuilder.component`.
+public struct Component { /* private root + named slots */ }
+
+// Virtualized list source (CATALOG.md §3). `virtual_list` calls only visible
+// + overscan items; extents must be finite and [0, max].
+public interface ItemSource {
+    func count(&self) : size_t
+    func key(&self, index : size_t) : Key
+    func item(&self, b : &mut ViewBuilder, index : size_t) : NodeId
+    func extent(&self, index : size_t) : float
+}
+
 public enum SelectionMode { None, Single, Multiple }
 @direct_init public struct TableColumn {
     var id : string_view; var title : string_view; var width : Dim
@@ -556,6 +578,47 @@ public struct AuditReport { /* findings: code, severity, node_id, source, fix */
 `Screenshot`, `GoldenResult`, `AuditReport`, and `ComponentSpec` are expanded in
 `CATALOG.md`/`PROTOCOL.md`. `UiCtx`/`UiHarness` use these exact names.
 
+### 1.6 Host presenter contract
+
+These types are frozen from `HOST.md` §2. They are public so a host backend can
+implement `Presenter`; the core renderer only consumes the surface/damage.
+
+```chemical
+public struct SurfaceDesc {
+    var width : u32
+    var height : u32
+    var stride : u32
+    var format : SurfaceFormat
+}
+
+public enum SurfaceFormat { Bgra8Premul, Rgba8Premul, Rgba8SrgbPremul }
+
+public struct Surface<'a> {
+    var desc : SurfaceDesc
+    var bytes : usize
+    var data : *mut u8
+}
+
+public interface Presenter {
+    func <'a> acquire(&'a mut self, desc : SurfaceDesc) : Result<Surface<'a>, UiError>
+    func present(&mut self, damage : &[Rect]) : Result<std::Unit, UiError>
+    func resize(&mut self, width : u32, height : u32, scale : float) : Result<std::Unit, UiError>
+    func request_frame(&mut self)
+    func set_cursor(&mut self, c : Cursor)
+    func set_ime_rect(&mut self, r : Rect)
+}
+
+@direct_init
+public struct HostCaps {
+    var partial_present : bool; var vsync : bool; var multi_window : bool
+    var ime : bool; var clipboard_images : bool; var drop_files : bool
+    var native_menus : bool; var notifications : bool; var a11y : bool
+}
+```
+
+`HostCaps` is exposed through `app.info`; `Presenter` is implemented by
+`ui_host` (not by app code). `Surface` is lifetime-bound and cannot be retained.
+
 ---
 
 ## 2. Identity: `NodeId`, `Key`, `CanvasId`
@@ -568,8 +631,8 @@ public struct NodeId {          // private construction; frame-local
 
 public struct Key {                 // private fields; constructors only
     private var hash : u64
-    private var tag : u64
-    private var id : u64
+    private var tag_value : u64
+    private var id_value : u64
 
     public func equals(&self, label : string_view) : bool
     public func equals_key(&self, other : Key) : bool
@@ -681,9 +744,10 @@ Rules:
 - `fragment` has no layout box; `overlay` escapes clips into the window overlay
   root with layer ordering; `component`/`slot` is the only content injection.
 
-Component pattern (plain functions, no trait objects, no macro):
+Component pattern (**sample-only, not a frozen declaration**; the `ui_kit`
+component surface is catalog-owned and lands in P4):
 
-```chemical
+```chemical sample
 public func button(
     b : &mut ViewBuilder,
     key : Key,
@@ -865,7 +929,7 @@ public enum EventKind {
     Click, DoubleClick, ContextMenu,
     Press, Release, PointerMove, PointerEnter, PointerLeave,
     Scroll, KeyDown, KeyUp, TextInput, ImePreedit, ImeCommit,
-    Focus, Blur, Change, Submit, Select, Open, Close,
+    Focus, Blur, Change, Submit, Select, SelectionChanged, TextChanged, Open, Close,
     Drop, DragBegin, DragOver, DragLeave, DragDrop,
     Resize, DpiChange, Timer, Frame, Command, Custom, ImageReady, ImageFailed, FontReady,
     FileChosen, OpenFile, SecondInstance
@@ -890,7 +954,7 @@ public struct Modifiers {
 @direct_init public struct ImePayload {
     var preedit : string_view; var commit : string_view
     var caret : u32; var anchor : u32
-    var replace_start : u32; var replace_end : u32
+    var replace : Range
     var candidate : Option<Rect>
 }
 @direct_init public struct SizePayload { var width : float; var height : float; var scale : float }
@@ -904,7 +968,7 @@ public struct Modifiers {
 @direct_init public struct FramePayload { var now_ms : double; var dt_ms : double }
 @direct_init public struct ValuePayload {
     var kind : u8; var text : string_view; var number : double
-    var range_start : float; var range_end : float
+    var range : Range
     var selected : bool; var checked : bool
 }
 @direct_init public struct FocusPayload { var focused : bool }
@@ -912,6 +976,8 @@ public struct Modifiers {
 @direct_init public struct CommandPayload { var id : CommandId }
 @direct_init public struct ImagePayload { var handle : ImageHandle }
 @direct_init public struct FontPayload { var handle : FontHandle }
+@direct_init public struct TextChangePayload { var range : Range; var inserted : string_view }
+@direct_init public struct SelectionPayload { var range : Range; var selected : bool }
 @direct_init public struct ErrorPayload { var err : UiError }
 @direct_init public struct UserPayload {
     var tag : u64; var a : i64; var b : i64; var text : string_view
@@ -931,6 +997,8 @@ public variant Payload<'a> {
     Timer(value : TimerPayload)
     Frame(value : FramePayload)
     Value(value : ValuePayload)
+    Selection(value : SelectionPayload)
+    TextChange(value : TextChangePayload)
     Focus(value : FocusPayload)
     Index(value : IndexPayload)
     Command(value : CommandPayload)
@@ -996,7 +1064,6 @@ public struct UiCtx {
     public func density(&self) : Density
     public func set_density(&mut self, d : Density)
     public func disabled_opacity(&self) : float
-    public func set_text_scale(&mut self, scale : float)
 
     public func now_ms(&self) : double
     public func frame(&self) : u64
@@ -1218,8 +1285,8 @@ public enum ErrorCode {
 }
 @direct_init
 public struct UiError {                // private fields; @make only
-    private var code : ErrorCode
-    private var class : ErrorClass
+    private var code_value : ErrorCode
+    private var class_value : ErrorClass
     private var detail : ErrorDetail   // static/inline, never a borrowed dynamic view
     private var source : Option<SourceLocation>
     private var retry : RetryHint
@@ -1283,7 +1350,9 @@ Rules:
 The full schema, auth/limits/redaction, CLI commands/exit codes, missing
 methods (`viewport.set`, `hit_test`, `focus.get`, `scroll.get`, `tree.diff`,
 `wait.idle`, `error.list`, `gpu.*`, `fonts.*`), and WASM transport are in
-[`PROTOCOL.md`](PROTOCOL.md). P5.1 commits `protocol.schema.json`.
+[`PROTOCOL.md`](PROTOCOL.md). The **frozen** method/CLI name list is
+[`contracts/protocol.json`](contracts/protocol.json); P5.1 commits the full
+`protocol.schema.json`.
 
 Transport: newline-delimited JSON-RPC 2.0 over TCP on `127.0.0.1`. Discovery:
 the app writes `.chemical/ui/<pid>.json` (mode 0600) containing
@@ -1382,7 +1451,7 @@ public struct UiHarness<'a, A> {
     public func frame(&mut self) : Result<FrameStats, UiError>
     public func advance(&mut self, ms : double) : Result<FrameStats, UiError>
     public func settle(&mut self) : Result<u32, UiError>     // frames; Timeout if unstable
-    public func wait_until(&mut self, pred : fn(&A) => bool, timeout_ms : u32) : Result<std::Unit, UiError>
+    public func wait_until(&mut self, pred : (x : &A) => bool, timeout_ms : u32) : Result<std::Unit, UiError>
 
     public func find_role(&self, role : Role) : Option<NodeId>
     public func find_name(&self, name : string_view) : Option<NodeId>

@@ -1,0 +1,32 @@
+{
+  "name": "empty",
+  "viewport": {
+    "width": 960,
+    "height": 640
+  },
+  "scale": 1.0,
+  "renderer": "none",
+  "seed": 0,
+  "warmup_frames": 0,
+  "frames": 1,
+  "node_kind": "none",
+  "node_count": 0,
+  "node_size": {
+    "width": 0.0,
+    "height": 0.0
+  },
+  "overlap": 0.0,
+  "text": false,
+  "font_px": 0,
+  "max_width": 0,
+  "row_height": 0.0,
+  "overscan": 0,
+  "velocity": 0.0,
+  "digit_set": "",
+  "animation": {},
+  "gpu": {
+    "backend": "none",
+    "scene_texture": false
+  },
+  "scene_hash": "e6961bb8ee16caec52485fccb756a3a31dad15066735ec8b49ce3e8bfc941d5e"
+}

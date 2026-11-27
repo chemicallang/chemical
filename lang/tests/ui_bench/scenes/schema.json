@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "viewport", "scale", "renderer", "seed", "warmup_frames", "frames", "node_kind", "node_count", "scene_hash"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "viewport": {"type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": {"width": {"type": "integer", "minimum": 1}, "height": {"type": "integer", "minimum": 1}}},
+    "scale": {"type": "number", "exclusiveMinimum": 0},
+    "renderer": {"type": "string", "minLength": 1},
+    "seed": {"type": "integer", "minimum": 0},
+    "warmup_frames": {"type": "integer", "minimum": 0},
+    "frames": {"type": "integer", "minimum": 1},
+    "node_kind": {"type": "string", "minLength": 1},
+    "node_count": {"type": "integer", "minimum": 0},
+    "node_size": {"type": "object", "additionalProperties": false, "required": ["width", "height"], "properties": {"width": {"type": "number", "minimum": 0}, "height": {"type": "number", "minimum": 0}}},
+    "overlap": {"type": "number"},
+    "text": {"type": "boolean"},
+    "font_px": {"type": "integer", "minimum": 0},
+    "max_width": {"type": "integer", "minimum": 0},
+    "row_height": {"type": "number", "minimum": 0},
+    "overscan": {"type": "integer", "minimum": 0},
+    "velocity": {"type": "number"},
+    "digit_set": {"type": "string"},
+    "animation": {"type": "object"},
+    "gpu": {"type": "object"},
+    "scene_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

@@ -1,0 +1,2 @@
+ui-lint fixtures: clean=pass bad_key=fail bad_panic=fail bad_raw=fail
+ui-lint: PASS

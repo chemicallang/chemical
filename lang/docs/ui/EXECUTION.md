@@ -592,14 +592,15 @@ outside clip; P: 10k quads command build ≤0.3 ms.
 
 - Premultiplied RGBA8; **sRGB-encoded 8-bit UNORM** blending formula from
   `CONTRACTS.md` §6 (integer `div255`, no float); solid/rounded rects, borders,
-  AA (4×4 coverage), clip rect/rounded; pixel-centre/half-open convention.
+  AA (analytic/16×16 8-bit coverage), clip rect/rounded; pixel-centre/half-open
+  convention.
 - SIMD-friendly loops but scalar reference; no FMA-dependent rounding; tile is
   a scissor, coverage in absolute device coordinates.
 - Fuzz: random rects/clips/radii; invariants (no OOB, alpha bounds, clip, no
   seams at tile edges).
 - V: raster torture scene (overlaps, alpha, radii, thin borders) at 1x/2x;
-  bit-exact goldens on x86-64 and macOS ARM (P0.3a CI job).
-- P: 10k defined quads ≤1.2 ms; 1080p clear+fill ≤1 ms.
+  bit-exact goldens on x86-64; macOS ARM when a runner exists (record BLOCKED otherwise).
+- P: 10k solid quads ≤1.2/2.0 ms; 10k AA quads ≤2.5/6 ms (SSE2), scalar reference ≤15 ms; 1080p clear+fill ≤1 ms.
 
 Acceptance: identical PNG hash across Linux x86-64 and macOS ARM for the
 torture scene (pinned font if text); ASAN clean; V reviewed.

@@ -6,7 +6,7 @@
 
 | Packet | State | Commit | Tag | Evidence | Bench delta | Notes |
 |--------|-------|--------|-----|----------|-------------|-------|
-| P0.1 Feasibility probe | todo | — | — | — | — | |
+| P0.1 Feasibility probe | done | e1c895b0f | ui-P0.1 | `evidence/P0.1/` | raster/GTK/TCC corrected; font cmap + named-fn blockers | |
 | P0.3a Scaffolding/scripts | todo | — | — | — | — | |
 | P0.2 Freeze contracts | todo | — | — | — | — | |
 | P0.3b Test core/bench/lint | todo | — | — | — | — | |

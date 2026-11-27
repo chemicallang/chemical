@@ -1,0 +1,16 @@
+$ gh auth status
+github.com
+  ✓ Logged in to github.com account wakaztahir (/home/wakaztahir/.config/gh/hosts.yml)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+
+$ gh api orgs/chemicallang --jq .login+type
+chemicallang Organization
+
+$ gh api repos/chemicallang/components-e2e --jq .permissions
+{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}
+
+$ gh api user/memberships/orgs/chemicallang --jq .role+state
+admin active

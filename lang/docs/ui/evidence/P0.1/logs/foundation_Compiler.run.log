@@ -1,0 +1,7 @@
+P0.1 application_interface_and_generic_run PASS
+P0.1 application_result_interface PASS
+P0.1 std_function_capture PASS
+P0.1 no_panic_chain PASS
+P0.1 alloc_counter_proxy PASS growths=0
+P0.1 source_location_3_level_generic PASS line=202 direct=275
+P0.1 foundation ALL PASS

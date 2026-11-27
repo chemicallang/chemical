@@ -1,0 +1,13 @@
+File order seed: 15179058898591414354 (set FILE_ORDER_SEED to reproduce)
+[lab] Building executable 'main' at path '/home/wakaztahir/work/Chemical/chemical/lang/tests/ui_probe/build/logs/neg_no_panic.exe'
+[lab] Building module cstd (1 / 4)
+[lab] Building module core (2 / 4)
+[lab] Building module std (3 / 4)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[lab] Building module ui_probe_neg_no_panic (4 / 4)
+[MIR] lowering/emission failed (bad_alloc): SAFE-PANIC-001: function 'bad_alloc' calls 'std_stdvector__cgs__35c625d4c634make', whose effect set is not explicitly [no_panic]
+[2cTranslation] error: MIR lowering failed at /home/wakaztahir/work/Chemical/chemical/lang/tests/ui_probe/negative/no_panic/src/main.ch:4:6
+
+[lab] error: failure during translation to c in the module ui_probe_neg_no_panic
+[lab] error emitting executable, returned status code 1

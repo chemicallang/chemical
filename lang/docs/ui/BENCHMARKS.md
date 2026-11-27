@@ -34,9 +34,10 @@ deterministic counters gate there (see §5).
 
 **Backend policy:** headline frame/startup numbers are for the **LLVM**
 compiler. The **TCCCompiler** path must be fully functional and pass the same
-semantic/geometry/golden suite, with relaxed budgets (cold start ≤250 ms,
-binary ≤4 MB, frame p99 ≤1.5× LLVM). Performance claims name the backend; we do
-not pretend TinyCC-generated code matches LLVM.
+semantic/geometry/golden suite; its gates are cold start ≤250 ms p50, binary
+≤4 MB, and **no frame-p99 gate** (P0.1 measured 5.5–9.2× slower than LLVM on
+tight pixel loops, not 1.5×). TCC is the fast-iteration backend; performance
+claims name LLVM.
 
 ---
 
@@ -46,7 +47,8 @@ not pretend TinyCC-generated code matches LLVM.
 
 | Metric | Budget | Gate |
 |--------|--------|------|
-| Cold start → first presented frame | **≤120 ms p50**, **≤250 ms p99** (breakdown: exec/link ≤30, GTK/host init ≤30, font scan ≤10, tree+layout ≤15, raster+present ≤15; ≤20 ms slack) | release gate |
+| Cold start → first presented frame (GTK3 v1) | **≤220 ms p50 / ≤350 ms p99** (P0.1 measured GTK two-window init 107–210 ms; breakdown: exec/link ≤30, GTK/host ≤130, font ≤15, tree+layout ≤15, raster+present ≤15, slack ≤15) | release gate |
+| Core cold start excluding GTK host (stretch target) | **≤120 ms p50**; requires a lighter X11/Wayland host (P3.2), not GTK | stretch, not a v1 gate |
 | Warm start → first frame | **≤50 ms p50** | release gate |
 | Empty-window PSS (Linux, 960×640 default) | **≤12 MB** (two 960×640 surfaces = 4.9 MB) | release gate |
 | Empty-window PSS (1080p) | **≤24 MB** (two 8.3 MB surfaces) | release gate |
@@ -80,8 +82,9 @@ not pretend TinyCC-generated code matches LLVM.
 | Layout, 100k wide/shallow nodes, cold | **≤40 ms target / ≤60 ms hard** |
 | Single fixed-width label change in 10k (no wrap/auto) | **≤50 µs target / ≤100 µs hard** |
 | Relayouts per hover/click | **≤2 nodes + ancestors** |
-| Paint, 10k solid quads | **≤1.2 ms** |
-| Paint, 10k glyphs | **≤2 ms** cached |
+| Paint, 10k solid/opaque quads (≤16×8 px) | **≤1.2 ms target / ≤2.0 ms hard** (P0.1 scalar 0.96–1.9 ms) |
+| Paint, 10k AA quads (≤16×8 px, ~1.5 Mpx) | **≤2.5 ms target (AVX2/span) / ≤6 ms hard (SSE2)**; scalar reference ≤15 ms (P0.1: 10.6 ms scalar, 5.1 ms SSE2) |
+| Paint, 10k glyphs (8×10 px bbox, cached) | **≤2 ms**; 16×16 stamps are reference-only ≤13 ms (P0.1: 6.7 ms text-order) |
 | Text shaping, 1k glyphs | **≤0.4 ms** cached, **≤4 ms** cold; 2k-char paragraph re-shape ≤2 ms |
 | Text measure cache hit | **≥99%** in scroll/typing scenarios |
 | Allocation in steady-state frame | **0** process-allocator calls after warm-up; cold/text/atlas high-water reported separately |
@@ -118,7 +121,7 @@ CPU path remains the correctness reference.
 | GPU device init → first frame | **≤80 ms** (cached shaders/pipelines) |
 | 4K full repaint, 1k nodes | **≤4 ms p99** @60; **≤6 ms p99** @120 |
 | 4K damage repaint (hover/typing) | **≤1.5 ms p99** including the full-surface blit; ≤0.2 ms if only the damage rect is blitted |
-| 10k quads | **≤0.3 ms GPU** (same scene as CPU ≤1.2 ms) |
+| 10k quads | **≤0.3 ms GPU** (CPU AA hard gate is ≤6 ms) |
 | 100k glyphs, cached atlas | **≤1.5 ms GPU** |
 | 1k shadows/blurred layers | **≤1 ms GPU** (same scene as CPU ≤2 ms) |
 | GPU memory (textures/buffers) | **≤64 MB at 1080p**, **≤160 MB at 4K** (scene texture + 2 swapchain images + atlas); layer/image allocations count inside the total |

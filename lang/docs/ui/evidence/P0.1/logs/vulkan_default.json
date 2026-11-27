@@ -1,0 +1,40 @@
+{
+  "icd_env": null,
+  "loader": "libvulkan.so.1",
+  "instance": true,
+  "devices": [
+    {
+      "index": 0,
+      "name": "AMD Radeon Graphics (RADV RENOIR)",
+      "api": "1.4.335",
+      "driver_version": 109051912,
+      "vendor_id": "0x1002",
+      "device_id": "0x15e7",
+      "device_type": "integrated",
+      "queue_families": 5,
+      "queue0_flags": 1,
+      "graphics_queue": true
+    },
+    {
+      "index": 1,
+      "name": "llvmpipe (LLVM 21.1.8, 256 bits)",
+      "api": "1.4.335",
+      "driver_version": 109051912,
+      "vendor_id": "0x10005",
+      "device_id": "0x0000",
+      "device_type": "cpu",
+      "queue_families": 1,
+      "queue0_flags": 1,
+      "graphics_queue": true
+    }
+  ],
+  "device_created": true,
+  "pipeline_cache_bytes": 36,
+  "init_ms": 27.313,
+  "notes": [],
+  "chosen": "AMD Radeon Graphics (RADV RENOIR)",
+  "pipeline_cache_created": true,
+  "loader_load_ms": 0.132,
+  "instance_enum_ms": 27.144,
+  "device_cache_ms": 0.044
+}

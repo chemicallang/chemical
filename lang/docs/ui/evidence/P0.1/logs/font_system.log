@@ -1,0 +1,17 @@
+fc-list total: 464
+families: 243
+lang=en fonts=207 match=/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf
+lang=zh fonts=31 match=/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf
+lang=ja fonts=31 match=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+lang=ko fonts=30 match=/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+lang=ar fonts=12 match=/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf
+lang=he fonts=20 match=/usr/share/fonts/truetype/noto/NotoSansHebrew-Regular.ttf
+lang=th fonts=6 match=/usr/share/fonts/truetype/noto/NotoSansThai-Regular.ttf
+lang=hi fonts=4 match=/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf
+emoji: 1 match=/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf
+--- latin/cjk/emoji paths ---
+Noto Sans /usr/share/fonts/truetype/noto/NotoSans-Regular.ttf
+Noto Sans /usr/share/fonts/truetype/noto/NotoSans-Regular.ttf
+Noto Color Emoji /usr/share/fonts/truetype/noto/NotoColorEmoji.ttf
+--- ttc/otf count ---
+ttc=30 otf=36 ttf=398

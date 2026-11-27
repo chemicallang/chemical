@@ -1,0 +1,8 @@
+P0.1 application_interface_and_generic_run PASS
+0x70499eea616c: at ???: RUNTIME ERROR: abort() called
+0x70499ee45b7e: by ???
+0x70499ee288ec: by ???
+<string>:48: by __chc_panic
+<string>:14220: by std_raw_panic
+<string>:9025: by std_stdstringresize_heap
+panic: couldn't realloc in std::string -> resize_heap at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/string.ch:339:22

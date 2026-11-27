@@ -1,0 +1,21 @@
+P0.1 raster prototype: 1920x1080 RGBA8, 11 iterations, scalar C -O2
+VmHWM:	   18212 kB
+VmRSS:	   18212 kB
+clear_1080p                  memset 8.3 MB transparent      min=   0.139 ms  med=   0.157 ms  max=   1.005 ms  13232.93 Mpx/s
+fill_1080p_opaque            solid color 8.3 MB             min=   0.370 ms  med=   0.376 ms  max=   0.419 ms  5514.53 Mpx/s
+aa_quads_10k_small           100x100 grid, ~16x8 px each    min=  10.616 ms  med=  10.649 ms  max=  10.708 ms  118.66 Mpx/s
+aa_quads_1k_small            100x10 grid, ~16x8 px each     min=   1.061 ms  med=   1.066 ms  max=   1.077 ms  118.59 Mpx/s
+aa_quads_10k_medium          10k x 48x24 (overlapping)      min=  61.159 ms  med=  64.515 ms  max=  65.870 ms  178.56 Mpx/s
+aa_quads_10k_4x4             same grid, 16 samples/pixel    min=  34.809 ms  med=  36.527 ms  max=  38.429 ms  34.59 Mpx/s
+aa_quads_10k_simd            same grid, SSE2 interior span  min=   5.064 ms  med=   5.118 ms  max=   5.223 ms  246.90 Mpx/s
+aa_quads_10k_medium_simd     10k x 48x24, SSE2 interior     min=  15.025 ms  med=  15.453 ms  max=  15.713 ms  745.50 Mpx/s
+aa_quads_10k_opaque          same grid, opaque 32-bit interior min=   5.222 ms  med=   5.265 ms  max=   5.308 ms  240.01 Mpx/s
+glyph_blits_5k               16x16 alpha stamps             min=   3.901 ms  med=   3.953 ms  max=   4.719 ms  323.78 Mpx/s
+glyph_blits_10k              16x16 alpha stamps             min=   7.616 ms  med=   7.857 ms  max=  27.065 ms  325.81 Mpx/s
+glyph_blits_5k_seq           text-order 16x16 stamps        min=   3.352 ms  med=   3.371 ms  max=   3.421 ms  379.71 Mpx/s
+glyph_blits_10k_seq          text-order 16x16 stamps        min=   6.613 ms  med=   6.665 ms  max=   6.715 ms  384.10 Mpx/s
+damage_blit_full             1080p frame copy               min=   0.524 ms  med=   0.879 ms  max=   1.205 ms  2357.87 Mpx/s
+damage_blit_200x120          24k pixels                     min=   0.002 ms  med=   0.002 ms  max=   0.011 ms  12042.14 Mpx/s
+solid_quads_10k              ~15x7 px each                  min=   0.959 ms  med=   0.966 ms  max=   0.992 ms  1086.57 Mpx/s
+VmHWM:	   18276 kB
+VmRSS:	   18276 kB

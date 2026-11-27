@@ -1,0 +1,2 @@
+P0.1 embedded asset from a library
+second line

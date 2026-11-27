@@ -80,9 +80,44 @@ public struct Options {
     @make @extern func make() : Options
 }
 
-@direct_init public struct Point { var x : float; var y : float }
-@direct_init public struct Rect { var x : float; var y : float; var w : float; var h : float }
-@direct_init public struct Transform2D { var m : [6]float }
+@direct_init public struct Point {
+    var x : float; var y : float
+    @extern public func zero() : Point
+    @extern public func new(x : float, y : float) : Point
+    @extern public func add(&self, other : Point) : Point
+    @extern public func sub(&self, other : Point) : Point
+    @extern public func scale(&self, s : float) : Point
+    @extern public func length(&self) : float
+    @extern public func distance(&self, other : Point) : float
+    @extern public func lerp(&self, other : Point, t : float) : Point
+    @extern public func is_finite(&self) : bool
+}
+@direct_init public struct Rect {
+    var x : float; var y : float; var w : float; var h : float
+    @extern public func zero() : Rect
+    @extern public func new(x : float, y : float, w : float, h : float) : Rect
+    @extern public func from_ltrb(left : float, top : float, right : float, bottom : float) : Rect
+    @extern public func x2(&self) : float
+    @extern public func y2(&self) : float
+    @extern public func contains(&self, p : Point) : bool
+    @extern public func intersects(&self, other : Rect) : bool
+    @extern public func intersection(&self, other : Rect) : Option<Rect>
+    @extern public func union(&self, other : Rect) : Rect
+    @extern public func inset(&self, i : Insets) : Rect
+    @extern public func offset(&self, dx : float, dy : float) : Rect
+    @extern public func area(&self) : float
+    @extern public func is_finite(&self) : bool
+}
+@direct_init public struct Transform2D {
+    var m : [6]float
+    @extern public func identity() : Transform2D
+    @extern public func translate(tx : float, ty : float) : Transform2D
+    @extern public func scale(sx : float, sy : float) : Transform2D
+    @extern public func rotate(radians : float) : Transform2D
+    @extern public func multiply(&self, other : Transform2D) : Transform2D
+    @extern public func transform_point(&self, p : Point) : Point
+    @extern public func is_finite(&self) : bool
+}
 @direct_init public struct Shadow { var x : float; var y : float; var blur : float; var spread : float; var color : Color }
 @direct_init public struct TextSpan {
     var text : string_view; var role : TextRole; var color : ColorToken
@@ -428,9 +463,34 @@ public enum Overflow { Visible, Clip, Scroll }
 public enum Align { Start, Center, End, Stretch, Baseline }
 public enum Justify { Start, Center, End, SpaceBetween, SpaceAround, SpaceEvenly }
 public enum Axis { Horizontal, Vertical, Both }
-@direct_init public struct Color { var r : u8; var g : u8; var b : u8; var a : u8 }
+@direct_init public struct Color {
+    var r : u8; var g : u8; var b : u8; var a : u8
+    @extern public func new(r : u8, g : u8, b : u8) : Color
+    @extern public func rgba(r : u8, g : u8, b : u8, a : u8) : Color
+    @extern public func from_u32(v : u32) : Color
+    @extern public func to_u32(&self) : u32
+    @extern public func with_alpha(&self, alpha : u8) : Color
+    @extern public func premultiply(&self) : Color
+    @extern public func unpremultiply(&self) : Color
+    @extern public func lerp(&self, other : Color, t : float) : Color
+    @extern public func over(&self, dst : Color) : Color
+    @extern public func relative_luminance(&self) : f64
+    @extern public func contrast_ratio(&self, other : Color) : f64
+    @extern public func is_opaque(&self) : bool
+    @extern public func to_premul_u32(&self) : u32
+}
 public variant Dim { Auto() Px(value : float) Percent(value : float) Fill() }
-@direct_init public struct Size { var width : float; var height : float }
+@direct_init public struct Size {
+    var width : float; var height : float
+    @extern public func zero() : Size
+    @extern public func new(width : float, height : float) : Size
+    @extern public func add(&self, other : Size) : Size
+    @extern public func sub(&self, other : Size) : Size
+    @extern public func max(&self, other : Size) : Size
+    @extern public func min(&self, other : Size) : Size
+    @extern public func area(&self) : float
+    @extern public func is_finite(&self) : bool
+}
 public enum Direction { Auto, Ltr, Rtl }
 public enum TextAlign { Start, Center, End, Justify }
 public enum WrapMode { NoWrap, Wrap, WrapReverse }
@@ -439,7 +499,15 @@ public variant Position { Relative() Absolute(top : Dim, right : Dim, bottom : D
 public enum WidgetState { Hover, Focus, Pressed, Disabled, Selected, Checked, Invalid }
 public enum OverlayLayer { Tooltip, Popover, Menu, Dialog, Toast }
 public variant ScrollAnchor { Start() End() Center() Node(key : Key) }
-@direct_init public struct Insets { var left : float; var top : float; var right : float; var bottom : float }
+@direct_init public struct Insets {
+    var left : float; var top : float; var right : float; var bottom : float
+    @extern public func zero() : Insets
+    @extern public func all(v : float) : Insets
+    @extern public func symmetric(horizontal : float, vertical : float) : Insets
+    @extern public func horizontal(v : float) : Insets
+    @extern public func vertical(v : float) : Insets
+    @extern public func is_finite(&self) : bool
+}
 @direct_init public struct Border { var width : float; var color : ColorToken }
 public struct Style {
     @extern public func new() : Style
@@ -774,13 +842,23 @@ public enum ErrorCode {
 public struct UiError {
     private var code_value : ErrorCode
     private var class_value : ErrorClass
-    private var detail : ErrorDetail
-    private var source : Option<SourceLocation>
-    private var retry : RetryHint
+    private var detail_value : ErrorDetail
+    private var source_value : Option<SourceLocation>
+    private var retry_value : RetryHint
     @make @extern func make(code : ErrorCode, message : &'static str) : UiError
     @extern public func code(&self) : ErrorCode
     @extern public func class(&self) : ErrorClass
+    @extern public func retry_hint(&self) : RetryHint
+    @extern public func detail(&self) : &ErrorDetail
+    @extern public func source(&self) : Option<SourceLocation>
+    @extern public func with_source(&self, loc : SourceLocation) : UiError
+    @extern public func with_retry(&self, hint : RetryHint) : UiError
 }
+
+@extern public func classify(code : ErrorCode) : ErrorClass
+@extern public func <T> ok(value : T) : Result<T, UiError>
+@extern public func <T> err(error : UiError) : Result<T, UiError>
+@extern public func <T, U> map(r : Result<T, UiError>, f : (x : T) => U) : Result<U, UiError>
 
 // ── 1.3 Backend selection ──────────────────────────────────────────────────
 @extern public func gpu_info() : GpuInfo

@@ -83,9 +83,6 @@ const UI_BORDER_WIDTH_HC : u32 = 2u32
 const UI_DISABLED_OPACITY : float = 0.4f
 
 @direct_init
-public struct Color { var r : u8; var g : u8; var b : u8; var a : u8 }
-
-@direct_init
 public struct Shadow {
     var x : float; var y : float; var blur : float; var spread : float; var color : Color
 }

@@ -26,7 +26,7 @@ usage() {
 Usage: scripts/ui-test.sh [options]
 
   --tcc | --llvm           Backend (default: --tcc)
-  --filter <tag|glob>      scaffold | core | design | golden | contract (default: scaffold)
+  --filter <tag|glob>      scaffold | core | design | geometry | error | golden | contract (default: scaffold)
   --no-build               Use an existing build artifact
   --sanitize=<list>        LLVM only: address,undefined (rejected on TCC)
   --emit-c                 TCC: emit C and compile it with the system cc
@@ -73,9 +73,9 @@ if [ "$BACKEND" = "llvm" ] && [ -n "$SANITIZE" ]; then
     fi
 fi
 case "$FILTER" in
-    ""|scaffold|scaffold*|"*"|core|core*|design|design*|golden|golden*) FILTER="${FILTER:-scaffold}" ;;
+    ""|scaffold|scaffold*|"*"|core|core*|design|design*|geometry|geometry*|error|error*|golden|golden*) FILTER="${FILTER:-scaffold}" ;;
     contract|contract*) FILTER=contract ;;
-    *) echo "ui-test: no test matches filter '$FILTER' (P0.4 has scaffold|core|design|golden|contract)" >&2; exit 2 ;;
+    *) echo "ui-test: no test matches filter '$FILTER' (P1.1 has scaffold|core|design|geometry|error|golden|contract)" >&2; exit 2 ;;
 esac
 
 mkdir -p "$BUILD_DIR"
@@ -228,6 +228,8 @@ fi
 EXPECT="ui scaffold PASS"
 if [ "$FILTER" = "core" ]; then EXPECT="ui core PASS"; fi
 if [ "$FILTER" = "design" ]; then EXPECT="ui design PASS"; fi
+if [ "$FILTER" = "geometry" ]; then EXPECT="ui geometry PASS"; fi
+if [ "$FILTER" = "error" ]; then EXPECT="ui error PASS"; fi
 if [ "$FILTER" = "golden" ]; then EXPECT="ui golden PASS"; fi
 if [ "$rc" -ne 0 ] || ! grep -q "$EXPECT" "$RUN_LOG"; then
     if [ "$JSON" = "1" ]; then

@@ -1,0 +1,3 @@
+ui-bench: counters within 2% of baseline (4 keys)
+{"scenario":"empty","profile":"reference-linux-x86_64","build":"debug_quick","renderer":"none","scene_hash":"e6961bb8ee16caec52485fccb756a3a31dad15066735ec8b49ce3e8bfc941d5e","frames":1,"counters":{"nodes":0,"commands":0,"allocs":0,"frames":1},"notes":"scaffold counters; no real timing"}
+ui-bench: PASS (empty, llvm)

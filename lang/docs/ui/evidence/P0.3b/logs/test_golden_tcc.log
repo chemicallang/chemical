@@ -1,0 +1,2 @@
+ui golden PASS
+ui-test: PASS (tcc, filter=golden)

@@ -1,0 +1,32 @@
+{
+  "name": "list-100k",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "scale": 1.0,
+  "renderer": "none",
+  "seed": 2,
+  "warmup_frames": 10,
+  "frames": 2000,
+  "node_kind": "table-row",
+  "node_count": 100000,
+  "node_size": {
+    "width": 1920.0,
+    "height": 28.0
+  },
+  "overlap": 0.0,
+  "text": true,
+  "font_px": 13,
+  "max_width": 1920,
+  "row_height": 28.0,
+  "overscan": 8,
+  "velocity": -1200.0,
+  "digit_set": "0123456789",
+  "animation": {},
+  "gpu": {
+    "backend": "none",
+    "scene_texture": false
+  },
+  "scene_hash": "27eea5dfcafe54214bc54ab7a7e07c0db388b5640cc5312760f6434eed40096a"
+}

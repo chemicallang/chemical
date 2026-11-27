@@ -6,10 +6,13 @@ No runtime stub ships without a row here. A row names the packet that removes it
 |------|----------|-----------|------------|--------|
 | `ui-shot.sh` | `scripts/ui-shot.sh` | Validates arguments, exits **78** (`EX_CONFIG`), writes **no** image. | P1.10 | declared |
 | Scaffold markers | `lang/libs/ui*/src/*.ch` | `__ui_scaffold*()` returns the API version; no UI API. | P0.2 (contracts), then P1.1–P1.14 | declared |
-| `ui-test.sh` filter | `scripts/ui-test.sh` | Only `scaffold` exists; other filters exit 2. | P0.3b | declared |
-| `ui-api-index` exact duplicate | `scripts/ui-api-index.sh` | Records identical duplicates (`UiCtx.set_text_scale` in API.md); conflicting duplicates are fatal. | P0.2 | declared |
-| Bench baseline | `lang/tests/ui_bench/baselines/` | P0.3a has no baseline; `--compare` refuses with exit 3. | P0.3b | declared |
-| Contract snippets | `lang/tests/ui/contracts/` | README only. | P0.2 | declared |
-| Test assets | `lang/tests/ui/assets/` | README only. | P1.5b / P1.9 / P1.10 | declared |
+| `ui_test_core` | `lang/tests/ui/src/core.ch` | Test-only tree, settle, snapshots, golden compare; not the production `UiHarness`. | P6.1 | declared |
+| Bench scaffold counters | `lang/tests/ui_bench/src/main.ch` | `renderer:"none"`, deterministic counters, no frame timing. | P1.10 | declared |
+| Golden fixture | `lang/tests/ui/fixtures/pixels/` | 128×128 checker proves image encode/decode; not a renderer golden. | P1.9/P1.10 (first real goldens) | declared |
+| Minimal lint | `scripts/ui-lint.sh` | `UI-KEY-001`, `UI-PANIC-001`, `UI-RAW-001` only. | P5.9 | declared |
+| API-index identical duplicate | `scripts/ui-api-index.sh` | Exact duplicate declarations are recorded; conflicting duplicates are fatal. | P0.2 fixed the API duplicate; keep the detector | declared |
 
 `ui_lint` is a normal library until P5.9 decides the CBI lint-plugin shape.
+`ui-shot` writes no fake image; its 78 exit is the only shipped runtime stub.
+`ui-bench --update-baseline` requires `CHEMICAL_UI_UPDATE_BASELINE=1` and is a
+parent-approved data change, not a normal test action.

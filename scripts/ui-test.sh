@@ -26,7 +26,7 @@ usage() {
 Usage: scripts/ui-test.sh [options]
 
   --tcc | --llvm           Backend (default: --tcc)
-  --filter <tag|glob>      scaffold | contract (default: scaffold)
+  --filter <tag|glob>      scaffold | core | golden | contract (default: scaffold)
   --no-build               Use an existing build artifact
   --sanitize=<list>        LLVM only: address,undefined (rejected on TCC)
   --emit-c                 TCC: emit C and compile it with the system cc
@@ -73,9 +73,9 @@ if [ "$BACKEND" = "llvm" ] && [ -n "$SANITIZE" ]; then
     fi
 fi
 case "$FILTER" in
-    ""|scaffold|scaffold*|"*") FILTER="${FILTER:-scaffold}" ;;
+    ""|scaffold|scaffold*|"*"|core|core*|golden|golden*) FILTER="${FILTER:-scaffold}" ;;
     contract|contract*) FILTER=contract ;;
-    *) echo "ui-test: no test matches filter '$FILTER' (P0.2 has scaffold|contract)" >&2; exit 2 ;;
+    *) echo "ui-test: no test matches filter '$FILTER' (P0.3b has scaffold|core|golden|contract)" >&2; exit 2 ;;
 esac
 
 mkdir -p "$BUILD_DIR"
@@ -194,7 +194,7 @@ if [ "$NO_BUILD" = "0" ]; then
         fi
     elif [ "$BACKEND" = "tcc" ]; then
         if ! "$ROOT/cmake-build-debug/TCCCompiler" "$MOD" -o "$EXE" \
-                --mode debug_quick >"$BUILD_LOG" 2>&1; then
+                --mode debug_quick --no-cache >"$BUILD_LOG" 2>&1; then
             cat "$BUILD_LOG" >&2
             echo "ui-test: TCCCompiler build failed" >&2
             exit 1
@@ -203,7 +203,7 @@ if [ "$NO_BUILD" = "0" ]; then
         SAN_FLAG=()
         [ -n "$SANITIZE" ] && SAN_FLAG=("--sanitize=$SANITIZE")
         if ! "$ROOT/cmake-build-debug/Compiler" "$MOD" -o "$EXE" \
-                --mode debug_quick "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
+                --mode debug_quick --no-cache "${SAN_FLAG[@]}" >"$BUILD_LOG" 2>&1; then
             cat "$BUILD_LOG" >&2
             echo "ui-test: Compiler build failed" >&2
             exit 1
@@ -217,7 +217,7 @@ if [ ! -x "$EXE" ]; then
 fi
 
 set +e
-"$EXE" >"$RUN_LOG" 2>&1
+"$EXE" --filter "$FILTER" >"$RUN_LOG" 2>&1
 rc=$?
 set -e
 if [ "$JSON" = "1" ]; then
@@ -225,7 +225,10 @@ if [ "$JSON" = "1" ]; then
 else
     cat "$RUN_LOG"
 fi
-if [ "$rc" -ne 0 ] || ! grep -q "ui scaffold PASS" "$RUN_LOG"; then
+EXPECT="ui scaffold PASS"
+if [ "$FILTER" = "core" ]; then EXPECT="ui core PASS"; fi
+if [ "$FILTER" = "golden" ]; then EXPECT="ui golden PASS"; fi
+if [ "$rc" -ne 0 ] || ! grep -q "$EXPECT" "$RUN_LOG"; then
     if [ "$JSON" = "1" ]; then
         printf '{"suite":"ui","backend":"%s","filter":"%s","status":"fail","exit_code":%d}\n' "$BACKEND" "$FILTER" "$rc"
     else

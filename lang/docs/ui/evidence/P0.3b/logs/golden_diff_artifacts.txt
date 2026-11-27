@@ -1,0 +1,4 @@
+-rw-rw-r-- 1 wakaztahir wakaztahir 65737 Nov 27 16:14 lang/tests/ui/build/golden_fail.png
+-rw-rw-r-- 1 wakaztahir wakaztahir 65737 Nov 27 16:14 lang/tests/ui/build/golden_fail.png.actual.png
+-rw-rw-r-- 1 wakaztahir wakaztahir 65737 Nov 27 16:14 lang/tests/ui/build/golden_fail.png.diff.png
+-rw-rw-r-- 1 wakaztahir wakaztahir 65737 Nov 27 16:14 lang/tests/ui/build/golden_fail.png.expected.png

@@ -1,5 +1,9 @@
-# UI bench baselines (placeholder)
+# UI bench baselines
 
-P0.3b commits the first `baseline/reference-linux-x86_64.json` (and the real
-`empty`, `static-1k`, `list-100k` scenes). P0.3a deliberately has no baseline;
-`ui-bench.sh --compare` refuses to run until one exists.
+`reference-linux-x86_64.json` holds one deterministic scaffold counter entry for
+`empty`, `static-1k`, and `list-100k` (P0.3b). These are **not** frame-time
+baselines; real timing starts at P1.10.
+
+`--compare` fails on a >2% counter regression or a changed `scene_hash` and
+refuses without this file. `--update-baseline` is a parent-approved data change
+and requires `CHEMICAL_UI_UPDATE_BASELINE=1`.

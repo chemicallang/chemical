@@ -1,12 +1,71 @@
 {
   "packet": "P0.3b",
   "name": "Test core, bench baselines, minimal lint",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "P0.3b scaffold harness/golden/bench/lint green on TCC+LLVM; awaiting parent commit/tag.",
+  "commands": [
+    {
+      "id": "core-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter core",
+      "artifacts": [
+        "lang/tests/ui/src/core.ch"
+      ]
+    },
+    {
+      "id": "core-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter core",
+      "artifacts": [
+        "lang/tests/ui/src/core.ch"
+      ]
+    },
+    {
+      "id": "golden-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter golden",
+      "artifacts": [
+        "lang/tests/ui/fixtures/pixels/checker_128.png"
+      ]
+    },
+    {
+      "id": "golden-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter golden",
+      "artifacts": [
+        "lang/tests/ui/fixtures/pixels/checker_128.png"
+      ]
+    },
+    {
+      "id": "bench",
+      "run": "scripts/ui-bench.sh --scenario list-100k --tcc --compare",
+      "artifacts": [
+        "lang/tests/ui_bench/baselines/reference-linux-x86_64.json"
+      ]
+    },
+    {
+      "id": "lint",
+      "run": "scripts/ui-lint.sh --fixtures",
+      "artifacts": [
+        "scripts/ui-lint.sh"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/tests/ui/src/core.ch",
+    "lang/tests/ui/fixtures/pixels/checker_128.png",
+    "lang/tests/ui_bench/scenes/schema.json",
+    "lang/tests/ui_bench/baselines/reference-linux-x86_64.json",
+    "scripts/ui-lint.sh",
+    "scripts/ui-bench.sh",
+    "scripts/ui-test.sh"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P0.3b",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -17,7 +76,12 @@
       "static-1k",
       "list-100k"
     ],
-    "compare": false
+    "compare": true
   },
-  "stubs": []
+  "stubs": [
+    "ui-shot.sh exits 78 until P1.10",
+    "ui_test_core is test-only until P6.1",
+    "bench counters are scaffold-only until P1.10",
+    "minimal lint expands in P5.9"
+  ]
 }

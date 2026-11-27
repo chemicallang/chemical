@@ -4,6 +4,12 @@ source "src"
 
 import cstd
 import std
+import core
+import image
+import crypto
+import fs
+import path
+import environment
 import ui
 import ui_kit
 import ui_host

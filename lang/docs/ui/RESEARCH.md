@@ -67,7 +67,7 @@ Taffy's published benchmark (M1 Pro, layout only) is the best hard data:
 **Decision (ADR-012).** Ship a bounded 3-pass constraints-down/sizes-up layout (intrinsic measure → resolve/distribute → text re-break/place) with a linear flex subset in v1 (row/column/stack/wrap, grow/shrink/basis, min/max,
 aspect, gap, padding, align/justify), plus an explicit track grid added as a
 separate, bounded solver. No CSS cascade, no arbitrary constraint solving, no
-implicit deep auto-size explosions. Budgets: **10k simple ≤1.5/2.5 ms**, **10k mixed ≤4/6 ms**, **100k ≤30/45 ms**, single fixed-width label **≤50/100 µs**; warm no-change 0. Layout is a total function: NaN/Inf/
+implicit deep auto-size explosions. Budgets: **10k simple ≤2.5/4 ms**, **10k mixed ≤6/9 ms**, **100k ≤40/60 ms**, single fixed-width label **≤50/100 µs**; warm no-change 0. Layout is a total function: NaN/Inf/
 negative sizes clamp and emit a diagnostic.
 
 ---

@@ -7,8 +7,9 @@
 | Packet | State | Commit | Tag | Evidence | Bench delta | Notes |
 |--------|-------|--------|-----|----------|-------------|-------|
 | P0.1 Feasibility probe | todo | — | — | — | — | |
+| P0.3a Scaffolding/scripts | todo | — | — | — | — | |
 | P0.2 Freeze contracts | todo | — | — | — | — | |
-| P0.3 Scaffolding/test core | todo | — | — | — | — | |
+| P0.3b Test core/bench/lint | todo | — | — | — | — | |
 | P0.4 Design spec/tokens | todo | — | — | — | — | |
 | P1.1 Math/geometry/color | todo | — | — | — | — | |
 | P1.2 Arena/IDs/keys | todo | — | — | — | — | |
@@ -84,7 +85,7 @@
 | P6.7 Comparison report | todo | — | — | — | — | stage gate |
 | P7.1 Settings app | todo | — | — | — | — | |
 | P7.2 Dashboard app | todo | — | — | — | — | |
-| P7.3 Chat/IDE app | todo | — | — | — | — | |
+| P7.3 Chat app | todo | — | — | — | — | |
 | P7.4 API gap fixes | todo | — | — | — | — | |
 | P7.5 Perf hardening | todo | — | — | — | — | |
 | P7.6 Safety hardening | todo | — | — | — | — | |
@@ -93,7 +94,8 @@
 | P7.8b Example benchmark packaging | todo | — | — | — | — | |
 | P7.9 Publish ui-examples repo | todo | — | — | — | — | stage gate; gh push |
 | P8.1 Release audit | todo | — | — | — | — | |
-| P8.2 Packaging/final | todo | — | — | — | — | release |
+| P8.2a Bundles/assets/templates | todo | — | — | — | — | |
+| P8.2b Updates/crash/final | todo | — | — | — | — | release |
 
 ## Blockers
 

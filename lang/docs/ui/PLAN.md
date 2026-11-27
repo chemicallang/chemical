@@ -74,7 +74,8 @@
   list, CPU rasterizer, text shaping/editing/IME, input/focus/hit testing,
   semantics, animation, multi-window, error boundaries, typed-error cards.
 - **Platforms:** Linux (X11/Wayland), Windows, macOS, WASM canvas + DOM
-  semantics, headless. Multi-window and close-veto in v1.
+  semantics, headless. Multi-window, close-veto, native menus/dialogs, and
+  notifications in v1; tray is v1.1.
 - **Rendering:** CPU reference; `RenderBackend` interface and GPU track
   (Vulkan/Metal/D3D12/WebGPU) available as an optional v1.1 accelerator.
 - **Text/fonts:** system UI stack by default (0 bytes embedded); optional
@@ -96,7 +97,7 @@
   the end and pushed via `gh`.
 
 **Later:** mobile, full portable complex shaping/color emoji, variable-font
-rendering, SVG subset, video, tray/notifications, live reload, remote
+rendering, SVG subset, video, tray, live reload, remote
 rendering. GPU is a parallel track (P3.10–P3.15); move it before the kit if v1
 must ship GPU.
 
@@ -115,7 +116,7 @@ must ship GPU.
 | 5. Agent tooling | P5.1–P5.9 | Debug server, CLI/MCP, inspector, audit, eval, lint |
 | 6. Validation | P6.1–P6.7 | Harness, goldens, fuzz, benches, CI matrix, comparison |
 | 7. Examples + hardening | P7.1–P7.9 | Settings/dashboard/chat/media apps, hardening, docs/claims, public `ui-examples` repo |
-| 8. Release | P8.1–P8.2 | Gate audit, packaging, templates, final validation |
+| 8. Release | P8.1–P8.2b | Gate audit, bundles, updates/crash, final validation |
 
 One packet = one subagent session = at least one reviewed commit. The parent
 re-runs the packet's commands, opens the screenshots, checks the benchmark JSON,
@@ -154,8 +155,8 @@ table and methodology: [`BENCHMARKS.md`](BENCHMARKS.md).
 1. Maintainer approves [`0016-native-ui.md`](../proposals/0016-native-ui.md).
 2. Parent launches **P0.1** (feasibility/compiler probes; no library API
    changes).
-3. P0.2 freezes [`API.md`](API.md) + [`CONTRACTS.md`](CONTRACTS.md); P0.3
-   creates the branch, libraries, test core, and `ui-*` scripts; P0.4 signs the
+3. P0.3a creates the branch/libraries/scripts; P0.2 freezes [`API.md`](API.md)
+   + [`CONTRACTS.md`](CONTRACTS.md); P0.3b builds the test core; P0.4 signs the
    exact tokens/reference screens.
 4. Proceed packet by packet through [`EXECUTION.md`](EXECUTION.md); update
    [`STATUS.md`](STATUS.md) after every commit.

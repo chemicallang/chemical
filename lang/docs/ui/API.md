@@ -74,6 +74,7 @@ public struct FrameInfo {
     var window : WindowId
     var viewport : Viewport
     var scale : float
+    var text_scale : float
     var theme : ThemeMode
     var reduced_motion : bool
     var locale : string_view
@@ -218,8 +219,9 @@ public namespace ui_host {
 }
 ```
 
-`ui_host` selects `ui_native` or `ui_web` at build time; both call
-`ui::run_with`. A headless build uses `ui::run_headless` directly.
+`ui_host` selects `ui_native` or `ui_web` at build time; both implement the
+host entry and drive the core loop. A headless build uses
+`ui::run_headless` directly.
 
 ### 1.2 Supporting types
 
@@ -227,7 +229,7 @@ public namespace ui_host {
 @direct_init public struct Point { var x : float; var y : float }
 @direct_init public struct Rect { var x : float; var y : float; var w : float; var h : float }
 @direct_init public struct Transform2D { var m : [6]float }
-@direct_init public struct Shadow { var x : float; var y : float; var blur : float; var spread : float; var color : ColorToken }
+@direct_init public struct Shadow { var x : float; var y : float; var blur : float; var spread : float; var color : Color }
 @direct_init public struct TextSpan {
     var text : string_view; var role : TextRole; var color : ColorToken
     var weight : FontWeight; var italic : bool; var family : FontFamily
@@ -237,7 +239,12 @@ public namespace ui_host {
 public variant GridTrack { Px(value : float) Fr(value : float) Auto() }
 @direct_init public struct Duration { var ms : float }
 public enum Easing { Linear, EaseIn, EaseOut, EaseInOut, Spring }
+public enum MotionToken { Fast, Base, Slow, Spring }
 public enum AnimProperty { Opacity, TranslateX, TranslateY, Scale, Rotate, Background, Width, Height }
+@direct_init public struct AnimationSpec {
+    var duration : Duration; var easing : Easing; var delay : Duration
+    var repeat : u32; var alternate : bool
+}
 public enum Cursor { Arrow, IBeam, Hand, Wait, Crosshair, Move, ResizeNS, ResizeEW, ResizeNESW, ResizeNWSE, NotAllowed }
 public enum ImageFit { Contain, Cover, Fill, None }
 public enum FontFamily { Ui, Mono, System }
@@ -245,14 +252,16 @@ public struct FontSpec {
     var family : FontFamily; var family_name : string_view
     var file : string_view; var fallback : FontFamily
 }
+@direct_init public struct FontFallback { var script : u32; var families : &[string_view] }
 @direct_init public struct FontStack {
-    var ui : &[string_view]; var mono : &[string_view]; var fallback : &[string_view]
+    var ui : &[string_view]; var mono : &[string_view]
+    var fallback : &[FontFallback]
     @make func system() : FontStack
 }
-public struct IconId { var value : u32 }
+public struct IconId { /* private registry handle */ }
 public struct FontHandle { /* private generational */ }
 public struct ImageHandle { /* private generational */ }
-@direct_init public struct FontCacheEntry { var family : string_view; var path : string_view; var sha256 : string_view; var bytes : u64 }
+@direct_init public struct FontCacheEntry { var family : string_view; var path : string_view; var sha256 : string_view; var bytes : u64; var license : string_view; var source_url : string_view; var version : string_view }
 public variant FontError {
     NotFound(family : string_view)
     InvalidFormat()
@@ -277,10 +286,22 @@ public struct GpuInfo {
     var supports_compute : bool
     var software : bool
 }
-public struct WindowId { /* private; host-assigned */ }
+public struct WindowId { /* private index+generation; host-assigned */ }
 public enum ThemeMode { Light, Dark, HighContrast, System }
 public enum Density { Comfortable, Compact }
-public enum KeyCode { Tab, Enter, Escape, Space, Backspace, Delete, Left, Right, Up, Down, Home, End, PageUp, PageDown, A, B, C /* … full set */, F1, F2, F12 }
+public enum KeyCode {
+    Unknown, Tab, Enter, Escape, Space, Backspace, Delete, Insert,
+    Left, Right, Up, Down, Home, End, PageUp, PageDown,
+    A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,
+    Digit0,Digit1,Digit2,Digit3,Digit4,Digit5,Digit6,Digit7,Digit8,Digit9,
+    Minus,Equal,LeftBracket,RightBracket,Backslash,Semicolon,Quote,Comma,Period,Slash,Backquote,
+    F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,
+    ShiftLeft,ShiftRight,ControlLeft,ControlRight,AltLeft,AltRight,MetaLeft,MetaRight,CapsLock,
+    Numpad0,Numpad1,Numpad2,Numpad3,Numpad4,Numpad5,Numpad6,Numpad7,Numpad8,Numpad9,
+    NumpadAdd,NumpadSubtract,NumpadMultiply,NumpadDivide,NumpadDecimal,NumpadEnter,
+    PrintScreen,ScrollLock,Pause,ContextMenu,MediaPlayPause,MediaStop,MediaNext,MediaPrev,
+    VolumeUp,VolumeDown,VolumeMute
+}
 
 @direct_init
 public struct FrameStats {
@@ -292,13 +313,29 @@ public struct FrameStats {
     var paint_us : double
     var gpu_us : double
     var present_us : double
+    var event_to_update_us : double
+    var update_to_submit_us : double
+    var submit_to_present_us : double
     var nodes : u32
+    var visited : u32
     var relaid_out : u32
+    var layout_nodes : u32
+    var virtual_rebuilds : u32
+    var virtual_extent_calls : u32
+    var virtual_index_builds : u32
     var commands : u32
     var glyphs : u32
+    var text_measured : u32
+    var text_cache_hits : u32
     var tiles_painted : u32
     var full_repaints : u32
+    var paint_bytes : u64
+    var scroll_blit_bytes : u64
+    var scroll_blit_us : double
     var allocs : u32
+    var allocs_cold : u32
+    var alloc_bytes_high_water : u64
+    var settle_frames : u32
     var gpu_upload_bytes : u64
     var gpu_draw_calls : u32
 }
@@ -315,6 +352,8 @@ and selection only:
 ```chemical
 public namespace ui {
     public func gpu_info() : GpuInfo
+    public func canvas_id(name : string_view) : Result<CanvasId, UiError>
+    public func release_canvas(id : CanvasId)
     public func active_renderer() : Renderer
     public func force_renderer(r : Renderer) : Result<std::Unit, UiError>
 }
@@ -331,7 +370,7 @@ public namespace ui {
 - GPU is never required for correctness. A device loss recreates resources; if
   it fails twice, the runtime switches to CPU, emits an error event, and keeps
   the app alive.
-- `GpuInfo` is for diagnostics/telemetry, not for branching app UI.
+- `GpuInfo` is for diagnostics/telemetry, not for branching app UI; its device/driver strings are static/host-owned and safe to retain.
 - A GPU backend consumes the **same display list** as the CPU renderer: the app
   never writes shaders or GPU code.
 
@@ -342,6 +381,19 @@ platform UI font stack; an app can pin a file, embed a small subset, or fetch an
 OFL font into a cache. Golden tests pin a test font.
 
 ```chemical
+public enum ImageState { Missing, Loading, Ready(ImageHandle), Failed(UiError) }
+public namespace ui_images {
+    public func image(path : string_view) : ImageState
+    public func image_bytes(bytes : &[u8], hash : u64) : ImageState
+    public func state(h : ImageHandle) : ImageState
+    public func release(h : ImageHandle)
+}
+
+public namespace ui_icons {
+    public func find(name : string_view) : Option<IconId>
+    public func list() : &[string_view]
+}
+
 public namespace ui_fonts {
     // Platform UI stack: system-ui, Segoe UI, SF Pro Text, Inter, Noto Sans,
     // DejaVu Sans, sans-serif (the actual list is platform-specific).
@@ -386,6 +438,18 @@ Rules:
 
 ```chemical
 public enum Breakpoint { Sm, Md, Lg, Xl }
+@direct_init public struct MenuItem {
+    var id : CommandId; var label : string_view; var shortcut : Option<Shortcut>
+    var enabled : bool; var checked : bool; var separator : bool
+}
+@direct_init public struct Menu { var title : string_view; var items : &[MenuItem] }
+@direct_init public struct FileDialogOptions {
+    var title : string_view; var filters : &[string_view]
+    var multiple : bool; var directory : bool; var save : bool
+}
+@direct_init public struct Notification {
+    var title : string_view; var body : string_view; var icon : Option<ImageHandle>
+}
 @direct_init public struct WindowSpec {
     var title : string_view; var size : Size; var min_size : Size; var max_size : Size
     var position : Option<Point>; var resizable : bool; var decorated : bool
@@ -395,19 +459,20 @@ public enum Breakpoint { Sm, Md, Lg, Xl }
     var node : NodeId; var key : Key; var id : CanvasId
     var bounds : Rect; var scale : float
 }
-@direct_init public struct TimerId { var value : u32 }
-@direct_init public struct CommandId { var value : u32 }
+public struct TimerId { /* private host-assigned */ }
+public struct CommandId { private var value : u32 }
 @direct_init public struct Shortcut { var code : KeyCode; var mods : Modifiers }
 @direct_init public struct SourceLocation { var file : string_view; var line : u32; var col : u32 }
 public enum RetryHint { Never, Immediate, Backoff }
 @direct_init public struct ErrorDetail {
-    var code : u32; var message : string_view; var context : string_view
+    var code : u32; var message : &'static str; var context : &'static str
 }
 
 @direct_init public struct UserEvent {
-    var tag : u64; var a : i64; var b : i64; var text : string
+    var tag : u64; var a : i64; var b : i64; var text : string_view
 }
-public struct EventSender { /* Send + Sync + Clone */
+public struct EventSender { /* Send + Sync + Clone; holds a refcounted queue */
+    // Copies text fallibly into the queue; after shutdown returns Cancelled.
     public func post(&self, ev : UserEvent) : Result<std::Unit, UiError>
     public func wake(&self)
 }
@@ -415,15 +480,26 @@ public struct EventSender { /* Send + Sync + Clone */
 @direct_init public struct Limits {
     var max_view_nodes : u32; var max_retained_nodes : u32
     var max_text_bytes : u64; var max_image_pixels : u64; var max_image_bytes : u64
-    var max_font_bytes : u64; var max_atlas_bytes : u64; var max_layer_bytes : u64
+    var max_font_bytes : u64; var max_atlas_bytes : u64
+    var max_layer_bytes : u64; var max_gpu_bytes : u64
     var max_display_commands : u32; var max_protocol_bytes : u32
     var max_capture_frames : u32; var max_screenshot_pixels : u64
     @make func make() : Limits
 }
 
+@direct_init public struct Range { var start : u32; var end : u32 }
+public variant ImeTestEvent {
+    Preedit(text : string_view, caret : u32, anchor : u32, replace : Range)
+    Commit(text : string_view, replace : Range)
+    Cancel()
+}
+@direct_init public struct ImeComposition {
+    var preedit : string_view; var caret : u32; var anchor : u32
+    var replace : Range; var candidate : Option<Rect>
+}
 @direct_init public struct TextEditState {
     var text : string_view; var anchor : u32; var caret : u32
-    var secure : bool
+    var composition : Option<ImeComposition>; var secure : bool
 }
 
 public variant PathCommand {
@@ -433,6 +509,7 @@ public variant PathCommand {
 @direct_init public struct Path { var commands : vector<PathCommand>; var fill_rule : u8 }
 @direct_init public struct GradientStop { var offset : float; var color : Color }
 public variant Gradient { Linear(start : Point, end : Point, stops : vector<GradientStop>) Radial(center : Point, radius : float, stops : vector<GradientStop>) }
+public struct ScopeGuard { /* private; drop pops scope */ }
 public struct ClipGuard { /* private; drop closes */ }
 public struct LayerGuard { /* private; drop closes */ }
 public struct TransformGuard { /* private; drop closes */ }
@@ -456,7 +533,23 @@ public struct TransformGuard { /* private; drop closes */ }
     var state : Option<WidgetState>; var within : Option<NodeId>
     var all : bool; var limit : u32
 }
+public enum SelectionMode { None, Single, Multiple }
+@direct_init public struct TableColumn {
+    var id : string_view; var title : string_view; var width : Dim
+    var align : TextAlign; var sortable : bool
+}
+public variant SortSpec { Ascending(column : string_view) Descending(column : string_view) }
+public interface TableSource {
+    func count(&self) : size_t
+    func row_key(&self, index : size_t) : Key
+    func row_extent(&self, index : size_t) : float
+    func cell(&self, b : &mut ViewBuilder, row : size_t, column : string_view) : NodeId
+    func sort(&mut self, spec : SortSpec)
+    func filter(&mut self, query : string_view)
+}
 public struct ComponentSpec { /* generated from ComponentMeta; see CATALOG.md */ }
+public struct ComponentMeta { /* catalog-owned; see CATALOG.md */ }
+public struct PageSpec { /* generated page composition spec */ }
 public struct AuditReport { /* findings: code, severity, node_id, source, fix */ }
 ```
 
@@ -468,21 +561,18 @@ public struct AuditReport { /* findings: code, severity, node_id, source, fix */
 ## 2. Identity: `NodeId`, `Key`, `CanvasId`
 
 ```chemical
-@direct_init
 public struct NodeId {          // private construction; frame-local
-    var index : u32
-    var generation : u32
+    private var index : u32
+    private var generation : u32
 }
 
-@direct_init
-public struct Key {
-    var hash : u64
-    var tag : u64
-    var id : u64
-    var label_id : u32
+public struct Key {                 // private fields; constructors only
+    private var hash : u64
+    private var tag : u64
+    private var id : u64
 
     public func equals(&self, label : string_view) : bool
-    public func starts_with(&self, prefix : string_view) : bool
+    public func equals_key(&self, other : Key) : bool
     public func id(&self) : u64
     public func tag(&self) : u64
 }
@@ -498,10 +588,13 @@ Semantics (full version in `CONTRACTS.md` §2):
 
 - `NodeId` is a **frame-local view handle** with private construction. `(0,0)`
   invalid; generation wrap retires a slot (`ResourceExhausted`), never aliases.
-- `Key` is the **cross-frame identity** for all runtime state. Labels are
-  interned (never a borrowed `string_view`); equality is the full tuple with
-  collision buckets. `key_of` sets `id`; `key_pair` sets `id=a, tag=b`;
-  `id()` returns `id`, `tag()` returns `tag`. `key_pair` is order-sensitive.
+- `Key` is the **cross-frame identity** for all runtime state. It holds only
+  `(hash, tag, id)`; constructors are the only creation path. `key(label)` hashes
+  the bytes (best-effort debug label table, no correctness dependency);
+  `key_of` sets `id`; `key_pair` sets `id=a, tag=b` with an order-sensitive
+  hash. `id()` returns `id`, `tag()` returns `tag`. `equals(label)` hashes and
+  compares; `equals_key` compares the full tuple. No `starts_with` (use
+  `id`/`tag`).
 - Key scope is immediate siblings; components/overlays/fragments have their own
   scope. Duplicate keys are a diagnostic, never silent state theft.
 - **All** hover/focus/pressed/scroll/text/selection/animation/custom state is
@@ -519,7 +612,6 @@ public struct ViewBuilder {
     public func frame(&self) : &FrameInfo
     public func viewport(&self) : Viewport
     public func scroll_offset(&self, key : Key) : Point
-    public func text_context(&self) : &TextContext
 
     // Containers (layout is set by Style; the method is a shorthand for display/direction).
     public func row(&mut self, key : Key, style : Style) : NodeId
@@ -527,9 +619,11 @@ public struct ViewBuilder {
     public func stack(&mut self, key : Key, style : Style) : NodeId
     public func wrap(&mut self, key : Key, style : Style) : NodeId
     public func grid(&mut self, key : Key, style : Style, tracks : GridTracks) : NodeId
-    public func scroll(&mut self, key : Key, style : Style, axis : Axis) : NodeId
+    public func scroll(&mut self, key : Key, style : Style, axis : Axis, anchor : ScrollAnchor = ScrollAnchor.Start()) : NodeId
     public func canvas(&mut self, key : Key, style : Style, canvas : CanvasId) : NodeId
     public func fragment(&mut self, key : Key) : NodeId          // display: contents
+    public func scope(&mut self, key : Key) : ScopeGuard
+    public func scoped_key(&self, parent : Key, label : string_view) : Key
     public func overlay(&mut self, key : Key, layer : OverlayLayer,
                         anchor : Option<NodeId>) : NodeId
     public func component(&mut self, key : Key, name : string_view) : Component
@@ -561,6 +655,10 @@ public struct ViewBuilder {
                         duration : Duration, easing : Easing)
     public func animate_exit(&mut self, node : NodeId, prop : AnimProperty, to : float,
                              duration : Duration, easing : Easing)
+    public func animate_spec(&mut self, node : NodeId, prop : AnimProperty, to : float,
+                             spec : AnimationSpec)
+    public func animate_exit_spec(&mut self, node : NodeId, prop : AnimProperty, to : float,
+                                  spec : AnimationSpec)
     public func transform(&mut self, node : NodeId, t : Transform2D)
     public func error(&mut self, node : NodeId, err : UiError)
 }
@@ -611,7 +709,7 @@ public enum ColorToken {
 }
 
 public enum Space { None, XXS, XS, SM, MD, LG, XL, XXL, XXXL }
-public enum Radius { None, XS, SM, MD, LG, Full }
+public enum Radius { None, XS, SM, MD, LG, XL, Full }
 public enum Elevation { None, Low, Medium, High }
 public enum TextRole { Display, H1, H2, H3, H4, Body, BodyStrong, Caption, Code, Label }
 public enum FontWeight { Regular, Medium, Semibold, Bold }
@@ -640,6 +738,7 @@ public enum TextOverflow { Clip, Ellipsis }
 public variant Position { Relative() Absolute(top : Dim, right : Dim, bottom : Dim, left : Dim) }
 public enum WidgetState { Hover, Focus, Pressed, Disabled, Selected, Checked, Invalid }
 public enum OverlayLayer { Tooltip, Popover, Menu, Dialog, Toast }
+public variant ScrollAnchor { Start() End() Center() Node(key : Key) }
 
 @direct_init
 public struct Insets { var left : float; var top : float; var right : float; var bottom : float }
@@ -718,19 +817,22 @@ public struct Theme {
     public func elevation(&self, e : Elevation) : Shadow
     public func density(&self) : Density
     public func text_scale(&self) : float
-    public func motion(&self, d : Duration) : Duration
+    public func motion(&self, m : MotionToken) : Duration
     public func set_color(&mut self, t : ColorToken, c : Color)
     public func set_space(&mut self, s : Space, px : float)
     public func set_radius(&mut self, r : Radius, px : float)
     public func set_text_style(&mut self, role : TextRole, t : TextStyle)
     public func set_density(&mut self, d : Density)
+    public func disabled_opacity(&self) : float
+    public func set_text_scale(&mut self, scale : float)
 }
 ```
 
 ### 4.2 Layout semantics (normative)
 
 - **Sizing.** `Auto` = intrinsic content size; `Px` = exact; `Percent` = fraction
-  of the parent's content box; `Fill` = take the remaining main-axis space
+  of the parent's content box, except inside a scroll where it resolves against
+  the viewport main axis; `Fill` = take the remaining main-axis space
   (equivalent to `grow: 1` with `basis: 0`).
 - **Main axis.** Children are measured in order; fixed children first, then
   `grow` distributes remaining space proportional to `grow`; `shrink` is used
@@ -744,7 +846,7 @@ public struct Theme {
   `align`/`justify` apply to the stack as a whole; per-child `align_self`
   positions an individual layer.
 - **Scroll** measures children with unbounded main-axis max, clips to the
-  viewport, and stores the offset in runtime state keyed by `NodeId`.
+  viewport, and stores the offset in runtime state keyed by `Key` (never `NodeId`).
 - **Grid** uses explicit tracks (`Px`, `Fr`, `Auto`) and explicit row/column
   placement; implicit placement is left-to-right, top-to-bottom. No CSS
   auto-placement heuristics.
@@ -765,7 +867,8 @@ public enum EventKind {
     Scroll, KeyDown, KeyUp, TextInput, ImePreedit, ImeCommit,
     Focus, Blur, Change, Submit, Select, Open, Close,
     Drop, DragBegin, DragOver, DragLeave, DragDrop,
-    Resize, DpiChange, Timer, Frame, Command, Custom, ImageReady, ImageFailed, FontReady
+    Resize, DpiChange, Timer, Frame, Command, Custom, ImageReady, ImageFailed, FontReady,
+    FileChosen, OpenFile, SecondInstance
 }
 
 @direct_init
@@ -804,6 +907,8 @@ public struct Modifiers {
     var range_start : float; var range_end : float
     var selected : bool; var checked : bool
 }
+@direct_init public struct FocusPayload { var focused : bool }
+@direct_init public struct IndexPayload { var index : u32; var selected : bool }
 @direct_init public struct CommandPayload { var id : CommandId }
 @direct_init public struct ImagePayload { var handle : ImageHandle }
 @direct_init public struct FontPayload { var handle : FontHandle }
@@ -826,6 +931,8 @@ public variant Payload<'a> {
     Timer(value : TimerPayload)
     Frame(value : FramePayload)
     Value(value : ValuePayload)
+    Focus(value : FocusPayload)
+    Index(value : IndexPayload)
     Command(value : CommandPayload)
     Image(value : ImagePayload)
     Font(value : FontPayload)
@@ -850,6 +957,8 @@ public struct UiCtx {
     public func frame_info(&self) : &FrameInfo
     public func viewport(&self) : Viewport
     public func scale(&self) : float
+    public func text_scale(&self) : float
+    public func set_text_scale(&mut self, scale : float)
 
     public func request_view(&mut self)
     public func invalidate(&mut self, key : Key)
@@ -862,8 +971,9 @@ public struct UiCtx {
 
     public func text(&self, key : Key) : &str
     public func take_text(&mut self, key : Key) : string
-    public func text_state(&self, key : Key) : Option<TextEditState>
-    public func set_text(&mut self, key : Key, text : string_view)
+    public func text_context(&self) : &TextContext
+    public func text_state(&self, key : Key) : Option<&TextEditState>
+    public func set_text(&mut self, key : Key, text : string_view) : Result<std::Unit, UiError>
     public func set_selection(&mut self, key : Key, anchor : u32, caret : u32)
     public func select_all(&mut self, key : Key)
     public func ime_rect(&mut self, key : Key, rect : Rect)
@@ -875,6 +985,8 @@ public struct UiCtx {
 
     public func clipboard(&self) : string_view
     public func set_clipboard(&mut self, text : string_view)
+    public func begin_drag(&mut self, source : Key, payload : UserEvent)
+    public func accept_drop(&mut self, target : Key, accepted : bool)
     public func open_url(&mut self, url : string_view) : Result<std::Unit, UiError>
 
     public func theme_mode(&self) : ThemeMode
@@ -883,6 +995,8 @@ public struct UiCtx {
     public func theme(&self) : &Theme
     public func density(&self) : Density
     public func set_density(&mut self, d : Density)
+    public func disabled_opacity(&self) : float
+    public func set_text_scale(&mut self, scale : float)
 
     public func now_ms(&self) : double
     public func frame(&self) : u64
@@ -893,7 +1007,14 @@ public struct UiCtx {
     public func open_window(&mut self, spec : WindowSpec) : Result<WindowId, UiError>
     public func close_window(&mut self, window : WindowId)
     public func windows(&self) : &[WindowId]
-    public func set_window_title(&mut self, title : string_view)
+    public func window_size(&self, window : WindowId) : Option<Size>
+    public func set_window_size(&mut self, window : WindowId, size : Size)
+    public func focus_window(&mut self, window : WindowId)
+    public func set_window_title(&mut self, window : WindowId, title : string_view)
+    public func set_menu(&mut self, window : WindowId, menu : &[Menu]) : Result<std::Unit, UiError>
+    public func open_file_dialog(&mut self, opts : FileDialogOptions) : Result<std::Unit, UiError>
+    public func notify(&mut self, n : Notification) : Result<std::Unit, UiError>
+    public func set_tray(&mut self, menu : &[Menu]) : Result<std::Unit, UiError>  // v1.1
 
     public func announce(&mut self, live : u8, text : string_view)
     public func bind_shortcut(&mut self, s : Shortcut, cmd : CommandId)
@@ -1092,17 +1213,19 @@ public enum ErrorClass { Expected, AppBug, Internal, Fatal }
 public enum ErrorCode {
     Platform, Surface, Font, Image, Layout, InvalidKey, StaleNode, OutOfMemory,
     Protocol, Io, Timeout, NotImplemented, Unsupported, NotFound, PermissionDenied,
-    InvalidArgument, Decode, ResourceExhausted, Cancelled, Busy, DuplicateKey,
+    InvalidArgument, Decode, ResourceExhausted, Cancelled, Busy, WouldBlock, DuplicateKey,
     StaleKey, ThreadAffinity, DeviceLost, Internal, Other
 }
 @direct_init
-public struct UiError {
-    var code : ErrorCode
-    var class : ErrorClass
-    var detail : ErrorDetail          // fixed inline detail + optional static str
-    var source : Option<SourceLocation>
-    var retry : RetryHint             // Never | Immediate | Backoff
-    @make func make(code : ErrorCode, message : string_view) : UiError
+public struct UiError {                // private fields; @make only
+    private var code : ErrorCode
+    private var class : ErrorClass
+    private var detail : ErrorDetail   // static/inline, never a borrowed dynamic view
+    private var source : Option<SourceLocation>
+    private var retry : RetryHint
+    @make func make(code : ErrorCode, message : &'static str) : UiError
+    public func code(&self) : ErrorCode
+    public func class(&self) : ErrorClass
 }
 ```
 
@@ -1269,19 +1392,19 @@ public struct UiHarness<'a, A> {
     public func focused(&self) : Option<NodeId>
     public func scroll_offset(&self, key : Key) : Point
     public func by_key(&self, key : Key) : Option<NodeId>
-    public func semantics(&self, id : NodeId) : Option<Semantics>
+    public func semantics(&self, id : NodeId) : Option<&Semantics>
     public func bounds(&self, id : NodeId) : Option<Rect>
     public func text_of(&self, id : NodeId) : Option<&str>
 
-    public func click(&mut self, id : NodeId)
-    public func double_click(&mut self, id : NodeId)
-    public func hover(&mut self, id : NodeId)
-    public func drag(&mut self, from : NodeId, to : NodeId)
-    public func pointer(&mut self, kind : EventKind, x : float, y : float)
-    public func scroll(&mut self, id : NodeId, dx : float, dy : float)
-    public func key(&mut self, code : KeyCode, mods : Modifiers)
-    public func type_text(&mut self, text : string_view)
-    public func ime(&mut self, ev : ImeTestEvent)
+    public func click(&mut self, id : NodeId) : Result<std::Unit, UiError>
+    public func double_click(&mut self, id : NodeId) : Result<std::Unit, UiError>
+    public func hover(&mut self, id : NodeId) : Result<std::Unit, UiError>
+    public func drag(&mut self, from : NodeId, to : NodeId) : Result<std::Unit, UiError>
+    public func pointer(&mut self, kind : EventKind, x : float, y : float) : Result<std::Unit, UiError>
+    public func scroll(&mut self, id : NodeId, dx : float, dy : float) : Result<std::Unit, UiError>
+    public func key(&mut self, code : KeyCode, mods : Modifiers) : Result<std::Unit, UiError>
+    public func type_text(&mut self, text : string_view) : Result<std::Unit, UiError>
+    public func ime(&mut self, ev : ImeTestEvent) : Result<std::Unit, UiError>
 
     public func screenshot(&self, path : string_view) : Result<Screenshot, UiError>
     public func assert_golden(&self, path : string_view, opts : GoldenOptions) : Result<GoldenResult, UiError>

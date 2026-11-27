@@ -38,9 +38,16 @@ public enum SurfaceFormat {
     Rgba8SrgbPremul          // optional GPU readback
 }
 
+public struct Surface<'a> {
+    var desc : SurfaceDesc
+    var bytes : usize
+    var data : *mut u8
+    // lifetime ties the buffer to the presenter borrow; cannot be retained
+}
+
 public interface Presenter {
-    // OS-backed buffer; valid until present/next acquire. Do not retain.
-    func acquire(&mut self, desc : SurfaceDesc) : Result<Surface, UiError>
+    // OS-backed buffer; lifetime-bound to this borrow. Do not retain.
+    func acquire<'a>(&'a mut self, desc : SurfaceDesc) : Result<Surface<'a>, UiError>
     func present(&mut self, damage : &[Rect]) : Result<std::Unit, UiError>
     func resize(&mut self, width : u32, height : u32, scale : float) : Result<std::Unit, UiError>
     func request_frame(&mut self)        // maps to queue_draw / InvalidateRect / setNeedsDisplay / rAF
@@ -51,6 +58,9 @@ public interface Presenter {
 
 Rules:
 
+- `acquire` validates `stride >= width*4` and `stride*height <= bytes` with
+  checked `u64`; mismatch returns `UiError.Surface`. The rasterizer bounds-checks
+  each row.
 - `acquire` returns a writable OS-backed buffer (XShmImage, `wl_shm` pool,
   `CreateDIBSection`, `CGContext`/`CALayer` backing, WASM `ImageData`). The
   rasterizer writes directly into it; no extra full-frame copy on the CPU path.
@@ -71,9 +81,37 @@ Rules:
   input, cancel timers/animations/async image/font work, drain protocol, destroy
   surfaces, then exit. No callbacks after shutdown.
 
-`HostCaps { partial_present, vsync, multi_window, ime, clipboard_images,
-drop_files, native_menus, notifications, a11y }` is exposed through `app.info`;
-apps degrade explicitly.
+```chemical
+@direct_init
+public struct HostCaps {
+    var partial_present : bool; var vsync : bool; var multi_window : bool
+    var ime : bool; var clipboard_images : bool; var drop_files : bool
+    var native_menus : bool; var notifications : bool; var a11y : bool
+}
+```
+
+`HostCaps` is exposed through `app.info`; apps degrade explicitly.
+
+### 2.1 GPU presenter
+
+GPU is a separate presenter over the same display list:
+
+- `GpuPresenter` owns a swapchain (2–3 images), a **persistent scene texture**
+  (RGBA8/SRGB, full window), and a `frames_in_flight` ring. Damage is rendered
+  into the scene texture; the scene texture is blitted to the swapchain. If the
+  platform supports partial present, blit only damage; otherwise blit full and
+  report `HostCaps.partial_present = false`.
+- Swapchain states: acquire → render → present; on `OUT_OF_DATE`/resize/DPI/
+  occlusion, recreate; minimized = no present; device loss = recreate resources
+  and re-upload atlas; 2 failures → CPU fallback.
+- Formats: BGRA8/RGBA8 UNORM (sRGB encoded), R8 atlas; pipelines cached on disk.
+- Shaders: Vulkan SPIR-V, Metal MSL/Metallib, WebGPU WGSL; **WebGL2 GLSL ES 3.0
+  is a committed fallback** (or remove WebGL2 from P3.13). Shader artifacts are
+  built once and committed; no runtime shader compilation on Vulkan.
+- `Renderer.Auto` uses GPU only when a backend is linked, the window is ≥
+  1024×768, and the scene is not in deterministic/headless mode; otherwise CPU.
+- GPU memory accounting is per window and includes scene + swapchain + atlas +
+  layers; budgets in `BENCHMARKS.md` §2.6.
 
 ---
 

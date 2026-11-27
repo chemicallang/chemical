@@ -19,9 +19,9 @@ All headline budgets are measured on the **reference profile**:
 
 | Item | Value |
 |------|-------|
-| CPU | Intel Core i5-1035G1 (4C/8T), 16 GB, Linux, governor `performance`, turbo per BIOS; record the exact hostname/BIOS |
+| CPU | Reference class: Intel i5-1035G1 or equivalent 4C/8T, 16 GB. The actual CI/dev host may differ (record CPU/GPU/OS/governor in `ui-probe-env.sh`); if it differs, publish the ratio and do not compare absolute numbers across machines. |
 | RAM | 16 GB |
-| Display | 1920×1080, 60 Hz, scale 1.0; secondary 120 Hz panel for 120 fps tests |
+| Display | 1920×1080, 60 Hz, scale 1.0; 120 Hz panel or synthetic 120 Hz clock for 120 fps tests; headless where available |
 | OS | Linux (X11 or headless), release build |
 | Renderer | CPU rasterizer for reference/goldens; GPU backend measured separately |
 | Build | `--mode release_fast`, assertions off, LTO where supported |
@@ -46,9 +46,10 @@ not pretend TinyCC-generated code matches LLVM.
 
 | Metric | Budget | Gate |
 |--------|--------|------|
-| Cold start → first presented frame | **≤120 ms p50**, **≤250 ms p99** (breakdown: exec/link ≤40, GTK/host init ≤35, font scan ≤10, tree+layout ≤15, raster+present ≤20) | release gate |
+| Cold start → first presented frame | **≤120 ms p50**, **≤250 ms p99** (breakdown: exec/link ≤30, GTK/host init ≤30, font scan ≤10, tree+layout ≤15, raster+present ≤15; ≤20 ms slack) | release gate |
 | Warm start → first frame | **≤50 ms p50** | release gate |
 | Empty-window PSS (Linux, 960×640 default) | **≤12 MB** (two 960×640 surfaces = 4.9 MB) | release gate |
+| Empty-window PSS (1080p) | **≤24 MB** (two 8.3 MB surfaces) | release gate |
 | Hello-world binary (stripped, LLVM, CPU only, no font) | **≤2.5 MB target; ≤3.5 MB hard ceiling** | release gate |
 | Hello-world binary (TCC path, stripped) | **≤4.0 MB** | release gate |
 | 100k-row virtualised table PSS | **≤100 MB** | release gate |
@@ -74,9 +75,9 @@ not pretend TinyCC-generated code matches LLVM.
 
 | Metric | Budget |
 |--------|--------|
-| Layout, 10k simple nodes (fixed sizes, no text), cold | **≤1.5 ms target / ≤2.5 ms hard** |
-| Layout, 10k mixed (20% text/auto/wrap), cold | **≤4 ms target / ≤6 ms hard** |
-| Layout, 100k wide/shallow nodes, cold | **≤30 ms target / ≤45 ms hard** |
+| Layout, 10k simple nodes (fixed sizes, no text), cold | **≤2.5 ms target / ≤4 ms hard** (rebaseline after P0.1 probe; Taffy anchor 2.69 ms/10k on M1) |
+| Layout, 10k mixed (20% text/auto/wrap), cold | **≤6 ms target / ≤9 ms hard** |
+| Layout, 100k wide/shallow nodes, cold | **≤40 ms target / ≤60 ms hard** |
 | Single fixed-width label change in 10k (no wrap/auto) | **≤50 µs target / ≤100 µs hard** |
 | Relayouts per hover/click | **≤2 nodes + ancestors** |
 | Paint, 10k solid quads | **≤1.2 ms** |
@@ -84,7 +85,7 @@ not pretend TinyCC-generated code matches LLVM.
 | Text shaping, 1k glyphs | **≤0.4 ms** cached, **≤4 ms** cold; 2k-char paragraph re-shape ≤2 ms |
 | Text measure cache hit | **≥99%** in scroll/typing scenarios |
 | Allocation in steady-state frame | **0** process-allocator calls after warm-up; cold/text/atlas high-water reported separately |
-| Damage ratio on scroll | **≤1.5× exposed area** (no full-window repaint) |
+| Damage ratio on scroll | **≤1.5× newly exposed area**; report `scroll_blit_bytes`/`scroll_blit_us` separately (1080p ≤1.5 ms, 4K ≤6 ms) |
 
 ### 2.4 Input and interaction
 
@@ -116,11 +117,11 @@ CPU path remains the correctness reference.
 |--------|--------|
 | GPU device init → first frame | **≤80 ms** (cached shaders/pipelines) |
 | 4K full repaint, 1k nodes | **≤4 ms p99** @60; **≤6 ms p99** @120 |
-| 4K damage repaint (hover/typing) | **≤0.5 ms p99** |
-| 10k quads | **≤1 ms GPU** |
+| 4K damage repaint (hover/typing) | **≤1.5 ms p99** including the full-surface blit; ≤0.2 ms if only the damage rect is blitted |
+| 10k quads | **≤0.3 ms GPU** (same scene as CPU ≤1.2 ms) |
 | 100k glyphs, cached atlas | **≤1.5 ms GPU** |
-| 1k shadows/blurred layers | **≤4 ms GPU** |
-| GPU memory (textures/buffers) | **≤64 MB**; 4K persistent scene texture + blit budgeted separately |
+| 1k shadows/blurred layers | **≤1 ms GPU** (same scene as CPU ≤2 ms) |
+| GPU memory (textures/buffers) | **≤64 MB at 1080p**, **≤160 MB at 4K** (scene texture + 2 swapchain images + atlas); layer/image allocations count inside the total |
 | GPU upload per steady frame | **0 bytes** unless the atlas generation changes (then upload the atlas delta, not the full texture) |
 | Draw calls, dashboard | **≤64**; large table **≤256** |
 | Device loss recovery | first frame after loss **≤250 ms**; CPU fallback keeps app alive |
@@ -169,17 +170,19 @@ Wall-clock numbers are noisy on shared CI. The following counters are exact and
 must not regress by more than **2%** without a parent-approved, documented
 trade-off:
 
-| Counter | Where it is reported |
+| Counter | `FrameStats` field |
 |---------|----------------------|
-| View nodes created | `view_stats.nodes` |
-| Retained nodes visited during reconcile | `view_stats.visited` |
-| Nodes relaid out | `layout_stats.nodes` |
-| Text runs measured / cache hits | `text_stats.measured, hits` |
-| Paint commands emitted | `paint_stats.commands` |
-| Tiles painted / full repaints | `paint_stats.tiles, full` |
-| Bytes touched by the rasterizer | `paint_stats.bytes` |
-| Heap allocations in the frame | `frame_stats.allocs` |
-| Frame count to settle | `test_stats.settle_frames` |
+| View nodes created | `nodes` |
+| Retained nodes visited during reconcile | `visited` |
+| Nodes relaid out | `relaid_out`, `layout_nodes` |
+| Virtual-list rebuilds | `virtual_rebuilds` |
+| Text runs measured / cache hits | `text_measured`, `text_cache_hits` |
+| Paint commands emitted | `commands` |
+| Tiles painted / full repaints | `tiles_painted`, `full_repaints` |
+| Bytes touched by raster/scroll blit | `paint_bytes`, `scroll_blit_bytes` |
+| Heap allocations (steady/cold) | `allocs`, `allocs_cold`, `alloc_bytes_high_water` |
+| Event/update/submit/present latency | `event_to_update_us`, `update_to_submit_us`, `submit_to_present_us` |
+| Frame count to settle | `settle_frames` |
 
 `ui::FrameStats` exposes these in-process; `chemical ui bench --json` and
 `perf.stats` report them.
@@ -188,7 +191,13 @@ trade-off:
 
 ## 4. Benchmark scenarios
 
-`lang/tests/ui_bench/` is a standalone app with one scenario per subcommand:
+`lang/tests/ui_bench/` is a standalone app with one scenario per subcommand.
+Scene JSON schema: `{name, viewport, scale, renderer, seed, warmup_frames,
+frames, node_kind, node_count, node_size, overlap, text, font_px, max_width,
+row_height, overscan, velocity, digit_set, animation:{property,duration,easing,count,card_size},
+gpu:{backend,scene_texture}}`. Every run echoes `scene_hash`, resolution, renderer,
+backend/device/driver, CPU/OS/governor, and font hash. P0.3b commits `empty`,
+`static-1k`, `list-100k`; the rest land with their packets.
 
 1. `empty` — create/show/quit.
 2. `static-1k` — 1,000 nodes, no input, first frame + 60 settled frames.
@@ -211,6 +220,10 @@ trade-off:
     palette open, split-pane resize.
 17. `examples-media` — 10k-track playlist scroll, album grid, animated
     visualiser at 60/120 fps, image cache churn, CPU path (GPU optional).
+18. `examples-dashboard-combined` — 100k scroll + chart repaint in one frame;
+    p99 ≤8 ms @60 (6 ms @120), filter ≤16 ms debounced.
+19. `examples-media-combined` — 10k scroll + visualiser in one frame;
+    p99 ≤8 ms @60 (6 ms @120), or the visualiser pauses during scroll.
 
 The four public example apps are benchmarked from their own `bench.sh` and
 `bench/results.json`; the main repo mirrors the summary. This proves the library
@@ -231,7 +244,12 @@ Each scenario prints one JSON object:
   "profile": "reference-linux-x86_64",
   "commit": "…",
   "build": "release_fast",
-  "samples": 30,
+  "frames": 2000,
+  "runs": 5,
+  "machine": {"cpu":"...", "gpu":"...", "os":"...", "governor":"performance"},
+  "renderer": "cpu",
+  "scene_hash": "...",
+  "font_hash": "...",
   "frame_us": {"p50": 2100, "p95": 3400, "p99": 5100, "p999": 9000, "max": 12000},
   "missed_pct": 0.2,
   "counters": {"nodes": 100000, "tiles": 42, "full": 0, "commands": 830, "allocs": 0},
@@ -281,7 +299,8 @@ only in a dedicated commit with the raw run attached.
 ### Release gate
 
 - Full matrix: Linux X11, Linux Wayland, Windows, macOS, WASM.
-- Real-hardware frame/input numbers on the reference profile.
+- Real-hardware frame/input numbers on the reference profile. GPU budgets are
+  release gates only when the GPU track (P3.15) is in scope.
 - 24h fuzz run on layout/style/event/font/image.
 - Manual screen-reader pass (Orca, NVDA, VoiceOver) for the component gallery.
 - Panic-whitelist audit: every `PANIC:` site justified and covered; no
@@ -299,8 +318,9 @@ only in a dedicated commit with the raw run attached.
 
 ## 6. Statistics and honesty
 
-- Use **30+ samples**, discard warm-up, report p50/p95/p99/p99.9/max and missed
-  frames, not a single average.
+- Use **≥2000 post-warmup frames** (or 10 s) for frame gates; report p50/p95/p99/
+  p99.9/max and missed frames. Do not report p99.9 from <2000 frames; report max
+  and missed count instead. `samples` in JSON means frames sampled.
 - Interleave baseline and candidate runs on the same machine; use bootstrap
   confidence intervals; treat wall-clock differences under 5% as noise.
 - Never compare across machines, compiler versions, refresh rates, or debug vs
@@ -339,7 +359,7 @@ Where we may lose, and will say so:
 - GPU-accelerated 4K/120 with heavy blur (our v1 CPU path).
 - Mature widget breadth vs Qt/GTK on day one (ours is staged).
 - Text/script coverage vs Qt/Flutter before the shaping work matures.
-- Platform integration depth (tray, notifications, native print) in v1.
+- Platform integration depth (tray, native print) in v1; notifications are v1.
 
 Honesty about these is part of the README.
 
@@ -366,8 +386,9 @@ Rules:
 - If a framework wins a scenario, say so and link the data. Credibility is the
   point.
 - The README brag line is allowed only after the release gate has the numbers:
-  e.g. *"Chemical UI: native 60/120 fps, 12 MB idle, 120 ms cold start,
-  bit-exact headless rendering with a pinned font, first-class agent inspection."*
+  e.g. *"Chemical UI: native 60/120 fps, 12 MB idle at 960×640 (CPU), 120 ms cold
+  start, bit-exact headless rendering with a pinned font, first-class agent
+  inspection."*
 
 ---
 
@@ -390,7 +411,7 @@ artifact is incomplete even if unit tests pass.
 
 ### Golden determinism rules
 
-- Headless, CPU rasterizer, pinned test font, fixed DPI/scale/time/locale/theme. Scene JSON files are committed under `lang/tests/ui_bench/scenes/` and define node kinds/sizes/text/overlap/font size; baselines are committed at P0.3.
+- Headless, CPU rasterizer, pinned test font, fixed DPI/scale/time/locale/theme. Scene JSON files are committed under `lang/tests/ui_bench/scenes/` and define node kinds/sizes/text/overlap/font size; baselines are committed at P0.3b.
 - 1× and 2× only; no GPU in the primary gate.
 - Integer blend math and fixed-point coverage so x86-64 and ARM produce the
   same bytes for the same scene and pinned font.

@@ -227,7 +227,7 @@ verifiable UI**, not just pixels.
   values; invalid input clamps and reports.
 - Dirty subtrees only; relayout boundary when a parent's size does not depend on
   the child.
-- Targets: 10k simple ≤1.5/2.5 ms, 10k mixed ≤4/6 ms, 100k ≤30/45 ms, single fixed-width label ≤50/100 µs; warm 0.
+- Targets: 10k simple ≤2.5/4 ms, 10k mixed ≤6/9 ms, 100k ≤40/60 ms, single fixed-width label ≤50/100 µs; warm 0.
 
 ### 4.4 Paint and raster
 
@@ -339,7 +339,7 @@ verifiable UI**, not just pixels.
   panic, finite geometry, paint inside clip, idempotent layout.
 - Bench: scenarios in `BENCHMARKS.md`, counter gates in CI, wall-clock nightly,
   comparison report with raw data.
-- Dogfood: settings, dashboard, chat/IDE apps built only with the library.
+- Dogfood: settings, dashboard, chat apps built only with the library.
 - Agent eval: 12 prompts scored by compile + semantic/interaction tests + audit
   + visual rubric + budgets.
 
@@ -412,7 +412,7 @@ public struct App {
         for(var i = 0u; i < self.todos.size(); i++) {
             var t = self.todos.get_ptr(i)
             var row = ui_kit::list_item(b, ui::key_of("todo", t.id), ui_kit::ListItemProps.make(t.id))
-            b.child(row, ui_kit::checkbox(b, ui::key_pair("done", t.id, 0),
+            b.child(row, ui_kit::checkbox(b, ui::key_pair("done", t.id, 1),
                 ui_kit::CheckboxProps.make(t.done).label(t.title)))
             b.child(list, row)
         }
@@ -436,7 +436,7 @@ public struct App {
                 self.next_id = self.next_id + 1
                 ctx.request_view()
             }
-        } else if(ev.key.starts_with("done")) {
+        } else if(ev.key.id() != 0 && ev.key.tag() == 1) {
             var id = ev.key.id()
             for(var i = 0u; i < self.todos.size(); i++) {
                 var t = self.todos.get_ptr(i)
@@ -455,6 +455,10 @@ public struct App {
         return ui::CloseAction.Allow
     }
 }
+
+// P0.2 moves the five methods above into the `impl ui::Application for App`
+// block in the compiling contract snippet.
+impl ui::Application for App { }
 
 public func main(argc : int, argv : **char) : int {
     var app = App()
@@ -724,7 +728,7 @@ blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
   focus/semantics/animation/multi-window/error model, plus the `RenderBackend`
   interface used by CPU and GPU. Exact design tokens in `DESIGN.md`.
 - Platforms: Linux (X11/Wayland), Windows, macOS, WASM canvas + DOM semantics,
-  headless. Multi-window and close-veto in v1.
+  headless. Multi-window, close-veto, native menus/dialogs, and notifications in v1; tray is v1.1.
 - Text: system-first fonts (0 bytes embedded by default); `TEXT.md` coverage
   matrix (TTF/CFF/TTC/cmap-12/composite), Latin/Greek/Cyrillic own shaping,
   platform shapers for complex scripts, bidi, line breaking, IME, editing,
@@ -747,9 +751,9 @@ blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
 
 ### Later (additive)
 
-- Mobile (Android/iOS), Wayland-native/raw X11 hosts for smaller footprint,
+- Mobile (Android/iOS), raw X11 host for smaller footprint,
   full portable complex shaping/color emoji, variable-font rendering, SVG
-  subset, video/PDF/webview child surfaces, native tray/notifications, live code
+  subset, video/PDF/webview child surfaces, native tray, live code
   hot reload, remote/network rendering, plugin widgets, RTL polish, i18n/locale
   formatting, more platforms (FreeBSD), and a `ui2` only if a semantic break is
   unavoidable. "Any 2D UI" means primitives/canvas; embedded web/PDF/video/map
@@ -761,7 +765,7 @@ blocks a packet, the subagent must stop and document it (see `EXECUTION.md`
 - A visual designer/canvas app (the inspector is a debugger, not a design tool).
 - A second language or DSL.
 - Replacing the web stack; `ui` is for native apps and WASM app surfaces, while
-  `#html`/`#universal` remain the web-page stack. They share design tokens.
+  `#html`/`#universal` remain the web-page stack. v1 aligns the design language; `ui` `DESIGN.md` is the source of truth. A generated shared token source for the web stack is v1.1 (the existing `components` theme is separate), not a v1 claim.
 
 ---
 
@@ -781,7 +785,7 @@ subagent loop are in [`../ui/EXECUTION.md`](../ui/EXECUTION.md). Summary:
 | 5. Agent tooling | P5.1–P5.9 | Debug server, CLI/MCP, inspector, audit, eval, lint |
 | 6. Validation | P6.1–P6.7 | Harness, goldens, fuzz, benches, CI matrix, comparison |
 | 7. Examples + hardening | P7.1–P7.9 | Four polished apps (settings/dashboard/chat/media), hardening, docs/claims, public `chemicallang/ui-examples` repo |
-| 8. Release | P8.1–P8.2 | Gate audit, packaging, templates, final validation |
+| 8. Release | P8.1–P8.2b | Gate audit, bundles, updates/crash, final validation |
 
 Each packet is a commit (or a small commit series) with evidence. Stages merge to
 `main` only at their gates.
@@ -795,7 +799,9 @@ commit:
 
 1. **Capability**: the four example apps (settings, dashboard, chat, media)
    build and pass their interaction, semantic, audit, and golden tests using
-   only `ui`/`ui_kit`; no app reaches into `ui::raw` for chrome.
+   the public first-party packages (`ui`, `ui_kit`, `ui_charts`, `ui_images`,
+   `ui_host`, `ui_fonts`, plus `fs`/`datetime`); no app reaches into `ui::raw`
+   for chrome.
 2. **Safety**: ASAN/UBSAN/TSAN clean; 24h fuzz clean; fault injection produces
    typed errors/error cards; no `unwrap`/`expect`/`unreachable` in library or
    examples; every panic-whitelist site is justified and tested; no `unsafe` in
@@ -877,7 +883,7 @@ it wins); fonts are system-first with a 42 KB optional Latin preset; hello is
 `image`, `window`, `std`, `json`, `net`, and `test` libraries, WASM host work
 (P3.7), and the safety effect work only for full no-panic enforcement.
 
-**Unblocks:** native desktop apps written in Chemical; a shared design system
+**Unblocks:** native desktop apps written in Chemical; an aligned design system
 between native and web; agent-first app development; a credible native
 performance story; future GPU/mobile backends over the same display list.
 

@@ -9,6 +9,49 @@ Legend: **Fixed** = contract/plan changed; **Scoped** = explicitly deferred with
 a named release; **Verified** = P0.1 probe remains (no decision left to the
 implementer).
 
+## Final adversarial pass — 2026-11-27
+
+A final five-reviewer pass checked the updated contract set. Material findings
+and fixes:
+
+| Finding | Fix |
+|---------|-----|
+| `Focus`/`Select`/`Submit`/`FileChosen` payloads missing; `KeyCode` placeholder | `FocusPayload`/`IndexPayload`/`ValuePayload` + `Payload` variants; full `KeyCode`; `FileChosen`/`OpenFile`/`SecondInstance`; `PointerEnter/Leave` names. |
+| `UiError` retained dynamic `string_view`/forgeable `Fatal` | `ErrorDetail` static `&'static str`; private `UiError` + `@make`; `UiError.make` never sets `Fatal`; app codes downgraded. |
+| Retained `string_view` in `Options`/`Theme`/`UiCtx` setters; `UiCtx` returned views | All retaining APIs copy/intern synchronously; `text_state`/`semantics` return borrow-tied `&`; static `GpuInfo` strings; builder copy rule. |
+| `Presenter.acquire` unbounded `Surface`; `HostCaps` missing | `Surface<'a>` with `bytes` + checked stride; `HostCaps` declared; GPU presenter contract. |
+| `ImageSource.Bytes` copied to frame arena then decoded on worker | Image cache owns a `Limits`-bounded copy; worker never reads the frame arena. |
+| `EventSender` can outlive runtime | Refcounted closed queue; `post` after close returns `Cancelled`; shutdown order. |
+| Forgeable `NodeId`/`WindowId`/`IconId`; stale harness actions | Private/generational handles; all lookups/actions return `Result`/`Option`; multi-window signatures folded into `UiCtx`. |
+| `Key` label intern table fallible/forgeable; `starts_with` | `Key` holds only hash/tag/id, private; `key()` infallible; `equals(label)` hashes; no label intern correctness dependency. |
+| Path loaders unbounded / `font` infallible copy | `fs::read_limited` (regular file, no-follow, size cap, try_reserve); `*_with_limit`; FIFO/symlink/`/dev/zero` tests. |
+| `virtual_list` hostile source | Count/extents clamp, finite/saturating, recursion cap, duplicate-key diagnostic, O(1) extent/prefix index. |
+| IME UTF-8/range validation | Host-boundary UTF-8 validation; `start≤end≤len`, grapheme boundaries; reversed/oversized tests. |
+| `TextEditState` duplicate/`Range`/`UiCtx.text_context` missing | Canonical `TextEditState`/`ImeComposition`/`Range` in API; `text_context()`; TEXT references it. |
+| `FontStack` flat vs per-script; font cache metadata; API aliases | Per-script `FontFallback`; license/source/version in cache; one `ui_fonts` spelling. |
+| `CanvasId` no construction path | `ui::canvas_id`/`release_canvas`; CanvasPaint node identity. |
+| Table/Tree no cell binding; drag/drop no app API | `TableSource`/`TreeSource`; `begin_drag`/`accept_drop`; file-chosen events. |
+| Stage 0 P0.2 before scaffold | P0.3a scaffold → P0.2 freeze → P0.3b test core; execution order documented. |
+| P0.1 environment/probe/gh unverified | `ENV.md` + `ui-probe-env.sh`; pass/fail/blocked; `gh auth` probe; actual host recorded. |
+| P1.14 needed text before Stage 2 | P1.14 is a no-text window/rect/button skeleton; text/IME in P2.x. |
+| `P8.2a/b` referenced but absent; GPU gate in v1 | P8.2a/b defined; GPU budgets conditional on P3.15. |
+| GPU 4K memory/blit/sample/coverage contradictions | 1080p 64 MB / 4K 160 MB; persistent scene + blit budget; ≥2000 frames; 16×16/analytic 8-bit coverage. |
+| Atlas 5k@2× vs 16 MB; typing damage | Paged 4 MB atlas, 1×≤8 MB/2×≤32 MB; page growth not a full repaint; only eviction/repack bumps generation. |
+| Startup sub-budgets zero slack; PSS undefined at 1080p | 30+30+10+15+15 + 20 slack; PSS 12 MB @960×640, 24 MB @1080p. |
+| 10k layout target faster than Taffy | Rebaselined 2.5/4 ms simple, 6/9 mixed, 40/60 100k; P0.1 measures before freeze. |
+| Event latency fields missing; scene JSON absent | `event_to_update/update_to_submit/submit_to_present`; scene schema + `scene_hash`; 2000 frames. |
+| Examples composed scroll+chart/visualiser budgets | Added combined scenes; 8 ms @60/6 ms @120 or pause visualiser. |
+| Scroll blit/alloc fields | `scroll_blit_bytes/us`, `allocs_cold`, `alloc_bytes_high_water`; separate budgets. |
+| `Percent` in scroll / DESIGN tokens unrepresentable | API scroll exception; `Radius.XL`; `Shadow.color: Color`; `MotionToken`; high-contrast table; compact audit scale. |
+| Tray/notifications/Wayland scope contradictions | Notifications v1; tray v1.1; Wayland v1; raw X11 later. |
+| Shared web/native tokens claim false | v1 aligned design language; generated shared source v1.1. |
+| Chat/IDE vs no code editor/emoji | Renamed Chat; no code editor; emoji tofu/PNG limitation. |
+| Date/time timezone claims | v1 UTC/fixed offsets; tzdb/DST v1.1. |
+| P7.9 public before audit; fresh clone too weak | Private at P7.9; public at P8.1; all four apps fresh-clone on TCC+LLVM; setup/THIRD_PARTY. |
+| Runtime text scale missing | `FrameInfo.text_scale`, `UiCtx.set_text_scale`, `Theme.set_text_scale`. |
+
+All remaining items are implementation hardening, not undecided public contracts.
+
 ---
 
 ## P0 — contract/blocker findings
@@ -25,7 +68,7 @@ implementer).
 | 8 | Zero-alloc/OOM claims impossible with `std::vector/string` panics; no alloc counter | `CONTRACTS.md` §7.3: fallible UI buffers, OOM policy, linker-wrapped allocator, cold/steady split; std blocker recorded. |
 | 9 | `font` cannot load system fonts (CFF/TTC/cmap12/composite), `GlyphOutline` lacks contours | `TEXT.md` §1 support matrix; P1.5b metrics fixture; `GlyphOutline.contour_ends`; platform bitmap fallback; P2.1/P2.2 scope. |
 | 10 | Text cache key missing font identity/DPI/direction; `measure_text` contextless | `TEXT.md` §2: `TextLayoutKey` with font epoch/scale/width/direction/features; `TextContext.measure/measure_rich`; separate shaping/break caches. |
-| 11 | `Key` holds borrowed label; `id()` undefined; `@direct_init` blocks additive fields | `Key` now `{hash,tag,id,label_id}` with interned labels; `key_pair` id=a/tag=b; scoped siblings; collision buckets; `UiEvent/Payload` lifetime-parameterized; additive fields via `@make`/`Other`/API index. |
+| 11 | `Key` holds borrowed label; `id()` undefined; `@direct_init` blocks additive fields | Final pass: `Key` holds only private `(hash,tag,id)`; `key()` infallible; `key_pair` id=a/tag=b; no label correctness dependency; scoped siblings; `UiEvent/Payload` lifetime-parameterized; additive fields via `@make`/`Other`/API index. |
 | 12 | Multi-window/shutdown absent from `Application` | `Application` now gets `FrameInfo` (includes `WindowId`); `on_close`/`CloseAction`; `open_window/close_window/windows`; per-window tree/clock; P3.6. |
 | 13 | WASM cannot share the same display list/text/visuals; host ABI missing | `HOST.md` §7 ABI; `TEXT.md` §5.1 BrowserCanvas vs PinnedFont; WASM tolerance-only; first layout waits for fonts; P3.7. |
 | 14 | App error channel absent; error card unreachable | `Application` methods return `Result`; `b.error`/`ctx.report_error`; `UiError` codes/classes; error card contract; P1.13. |
@@ -40,7 +83,7 @@ implementer).
 | 23 | No startup/task/timeout/async completion | `EventSender`/`UserEvent`, `set_timeout`, `request_frame`, `EventKind.Frame`; `Application::on_load`? Use `on_start`/state hooks in CONTRACTS §9 (P1.10). |
 | 24 | No app `on_start`/async/state hooks for hot reload | `CONTRACTS.md` §9/§11: `on_start` optional companion, `EventSender`, `state.snapshot` hooks; P5.7. |
 | 25 | Multi-window and charts in release gates but deferred | Multi-window is v1 (`FrameInfo`/P3.6); charts are v1 (`ui_charts`/P4.12); P7.8 CPU visualiser, GPU optional. |
-| 26 | No platform shell: menus/dialogs/notifications/tray/lifecycle | `CONTRACTS.md` §11/P3.6/P8.2: `WindowSpec`, native menus/dialogs/notifications, `on_close`, `on_open_file`, `on_second_instance`; packaging. |
+| 26 | No platform shell: menus/dialogs/notifications/tray/lifecycle | `CONTRACTS.md` §11/P3.6/P8.2a/b: `WindowSpec`, native menus/dialogs/notifications, `on_close`, `on_open_file`, `on_second_instance`; packaging. |
 | 27 | No frame tick for Canvas animation | `request_animation_frame`/`EventKind.Frame`; `AnimationSpec` repeat/alternate in `CONTRACTS.md` §9; P2.10/P7.8. |
 | 28 | Style cannot express absolute/grid/aspect/RTL/text align/wrap/ellipsis | `Style` additions in `API.md`/`CONTRACTS.md` §4; P1.6/P1.7. |
 | 29 | No custom theme/high-contrast/density/shared web tokens | `Theme` setters, `ThemeMode.HighContrast`, `Density`, `DESIGN.md`; P1.5/P2.11. |
@@ -50,17 +93,17 @@ implementer).
 | 33 | No rich text/markdown/code editor/selectable text | `TextSpan` modifiers; `ui_md`/`CodeEditor` v1.1; read-only selectable text in P4.2; explicit scope. |
 | 34 | Image formats thin (JPEG/WebP/GIF/SVG); one font weight | `ui_images` optional; P2.8; 42 KB preset single weight documented; multi-weight/variable in v1.1. |
 | 35 | A11y missing relations/live/modal/secure/announce | `Semantics` additions + `UiCtx.announce`; P1.12/P3.8/P6.6. |
-| 36 | No shipping/bundle/signing/update/crash story | P8.2 packaging contract: `chemical bundle`, asset manifest, installers, signing, update feed, crash reporter. |
+| 36 | No shipping/bundle/signing/update/crash story | P8.2a/b packaging contract: `chemical bundle`, asset manifest, installers, signing, update feed, crash reporter. |
 | 37 | Test/debug cannot drive IME/drag/touch/multi-match | `CATALOG.md` §4 harness: `find_all/within`, IME/drag/touch, `wait_until`, `app` access; P5.2/P6.1. |
 | 38 | `@make public struct`/`&[]` don't compile; snippets not compile-gated | API uses `@direct_init` + `@make func`; P0.2 compiles every declaration under `lang/tests/ui/contracts/`. |
 | 39 | ASAN on TCC impossible; sanitizer plan fakeable | `BENCHMARKS.md` §5/§10: LLVM ASAN+UBSAN + C-emitted clang sanitizer; TCC never claimed; TSAN PR for protocol/workers. |
 | 40 | No walking skeleton/performance prototype before deep investment | P0.1 raster prototype/go-no-go; P1.14 Linux walking skeleton before Stage 2; P3.2 hardens. |
-| 41 | Test harness/bench/lint arrive after packets that need them | P0.3 ships `ui_test_core`, 3 bench scenes/baselines, minimal lint; P4.1 ships catalog/API index/lint; P5.9/P6.x harden. |
+| 41 | Test harness/bench/lint arrive after packets that need them | P0.3b ships `ui_test_core`, 3 bench scenes/baselines, minimal lint; P4.1 ships catalog/API index/lint; P5.9/P6.x harden. |
 | 42 | API freeze not machine-checked | `ui_api_index.json` + CI diff gate; P0.2. |
 | 43 | `gh` auth/org permission unprobed; publish before release audit | P0.1 probes `gh auth`/org; P7.9 creates **private** repo; P8.1 makes public after release audit. |
 | 44 | Compiler size ceiling not in any gate | P8.1/BENCHMARKS: TCCCompiler ≤5 MB steady-state, first release 7–15 MB. |
 | 45 | License/attribution audit missing | P8.1 + `TEXT.md` §7: fonts/icons/examples licenses, OFL notices, no proprietary fonts. |
-| 46 | Config/asset paths CWD-relative break installed apps | P8.2 asset manifest/`resolve_asset`; HOST.md macOS app bundle. |
+| 46 | Config/asset paths CWD-relative break installed apps | P8.2a/b asset manifest/`resolve_asset`; HOST.md macOS app bundle. |
 | 47 | Unbounded capture/screenshot/protocol params | `Limits` + `PROTOCOL.md` §1: 4 MiB/64 depth/5 s/100 rps, capture root, redaction. |
 | 48 | Forgeable/stale handles (`ImageId`/`FontHandle`/`CanvasId`) | Private/generational/registry handles; `Option`/`Result`; placeholders; P1.2/P2.8. |
 | 49 | `Key` collision/scope/equality unspecified; example broken | `CONTRACTS.md` §2: full tuple, collision buckets, sibling scope, order-sensitive pair, `id()`/`tag()`; example uses `id()`. |
@@ -99,7 +142,7 @@ implementer).
 | 75 | Image/icon async/lookup | `CONTRACTS.md` §10; `ui_images`; `ui_icons::find`; P2.8. |
 | 76 | Multi-window/drag/shortcuts/close-veto | `CONTRACTS.md` §1.3/§3/§9; P3.6/P4.8. |
 | 77 | Animation/theme scoping/invalidate ambiguity | `CONTRACTS.md` §4/§9; `state_style`, `animate`, `request_animation_frame`; P2.10. |
-| 78 | Packaging/signing/updates | P8.2; `HOST.md` §8. |
+| 78 | Packaging/signing/updates | P8.2a/b; `HOST.md` §8. |
 | 79 | Responsive/200% text/RTL | `FrameInfo`, `Style` additions, `DESIGN.md`, P2.6/P4.7. |
 | 80 | Date/color/rich text/charts gaps | P4.4/P4.5/P4.12; rich text/code editor explicitly v1.1. |
 

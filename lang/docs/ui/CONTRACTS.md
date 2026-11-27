@@ -105,7 +105,7 @@ public struct WindowSpec {
     var start_visible : bool
 }
 
-public struct WindowId { var value : u32 }   // opaque, private
+public struct WindowId { /* private index+generation */ }   // opaque, private
 
 public struct UiCtx {
     public func window(&self) : WindowId
@@ -149,33 +149,29 @@ wall-clock time is never used in layout, paint, or animation.
 ### 2.1 Key
 
 ```chemical
-@direct_init
-public struct Key {
-    var hash : u64
-    var tag : u64
-    var id : u64
-    var label_id : u32
+public struct Key {                 // private fields; constructors only
+    private var hash : u64
+    private var tag : u64
+    private var id : u64
+
+    public func id(&self) : u64
+    public func tag(&self) : u64
+    public func equals(&self, label : string_view) : bool
+    public func equals_key(&self, other : Key) : bool
 }
 
 public func key(label : string_view) : Key          // hash(label), tag=0, id=0
 public func key_of(label : string_view, id : u64) : Key   // id=id
 public func key_pair(label : string_view, a : u64, b : u64) : Key // id=a, tag=b
-
-public struct Key {
-    public func id(&self) : u64        // returns id
-    public func tag(&self) : u64       // returns tag
-    public func equals(&self, label : string_view) : bool
-    public func starts_with(&self, prefix : string_view) : bool
-}
 ```
 
-- Labels are **interned** on first use into a bounded, process-stable intern
-  table. `Key` holds `label_id`, never a borrowed `string_view`. Dynamic labels
-  are allowed but must be interned; the table has a documented cap and returns
-  `UiError.ResourceExhausted` if full. Debug/protocol resolves the label.
-- Equality is the full tuple `(hash, tag, id, label_id)`; a hash collision goes
-  to a bucket and never aliases. `key_pair` is order-sensitive (`hash` of
-  `label:a:b`), not XOR.
+- `Key` holds only `(hash, tag, id)` and has private fields; constructors are
+  the only creation path. Labels are **not stored** in `Key`; a best-effort
+  debug table maps hash→label for protocol display and may drop entries without
+  affecting identity. Dynamic labels are allowed; the debug table is bounded
+  and never a correctness dependency.
+- Equality is the full tuple `(hash, tag, id)`; `key_pair` uses an
+  order-sensitive hash of `label:a:b`, not XOR.
 - **Key scope is immediate siblings.** A component/overlay/fragment gets its own
   scope. Use `b.scope(key)` or `b.scoped_key(parent, label)` for repeated
   internal labels. Duplicate keys in the same scope are a compile-time/runtime
@@ -223,6 +219,13 @@ Rules:
   resize/content shrink, and anchored to the top-left unless `anchor` is set.
 - `List`, `Table`, `Tree`, `Grid` use this contract. A non-virtualised list above
   `UI-LIST-001` (200 items) is an audit error.
+- `extent(index)` must be O(1): fixed extents or a maintained measured-extent
+  prefix index (updated incrementally); the runtime never scans all rows per
+  frame. Expose `virtual_extent_calls`/`virtual_index_builds` counters.
+- Hostile `ItemSource` is contained: `count()` clamps to `Limits.max_view_nodes`;
+  `extent()` must be finite/≥0 and sums use checked saturating math; only visible
+  + overscan items are requested; recursion depth ≤32; duplicate `key(index)`
+  emits a diagnostic and an error card. The builder never loops on NaN/Inf.
 
 ---
 
@@ -252,16 +255,16 @@ reported during capture.
 |------|---------|
 | `Click`, `DoubleClick`, `ContextMenu` | `Pointer { button, press_count, pointer_kind }` |
 | `Press`, `Release` | `Pointer { button, pointer_kind }` |
-| `PointerMove`, `Enter`, `Leave` | `Pointer { pointer_kind, pressure, tilt }` |
+| `PointerMove`, `PointerEnter`, `PointerLeave` | `Pointer { pointer_kind, pressure, tilt }` |
 | `Scroll` | `Scroll { dx, dy, phase }` where phase = Begin/Update/End/Inertia |
 | `KeyDown`, `KeyUp` | `Key { code : KeyCode, repeat : bool, text : Option<string_view> }` |
 | `TextInput` | `Text { text }` |
 | `ImePreedit` | `Ime { preedit, caret, anchor, replace : Range, candidate : Option<Rect> }` |
 | `ImeCommit` | `Ime { commit, caret, replace : Range }` |
-| `Focus`, `Blur` | `Focus { focused }` |
+| `Focus`, `Blur` | `Focus { focused }` (`FocusPayload`) |
 | `Change` | `Value { kind, text, number, range, selected, checked }` |
-| `Submit` | `Value` + `Text` |
-| `Select` | `Index { index, selected }` |
+| `Submit` | `Value { text }` (one `ValuePayload`) |
+| `Select` | `Index { index, selected }` (`IndexPayload`) |
 | `Open`, `Close` | `None` |
 | `Resize` | `Size { width, height, scale }` |
 | `DpiChange` | `Scale { scale }` |
@@ -270,6 +273,9 @@ reported during capture.
 | `Timer` | `Timer { id }` |
 | `Frame` | `Frame { now_ms, dt_ms }` |
 | `Command` | `Command { id }` |
+| `FileChosen` | `Files { paths, text }` |
+| `OpenFile` | `Files { paths, text }` |
+| `SecondInstance` | `User { tag, a, b, text }` |
 | `ImageReady` | `Image { handle }` |
 | `ImageFailed` | `Error { err }` |
 | `FontReady` | `Font { handle }` |
@@ -285,11 +291,27 @@ editing, modifiers, media keys); no `/* … */` placeholder in the frozen API.
   `update` call**. They cannot be stored; the lifetime parameter makes that a
   compile error. To retain, copy (`to_string`, `to_owned`).
 - `ViewBuilder` copies every string/slice it receives (text, labels, test ids,
-  spans, component names, image bytes) into the frame arena. Retained nodes,
-  semantics, a11y, and protocol snapshots own/intern that data; they never read
-  the view arena after reconciliation.
+  spans, component names) into the frame arena. **Image bytes are the exception:**
+  `ImageSource.Bytes` is copied synchronously into the image cache's owned
+  allocation under `Limits.max_image_bytes` and the worker owns that buffer; it
+  never points into the frame arena. Retained nodes, semantics, a11y, and
+  protocol snapshots own/intern text; they never read the view arena after
+  reconciliation.
 - `UiCtx.text(key)` returns `&str` tied to the `&UiCtx` borrow; copy to retain.
-- `EventSender` posts **owned** `UserEvent` values only (see §9).
+- `UiCtx.text_state` returns `Option<&TextEditState>` and `UiHarness.semantics`
+  returns `Option<&Semantics>`, both tied to the receiver borrow. They cannot be
+  stored past the call. `GpuInfo` device/driver strings are static/host-owned;
+  `Screenshot`/`GoldenResult` paths point at caller-provided buffers.
+- `EventSender.post` copies the `UserEvent.text` view into an owned queue entry
+(fallible, `Limits`) and returns `Cancelled` after shutdown; it never retains the
+caller view. See §9.
+- Every API that **retains** text copies/interns it synchronously: `run` copies
+  `Options` strings; `Theme.set_*` copies family names; `UiCtx.set_window_title`,
+  `set_menu`, `notify`, `open_file_dialog`, `announce`, `set_text` copy/validate
+  before returning; `WindowSpec`/`Menu`/`Notification` are copied on submission.
+  No retained API stores a caller `string_view`. Copy failure returns
+  `ResourceExhausted` where the signature allows a `Result`; void setters leave
+  the old value and log `Internal`.
 
 ---
 
@@ -411,9 +433,15 @@ The pipeline is:
 5. **Place**: assign border boxes, baselines, clip/scroll extents.
 
 Maximum **3 passes** for flex/wrap/grid; text may re-break once. No unbounded
-iteration. `Percent` inside a scroll resolves against the **viewport** main
-axis, never an unbounded parent. `Baseline` on a non-text child uses its bottom
-edge. Zero/negative/NaN sizes clamp to zero and emit a `LayoutWarning` event.
+iteration. Grow distributes remaining space proportional to `grow`; shrink is
+weighted by `shrink × base`; ties break by child order. `Fill` = `grow:1,
+basis:0`. `Percent` inside a scroll resolves against the **viewport** main axis,
+never an unbounded parent. Grid `Auto` resolves after intrinsic measure, then
+`Fr` distributes remaining space; ties break by track order. `Baseline` on a
+non-text child uses its bottom edge. Zero/negative/NaN/Inf clamp to zero and emit
+a `LayoutWarning` event. Fixtures: `lang/tests/ui/fixtures/layout/*.json` with
+expected rects + provenance (WPT/Taffy subset) and a 0.5 px oracle; committed
+before P1.6.
 
 Named gates (see `BENCHMARKS.md` for scene JSON):
 
@@ -435,7 +463,7 @@ Named gates (see `BENCHMARKS.md` for scene JSON):
   gradients are a later opt-in.
 - **Blend:** `out = src + div255(dst * (255 - src.a))`, `div255(x) = (x + 128 +
   ((x + 128) >> 8)) >> 8`; integer, no float; alpha 0..255.
-- **Coverage:** 8-bit coverage from a 4×4 vertical/horizontal subsample grid for
+- **Coverage:** 8-bit coverage from analytic area or 16×16 subsampling for
   curves; solid rects use exact integer coverage. Fixed-point, no FMA.
 - **Pixel convention:** pixel `(i,j)` covers `[i,i+1) × [j,j+1)`, sample at the
   centre; fill rule non-zero; abutting rects must not overlap by more than 0.
@@ -443,8 +471,9 @@ Named gates (see `BENCHMARKS.md` for scene JSON):
   scissor, never a local coordinate origin. No seams at tile boundaries.
 - **Text:** alpha-only atlas (R8), grayscale AA, hinting off, subpixel bins:
   4 bins for size < 20 px, 1 bin for ≥ 20 px; baseline snapped to 1/64 px;
-  atlas eviction only at frame boundaries; `atlas_generation` invalidates tile
-  and layer caches (counted as a full repaint).
+  atlas pages grow without invalidating existing pages; eviction/repack only at
+  frame boundaries; `atlas_generation` bumps only on eviction/repack and
+  invalidates tile/layer caches (counted as a full repaint).
 - **GPU parity:** GPU consumes the same display list and uses a UNORM target;
   GPU goldens are per-driver tolerance, never cross-machine equality.
 - **sRGB LUT:** no LUT in the reference path; data-viz/linear gradients may use
@@ -461,16 +490,17 @@ public enum ErrorClass { Expected, AppBug, Internal, Fatal }
 public enum ErrorCode {
     Platform, Surface, Font, Image, Layout, InvalidKey, StaleNode, OutOfMemory,
     Protocol, Io, Timeout, NotImplemented, Unsupported, NotFound, PermissionDenied,
-    InvalidArgument, Decode, ResourceExhausted, Cancelled, Busy, DuplicateKey,
+    InvalidArgument, Decode, ResourceExhausted, Cancelled, Busy, WouldBlock, DuplicateKey,
     StaleKey, ThreadAffinity, DeviceLost, Internal, Other
 }
 @direct_init
 public struct UiError {
-    var code : ErrorCode
-    var class : ErrorClass
-    var detail : ErrorDetail       // fixed inline buffer + optional static str
-    var source : Option<SourceLocation>
-    var retry : RetryHint          // Never | Immediate | Backoff
+    private var code : ErrorCode
+    private var class : ErrorClass
+    private var detail : ErrorDetail   // static/inline only
+    private var source : Option<SourceLocation>
+    private var retry : RetryHint
+    @make func make(code : ErrorCode, message : &'static str) : UiError
 }
 ```
 
@@ -491,6 +521,9 @@ Recovery is code-driven:
 | `ThreadAffinity`, `StaleNode` | Internal | safe fallback + log; fix the caller |
 | `Internal` | Internal | error card + log; fix the caller |
 | `Fatal` | Fatal | abort with diagnostic; whitelist only |
+
+`UiError.make` never sets `Fatal`; any app-supplied code is downgraded to
+`Internal`/`Expected` by class. Only `ui::internal::fatal` may abort.
 
 ### 7.2 Panic criterion
 
@@ -528,17 +561,18 @@ it; the normal suite never does.
 ```chemical
 @direct_init
 public struct Limits {
-    var max_view_nodes : u32 = 200_000
-    var max_retained_nodes : u32 = 200_000
+    var max_view_nodes : u32 = 200000
+    var max_retained_nodes : u32 = 200000
     var max_text_bytes : u64 = 64 << 20
     var max_image_pixels : u64 = 64 << 20       // 64 MP
     var max_image_bytes : u64 = 256 << 20
     var max_font_bytes : u64 = 32 << 20
     var max_atlas_bytes : u64 = 16 << 20
     var max_layer_bytes : u64 = 128 << 20
-    var max_display_commands : u32 = 200_000
+    var max_gpu_bytes : u64 = 160 << 20
+    var max_display_commands : u32 = 200000
     var max_protocol_bytes : u32 = 4 << 20
-    var max_capture_frames : u32 = 10_000
+    var max_capture_frames : u32 = 10000
     var max_screenshot_pixels : u64 = 64 << 20
 }
 ```
@@ -562,11 +596,11 @@ never aborts. Per-window + global accounting appears in `FrameStats`.
 
 ```chemical
 public struct EventSender {   // Send + Sync + Clone
-    public func post(&self, ev : UserEvent) -> Result<std::Unit, UiError>
+    public func post(&self, ev : UserEvent) : Result<std::Unit, UiError>
     public func wake(&self)
 }
 @direct_init public struct UserEvent {
-    var tag : u64; var a : i64; var b : i64; var text : string
+    var tag : u64; var a : i64; var b : i64; var text : string_view
 }
 public struct UiCtx {
     public func sender(&self) : EventSender
@@ -597,8 +631,14 @@ public func image_release(h : ImageHandle)
 public func image_state(h : ImageHandle) : ImageState
 ```
 
+Path loaders use one `fs::read_limited(path, max, flags)` that checks a regular
+file, `O_NOFOLLOW|O_NONBLOCK`, size ≤ limit, `try_reserve`, and maps failures to
+`Io`/`ResourceExhausted`. `font_from_file`/`image(path)` pass `Limits` and never
+buffer an unbounded file; FIFO/symlink/`/dev/zero` tests are mandatory.
+
 `view` never decodes. `b.image(key, ImageSource)` accepts `Path`, `Bytes`
-(copied/queued), `Handle`, or `Placeholder`; the node paints the current state.
+(copied into the image cache, then queued), `Handle`, or `Placeholder`; the node
+paints the current state.
 Decode runs on a worker with `Limits` caps, posts `ImageReady`/`ImageFailed`,
 and cancels when the keyed node is removed. Cache is a bounded LRU with
 per-image/global byte accounting. `ui_images` adds JPEG/WebP/GIF/SVG support
@@ -610,14 +650,14 @@ per-image/global byte accounting. `ui_images` adds JPEG/WebP/GIF/SVG support
 ```chemical
 public struct FontHandle { /* private generational */ }
 public struct FontStack { var ui : &[string_view]; var mono : &[string_view]; var fallback : &[string_view] }
-public func system_fonts() : FontStack
+public func system_stack() : FontStack
 public func font_from_file(path : string_view) : Result<FontHandle, UiError>
 public func font_state(h : FontHandle) : FontState
-public func fetch_font_async(url : string_view, sha256 : string_view) : FontRequest
+public func fetch_async(url : string_view, sha256 : string_view) : FontRequest
 ```
 
-`fetch_font` is blocking and must never be called from `view`/`update`; use
-`fetch_font_async` + `FontReady` event, or preload at startup. The compiler ships
+`fetch` is blocking and must never be called from `view`/`update`; use
+`fetch_async` + `FontReady` event, or preload at startup. The compiler ships
 no font. The optional 42 KB preset is downloaded/cached or embedded by the app.
 Missing glyphs render tofu + a `FontWarning` event and a coverage report; they
 never panic. `FontCacheEntry` carries `license`, `source_url`, `version`.
@@ -659,17 +699,18 @@ public struct UiCtx {
     public func open_file_dialog(&mut self, opts : FileDialogOptions)
         : Result<std::Unit, UiError>          // result via Files event
     public func notify(&mut self, n : Notification) : Result<std::Unit, UiError>
+    // tray is v1.1; notify is v1
     public func set_tray(&mut self, menu : &[Menu]) : Result<std::Unit, UiError>
-    public func on_open_file(&mut self, path : string_view)   // app lifecycle
-    public func on_second_instance(&mut self, args : &[string_view])
+    // results arrive as FileChosen / OpenFile / SecondInstance events
 }
 ```
 
-Native menu/quit/preferences, file dialogs, notifications, tray, `on_open_file`,
-and `on_second_instance` are v1 platform-shell features (P3.6). A host that
+Native menu/quit/preferences, file dialogs, notifications, and open-file/
+second-instance delivery (as `FileChosen`/`OpenFile`/`SecondInstance` events) are
+v1 platform-shell features (P3.6); tray is v1.1. A host that
 cannot support one returns `UiError.Unsupported`; the app degrades visibly.
 
-- **Packaging:** P8.2 must define `chemical bundle` targets (Linux AppImage/deb,
+- **Packaging:** P8.2a/P8.2b must define `chemical bundle` targets (Linux AppImage/deb,
   Windows MSI/MSIX, macOS `.app`/notarization, WASM static), an asset manifest
   + `resolve_asset`, app icons/licenses, signing, update feed, and crash
   reporting. CWD-relative asset paths are forbidden in bundled apps.
@@ -684,7 +725,7 @@ new/changed packets are:
 - **P0.1** committed probes + raster prototype + `gh auth`/org probe + font/text
   probes + allocation counting.
 - **P0.2** contract compilation, API index, API diff gate.
-- **P0.3** `ui_test_core`, `ui_bench` 3 scenes/baselines, minimal lint,
+- **P0.3b** `ui_test_core`, `ui_bench` 3 scenes/baselines, minimal lint,
   `STATUS.json`, stub ledger, macOS CI job.
 - **P0.4** `DESIGN.md` exact token sheet + 3 reference screens.
 - **P1.5b** font metrics + committed fixture before layout.

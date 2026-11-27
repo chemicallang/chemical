@@ -165,30 +165,15 @@ public struct TextLayoutKey {
 
 ### 4.1 State
 
-```chemical
-@direct_init
-public struct TextEditState {
-    var text : string_view        // borrowed view of runtime-owned text
-    var anchor : u32              // byte offset
-    var caret : u32
-    var composition : Option<ImeComposition>
-    var secure : bool
-}
-@direct_init
-public struct ImeComposition {
-    var preedit : string_view
-    var caret : u32               // byte offset within preedit
-    var anchor : u32
-    var replace : Range            // document range replaced
-    var candidate : Option<Rect>   // logical px, window coords
-}
-```
+`TextEditState`/`ImeComposition`/`Range` are declared canonically in
+[`API.md`](API.md) §1.5; this document only defines their semantics.
+
 
 `UiCtx` exposes:
 
 ```chemical
 public func text_state(&self, key : Key) : Option<TextEditState>
-public func set_text(&mut self, key : Key, text : string_view)
+public func set_text(&mut self, key : Key, text : string_view) : Result<std::Unit, UiError>
 public func set_selection(&mut self, key : Key, anchor : u32, caret : u32)
 public func select_all(&mut self, key : Key)
 public func ime_rect(&mut self, key : Key, rect : Rect)
@@ -198,7 +183,7 @@ Controlled/uncontrolled contract:
 
 - `TextInputProps.value` (controlled) or `default_value` (uncontrolled) — exactly
   one; controlled means the app supplies the value each `view` and the runtime
-  never diverges. Uncontrolled means the runtime owns it; `ctx.set_text` is the
+  never diverges. Uncontrolled means the runtime owns it; `ctx.set_text` (fallible) is the
   reset API.
 - `Change` fires with `Value { text, range }` after a commit (not each preedit).
   `Submit` carries the final text. Copying text into app state on every keystroke
@@ -221,6 +206,10 @@ Controlled/uncontrolled contract:
   `selectionStart/End`, `getBoundingClientRect` for candidate rect.
 - Requirement: no lost/duplicated characters for a 1k-event mixed UTF-8/IME
   fuzz; preedit never commits twice; cancel restores the pre-edit range.
+- Validate UTF-8 once at the host boundary (`try_from_utf8`); require
+  `start ≤ end ≤ text.len()` and grapheme boundaries, else `InvalidArgument`.
+  Store text as validated UTF-8 (`str`), never a raw byte view. Test invalid
+  UTF-8, surrogate pairs, overlong encodings, ZWJ, and reversed ranges.
 
 ---
 
@@ -232,8 +221,10 @@ Controlled/uncontrolled contract:
 - Atlas is grow-only within a frame; LRU eviction at frame boundaries;
   `atlas_generation` invalidates dependent tile/layer/GPU caches and is reported
   as a full repaint.
-- Atlas budget: 16 MB default. 5k glyphs at 4 bins/2× stays within budget; if
-  not, reduce bins by size and report the quality change.
+- Atlas budget: **16 MB/page set**; 5k glyphs at 1× ≤8 MB, at 2× ≤32 MB or fewer
+  bins. Use 4 MB pages; adding a page does not invalidate existing pages. Only
+  eviction/repack bumps `atlas_generation` and forces a full repaint. Report the
+  quality change if bins are reduced.
 - CPU and GPU use the same glyph bitmaps and positions; GPU uploads only the
   atlas delta. WASM Canvas2D text is a different backend and tolerance-only.
 

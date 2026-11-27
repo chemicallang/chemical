@@ -85,9 +85,8 @@ public struct ListProps {
 
 @direct_init
 public struct TableProps {
-    var columns : &[TableColumn]        // id, title, width, align, sortable
-    var row_count : size_t
-    var row_extent : float
+    var columns : &[TableColumn]
+    var source : &TableSource          // virtualized cell source
     var selection : SelectionMode
     var sort : Option<SortSpec>
     var filter : Option<string_view>
@@ -106,49 +105,43 @@ public interface ItemSource {
 only the text break cache, not the whole row tree. `Table` selection/sort/filter
 events are typed payloads. A non-virtualised list >200 items is `UI-LIST-001`.
 
+```chemical
+public enum SelectionMode { None, Single, Multiple }
+@direct_init public struct TableColumn {
+    var id : string_view; var title : string_view; var width : Dim
+    var align : TextAlign; var sortable : bool
+}
+public variant SortSpec { Ascending(column : string_view) Descending(column : string_view) }
+public interface TableSource {
+    func count(&self) : size_t
+    func row_key(&self, index : size_t) : Key
+    func row_extent(&self, index : size_t) : float
+    func cell(&self, b : &mut ViewBuilder, row : size_t, column : string_view) : NodeId
+    func sort(&mut self, spec : SortSpec)
+    func filter(&mut self, query : string_view)
+}
+```
+
+`TableProps` carries `source : &TableSource` (monomorphized/generic), columns,
+selection, sort/filter; the runtime virtualizes rows and calls `cell` only for
+visible cells. `TreeSource` adds `expanded(key)`/`set_expanded(key,bool)`/
+`children(key)`. Sort/filter are app-implemented on the source; the table emits
+typed events and does not rebuild all rows.
+
 ---
 
 ## 4. Test harness (v1)
 
-```chemical
-public struct UiHarness<'a, A> {
-    public func new(app : &'a mut A, options : Options) : Result<UiHarness<'a, A>, UiError>
-    public func app(&self) : &A
-    public func app_mut(&mut self) : &mut A
-    public func frame(&mut self) : Result<FrameStats, UiError>
-    public func advance(&mut self, ms : double) : Result<FrameStats, UiError>
-    public func settle(&mut self) : Result<u32, UiError>   // frames; error if unstable
-    public func wait_until(&mut self, pred : fn(&A) => bool, timeout_ms : u32) : Result<std::Unit, UiError>
+`UiHarness` is declared canonically in [`API.md`](API.md) §11. This
+document defines only the additional test helpers and expectations:
 
-    public func by_key(&self, key : Key) : Option<NodeId>
-    public func find_role(&self, role : Role) : Option<NodeId>
-    public func find_name(&self, name : string_view) : Option<NodeId>
-    public func find_test_id(&self, id : string_view) : Option<NodeId>
-    public func find_all(&self, q : Query) : &[NodeId]
-    public func within(&self, parent : NodeId, q : Query) : &[NodeId]
-    public func focused(&self) : Option<NodeId>
-    public func scroll_offset(&self, key : Key) : Point
-    public func bounds(&self, id : NodeId) : Option<Rect>
-    public func semantics(&self, id : NodeId) : Option<Semantics>
-    public func text_of(&self, id : NodeId) : Option<&str>
+- `find_all(Query)`, `within(parent, Query)`, `focused`, `scroll_offset`,
+  `wait_until`, `app()/app_mut()`, `set_scale`, IME/drag/touch.
+- `settle() : Result<u32, UiError>` with a documented frame bound;
+  `screenshot : Result<Screenshot, UiError>`; `assert_golden` with
+  `GoldenOptions { max_diff_pixels=0, yiq=0 }` by default.
+- All mutators return `Result` for stale/forged ids.
 
-    public func click(&mut self, id : NodeId)
-    public func double_click(&mut self, id : NodeId)
-    public func hover(&mut self, id : NodeId)
-    public func press(&mut self, id : NodeId) / release
-    public func drag(&mut self, from : NodeId, to : NodeId)
-    public func key(&mut self, code : KeyCode, mods : Modifiers)
-    public func type_text(&mut self, text : string_view)
-    public func ime(&mut self, ev : ImeTestEvent)
-    public func set_scale(&mut self, scale : float)
-
-    public func screenshot(&self, path : string_view) : Result<Screenshot, UiError>
-    public func assert_golden(&self, path : string_view, opts : GoldenOptions) : Result<GoldenResult, UiError>
-    public func assert_semantics(&self, expected : &ComponentSpec) : Result<std::Unit, UiError>
-    public func assert_no_overflow(&self) : Result<std::Unit, UiError>
-    public func audit(&self) : AuditReport
-}
-```
 
 `GoldenOptions { max_diff_pixels : u32 = 0, yiq : float = 0.0, masks : &[Rect] }`;
 the default is bit-exact. `screenshot` returns `{path, width, height, hash}`.

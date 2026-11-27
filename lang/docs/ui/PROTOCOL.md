@@ -14,10 +14,14 @@ conform to it.
 
 - Native: newline-delimited JSON-RPC 2.0 over TCP on `127.0.0.1` (IPv4/IPv6
   loopback only). One request per line; one response per line.
-- WASM: `globalThis.__chemicalUi.call(method, params) -> Promise`, plus optional
-  WebSocket client to `chemical ui relay` (the CLI listens; the browser never
-  listens).
-- Discovery: `.chemical/ui/<pid>.json`, mode 0600, containing
+- WASM: the bridge exists only with `--ui-debug`; expose
+  `globalThis.__chemicalUi.call` behind a per-page token and `postMessage`
+  origin/source check. In release, `shutdown`/`state.restore`/`capture` are
+  disabled. Optional WebSocket relay to `chemical ui relay` (the CLI listens).
+- Discovery: `$XDG_RUNTIME_DIR/chemical-ui/<pid>.json` (Linux) or
+  `%LOCALAPPDATA%\Chemical\ui\<pid>.json` (Windows), mode 0700/0600, created
+  with `O_EXCL|O_NOFOLLOW` and an owner check; deleted on exit. `.chemical/ui`
+  is a debug-only fallback when no runtime dir exists. Contents:
   `{pid, port, token, started_ms, title, protocol:"1"}`. `--ui-pid-file`
   overrides.
 - Auth: every request includes `"token"` (constant-time compare). `hello`
@@ -27,8 +31,16 @@ conform to it.
   max 64 concurrent; screenshots chunked (`png.chunk {id, seq, data}`).
 - No `eval`, no arbitrary filesystem writes outside the configured capture root
   (canonicalized, `O_NOFOLLOW`, 0700, atomic create), no network.
-- Redaction: secure text values are `"••••"` everywhere unless the app started
-  with `--ui-reveal-secrets`; logs/captures redact by default.
+- Redaction: secure text values are `"••••"` in **every** method — snapshot,
+  inspect props, subscribe deltas, capture input/frames, logs, a11y, and
+  screenshots — unless the app started with `--ui-reveal-secrets`. The flag is
+  reported in `hello`/`app.info` and can be scoped per request.
+- Numeric bounds: `scale ∈ (0,4]`, region ∩ surface, `clock.rate ∈ (0,16]`,
+  `advance/step` ≤ 10 s/600 frames, `log.tail n` ≤ ring size, `tree.depth` ≤ 64,
+  `limit` ≤ 10k; responses over 4 MiB return `{"truncated":true}` with a cursor.
+  `state.restore` keys/bytes bounded; invalid values return `InvalidArgument`.
+- One capture per window; disk quota enforced; `screenshot` pixels ≤
+  `Limits.max_screenshot_pixels`.
 - The protocol thread parses and enqueues; all tree/surface work runs on the UI
   thread. A request that would block the UI beyond 5 s returns `Timeout`.
 

@@ -75,9 +75,22 @@ invent a second token set. A token change after P1.5 requires a
 
 ### High contrast
 
-Use `#000000`/`#FFFFFF` surfaces, `#FFD400` focus ring (3 px), `#FFFFFF`/`#000000`
-text, borders ≥2 px. Color is never the only signal; icons/text accompany
-success/warning/danger.
+| Token | Value |
+|-------|-------|
+| Surface | `#000000` |
+| SurfaceRaised | `#000000` |
+| SurfaceSunken | `#000000` |
+| OnSurface | `#FFFFFF` |
+| OnSurfaceMuted | `#FFFFFF` |
+| Primary | `#FFD400` |
+| OnPrimary | `#000000` |
+| Border | `#FFFFFF` (2 px) |
+| FocusRing | `#FFD400` (3 px) |
+| Danger | `#FF6B6B` |
+| Success | `#69F0AE` |
+| Warning | `#FFD400` |
+
+Color is never the only signal; icons/text accompany success/warning/danger.
 
 Contrast gates: body ≥4.5:1; large text (≥24 px or ≥19 px bold) ≥3:1; focus
 ring ≥3:1 against adjacent colors. Audit fails otherwise.
@@ -99,7 +112,9 @@ ring ≥3:1 against adjacent colors. Audit fails otherwise.
 | `XXXL` | 48 | 40 | hero gap |
 
 8-pt grid; 2/4 pt only for optical alignment. Form rows use `MD`; card padding
-`LG`; page padding `XL`; section gap `XXL`.
+`LG`; page padding `XL`; section gap `XXL`. Compact values (6/10/14/20/28/40) are
+audit-allowed as the compact scale; do not mix comfortable and compact values on
+one screen.
 
 ---
 
@@ -217,7 +232,8 @@ Every interactive component ships all applicable states.
 - status not color-only;
 - empty/loading/error/disabled states for every data view;
 - responsive at 640/1024/1440; no horizontal overflow;
-- motion 120–240 ms; reduced-motion path;
+- motion 120–240 ms via `MotionToken`; spring parameters fixed in `Theme`;
+  reduced-motion path;
 - focus always visible, never clipped;
 - density comfortable/compact tested at 100%/200%.
 

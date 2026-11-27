@@ -88,11 +88,6 @@ const UI_MAX_ELEVATIONS : u32 = 3u32
 const UI_MAX_RADII : u32 = 2u32
 
 @direct_init
-public struct Shadow {
-    var x : float; var y : float; var blur : float; var spread : float; var color : Color
-}
-
-@direct_init
 public struct Duration { var ms : float }
 
 @direct_init
@@ -114,6 +109,17 @@ public struct TextStyle {
     var tab_size : u8
 }
 
+func shadow_pack(s : Shadow) : [5]u32 {
+    var out : [5]u32 = [0u32, 0u32, 0u32, 0u32, 0u32]
+    unsafe { memcpy(&raw mut out[0], &raw mut s, 20u) }
+    return out
+}
+func shadow_unpack(v : [5]u32) : Shadow {
+    var s : Shadow = Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }
+    unsafe { memcpy(&raw mut s, &raw mut v[0], 20u) }
+    return s
+}
+
 public struct Theme {
     var colors : [32]Color
     var spaces : [9]float
@@ -128,7 +134,7 @@ public struct Theme {
     var text_italics : [10]bool
     var text_features : [10]TextFeatures
     var text_tab_sizes : [10]u8
-    var elevations : [4]Shadow
+    var elevation_data : [4][5]u32
     var motions : [4]float
     var density_value : Density
     var scale_value : float
@@ -150,7 +156,7 @@ public struct Theme {
             text_italics : [false, false, false, false, false, false, false, false, false, false],
             text_features : [TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }],
             text_tab_sizes : [4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8],
-            elevations : [Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }, Shadow { x : 0f, y : 1f, blur : 2f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 20u8 } }, Shadow { x : 0f, y : 4f, blur : 8f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 20u8 } }, Shadow { x : 0f, y : 12f, blur : 24f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 36u8 } }],
+            elevation_data : [ shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }), shadow_pack(Shadow { x : 0f, y : 1f, blur : 2f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 20u8 } }), shadow_pack(Shadow { x : 0f, y : 4f, blur : 8f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 20u8 } }), shadow_pack(Shadow { x : 0f, y : 12f, blur : 24f, spread : 0f, color : Color { r : 15u8, g : 23u8, b : 42u8, a : 36u8 } }) ],
             motions : [120.0f, 160.0f, 240.0f, 220.0f],
             density_value : Density.Comfortable,
             scale_value : 1.0f,
@@ -174,7 +180,7 @@ public struct Theme {
             text_italics : [false, false, false, false, false, false, false, false, false, false],
             text_features : [TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }],
             text_tab_sizes : [4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8],
-            elevations : [Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }, Shadow { x : 0f, y : 1f, blur : 2f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 89u8 } }, Shadow { x : 0f, y : 4f, blur : 8f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 115u8 } }, Shadow { x : 0f, y : 12f, blur : 24f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 140u8 } }],
+            elevation_data : [ shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }), shadow_pack(Shadow { x : 0f, y : 1f, blur : 2f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 89u8 } }), shadow_pack(Shadow { x : 0f, y : 4f, blur : 8f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 115u8 } }), shadow_pack(Shadow { x : 0f, y : 12f, blur : 24f, spread : 0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 140u8 } }) ],
             motions : [120.0f, 160.0f, 240.0f, 220.0f],
             density_value : Density.Comfortable,
             scale_value : 1.0f,
@@ -198,7 +204,7 @@ public struct Theme {
             text_italics : [false, false, false, false, false, false, false, false, false, false],
             text_features : [TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }],
             text_tab_sizes : [4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8, 4u8],
-            elevations : [Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }, Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }, Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }, Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }],
+            elevation_data : [ shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }), shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }), shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }), shadow_pack(Shadow { x : 0.0f, y : 0.0f, blur : 0.0f, spread : 0.0f, color : Color { r : 0u8, g : 0u8, b : 0u8, a : 0u8 } }) ],
             motions : [120.0f, 160.0f, 240.0f, 220.0f],
             density_value : Density.Comfortable,
             scale_value : 1.0f,
@@ -235,7 +241,7 @@ public struct Theme {
         }
     }
 
-    public func elevation(&self, e : Elevation) : Shadow { return self.elevations[e as size_t] }
+    public func elevation(&self, e : Elevation) : Shadow { return shadow_unpack(self.elevation_data[e as size_t]) }
     public func density(&self) : Density { return self.density_value }
     public func text_scale(&self) : float { return self.scale_value }
     public func motion(&self, m : MotionToken) : Duration { return Duration { ms : self.motions[m as size_t] } }

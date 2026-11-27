@@ -1,0 +1,9 @@
+application ui_shot
+source "src"
+import cstd
+import std
+import font
+import image
+import path
+import environment
+import ui

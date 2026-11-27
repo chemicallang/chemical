@@ -642,3 +642,8 @@ public struct Color {
     public func is_opaque(&self) : bool { return self.a == 255u8 }
     public func to_premul_u32(&self) : u32 { return self.premultiply().to_u32() }
 }
+
+@direct_init
+public struct Shadow {
+    var x : float; var y : float; var blur : float; var spread : float; var color : Color
+}

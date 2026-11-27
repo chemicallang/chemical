@@ -1,0 +1,56 @@
+{
+  "packet": "P0.3a",
+  "name": "Scaffolding, scripts, manifests",
+  "state": "done",
+  "commands": [
+    {
+      "id": "self-test",
+      "run": "scripts/ui-verify.sh --self-test",
+      "artifacts": [
+        "scripts/ui-verify.sh"
+      ]
+    },
+    {
+      "id": "test-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter scaffold",
+      "artifacts": [
+        "lang/tests/ui/chemical.mod"
+      ]
+    },
+    {
+      "id": "bench",
+      "run": "scripts/ui-bench.sh --scenario empty --tcc",
+      "artifacts": [
+        "lang/tests/ui_bench/chemical.mod"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/chemical.mod",
+    "lang/libs/ui_kit/chemical.mod",
+    "lang/tests/ui/chemical.mod",
+    "lang/tests/ui_bench/chemical.mod",
+    "scripts/ui-test.sh",
+    "scripts/ui-bench.sh",
+    "scripts/ui-shot.sh",
+    "scripts/ui-verify.sh",
+    "scripts/ui-api-index.sh"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P0.3a",
+    "required": true,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "ui-shot.sh exits 78 until P1.10",
+    "ui-test filter only scaffold until P0.3b",
+    "ui-api-index identical duplicate until P0.2 resolves API.md"
+  ],
+  "notes": "Scaffold only; P0.2/P0.3b replace the declared stubs."
+}

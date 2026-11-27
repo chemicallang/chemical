@@ -1,0 +1,11 @@
+{
+  "name": "empty",
+  "viewport": {"width": 960, "height": 640},
+  "scale": 1.0,
+  "renderer": "none",
+  "seed": 0,
+  "warmup_frames": 0,
+  "frames": 1,
+  "node_kind": "none",
+  "node_count": 0
+}

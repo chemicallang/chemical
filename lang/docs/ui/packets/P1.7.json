@@ -1,0 +1,19 @@
+{
+  "packet": "P1.7",
+  "name": "Layout v2 (wrap/grid/scroll)",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.7",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

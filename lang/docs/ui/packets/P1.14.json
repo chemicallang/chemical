@@ -1,0 +1,19 @@
+{
+  "packet": "P1.14",
+  "name": "Linux walking skeleton (real window)",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.14",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

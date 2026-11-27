@@ -1,0 +1,19 @@
+{
+  "packet": "P1.1",
+  "name": "Math, geometry, color, errors",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.1",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

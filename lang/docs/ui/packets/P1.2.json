@@ -1,0 +1,19 @@
+{
+  "packet": "P1.2",
+  "name": "Arena, generational IDs, keys",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.2",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

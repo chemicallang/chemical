@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chemicallang.org/ui/evidence/schema.json",
+  "title": "Chemical UI evidence manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packet", "status", "commit", "files"],
+  "properties": {
+    "packet": {"type": "string", "pattern": "^P[0-9]+(\\.[0-9]+)?[a-z]?$"},
+    "status": {"enum": ["pass", "fail", "blocked", "partial"]},
+    "commit": {"type": ["string", "null"]},
+    "files": {"type": "array", "items": {"type": "string", "minLength": 1}},
+    "hashes": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
+    "blocked": {"type": "array", "items": {"type": "string"}},
+    "commands": {"type": "array", "items": {"type": "string"}}
+  }
+}

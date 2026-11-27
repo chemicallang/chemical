@@ -1,0 +1,3 @@
+ui-verify: STATUS.json matches STATUS.md (91 entries)
+ui-verify: self-test PASS (bad red, good green)
+{"self_test":"pass","bad_packet":"reject","good_packet":"accept","status":"pass"}

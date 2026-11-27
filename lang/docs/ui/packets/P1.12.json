@@ -1,0 +1,19 @@
+{
+  "packet": "P1.12",
+  "name": "Semantics tree and audit core",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.12",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

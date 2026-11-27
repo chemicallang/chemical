@@ -1,0 +1,33 @@
+{
+  "packet": "P0.1",
+  "name": "Feasibility and compiler probe",
+  "state": "done",
+  "commands": [
+    {
+      "id": "probes",
+      "run": "lang/tests/ui_probe/run-probes.sh",
+      "artifacts": [
+        "lang/tests/ui_probe/run-probes.sh"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/tests/ui_probe/README.md",
+    "lang/tests/ui_probe/ENV.md",
+    "lang/docs/ui/evidence/P0.1/REPORT.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P0.1",
+    "required": true,
+    "files": [
+      "REPORT.md",
+      "BLOCKER.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [],
+  "notes": "P0.1a separately fixed named function -> std::function; see evidence/P0.1a."
+}

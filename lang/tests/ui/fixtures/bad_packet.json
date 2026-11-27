@@ -1,0 +1,10 @@
+{
+  "packet": "P0.3a",
+  "name": "deliberately invalid self-test packet",
+  "state": "not-a-state",
+  "commands": [],
+  "artifacts": ["lang/tests/ui/fixtures/does-not-exist.txt"],
+  "evidence": {"dir": "lang/tests/ui/fixtures/missing-evidence", "required": true, "files": ["REPORT.md"]},
+  "benchmarks": {"keys": [], "compare": false},
+  "stubs": []
+}

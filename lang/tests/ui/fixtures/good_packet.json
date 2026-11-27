@@ -1,0 +1,12 @@
+{
+  "packet": "P0.3a",
+  "name": "known-good scaffold self-test packet",
+  "state": "review",
+  "commands": [
+    {"id": "self-test", "run": "scripts/ui-verify.sh --self-test", "artifacts": ["scripts/ui-verify.sh"]}
+  ],
+  "artifacts": ["scripts/ui-test.sh", "lang/tests/ui/chemical.mod"],
+  "evidence": {"dir": "lang/docs/ui/evidence/P0.3a", "required": true, "files": ["REPORT.md"]},
+  "benchmarks": {"keys": [], "compare": false},
+  "stubs": ["ui-shot.sh exits 78 until P1.10"]
+}

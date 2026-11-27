@@ -1,0 +1,21 @@
+{
+  "packet": "P0.4",
+  "name": "Design spec and exact tokens",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [
+    "lang/docs/ui/DESIGN.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P0.4",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

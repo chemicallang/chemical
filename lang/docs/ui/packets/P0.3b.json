@@ -1,0 +1,23 @@
+{
+  "packet": "P0.3b",
+  "name": "Test core, bench baselines, minimal lint",
+  "state": "todo",
+  "commands": [],
+  "artifacts": [],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P0.3b",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [
+      "empty",
+      "static-1k",
+      "list-100k"
+    ],
+    "compare": false
+  },
+  "stubs": []
+}

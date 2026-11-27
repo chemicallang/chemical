@@ -1,0 +1,113 @@
+name: UI scaffold
+
+on:
+  push:
+    branches: [feature/ui-v1]
+    paths:
+      - 'lang/docs/ui/**'
+      - 'lang/libs/ui*/**'
+      - 'lang/tests/ui/**'
+      - 'lang/tests/ui_bench/**'
+      - 'scripts/ui-*.sh'
+      - '.github/workflows/ui.yml'
+  pull_request:
+    paths:
+      - 'lang/docs/ui/**'
+      - 'lang/libs/ui*/**'
+      - 'lang/tests/ui/**'
+      - 'lang/tests/ui_bench/**'
+      - 'scripts/ui-*.sh'
+      - '.github/workflows/ui.yml'
+  workflow_dispatch:
+
+jobs:
+  contracts:
+    name: Contracts, API index, self-test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Self-test harness (bad packet red, good packet green)
+        run: ./scripts/ui-verify.sh --self-test
+      - name: API index is stable
+        run: |
+          ./scripts/ui-api-index.sh
+          cp lang/docs/ui/ui_api_index.json /tmp/ui_api_index.first.json
+          ./scripts/ui-api-index.sh
+          cmp lang/docs/ui/ui_api_index.json /tmp/ui_api_index.first.json
+      - name: Verify P0.3a manifest/evidence
+        run: ./scripts/ui-verify.sh --packet P0.3a
+
+  scaffold-linux:
+    name: Scaffold smoke (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup libtcc
+        run: ./scripts/setup.sh
+      - name: Configure TCC build
+        run: ./scripts/configure.sh --no-llvm
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j 4
+      - name: UI scaffold test (TCC)
+        run: ./scripts/ui-test.sh --tcc --filter scaffold
+      - name: UI bench scaffold (TCC)
+        run: ./scripts/ui-bench.sh --scenario empty --tcc
+      - name: UI shot returns EX_CONFIG before P1.10
+        run: |
+          set +e
+          ./scripts/ui-shot.sh --headless --theme light --scale 1 --out /tmp/ui-shot.png
+          rc=$?
+          set -e
+          test "$rc" -eq 78
+          test ! -e /tmp/ui-shot.png
+
+  # BLOCKED on P0.1: no macOS runner was available for the probe, and the Cocoa
+  # host has not been written yet. The job stays in the matrix and reports red
+  # until P3.4/P6.5 supply a real runner/baseline; never delete it.
+  scaffold-macos:
+    name: Scaffold smoke (macOS, BLOCKED runner)
+    runs-on: macos-15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup libtcc
+        run: ./scripts/setup.sh
+      - name: Configure TCC build
+        run: ./scripts/configure.sh --no-llvm
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j 4
+      - name: UI scaffold test (TCC)
+        run: bash ./scripts/ui-test.sh --tcc --filter scaffold
+
+  # BLOCKED on P0.1: no Windows runner executed the Win32 probe. Keep the job
+  # visible; P3.3/P6.5 make it a hard gate.
+  scaffold-windows:
+    name: Scaffold smoke (Windows, BLOCKED runner)
+    runs-on: windows-2025
+    continue-on-error: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup libtcc
+        run: ./scripts/setup.sh
+      - name: Configure TCC build
+        run: ./scripts/configure.sh --no-llvm
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j 4
+      - name: UI scaffold test (TCC)
+        run: ./scripts/ui-test.sh --tcc --filter scaffold
+
+  contract-snippets:
+    name: Contract snippet compile job (placeholder)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: P0.2 fills lang/tests/ui/contracts; fail if declarations appeared early
+        run: |
+          if find lang/tests/ui/contracts -name '*.ch' -print -quit | grep -q .; then
+            echo "contract snippets exist before P0.2 froze API.md" >&2
+            exit 1
+          fi
+          echo "contract snippet placeholder is intentionally empty until P0.2"

@@ -8,7 +8,7 @@
 |--------|-------|--------|-----|----------|-------------|-------|
 | P0.1a Named-function compiler fix | done | 018a2bc10 | ui-P0.1a | `evidence/P0.1a/` | named fn → std::function works on TCC+LLVM | |
 | P0.1 Feasibility probe | done | e1c895b0f | ui-P0.1 | `evidence/P0.1/` | raster/GTK/TCC corrected; font cmap + named-fn blockers | |
-| P0.3a Scaffolding/scripts | todo | — | — | — | — | |
+| P0.3a Scaffolding/scripts | done | 4277533bf | ui-P0.3a | `evidence/P0.3a/` | packages/scripts/schemas/CI; scaffold tests | ASAN runtime symlinked locally |
 | P0.2 Freeze contracts | todo | — | — | — | — | |
 | P0.3b Test core/bench/lint | todo | — | — | — | — | |
 | P0.4 Design spec/tokens | todo | — | — | — | — | |

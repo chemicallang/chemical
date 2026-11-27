@@ -1,0 +1,29 @@
+{
+  "packet": "P0.2",
+  "name": "Freeze contracts v1",
+  "state": "todo",
+  "commands": [
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh",
+      "artifacts": [
+        "scripts/ui-api-index.sh"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/docs/ui/API.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P0.2",
+    "required": false,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

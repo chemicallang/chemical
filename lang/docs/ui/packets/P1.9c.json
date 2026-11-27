@@ -1,0 +1,78 @@
+{
+  "packet": "P1.9c",
+  "name": "Analytic AA coverage",
+  "state": "done",
+  "notes": "Approved replacement of 16x16 rounded supersampling with analytic rounded-box SDF/linear coverage in C and Chemical scalar paths. Goldens regenerated and inspected; old/new hashes in evidence/P1.9c/REPORT.md. LLVM release 5 runs: solid median 0.949/1.446ms PASS, AA 4.467/4.769ms PASS <=6ms (2.5ms target still documented miss), clear+fill 0.333/0.541ms PASS, damage 0.001/0.006ms PASS. TCC functional; C/SSE2 vs scalar pixels identical; fuzz/clip/seam/tile/clamp/ASAN/UBSAN and P1.6/P1.7/view/style/display/contract green. P1.10 not started.",
+  "commands": [
+    {
+      "id": "raster-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/raster_simd.c",
+    "lang/libs/ui/src/raster.ch",
+    "lang/libs/ui/chemical.mod",
+    "compiler/Codegen.cpp",
+    "lang/tests/ui/src/raster.ch",
+    "lang/tests/ui/fixtures/raster/torture_320x240.png",
+    "lang/tests/ui/fixtures/raster/torture_640x480.png",
+    "lang/tests/ui/fixtures/raster/SHA256SUMS",
+    "lang/docs/ui/evidence/P1.9c/REPORT.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.9c",
+    "required": true,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "AA 2.5ms target remains a documented miss; hard 6ms gate passes at 4.467ms median",
+    "one solid p95 run was 2.109ms (5-run median 1.446ms); gate p50 passes",
+    "text/image/icon/path/gradient/shadow commands remain counted no-ops"
+  ]
+}

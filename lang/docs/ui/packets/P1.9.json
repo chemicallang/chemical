@@ -1,8 +1,8 @@
 {
   "packet": "P1.9",
   "name": "CPU rasterizer v1",
-  "state": "blocked",
-  "notes": "Functional/golden rasterizer complete: premultiplied ColorBuffer, DisplayList rasterizer, exact 1x/2x PNG goldens, 500-case fuzz, clip/seam/clamp tests, TCC/LLVM/ASAN green. Release (LLVM) misses original gates: solid 43.50/43.67ms, AA 82.10/83.39ms, clear+fill 39.90/40.12ms; damage 0.343/0.351ms passes. P1.9b C SIMD helper or parent gate amendment proposed in BLOCKER.md. P1.10 not started.",
+  "state": "done",
+  "notes": "Functional/golden rasterizer committed at 89d45bdc8. P1.9b C SIMD helper and P1.9c analytic AA close the original release gates: LLVM release median solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms hard, clear+fill 0.333ms p50, damage 0.001ms. 2.5ms AA target remains a documented miss. P1.10 not started.",
   "commands": [
     {
       "id": "raster-tcc",
@@ -74,8 +74,7 @@
     "compare": false
   },
   "stubs": [
-    "raster release gates miss by ~34-43x on the scalar Chemical fallback; P1.9b C SIMD helper or parent amendment pending",
-    "text/image/icon/path/gradient/shadow commands are counted no-ops until P2.2/P2.3/P2.7/P2.8/P2.9",
-    "rotation/skew and parallel tile scheduling are not rasterized in v1; tile scissor render_tile is present"
+    "AA 2.5ms target remains a documented miss; hard 6ms gate passes at 4.467ms median",
+    "text/image/icon/path/gradient/shadow commands remain counted no-ops"
   ]
 }

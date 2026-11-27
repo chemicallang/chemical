@@ -1,0 +1,80 @@
+{
+  "packet": "P1.9b",
+  "name": "C SIMD raster spans",
+  "state": "done",
+  "notes": "C SIMD helper landed and optimized release link-c compilation. AA gate was left blocked at 35.636ms; resolved by P1.9c analytic coverage (4.467ms median). Solid/clear/damage green; historical blocker retained in evidence/P1.9b/BLOCKER.md.",
+  "commands": [
+    {
+      "id": "raster-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/raster_simd.c",
+    "lang/libs/ui/src/raster.ch",
+    "lang/libs/ui/chemical.mod",
+    "compiler/Codegen.cpp",
+    "lang/tests/ui/src/raster.ch",
+    "lang/tests/ui/fixtures/raster/torture_320x240.png",
+    "lang/tests/ui/fixtures/raster/torture_640x480.png",
+    "lang/tests/ui/fixtures/raster/SHA256SUMS",
+    "lang/docs/ui/evidence/P1.9b/REPORT.md",
+    "lang/docs/ui/evidence/P1.9b/BLOCKER.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.9b",
+    "required": true,
+    "files": [
+      "REPORT.md",
+      "BLOCKER.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "AA blocker resolved by P1.9c analytic coverage (4.467ms median)",
+    "historical 16x16 exact-coverage blocker retained in evidence/P1.9b/BLOCKER.md",
+    "text/image/icon/path/gradient/shadow commands remain counted no-ops"
+  ]
+}

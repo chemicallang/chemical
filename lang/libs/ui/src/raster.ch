@@ -4,6 +4,19 @@ using std::Result;
 using std::Unit;
 using std::vector;
 
+// P1.9b: in-tree C hot loops (raster_simd.c). The Chemical wrapper validates
+// the buffer, stride and clip; the C side also checks bounds defensively.
+@extern @no_mangle
+func ui_raster_clear(pixels : *mut u8, bytes : size_t)
+@extern @no_mangle
+func ui_raster_fill(pixels : *mut u8, w : u32, h : u32, stride : u32, r : u8, g : u8, b : u8, a : u8)
+@extern @no_mangle
+func ui_raster_blend_rect(pixels : *mut u8, w : u32, h : u32, stride : u32, x0 : u32, y0 : u32, x1 : u32, y1 : u32, r : u8, g : u8, b : u8, a : u8, opacity : float)
+@extern @no_mangle
+func ui_raster_rounded_rect(pixels : *mut u8, w : u32, h : u32, stride : u32, x0 : u32, y0 : u32, x1 : u32, y1 : u32, rx : float, ry : float, rw : float, rh : float, radius : float, r : u8, g : u8, b : u8, a : u8, opacity : float)
+@extern @no_mangle
+func ui_raster_copy(dst : *mut u8, dw : u32, dh : u32, dstride : u32, src : *u8, sw : u32, sh : u32, sstride : u32, sx : u32, sy : u32, cw : u32, ch : u32, dx : u32, dy : u32)
+
 public namespace ui_internal {
 
 @direct_init
@@ -23,7 +36,17 @@ public struct ColorBuffer {
         return b
     }
     public func bytes(&self) : size_t { return self.pixels.size() }
+    public func valid(&self) : bool {
+        if(self.width == 0u32 || self.height == 0u32) { return false }
+        if(self.stride < self.width * 4u32) { return false }
+        var need = (self.height as size_t - 1u) * (self.stride as size_t) + (self.width as size_t) * 4u
+        return self.pixels.size() >= need
+    }
     public func clear(&mut self) {
+        if(!self.valid()) { return }
+        unsafe { ui_raster_clear(self.pixels.mutable_data(), self.pixels.size()) }
+    }
+    func clear_cpu(&mut self) {
         var i : size_t = 0u
         while(i < self.pixels.size()) { unsafe { self.pixels.get_ptr(i)[0] = 0u8 }; i = i + 1u }
     }
@@ -107,31 +130,32 @@ func raster_round_cov(px : u32, py : u32, r : Rect, radius : float) : u8 {
     if(rad > r.w * 0.5f) { rad = r.w * 0.5f }
     if(rad > r.h * 0.5f) { rad = r.h * 0.5f }
     if(rad <= 0.0f) { return 255u8 }
-    // 16x16 subsampling near corners, exact interior otherwise.
+    var halfw = r.w * 0.5f
+    var halfh = r.h * 0.5f
     var cx = px as float + 0.5f
     var cy = py as float + 0.5f
-    var near_x = cx < r.x + rad || cx > r.x2() - rad
-    var near_y = cy < r.y + rad || cy > r.y2() - rad
-    if(!near_x && !near_y) { return 255u8 }
-    var hits = 0u32
-    var sy = 0u32
-    while(sy < 16u32) {
-        var sx = 0u32
-        while(sx < 16u32) {
-            var x = (px as float) + ((sx as float) + 0.5f) / 16.0f
-            var y = (py as float) + ((sy as float) + 0.5f) / 16.0f
-            var qx = x; var qy = y
-            if(qx < r.x + rad) { qx = r.x + rad }
-            if(qx > r.x2() - rad) { qx = r.x2() - rad }
-            if(qy < r.y + rad) { qy = r.y + rad }
-            if(qy > r.y2() - rad) { qy = r.y2() - rad }
-            var dx = x - qx; var dy = y - qy
-            if(dx*dx + dy*dy <= rad*rad) { hits = hits + 1u32 }
-            sx = sx + 1u32
-        }
-        sy = sy + 1u32
+    var dx = cx - (r.x + halfw)
+    var dy = cy - (r.y + halfh)
+    if(dx < 0.0f) { dx = 0.0f - dx }
+    if(dy < 0.0f) { dy = 0.0f - dy }
+    var qx = dx - (halfw - rad)
+    var qy = dy - (halfh - rad)
+    if(qx < 0.0f) { qx = 0.0f }
+    if(qy < 0.0f) { qy = 0.0f }
+    if(qx <= 0.0f && qy <= 0.0f) { return 255u8 }
+    var cov = 0.0f
+    if(qx <= 0.0f) {
+        cov = 0.5f - (qy - rad)
+    } else if(qy <= 0.0f) {
+        cov = 0.5f - (qx - rad)
+    } else {
+        var q2 = qx * qx + qy * qy
+        var r2 = rad * rad
+        cov = 0.5f - (q2 - r2) / (2.0f * rad)
     }
-    return ((hits * 255u32) / 256u32) as u8
+    if(cov != cov || cov <= 0.0f) { return 0u8 }
+    if(cov >= 1.0f) { return 255u8 }
+    return (cov * 255.0f) as u8
 }
 
 func raster_rect_xf(r : Rect, t : Transform2D) : Option<Rect> {
@@ -159,11 +183,19 @@ public struct Rasterizer {
     var clip : Rect
     var has_clip : bool
     var opacity : float
+    var use_simd : bool
 
     public func new(buffer_ : *mut ColorBuffer) : Rasterizer {
+        return Rasterizer.make(buffer_, true)
+    }
+    // Test/non-x86 escape hatch: same command path, scalar Chemical pixels.
+    public func new_scalar(buffer_ : *mut ColorBuffer) : Rasterizer {
+        return Rasterizer.make(buffer_, false)
+    }
+    func make(buffer_ : *mut ColorBuffer, simd : bool) : Rasterizer {
         var c = Rect.new(0.0f,0.0f,0.0f,0.0f)
         if(buffer_ != null) { unsafe { c = Rect.new(0.0f,0.0f,buffer_.width as float, buffer_.height as float) } }
-        return Rasterizer { buffer : buffer_, stats : RasterStats { commands:0u32, drawn:0u32, skipped:0u32, clipped:0u32, pixels:0u64 }, clip:c, has_clip:true, opacity:1.0f }
+        return Rasterizer { buffer : buffer_, stats : RasterStats { commands:0u32, drawn:0u32, skipped:0u32, clipped:0u32, pixels:0u64 }, clip:c, has_clip:true, opacity:1.0f, use_simd : simd }
     }
 
     public func render(&mut self, list : &DisplayList) : RasterStats {
@@ -180,7 +212,10 @@ public struct Rasterizer {
     public func render_tile(&mut self, list : &DisplayList, tile : Rect, clear : bool) : RasterStats {
         if(self.buffer == null) { return self.stats }
         unsafe {
-            if(clear) { self.buffer.clear() }
+            if(!self.buffer.valid()) { return self.stats }
+            if(clear) {
+                if(self.use_simd) { self.buffer.clear() } else { self.buffer.clear_cpu() }
+            }
             self.stats = RasterStats { commands : 0u32, drawn : 0u32, skipped : 0u32, clipped : 0u32, pixels : 0u64 }
             var full = Rect.new(0.0f,0.0f,self.buffer.width as float,self.buffer.height as float)
             self.clip = display_rect_intersect(full, tile, true)
@@ -218,11 +253,20 @@ public struct Rasterizer {
         var r = raster_rect_bounds(self.buffer, tr, clip, true)
         if(r.w <= 0.0f || r.h <= 0.0f) { self.stats.clipped = self.stats.clipped + 1u32; return }
         if(c.kind == DisplayCommandKind.Rect) {
-            var y = r.y as u32
-            while(y < r.y2() as u32) {
-                var x = r.x as u32
-                while(x < r.x2() as u32) { raster_blend(self.buffer,x,y,c.color,255u8,c.opacity*self.opacity); self.stats.pixels = self.stats.pixels + 1u64; x=x+1u32 }
-                y=y+1u32
+            var ix0 = r.x as u32
+            var iy0 = r.y as u32
+            var ix1 = r.x2() as u32
+            var iy1 = r.y2() as u32
+            if(self.use_simd) {
+                unsafe { ui_raster_blend_rect(self.buffer.pixels.mutable_data(), self.buffer.width, self.buffer.height, self.buffer.stride, ix0, iy0, ix1, iy1, c.color.r, c.color.g, c.color.b, c.color.a, c.opacity*self.opacity) }
+                self.stats.pixels = self.stats.pixels + ((ix1 - ix0) as u64) * ((iy1 - iy0) as u64)
+            } else {
+                var y = iy0
+                while(y < iy1) {
+                    var x = ix0
+                    while(x < ix1) { raster_blend(self.buffer,x,y,c.color,255u8,c.opacity*self.opacity); self.stats.pixels = self.stats.pixels + 1u64; x=x+1u32 }
+                    y=y+1u32
+                }
             }
             self.stats.drawn = self.stats.drawn + 1u32
         } else if(c.kind == DisplayCommandKind.RoundedRect || c.kind == DisplayCommandKind.Border) {
@@ -230,21 +274,30 @@ public struct Rasterizer {
             if(sx < 0.0f) { sx = 0.0f - sx }
             if(sx == 0.0f) { sx = 1.0f }
             var radius = c.radius * sx
-            var y = r.y as u32
-            while(y < r.y2() as u32) {
-                var x = r.x as u32
-                while(x < r.x2() as u32) {
-                    var cov = raster_round_cov(x,y,tr,radius)
-                    if(c.kind == DisplayCommandKind.Border) {
-                        var inner = Rect.new(tr.x + c.width, tr.y + c.width, max32(0.0f,tr.w - 2.0f*c.width), max32(0.0f,tr.h - 2.0f*c.width))
-                        var ic = raster_round_cov(x,y,inner,max32(0.0f,radius - c.width))
-                        if(cov <= ic) { cov = 0u8 } else { cov = cov - ic }
+            var ix0 = r.x as u32
+            var iy0 = r.y as u32
+            var ix1 = r.x2() as u32
+            var iy1 = r.y2() as u32
+            if(c.kind == DisplayCommandKind.RoundedRect && self.use_simd) {
+                unsafe { ui_raster_rounded_rect(self.buffer.pixels.mutable_data(), self.buffer.width, self.buffer.height, self.buffer.stride, ix0, iy0, ix1, iy1, tr.x, tr.y, tr.w, tr.h, radius, c.color.r, c.color.g, c.color.b, c.color.a, c.opacity*self.opacity) }
+                self.stats.pixels = self.stats.pixels + ((ix1 - ix0) as u64) * ((iy1 - iy0) as u64)
+            } else {
+                var y = iy0
+                while(y < iy1) {
+                    var x = ix0
+                    while(x < ix1) {
+                        var cov = raster_round_cov(x,y,tr,radius)
+                        if(c.kind == DisplayCommandKind.Border) {
+                            var inner = Rect.new(tr.x + c.width, tr.y + c.width, max32(0.0f,tr.w - 2.0f*c.width), max32(0.0f,tr.h - 2.0f*c.width))
+                            var ic = raster_round_cov(x,y,inner,max32(0.0f,radius - c.width))
+                            if(cov <= ic) { cov = 0u8 } else { cov = cov - ic }
+                        }
+                        raster_blend(self.buffer,x,y,c.color,cov,c.opacity*self.opacity)
+                        self.stats.pixels = self.stats.pixels + 1u64
+                        x=x+1u32
                     }
-                    raster_blend(self.buffer,x,y,c.color,cov,c.opacity*self.opacity)
-                    self.stats.pixels = self.stats.pixels + 1u64
-                    x=x+1u32
+                    y=y+1u32
                 }
-                y=y+1u32
             }
             self.stats.drawn = self.stats.drawn + 1u32
         } else if(c.kind == DisplayCommandKind.Line) {
@@ -276,11 +329,35 @@ public func raster_save_png(buf : &ColorBuffer, path : &path::Path) : Result<Uni
 
 public func raster_buffer_bytes(buf : &ColorBuffer) : &[u8] { return buf.pixels.as_span() }
 public func raster_pixel(buf : &ColorBuffer, x : u32, y : u32) : Color { return buf.pixel(x,y) }
+public func raster_clear(buf : *mut ColorBuffer) {
+    if(buf == null) { return }
+    unsafe { if(!buf.valid()) { return }; ui_raster_clear(buf.pixels.mutable_data(), buf.pixels.size()) }
+}
+public func raster_clear_cpu(buf : *mut ColorBuffer) {
+    if(buf == null) { return }
+    unsafe { if(!buf.valid()) { return }; buf.clear_cpu() }
+}
 public func raster_fill(buf : *mut ColorBuffer, c : Color) {
+    if(buf == null) { return }
+    unsafe {
+        if(!buf.valid()) { return }
+        ui_raster_fill(buf.pixels.mutable_data(), buf.width, buf.height, buf.stride, c.r, c.g, c.b, c.a)
+    }
+}
+public func raster_fill_cpu(buf : *mut ColorBuffer, c : Color) {
     if(buf == null) { return }
     unsafe { var y=0u32; while(y<buf.height){var x=0u32; while(x<buf.width){buf.put(x,y,c.r,c.g,c.b,c.a); x=x+1u32}; y=y+1u32} }
 }
 public func raster_copy(dst : *mut ColorBuffer, src : &ColorBuffer, x : u32, y : u32, w : u32, h : u32, dx : u32, dy : u32) {
+    if(dst == null) { return }
+    unsafe {
+        if(!dst.valid() || !src.valid()) { return }
+        if(x + w > src.width || y + h > src.height || dx + w > dst.width || dy + h > dst.height) { return }
+        ui_raster_copy(dst.pixels.mutable_data(), dst.width, dst.height, dst.stride,
+            src.pixels.data(), src.width, src.height, src.stride, x, y, w, h, dx, dy)
+    }
+}
+public func raster_copy_cpu(dst : *mut ColorBuffer, src : &ColorBuffer, x : u32, y : u32, w : u32, h : u32, dx : u32, dy : u32) {
     if(dst == null) { return }
     unsafe { dst.copy_rect(src,x,y,w,h,dx,dy) }
 }

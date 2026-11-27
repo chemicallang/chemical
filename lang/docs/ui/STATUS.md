@@ -30,7 +30,9 @@
 | P1.7b Layout-v2 hot path | done | 7eb1b49ed | ui-P1.7b | `evidence/P1.7b/` | before/after measured; wrap 2.1x faster but still 7673us; grid/scroll blocked | measured profile; no budget change |
 | P1.8 Display list/painter | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8/` | RenderBackend/damage + 20 exact scenes; 10k build 2.29ms p50 | gate amended 3/7ms; TCC functional |
 | P1.8b Complete display/gate | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8b/` | backend/damage/20 scenes PASS; 2.29/5.49ms; TCC functional | gate amended 3/7ms |
-| P1.9 CPU rasterizer | blocked | 89d45bdc8 | — | `evidence/P1.9/` | exact 1x/2x PNG + 500 fuzz/clip/seam/ASAN; LLVM release solid 43.50/43.67ms, AA 82.10/83.39ms, clear+fill 39.90/40.12ms, damage 0.343/0.351ms PASS | scalar path misses original gates; tile scissor/seam green; P1.9b C SIMD/amendment proposed; TCC functional; P1.10 not started |
+| P1.9 CPU rasterizer | done | 89d45bdc8 | — | `evidence/P1.9/` | 1x/2x goldens, 500 fuzz/clip/seam/ASAN; final gates via P1.9b/P1.9c | functional/golden baseline |
+| P1.9b C SIMD raster spans | done | — | — | `evidence/P1.9b/` | helper 14,614B/11,296B object; release -O2 link-c; solid 0.917/1.485ms, damage 0.001ms | AA blocker superseded by P1.9c |
+| P1.9c Analytic AA coverage | done | — | — | `evidence/P1.9c/` | 5-run LLVM release solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms, clear+fill 0.333/0.541ms, damage 0.001/0.006ms; TCC functional | 2.5ms AA target remains documented miss; goldens approved; P1.10 not started |
 | P1.10 Headless/app loop | todo | — | — | — | — | |
 | P1.11 Input/focus/hit | todo | — | — | — | — | |
 | P1.12 Semantics/audit | todo | — | — | — | — | |
@@ -111,5 +113,4 @@
 
 | ID | Packet | Description | Owner | Status |
 |----|--------|-------------|-------|--------|
-| Raster release gates | P1.9 | Scalar Chemical path: solid 43.50ms, AA 82.10ms, clear+fill 39.90ms vs 1.2/2.5/1.0ms | parent | blocked; P1.9b C SIMD helper or amendment proposed (`evidence/P1.9/BLOCKER.md`) |
 | — | — | — | — | — |

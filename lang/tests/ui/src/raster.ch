@@ -97,6 +97,16 @@ func same_buffer(a : &ColorBuffer, b : &ColorBuffer) : bool {
     while(y<a.height){var x=0u32; while(x<a.width){var ca=raster_pixel(a,x,y); var cb=raster_pixel(b,x,y); if(ca.r!=cb.r||ca.g!=cb.g||ca.b!=cb.b||ca.a!=cb.a){return false}; x=x+1u32}; y=y+1u32}
     return true
 }
+func simd_scalar() : bool {
+    var ds=torture(1u32)
+    var a=ColorBuffer.new(320u32,240u32)
+    var b=ColorBuffer.new(320u32,240u32)
+    var ra=Rasterizer.new(&raw mut a); var sa=ra.render(&ds.list)
+    var rb=Rasterizer.new_scalar(&raw mut b); var sb=rb.render(&ds.list)
+    if(sa.drawn != sb.drawn || sa.skipped != sb.skipped) { return fail("simd-stats") }
+    if(!same_buffer(&a,&b)) { return fail("simd-scalar") }
+    return true
+}
 func tile_seams() : bool {
     var ds=DisplayState.new(16u32); var theme=Theme.light(); var p=new_painter(&raw mut ds.list,&raw mut theme,Size.new(32.0f,16.0f))
     p.rounded_rect(Rect.new(4.0f,2.0f,24.0f,12.0f),4.0f,Color.rgba(30u8,180u8,210u8,255u8))
@@ -189,6 +199,7 @@ func run_raster() : bool {
     if(!render_torture(1u32,update)){return false}
     if(!render_torture(2u32,update)){return false}
     if(!fuzz()){return false}
+    if(!simd_scalar()){return false}
     if(!clip_seam()){return false}
     if(!tile_seams()){return false}
     if(!edge_clamps()){return false}

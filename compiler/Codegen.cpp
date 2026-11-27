@@ -919,9 +919,13 @@ int compile_c_file_to_object(
         clang_flags.emplace_back(path.to_view());
     }
 
-    // debug info
+    // Debug C files use -O0 for readable stepping; release C helpers (including
+    // `link c` raster spans) must be optimized. The generated Chemical object
+    // path passes -O by itself, but linked C files do not.
     if(debug_info) {
         clang_flags.emplace_back("-g");
+    } else {
+        clang_flags.emplace_back("-O2");
     }
 
     clang_flags.emplace_back("-c");

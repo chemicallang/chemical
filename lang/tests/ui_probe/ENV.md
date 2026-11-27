@@ -90,3 +90,18 @@ choco install -y vulkan-sdk
   `:libgtk-3.so.0` by soname. A C/Objective-C shim or a GTK widget host would
   need `libgtk-3-dev` (headers), which is why `linux.gtk3-dev` is FAIL in the
   matrix while the window probe still runs.
+
+## Local ASAN runtime (P0.3a)
+
+The bundled LLVM in `out/host` has headers but no sanitizer runtime archives.
+For local ASAN/UBSAN runs, link the system clang runtime into the bundled
+resource directory:
+
+```bash
+mkdir -p out/host/lib/clang/22/lib/linux
+ln -sf /usr/lib/llvm-21/lib/clang/21/lib/linux/libclang_rt.* \
+  out/host/lib/clang/22/lib/linux/
+./scripts/ui-test.sh --llvm --sanitize=address,undefined
+```
+
+CI must install a matching runtime instead of relying on this local symlink.

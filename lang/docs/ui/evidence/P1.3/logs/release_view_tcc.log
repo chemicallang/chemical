@@ -1,2 +1,3 @@
-view flat_us=74898 deep_us=126333 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=1 hits=100000 misses=0 node_bytes=96 style_bytes=304
-view release run=0 flat_us=75369 deep_us=121315\nview release run=1 flat_us=70395 deep_us=118184\nview release run=2 flat_us=69670 deep_us=118047\nview release run=3 flat_us=68166 deep_us=117526\nview release run=4 flat_us=67636 deep_us=117750\nview release gate BLOCKER flat_p50=69670 limit=10000\nui-test: FAIL (exit 1)
+view flat_us=64493 deep_us=67818 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
+view release run=0 flat_us=60256 deep_us=62535\nview release run=1 flat_us=59304 deep_us=62544\nview release run=2 flat_us=58886 deep_us=63125\nview release run=3 flat_us=59033 deep_us=62893\nview release run=4 flat_us=59034 deep_us=63476\nview release gate BLOCKER flat_p50=59034 limit=10000\nview style_store_overflow=130 style_store_size=512
+ui-test: FAIL (exit 1)

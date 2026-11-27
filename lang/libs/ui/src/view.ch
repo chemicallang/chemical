@@ -152,8 +152,9 @@ public struct ViewBuilder {
     var arena : NodeArena
     var frame_storage : FrameArena
     var nodes : vector<ui_internal::ViewNode>
+    var node_base : *mut ui_internal::ViewNode
+    var node_capacity : u32
     var spans : vector<TextSpan>
-    var styles : vector<Style>
     var metas : vector<ui_internal::NodeMeta>
     var scope_state : ui_internal::ScopeStack
     var keys_seen : KeySet
@@ -168,6 +169,7 @@ public struct ViewBuilder {
     var style_misses : u32
 
     func make_internal(capacity : u32, width : float, height : float, debug_duplicate : bool) : ViewBuilder {
+        unsafe {
         var viewport = Viewport {
             size : Size.new(width, height), safe_area : Insets.zero(), breakpoint : Breakpoint.Lg
         }
@@ -182,8 +184,9 @@ public struct ViewBuilder {
             arena : NodeArena.new(capacity),
             frame_storage : FrameArena.new(16u * 1024u * 1024u),
             nodes : vector<ui_internal::ViewNode>(),
+            node_base : null,
+            node_capacity : capacity,
             spans : vector<TextSpan>(),
-            styles : vector<Style>(),
             metas : vector<ui_internal::NodeMeta>(),
             scope_state : ui_internal::ScopeStack { keys : zeroed<[64]Key>(), count : 0u32 },
             keys_seen : empty_keys,
@@ -194,14 +197,14 @@ public struct ViewBuilder {
             diagnostic_code : ErrorCode.Other, style_hits : 0u32, style_misses : 0u32
         }
         b.nodes.reserve(capacity as size_t)
+        b.node_base = b.nodes.mutable_data()
         b.spans.reserve(64u)
-        b.styles.reserve(64u)
-        b.styles.push(Style.new())
         if(debug_duplicate) { b.keys_seen = KeySet.new(capacity + 1u32) }
         var r = b.add_node(ui_internal::ViewKind.Root, key("root"), 0u32)
         b.root = r
         return b
-    }
+
+        }}
 
     func record(&mut self, code : ErrorCode) {
         self.diagnostic_count = self.diagnostic_count + 1u32
@@ -209,41 +212,28 @@ public struct ViewBuilder {
     }
 
     func style_index(&mut self, style : Style) : u32 {
-        if(style.set_mask == 0u64) { self.style_hits = self.style_hits + 1u32; return 0u32 }
-        var i : size_t = 0
-        while(i < self.styles.size()) {
-            var existing = self.styles.get_ptr(i)
-            if(unsafe(style_equal(&*existing, &style))) {
-                self.style_hits = self.style_hits + 1u32
-                return i as u32
-            }
-            i = i + 1u
-        }
-        var idx = self.styles.size() as u32
-        self.styles.push(style)
-        self.style_misses = self.style_misses + 1u32
-        return idx
+        self.style_hits = self.style_hits + 1u32
+        return style.id
     }
-
     func style_at(&self, index : u32) : Style {
-        if(index as size_t >= self.styles.size()) { return Style.new() }
-        return unsafe(*self.styles.get_ptr(index as size_t))
+        return Style { id : index }
     }
 
     @inline
     func node_ptr(&mut self, id : NodeId) : *mut ui_internal::ViewNode {
+        unsafe {
         if(!self.arena.contains(id)) { return null }
-        var ix = (id.index() - 1u32) as size_t
-        if(ix >= self.nodes.size()) { return null }
-        return self.nodes.get_ptr(ix)
-    }
+        if(id.index() > self.node_count_value) { return null }
+        return self.node_base + (id.index() - 1u32)
+
+        }}
 
     func node_ptr_at(&mut self, index : u32) : *mut ui_internal::ViewNode {
-        if(index == 0u32 || index == VIEW_NONE) { return null }
-        var ix = (index - 1u32) as size_t
-        if(ix >= self.nodes.size()) { return null }
-        return self.nodes.get_ptr(ix)
-    }
+        unsafe {
+        if(index == 0u32 || index == VIEW_NONE || index > self.node_count_value) { return null }
+        return self.node_base + (index - 1u32)
+
+        }}
 
     func meta_for(&mut self, id : NodeId) : *mut ui_internal::NodeMeta {
         var p = self.node_ptr(id)
@@ -265,16 +255,34 @@ public struct ViewBuilder {
 
     @inline
     func add_node(&mut self, kind : ui_internal::ViewKind, k : Key, style_index : u32) : NodeId {
+        unsafe {
         var r = self.arena.insert()
         if(r is Result.Err) { self.record(ErrorCode.ResourceExhausted); return zeroed<NodeId>() }
         var Ok(id) = r else return zeroed<NodeId>()
-        self.nodes.push(ui_internal::make_node(id, kind, k, style_index))
+        if(self.node_base == null || id.index() > self.node_capacity) { self.record(ErrorCode.ResourceExhausted); return zeroed<NodeId>() }
+        var n = self.node_base + (id.index() - 1u32)
+        unsafe {
+            n.id = id
+            n.key = k
+            n.kind = kind
+            n.parent_index = VIEW_NONE
+            n.first_child = VIEW_NONE
+            n.last_child = VIEW_NONE
+            n.next_sibling = VIEW_NONE
+            n.child_count = 0u32
+            n.style_index = style_index
+            n.state_style_index = VIEW_NONE
+            n.meta_index = VIEW_NONE
+            n.text = ""
+            n.virtual_count = VIEW_NONE
+        }
         self.node_count_value = self.node_count_value + 1u32
         if(self.debug_duplicate) {
             if(!self.keys_seen.insert(k)) { self.record(ErrorCode.DuplicateKey) }
         }
         return id
-    }
+
+        }}
 
     func copy_text(&mut self, value : string_view) : string_view {
         if(value.size() == 0u) { return "" }
@@ -436,15 +444,17 @@ public struct ViewBuilder {
             var cp = self.node_ptr(child)
             if(pp == null || cp == null) { self.record(ErrorCode.StaleNode); return false }
             if(cp.parent_index != VIEW_NONE) { self.record(ErrorCode.InvalidArgument); return false }
-            var cur = parent
-            while(cur.is_valid()) {
-                if(cur.index() == child.index()) { self.record(ErrorCode.InvalidArgument); return false }
-                var np = self.node_ptr(cur)
-                if(np == null) { break }
-                if(np.parent_index == VIEW_NONE) { break }
-                var nextp = self.node_ptr_at(np.parent_index)
-                if(nextp == null) { break }
-                cur = nextp.id
+            if(cp.child_count != 0u32 || cp.parent_index != VIEW_NONE) {
+                var cur = parent
+                while(cur.is_valid()) {
+                    if(cur.index() == child.index()) { self.record(ErrorCode.InvalidArgument); return false }
+                    var np = self.node_ptr(cur)
+                    if(np == null) { break }
+                    if(np.parent_index == VIEW_NONE) { break }
+                    var nextp = self.node_ptr_at(np.parent_index)
+                    if(nextp == null) { break }
+                    cur = nextp.id
+                }
             }
             cp.parent_index = parent.index()
             cp.next_sibling = VIEW_NONE
@@ -476,15 +486,17 @@ public struct ViewBuilder {
             var cp = self.node_ptr(child)
             if(cp == null) { self.record(ErrorCode.StaleNode); return }
             if(cp.parent_index != VIEW_NONE) { self.record(ErrorCode.InvalidArgument); return }
-            var cur = parent
-            while(cur.is_valid()) {
-                if(cur.index() == child.index()) { self.record(ErrorCode.InvalidArgument); return }
-                var np = self.node_ptr(cur)
-                if(np == null) { break }
-                if(np.parent_index == VIEW_NONE) { break }
-                var nextp = self.node_ptr_at(np.parent_index)
-                if(nextp == null) { break }
-                cur = nextp.id
+            if(cp.child_count != 0u32 || cp.parent_index != VIEW_NONE) {
+                var cur = parent
+                while(cur.is_valid()) {
+                    if(cur.index() == child.index()) { self.record(ErrorCode.InvalidArgument); return }
+                    var np = self.node_ptr(cur)
+                    if(np == null) { break }
+                    if(np.parent_index == VIEW_NONE) { break }
+                    var nextp = self.node_ptr_at(np.parent_index)
+                    if(nextp == null) { break }
+                    cur = nextp.id
+                }
             }
             var at = pp.first_child
             var prev = VIEW_NONE
@@ -521,7 +533,7 @@ public struct ViewBuilder {
         if(p == null) { self.record(ErrorCode.StaleNode); return }
         var current = Style.new()
         var si = unsafe(p.state_style_index)
-        if(si != VIEW_NONE) { current = self.style_at(si) }
+        if(si != VIEW_NONE) { current = Style { id : si } }
         var merged = current.merge(style)
         unsafe { p.state_style_index = self.style_index(merged) }
     }
@@ -580,12 +592,12 @@ public struct ViewBuilder {
     }
 
     func dump_tree(&self) : string {
+        unsafe {
         var out = string()
         var i : size_t = 0
-        while(i < self.nodes.size()) {
-            var got = self.nodes.get(i)
-            if(got is Option.Some) {
-                var Some(n) = got else return out
+        while(i < self.node_count_value as size_t) {
+            var n = self.node_base + i
+            if(n != null) {
                 var parent_ix = n.parent_index
                 var test : string_view = ""
                 var mi = n.meta_index
@@ -604,7 +616,8 @@ public struct ViewBuilder {
             i = i + 1u
         }
         return out
-    }
+
+        }}
 }
 
 public interface ItemSource {
@@ -634,48 +647,48 @@ public func view_diagnostic_count(b : &ViewBuilder) : u32 { return b.diagnostic_
 public func view_last_diagnostic(b : &ViewBuilder) : ErrorCode { return b.diagnostic_code }
 public func view_style_hits(b : &ViewBuilder) : u32 { return b.style_hits }
 public func view_style_misses(b : &ViewBuilder) : u32 { return b.style_misses }
-public func view_style_pool_size(b : &ViewBuilder) : u32 { return b.styles.size() as u32 }
+public func view_style_pool_size(b : &ViewBuilder) : u32 { return style_store_size() }
 public func view_meta_count(b : &ViewBuilder) : u32 { return b.metas.size() as u32 }
 public func view_dump(b : &ViewBuilder) : string { return b.dump_tree() }
 public func view_node_kind(b : &ViewBuilder, id : NodeId) : Option<ViewKind> {
     if(!b.arena.contains(id)) { return Option.None<ViewKind>() }
-    return Option.Some<ViewKind>(unsafe(b.nodes.get_ptr((id.index() - 1u32) as size_t).kind))
+    return Option.Some<ViewKind>(unsafe((b.node_base + (id.index() - 1u32)).kind))
 }
 public func view_parent(b : &ViewBuilder, id : NodeId) : Option<NodeId> {
     if(!b.arena.contains(id)) { return Option.None<NodeId>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.parent_index == VIEW_NONE) { return Option.None<NodeId>() }
-        return Option.Some<NodeId>(b.nodes.get_ptr((n.parent_index - 1u32) as size_t).id)
+        return Option.Some<NodeId>((b.node_base + (n.parent_index - 1u32)).id)
     }
 }
 public func view_child_count(b : &ViewBuilder, id : NodeId) : u32 {
     if(!b.arena.contains(id)) { return 0u32 }
-    return unsafe(b.nodes.get_ptr((id.index() - 1u32) as size_t).child_count)
+    return unsafe((b.node_base + (id.index() - 1u32)).child_count)
 }
 public func view_child_at(b : &ViewBuilder, id : NodeId, index : u32) : Option<NodeId> {
     if(!b.arena.contains(id)) { return Option.None<NodeId>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(index >= n.child_count) { return Option.None<NodeId>() }
         var cur = n.first_child
         var at = 0u32
         while(at < index && cur != VIEW_NONE) {
-            var cp = b.nodes.get_ptr((cur - 1u32) as size_t)
+            var cp = (b.node_base + (cur - 1u32))
             cur = cp.next_sibling
             at = at + 1u32
         }
         if(cur == VIEW_NONE) { return Option.None<NodeId>() }
-        return Option.Some<NodeId>(b.nodes.get_ptr((cur - 1u32) as size_t).id)
+        return Option.Some<NodeId>((b.node_base + (cur - 1u32)).id)
     }
 }
 public func view_text(b : &ViewBuilder, id : NodeId) : Option<string_view> {
     if(!b.arena.contains(id)) { return Option.None<string_view>() }
-    return Option.Some<string_view>(unsafe(b.nodes.get_ptr((id.index() - 1u32) as size_t).text))
+    return Option.Some<string_view>(unsafe((b.node_base + (id.index() - 1u32)).text))
 }
 public func view_test_id(b : &ViewBuilder, id : NodeId) : Option<string_view> {
     if(!b.arena.contains(id)) { return Option.None<string_view>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.meta_index == VIEW_NONE) { return Option.None<string_view>() }
         return Option.Some<string_view>(b.metas.get_ptr(n.meta_index as size_t).test_id)
@@ -683,24 +696,24 @@ public func view_test_id(b : &ViewBuilder, id : NodeId) : Option<string_view> {
 }
 public func view_style_mask(b : &ViewBuilder, id : NodeId) : u64 {
     if(!b.arena.contains(id)) { return 0u64 }
-    return unsafe(b.styles.get_ptr(b.nodes.get_ptr((id.index() - 1u32) as size_t).style_index as size_t).set_mask)
+    return unsafe(style_mask_by_id((b.node_base + (id.index() - 1u32)).style_index))
 }
 public func view_state_style_mask(b : &ViewBuilder, id : NodeId) : u64 {
     if(!b.arena.contains(id)) { return 0u64 }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.state_style_index == VIEW_NONE) { return 0u64 }
-        return b.styles.get_ptr(n.state_style_index as size_t).set_mask
+        return style_mask_by_id(n.state_style_index)
     }
 }
 public func view_span_count(b : &ViewBuilder, id : NodeId) : u32 {
     if(!b.arena.contains(id)) { return 0u32 }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return 0u32 }; return b.metas.get_ptr(n.meta_index as size_t).span_count }
 }
 public func view_span_text(b : &ViewBuilder, id : NodeId, index : u32) : Option<string_view> {
     if(!b.arena.contains(id)) { return Option.None<string_view>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.meta_index == VIEW_NONE) { return Option.None<string_view>() }
         var m = b.metas.get_ptr(n.meta_index as size_t)
@@ -710,7 +723,7 @@ public func view_span_text(b : &ViewBuilder, id : NodeId, index : u32) : Option<
 }
 public func view_focusable(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.meta_index == VIEW_NONE) { return false }
         return b.metas.get_ptr(n.meta_index as size_t).focusable
@@ -719,32 +732,32 @@ public func view_focusable(b : &ViewBuilder, id : NodeId) : bool {
 public func view_has_transform(b : &ViewBuilder, id : NodeId) : bool { return meta_has_transform(b, id) }
 func meta_has_transform(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return false }; return b.metas.get_ptr(n.meta_index as size_t).has_transform }
 }
 public func view_has_animation(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return false }; return b.metas.get_ptr(n.meta_index as size_t).has_anim }
 }
 public func view_has_error(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return false }; return b.metas.get_ptr(n.meta_index as size_t).has_error }
 }
 public func view_has_semantics(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return false }; return b.metas.get_ptr(n.meta_index as size_t).has_semantics }
 }
 public func view_semantics_label(b : &ViewBuilder, id : NodeId) : Option<string_view> {
     if(!b.arena.contains(id)) { return Option.None<string_view>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return Option.None<string_view>() }; return Option.Some<string_view>(b.metas.get_ptr(n.meta_index as size_t).semantics.label) }
 }
 public func view_image_placeholder(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.meta_index == VIEW_NONE) { return false }
         switch(b.metas.get_ptr(n.meta_index as size_t).image) {
@@ -758,12 +771,12 @@ public func view_image_placeholder(b : &ViewBuilder, id : NodeId) : bool {
 }
 public func view_has_command(b : &ViewBuilder, id : NodeId) : bool {
     if(!b.arena.contains(id)) { return false }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return false }; return b.metas.get_ptr(n.meta_index as size_t).has_command }
 }
 public func view_grid_cell(b : &ViewBuilder, id : NodeId) : Option<u32> {
     if(!b.arena.contains(id)) { return Option.None<u32>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe {
         if(n.meta_index == VIEW_NONE) { return Option.None<u32>() }
         var m = b.metas.get_ptr(n.meta_index as size_t)
@@ -773,13 +786,13 @@ public func view_grid_cell(b : &ViewBuilder, id : NodeId) : Option<u32> {
 }
 public func view_virtual_count(b : &ViewBuilder, id : NodeId) : u32 {
     if(!b.arena.contains(id)) { return 0u32 }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.virtual_count == VIEW_NONE) { return 0u32 }; return n.virtual_count }
 }
 public func view_scope_depth(b : &ViewBuilder) : u32 { return b.scope_state.count }
 public func view_component_root(b : &ViewBuilder, id : NodeId) : NodeId {
     if(!b.arena.contains(id)) { return zeroed<NodeId>() }
-    var n = b.nodes.get_ptr((id.index() - 1u32) as size_t)
+    var n = unsafe(b.node_base + (id.index() - 1u32))
     unsafe { if(n.meta_index == VIEW_NONE) { return zeroed<NodeId>() }; return b.metas.get_ptr(n.meta_index as size_t).component_root }
 }
 

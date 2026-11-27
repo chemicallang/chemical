@@ -71,3 +71,51 @@ raise the gate or claim P1.3b done.
 ```
 
 Debug structural `view` tests remain green; ASAN/UBSAN debug remains green.
+
+---
+
+## P1.3c follow-up — compact Style + hot append (still blocked)
+
+P1.3c replaced the inline 304-byte `Style` with a **4-byte id** backed by a
+bounded thread-local `StyleData` store (512 entries, fixed array; overflow
+returns the default id without panic). Style setters intern; `merge` is
+field-wise; `ViewBuilder.style_index` is O(1). Nodes are written in place into a
+preallocated compact array (`ViewNode` = **96 bytes**), and `add_node` uses an
+internal fast insert; fresh-child append skips the ancestor walk. The duplicate
+probe remains debug-only.
+
+### After P1.3c (5 runs, release_fast)
+
+| Backend | Flat p50 | Flat p95 | Deep p50 | Deep p95 |
+|---|---:|---:|---:|---:|
+| LLVM release | **6,896 µs** | **9,060 µs** | **8,850 µs** | **8,980 µs** |
+| TCC release | **59,034 µs** | **60,256 µs** | **62,893 µs** | **63,476 µs** |
+
+Style store: **Style = 4 bytes**; 100k default-style calls hit the fast path
+(100,000 ViewBuilder hits / 0 misses); stress test overflows 130 styles past the
+512-entry cap and falls back to default without panic.
+
+### Remaining profile
+
+| Probe | LLVM | TCC |
+|---|---:|---:|
+| `fragment` add only, 100k | 6,829 µs | 15,622 µs |
+| `text` only, 100k | 9,118 µs | 36,313 µs |
+| `text` + `child(root)`, 100k | 12,056 µs | 53,168 µs |
+
+The base append path remains above the LLVM gate before style/text work
+(`add_node` / compact in-place node write / generated call overhead); TCC
+add-only is already 15.6 ms vs its 10 ms gate. `Style` is no longer the main
+cost. Further work needs append/call-path lowerin`g (or a different frame-builder
+storage strategy), not token/struct size.
+
+### Proposed gate amendment — parent approval required
+
+The gate was **not** changed by this packet. A realistic amendment for P1.3c
+would be:
+
+- LLVM release flat 100k p50 **≤10,000 µs** (currently 6,896 µs);
+- TCC release functional only (no p50 frame gate; currently 59,034 µs).
+
+P1.3c remains **BLOCKED** until the parent approves an amendment or a later
+optimization reaches the original 5 ms / 10 ms gates.

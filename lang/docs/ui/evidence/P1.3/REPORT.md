@@ -230,3 +230,27 @@ line until the append/Style-copy gap is engineered down:
 ./scripts/ui-test.sh --llvm --release --filter view
 ./scripts/ui-test.sh --tcc --release --filter view
 ```
+
+---
+
+## 9. P1.3c compact Style + hot append
+
+P1.3c reduced `Style` from 304 bytes to **4 bytes** (interned style id,
+fixed 512-entry thread-local `StyleData` store) and writes compact 96-byte
+`ViewNode`s in place in an arena-backed array. `add_node` uses an internal fast
+insert; fresh-child append skips the ancestor walk; duplicate probing remains
+debug-only. Style overflow returns the default id safely.
+
+Final release results (5 runs):
+
+| Backend | Flat p50 | Flat p95 | Deep p50 | Deep p95 |
+|---|---:|---:|---:|---:|
+| LLVM release | 6,896 µs | 9,060 µs | 8,850 µs | 8,980 µs |
+| TCC release | 59,034 µs | 60,256 µs | 62,893 µs | 63,476 µs |
+
+Style store stress: 130 overflow entries past the 512 cap, default fallback,
+no panic. `view.tree.txt` and structural/ASAN logs remain in `logs/`.
+
+The original gates still fail. `BLOCKER.md` records the remaining profile and
+proposes LLVM ≤10 ms / TCC functional-only for parent approval; the test gate
+was not changed.

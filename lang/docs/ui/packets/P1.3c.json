@@ -1,0 +1,21 @@
+{
+  "packet": "P1.3c",
+  "name": "ViewBuilder hot-path optimization",
+  "state": "blocked",
+  "notes": "P1.3c compact Style id and in-place 96-byte nodes reduce LLVM release flat p50 to 6,896us and TCC to 59,034us, but original 5ms/10ms gates still fail. BLOCKER.md proposes LLVM <=10ms / TCC functional for parent approval.",
+  "commands": [
+    {"id": "debug-view-tcc", "run": "scripts/ui-test.sh --tcc --filter view", "artifacts": ["lang/tests/ui/src/view.ch"]},
+    {"id": "debug-view-llvm", "run": "scripts/ui-test.sh --llvm --filter view", "artifacts": ["lang/tests/ui/src/view.ch"]},
+    {"id": "asan-view", "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter view", "artifacts": ["lang/tests/ui/src/view.ch"]},
+    {"id": "release-llvm", "run": "scripts/ui-test.sh --llvm --release --filter view", "artifacts": ["lang/tests/ui/src/view.ch"]},
+    {"id": "release-tcc", "run": "scripts/ui-test.sh --tcc --release --filter view", "artifacts": ["lang/tests/ui/src/view.ch"]},
+    {"id": "api-index", "run": "scripts/ui-api-index.sh --check", "artifacts": ["lang/docs/ui/API.md", "lang/docs/ui/ui_api_index.json"]}
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/view.ch", "lang/libs/ui/src/style.ch", "lang/libs/ui/src/arena.ch",
+    "lang/tests/ui/src/view.ch", "lang/docs/ui/evidence/P1.3/BLOCKER.md"
+  ],
+  "evidence": {"dir": "lang/docs/ui/evidence/P1.3", "required": true, "files": ["BLOCKER.md", "REPORT.md"]},
+  "benchmarks": {"keys": [], "compare": false},
+  "stubs": ["Release gate blocked pending parent-approved LLVM 10ms / TCC functional amendment or further append optimization"]
+}

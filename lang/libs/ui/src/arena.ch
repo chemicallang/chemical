@@ -74,6 +74,33 @@ public struct NodeArena {
     }
 
     @inline
+    @inline
+    public func insert_fast(&mut self) : NodeId {
+        if(self.free_len > 0u32) {
+            var reused = self.free.pop()
+            if(reused is Option.Some) {
+                self.free_len = self.free_len - 1u32
+                var Some(idx) = reused else return zeroed<NodeId>()
+                var slot = self.slot_mut(idx)
+                if(slot != null) {
+                    unsafe {
+                        if(slot.generation == GEN_MAX) { return zeroed<NodeId>() }
+                        slot.generation = slot.generation + 1u32
+                        slot.occupied = true
+                        self.live = self.live + 1u32
+                        return NodeId.make_internal(idx, slot.generation)
+                    }
+                }
+            }
+            return zeroed<NodeId>()
+        }
+        if((self.slots.size() as u32) - 1u32 >= self.max_nodes) { return zeroed<NodeId>() }
+        var idx = self.slots.size() as u32
+        self.slots.push(ArenaSlot { generation : 1u32, occupied : true })
+        self.live = self.live + 1u32
+        return NodeId.make_internal(idx, 1u32)
+    }
+
     public func insert(&mut self) : Result<NodeId, UiError> {
         var reused = Option.None<u32>()
         if(self.free_len > 0u32) {

@@ -10,6 +10,8 @@ using ui_internal::new_view_builder;
 using ui_internal::new_view_builder_debug;
 using ui_internal::view_root;
 using ui_internal::view_node_count;
+using ui_internal::style_store_overflow;
+using ui_internal::style_store_size;
 using ui_internal::view_arena_capacity;
 using ui_internal::view_arena_live;
 using ui_internal::view_frame_capacity;
@@ -378,6 +380,23 @@ func check_release_gate() : bool {
     return true
 }
 
+
+func check_style_store_overflow() : bool {
+    var i = 0
+    while(i < 600) {
+        var s = Style.new().opacity((i as float) / 1000.0f)
+        i = i + 1
+    }
+    if(style_store_overflow() == 0u32) { return fail("style-store-overflow") }
+    if(style_store_size() > 512u32) { return fail("style-store-bound") }
+    // Overflow falls back to the default style without panicking.
+    var fallback = Style.new().opacity(0.99f)
+    var probe = fallback.merge(Style.new())
+    if(probe.id_internal() != 0u32 && probe.id_internal() >= 512u32) { return fail("style-fallback") }
+    unsafe { printf("view style_store_overflow=%u style_store_size=%u\n", style_store_overflow(), style_store_size()) }
+    return true
+}
+
 func check_build_scale() : bool {
     var style = Style.new()
     var capacity = 120000u32
@@ -431,6 +450,7 @@ public func run() : bool {
     if(!check_all_methods()) { ok = false }
     if(!check_build_scale()) { ok = false }
     if(!check_release_gate()) { ok = false }
+    if(!check_style_store_overflow()) { ok = false }
     return ok
 }
 

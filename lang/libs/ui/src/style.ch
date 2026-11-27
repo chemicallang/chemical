@@ -1,23 +1,14 @@
-// P1.3 Style value type. Token resolution/layout/paint semantics stay P1.5/P1.6.
+// P1.3c compact Style id backed by a bounded thread-local StyleData store.
 using std::string_view;
+using std::vector;
 
-func space_px(s : Space) : float {
-    switch(s) {
-        Space.None => return 0.0f
-        Space.XXS => return 2.0f
-        Space.XS => return 4.0f
-        Space.SM => return 8.0f
-        Space.MD => return 12.0f
-        Space.LG => return 16.0f
-        Space.XL => return 24.0f
-        Space.XXL => return 32.0f
-        Space.XXXL => return 48.0f
-    }
-    return 0.0f
-}
-
+const STYLE_CAP : u32 = 512u32
+func space_px(s : Space) : float { switch(s) { Space.None => return 0.0f; Space.XXS => return 2.0f; Space.XS => return 4.0f; Space.SM => return 8.0f; Space.MD => return 12.0f; Space.LG => return 16.0f; Space.XL => return 24.0f; Space.XXL => return 32.0f; Space.XXXL => return 48.0f } return 0.0f }
+func dim_equal(a : Dim, b : Dim) : bool { switch(a) { Auto() => { switch(b) { Auto() => return true; default => return false } } Px(x) => { switch(b) { Px(y) => return x == y; default => return false } } Percent(x) => { switch(b) { Percent(y) => return x == y; default => return false } } Fill() => { switch(b) { Fill() => return true; default => return false } } } return false }
+func pos_equal(a : Position, b : Position) : bool { switch(a) { Relative() => { switch(b) { Relative() => return true; default => return false } } Absolute(t,r,bo,l) => { switch(b) { Absolute(t2,r2,b2,l2) => return dim_equal(t,t2) && dim_equal(r,r2) && dim_equal(bo,b2) && dim_equal(l,l2); default => return false } } } return false }
+func text_style_equal(a : TextStyle, b : TextStyle) : bool { if(a.family != b.family || a.weight != b.weight || a.italic != b.italic || a.size != b.size || a.line_height != b.line_height || a.letter_spacing != b.letter_spacing || a.tab_size != b.tab_size) { return false } if(!a.family_name.equals(&b.family_name)) { return false } if(a.features.ligatures != b.features.ligatures || a.features.tabular_numbers != b.features.tabular_numbers || a.features.slashed_zero != b.features.slashed_zero || a.features.stylistic_set != b.features.stylistic_set) { return false } return true }
 @direct_init
-public struct Style {
+struct StyleData {
     internal var f_padding : Insets
     internal var f_gap : Space
     internal var f_width : Dim
@@ -57,377 +48,23 @@ public struct Style {
     internal var f_text_overflow : TextOverflow
     internal var f_tab_size : u8
     internal var set_mask : u64
-
-    public func new() : Style {
-        return Style {
-            f_padding : Insets.zero(), f_gap : Space.None, f_width : Dim.Auto(), f_height : Dim.Auto(),
-            f_min_width : 0.0f, f_max_width : 0.0f, f_grow : 0.0f, f_shrink : 0.0f, f_basis : Dim.Auto(),
-            f_align_items : Align.Start, f_justify : Justify.Start, f_align_self : Align.Start,
-            f_background : ColorToken.Transparent, f_foreground : ColorToken.OnSurface,
-            f_border : Border { width : 0.0f, color : ColorToken.Transparent },
-            f_radius : Radius.None, f_shadow : Elevation.None, f_opacity : 1.0f, f_clip : false,
-            f_overflow : Overflow.Visible, f_text : TextRole.Body, f_weight : FontWeight.Regular,
-            f_cursor : Cursor.Arrow, f_z : 0i32, f_aspect : 0.0f, f_position : Position.Relative(),
-            f_inset : Insets.zero(), f_grid_col : 0u16, f_grid_col_span : 1u16,
-            f_grid_row : 0u16, f_grid_row_span : 1u16, f_direction : Direction.Auto,
-            f_text_style : TextStyle { family : FontFamily.Ui, family_name : "", size : 14.0f,
-                weight : FontWeight.Regular, italic : false, line_height : 20.0f / 14.0f,
-                letter_spacing : 0.0f, features : TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, tab_size : 4u8 },
-            f_text_align : TextAlign.Start, f_wrap : WrapMode.NoWrap, f_max_lines : 0u16,
-            f_text_overflow : TextOverflow.Clip, f_tab_size : 4u8, set_mask : 0u64
-        }
-    }
-
-    public func padding(&self, p : Insets) : Style {
-        var s = *self
-        s.f_padding = p
-        s.set_mask = s.set_mask | (1u64 << 0u64)
-        return s
-    }
-
-    public func gap(&self, s : Space) : Style {
-        var n = *self
-        n.f_gap = s
-        n.set_mask = n.set_mask | (1u64 << 1u64)
-        return n
-    }
-
-    public func width(&self, s : Dim) : Style {
-        var n = *self
-        n.f_width = s
-        n.set_mask = n.set_mask | (1u64 << 2u64)
-        return n
-    }
-
-    public func height(&self, s : Dim) : Style {
-        var n = *self
-        n.f_height = s
-        n.set_mask = n.set_mask | (1u64 << 3u64)
-        return n
-    }
-
-    public func min_width(&self, px : float) : Style {
-        var s = *self
-        s.f_min_width = px
-        s.set_mask = s.set_mask | (1u64 << 4u64)
-        return s
-    }
-
-    public func max_width(&self, px : float) : Style {
-        var s = *self
-        s.f_max_width = px
-        s.set_mask = s.set_mask | (1u64 << 5u64)
-        return s
-    }
-
-    public func grow(&self, f : float) : Style {
-        var s = *self
-        s.f_grow = f
-        s.set_mask = s.set_mask | (1u64 << 6u64)
-        return s
-    }
-
-    public func shrink(&self, f : float) : Style {
-        var s = *self
-        s.f_shrink = f
-        s.set_mask = s.set_mask | (1u64 << 7u64)
-        return s
-    }
-
-    public func basis(&self, s : Dim) : Style {
-        var n = *self
-        n.f_basis = s
-        n.set_mask = n.set_mask | (1u64 << 8u64)
-        return n
-    }
-
-    public func align_items(&self, a : Align) : Style {
-        var s = *self
-        s.f_align_items = a
-        s.set_mask = s.set_mask | (1u64 << 9u64)
-        return s
-    }
-
-    public func justify(&self, j : Justify) : Style {
-        var s = *self
-        s.f_justify = j
-        s.set_mask = s.set_mask | (1u64 << 10u64)
-        return s
-    }
-
-    public func align_self(&self, a : Align) : Style {
-        var s = *self
-        s.f_align_self = a
-        s.set_mask = s.set_mask | (1u64 << 11u64)
-        return s
-    }
-
-    public func background(&self, c : ColorToken) : Style {
-        var s = *self
-        s.f_background = c
-        s.set_mask = s.set_mask | (1u64 << 12u64)
-        return s
-    }
-
-    public func foreground(&self, c : ColorToken) : Style {
-        var s = *self
-        s.f_foreground = c
-        s.set_mask = s.set_mask | (1u64 << 13u64)
-        return s
-    }
-
-    public func border(&self, b : Border) : Style {
-        var s = *self
-        s.f_border = b
-        s.set_mask = s.set_mask | (1u64 << 14u64)
-        return s
-    }
-
-    public func radius(&self, r : Radius) : Style {
-        var s = *self
-        s.f_radius = r
-        s.set_mask = s.set_mask | (1u64 << 15u64)
-        return s
-    }
-
-    public func shadow(&self, e : Elevation) : Style {
-        var s = *self
-        s.f_shadow = e
-        s.set_mask = s.set_mask | (1u64 << 16u64)
-        return s
-    }
-
-    public func opacity(&self, f : float) : Style {
-        var s = *self
-        s.f_opacity = f
-        s.set_mask = s.set_mask | (1u64 << 17u64)
-        return s
-    }
-
-    public func clip(&self, on : bool) : Style {
-        var s = *self
-        s.f_clip = on
-        s.set_mask = s.set_mask | (1u64 << 18u64)
-        return s
-    }
-
-    public func overflow(&self, o : Overflow) : Style {
-        var s = *self
-        s.f_overflow = o
-        s.set_mask = s.set_mask | (1u64 << 19u64)
-        return s
-    }
-
-    public func text(&self, role : TextRole) : Style {
-        var s = *self
-        s.f_text = role
-        s.set_mask = s.set_mask | (1u64 << 20u64)
-        return s
-    }
-
-    public func weight(&self, w : FontWeight) : Style {
-        var s = *self
-        s.f_weight = w
-        s.set_mask = s.set_mask | (1u64 << 21u64)
-        return s
-    }
-
-    public func cursor(&self, c : Cursor) : Style {
-        var s = *self
-        s.f_cursor = c
-        s.set_mask = s.set_mask | (1u64 << 22u64)
-        return s
-    }
-
-    public func z(&self, value : i32) : Style {
-        var s = *self
-        s.f_z = value
-        s.set_mask = s.set_mask | (1u64 << 23u64)
-        return s
-    }
-
-    public func aspect(&self, ratio : float) : Style {
-        var s = *self
-        s.f_aspect = ratio
-        s.set_mask = s.set_mask | (1u64 << 24u64)
-        return s
-    }
-
-    public func position(&self, p : Position) : Style {
-        var s = *self
-        s.f_position = p
-        s.set_mask = s.set_mask | (1u64 << 25u64)
-        return s
-    }
-
-    public func inset(&self, i : Insets) : Style {
-        var s = *self
-        s.f_inset = i
-        s.set_mask = s.set_mask | (1u64 << 26u64)
-        return s
-    }
-
-    public func grid_col(&self, col : u16) : Style {
-        var s = *self
-        s.f_grid_col = col
-        s.set_mask = s.set_mask | (1u64 << 27u64)
-        return s
-    }
-
-    public func grid_col_span(&self, span : u16) : Style {
-        var s = *self
-        s.f_grid_col_span = span
-        s.set_mask = s.set_mask | (1u64 << 28u64)
-        return s
-    }
-
-
-
-
-
-    public func direction(&self, d : Direction) : Style {
-        var s = *self
-        s.f_direction = d
-        s.set_mask = s.set_mask | (1u64 << 31u64)
-        return s
-    }
-
-    public func text_style(&self, t : TextStyle) : Style {
-        var s = *self
-        s.f_text_style = t
-        s.set_mask = s.set_mask | (1u64 << 32u64)
-        return s
-    }
-
-    public func text_align(&self, a : TextAlign) : Style {
-        var s = *self
-        s.f_text_align = a
-        s.set_mask = s.set_mask | (1u64 << 33u64)
-        return s
-    }
-
-    public func wrap(&self, w : WrapMode) : Style {
-        var s = *self
-        s.f_wrap = w
-        s.set_mask = s.set_mask | (1u64 << 34u64)
-        return s
-    }
-
-    public func max_lines(&self, n : u16) : Style {
-        var s = *self
-        s.f_max_lines = n
-        s.set_mask = s.set_mask | (1u64 << 35u64)
-        return s
-    }
-
-    public func text_overflow(&self, o : TextOverflow) : Style {
-        var s = *self
-        s.f_text_overflow = o
-        s.set_mask = s.set_mask | (1u64 << 36u64)
-        return s
-    }
-
-    public func tab_size(&self, spaces : u8) : Style {
-        var s = *self
-        s.f_tab_size = spaces
-        s.set_mask = s.set_mask | (1u64 << 37u64)
-        return s
-    }
-
-    public func padding_all(&self, s : Space) : Style {
-        var n = *self
-        n.f_padding = Insets.all(space_px(s))
-        n.set_mask = n.set_mask | (1u64 << 0u64)
-        return n
-    }
-
-    public func grid_column(&self, col : u16, span : u16) : Style {
-        var s = *self
-        s.f_grid_col = col
-        s.f_grid_col_span = span
-        s.set_mask = s.set_mask | (1u64 << 27u64) | (1u64 << 28u64)
-        return s
-    }
-
-    public func grid_row(&self, row : u16, span : u16) : Style {
-        var s = *self
-        s.f_grid_row = row
-        s.f_grid_row_span = span
-        s.set_mask = s.set_mask | (1u64 << 29u64) | (1u64 << 30u64)
-        return s
-    }
-
-    public func merge(&self, overlay : Style) : Style {
-        var merged = *self
-        if((overlay.set_mask & (1u64 << 0u64)) != 0u64) { merged.f_padding = overlay.f_padding; merged.set_mask = merged.set_mask | (1u64 << 0u64) }
-        if((overlay.set_mask & (1u64 << 1u64)) != 0u64) { merged.f_gap = overlay.f_gap; merged.set_mask = merged.set_mask | (1u64 << 1u64) }
-        if((overlay.set_mask & (1u64 << 2u64)) != 0u64) { merged.f_width = overlay.f_width; merged.set_mask = merged.set_mask | (1u64 << 2u64) }
-        if((overlay.set_mask & (1u64 << 3u64)) != 0u64) { merged.f_height = overlay.f_height; merged.set_mask = merged.set_mask | (1u64 << 3u64) }
-        if((overlay.set_mask & (1u64 << 4u64)) != 0u64) { merged.f_min_width = overlay.f_min_width; merged.set_mask = merged.set_mask | (1u64 << 4u64) }
-        if((overlay.set_mask & (1u64 << 5u64)) != 0u64) { merged.f_max_width = overlay.f_max_width; merged.set_mask = merged.set_mask | (1u64 << 5u64) }
-        if((overlay.set_mask & (1u64 << 6u64)) != 0u64) { merged.f_grow = overlay.f_grow; merged.set_mask = merged.set_mask | (1u64 << 6u64) }
-        if((overlay.set_mask & (1u64 << 7u64)) != 0u64) { merged.f_shrink = overlay.f_shrink; merged.set_mask = merged.set_mask | (1u64 << 7u64) }
-        if((overlay.set_mask & (1u64 << 8u64)) != 0u64) { merged.f_basis = overlay.f_basis; merged.set_mask = merged.set_mask | (1u64 << 8u64) }
-        if((overlay.set_mask & (1u64 << 9u64)) != 0u64) { merged.f_align_items = overlay.f_align_items; merged.set_mask = merged.set_mask | (1u64 << 9u64) }
-        if((overlay.set_mask & (1u64 << 10u64)) != 0u64) { merged.f_justify = overlay.f_justify; merged.set_mask = merged.set_mask | (1u64 << 10u64) }
-        if((overlay.set_mask & (1u64 << 11u64)) != 0u64) { merged.f_align_self = overlay.f_align_self; merged.set_mask = merged.set_mask | (1u64 << 11u64) }
-        if((overlay.set_mask & (1u64 << 12u64)) != 0u64) { merged.f_background = overlay.f_background; merged.set_mask = merged.set_mask | (1u64 << 12u64) }
-        if((overlay.set_mask & (1u64 << 13u64)) != 0u64) { merged.f_foreground = overlay.f_foreground; merged.set_mask = merged.set_mask | (1u64 << 13u64) }
-        if((overlay.set_mask & (1u64 << 14u64)) != 0u64) { merged.f_border = overlay.f_border; merged.set_mask = merged.set_mask | (1u64 << 14u64) }
-        if((overlay.set_mask & (1u64 << 15u64)) != 0u64) { merged.f_radius = overlay.f_radius; merged.set_mask = merged.set_mask | (1u64 << 15u64) }
-        if((overlay.set_mask & (1u64 << 16u64)) != 0u64) { merged.f_shadow = overlay.f_shadow; merged.set_mask = merged.set_mask | (1u64 << 16u64) }
-        if((overlay.set_mask & (1u64 << 17u64)) != 0u64) { merged.f_opacity = overlay.f_opacity; merged.set_mask = merged.set_mask | (1u64 << 17u64) }
-        if((overlay.set_mask & (1u64 << 18u64)) != 0u64) { merged.f_clip = overlay.f_clip; merged.set_mask = merged.set_mask | (1u64 << 18u64) }
-        if((overlay.set_mask & (1u64 << 19u64)) != 0u64) { merged.f_overflow = overlay.f_overflow; merged.set_mask = merged.set_mask | (1u64 << 19u64) }
-        if((overlay.set_mask & (1u64 << 20u64)) != 0u64) { merged.f_text = overlay.f_text; merged.set_mask = merged.set_mask | (1u64 << 20u64) }
-        if((overlay.set_mask & (1u64 << 21u64)) != 0u64) { merged.f_weight = overlay.f_weight; merged.set_mask = merged.set_mask | (1u64 << 21u64) }
-        if((overlay.set_mask & (1u64 << 22u64)) != 0u64) { merged.f_cursor = overlay.f_cursor; merged.set_mask = merged.set_mask | (1u64 << 22u64) }
-        if((overlay.set_mask & (1u64 << 23u64)) != 0u64) { merged.f_z = overlay.f_z; merged.set_mask = merged.set_mask | (1u64 << 23u64) }
-        if((overlay.set_mask & (1u64 << 24u64)) != 0u64) { merged.f_aspect = overlay.f_aspect; merged.set_mask = merged.set_mask | (1u64 << 24u64) }
-        if((overlay.set_mask & (1u64 << 25u64)) != 0u64) { merged.f_position = overlay.f_position; merged.set_mask = merged.set_mask | (1u64 << 25u64) }
-        if((overlay.set_mask & (1u64 << 26u64)) != 0u64) { merged.f_inset = overlay.f_inset; merged.set_mask = merged.set_mask | (1u64 << 26u64) }
-        if((overlay.set_mask & (1u64 << 27u64)) != 0u64) { merged.f_grid_col = overlay.f_grid_col; merged.set_mask = merged.set_mask | (1u64 << 27u64) }
-        if((overlay.set_mask & (1u64 << 28u64)) != 0u64) { merged.f_grid_col_span = overlay.f_grid_col_span; merged.set_mask = merged.set_mask | (1u64 << 28u64) }
-        if((overlay.set_mask & (1u64 << 29u64)) != 0u64) { merged.f_grid_row = overlay.f_grid_row; merged.set_mask = merged.set_mask | (1u64 << 29u64) }
-        if((overlay.set_mask & (1u64 << 30u64)) != 0u64) { merged.f_grid_row_span = overlay.f_grid_row_span; merged.set_mask = merged.set_mask | (1u64 << 30u64) }
-        if((overlay.set_mask & (1u64 << 31u64)) != 0u64) { merged.f_direction = overlay.f_direction; merged.set_mask = merged.set_mask | (1u64 << 31u64) }
-        if((overlay.set_mask & (1u64 << 32u64)) != 0u64) { merged.f_text_style = overlay.f_text_style; merged.set_mask = merged.set_mask | (1u64 << 32u64) }
-        if((overlay.set_mask & (1u64 << 33u64)) != 0u64) { merged.f_text_align = overlay.f_text_align; merged.set_mask = merged.set_mask | (1u64 << 33u64) }
-        if((overlay.set_mask & (1u64 << 34u64)) != 0u64) { merged.f_wrap = overlay.f_wrap; merged.set_mask = merged.set_mask | (1u64 << 34u64) }
-        if((overlay.set_mask & (1u64 << 35u64)) != 0u64) { merged.f_max_lines = overlay.f_max_lines; merged.set_mask = merged.set_mask | (1u64 << 35u64) }
-        if((overlay.set_mask & (1u64 << 36u64)) != 0u64) { merged.f_text_overflow = overlay.f_text_overflow; merged.set_mask = merged.set_mask | (1u64 << 36u64) }
-        if((overlay.set_mask & (1u64 << 37u64)) != 0u64) { merged.f_tab_size = overlay.f_tab_size; merged.set_mask = merged.set_mask | (1u64 << 37u64) }
-        return merged
+}
+func make_default_style_data() : StyleData {
+    return StyleData {
+        f_padding : Insets.zero(), f_gap : Space.None, f_width : Dim.Auto(), f_height : Dim.Auto(), f_min_width : 0.0f, f_max_width : 0.0f, f_grow : 0.0f, f_shrink : 0.0f, f_basis : Dim.Auto(), f_align_items : Align.Start, f_justify : Justify.Start, f_align_self : Align.Start, f_background : ColorToken.Transparent, f_foreground : ColorToken.OnSurface, f_border : Border { width : 0.0f, color : ColorToken.Transparent }, f_radius : Radius.None, f_shadow : Elevation.None, f_opacity : 1.0f, f_clip : false, f_overflow : Overflow.Visible, f_text : TextRole.Body, f_weight : FontWeight.Regular, f_cursor : Cursor.Arrow, f_z : 0i32, f_aspect : 0.0f, f_position : Position.Relative(), f_inset : Insets.zero(), f_grid_col : 0u16, f_grid_col_span : 1u16, f_grid_row : 0u16, f_grid_row_span : 1u16, f_direction : Direction.Auto,
+        f_text_style : TextStyle { family : FontFamily.Ui, family_name : "", size : 14.0f, weight : FontWeight.Regular, italic : false, line_height : 20.0f / 14.0f, letter_spacing : 0.0f, features : TextFeatures { ligatures : false, tabular_numbers : false, slashed_zero : false, stylistic_set : 0u8, raw_tags : zeroed<[0]u32>() }, tab_size : 4u8 },
+        f_text_align : TextAlign.Start, f_wrap : WrapMode.NoWrap, f_max_lines : 0u16, f_text_overflow : TextOverflow.Clip, f_tab_size : 4u8, set_mask : 0u64
     }
 }
-
-func dim_equal(a : Dim, b : Dim) : bool {
-    switch(a) {
-        Auto() => { switch(b) { Auto() => return true; default => return false } }
-        Px(x) => { switch(b) { Px(y) => return x == y; default => return false } }
-        Percent(x) => { switch(b) { Percent(y) => return x == y; default => return false } }
-        Fill() => { switch(b) { Fill() => return true; default => return false } }
-    }
-    return false
-}
-
-func pos_equal(a : Position, b : Position) : bool {
-    switch(a) {
-        Relative() => { switch(b) { Relative() => return true; default => return false } }
-        Absolute(t,r,bo,l) => { switch(b) { Absolute(t2,r2,b2,l2) => return dim_equal(t,t2) && dim_equal(r,r2) && dim_equal(bo,b2) && dim_equal(l,l2); default => return false } }
-    }
-    return false
-}
-
-func text_style_equal(a : TextStyle, b : TextStyle) : bool {
-    if(a.family != b.family || a.weight != b.weight || a.italic != b.italic || a.size != b.size || a.line_height != b.line_height || a.letter_spacing != b.letter_spacing || a.tab_size != b.tab_size) { return false }
-    if(!a.family_name.equals(&b.family_name)) { return false }
-    if(a.features.ligatures != b.features.ligatures || a.features.tabular_numbers != b.features.tabular_numbers || a.features.slashed_zero != b.features.slashed_zero || a.features.stylistic_set != b.features.stylistic_set) { return false }
-    return true
-}
-
-public func style_equal(a : &Style, b : &Style) : bool {
-    return a.set_mask == b.set_mask &&
+@thread_local
+var STYLE_STORE : [512]StyleData = zeroed:unsafe<[512]StyleData>()
+@thread_local var STYLE_COUNT : u32 = 0u32
+@thread_local var STYLE_HITS : u32 = 0u32
+@thread_local var STYLE_MISSES : u32 = 0u32
+@thread_local var STYLE_OVERFLOW : u32 = 0u32
+func style_init() { if(STYLE_COUNT == 0u32) { STYLE_STORE[0] = make_default_style_data(); STYLE_COUNT = 1u32 } }
+func style_data(id : u32) : StyleData { style_init(); if(id >= STYLE_COUNT) { return STYLE_STORE[0] } return STYLE_STORE[id as size_t] }
+func style_data_equal(a : &StyleData, b : &StyleData) : bool { return (a.set_mask == b.set_mask &&
            (a.f_padding.left == b.f_padding.left && a.f_padding.top == b.f_padding.top && a.f_padding.right == b.f_padding.right && a.f_padding.bottom == b.f_padding.bottom) &&
            a.f_gap == b.f_gap &&
            dim_equal(a.f_width, b.f_width) &&
@@ -465,51 +102,326 @@ public func style_equal(a : &Style, b : &Style) : bool {
            a.f_wrap == b.f_wrap &&
            a.f_max_lines == b.f_max_lines &&
            a.f_text_overflow == b.f_text_overflow &&
-           a.f_tab_size == b.f_tab_size
+           a.f_tab_size == b.f_tab_size) }
+func style_intern(d : StyleData) : Style {
+    style_init()
+    var i : size_t = 0
+    while(i < STYLE_COUNT as size_t) { if(style_data_equal(&STYLE_STORE[i], &d)) { STYLE_HITS = STYLE_HITS + 1u32; return Style { id : i as u32 } } i = i + 1u }
+    if(STYLE_COUNT >= STYLE_CAP) { STYLE_OVERFLOW = STYLE_OVERFLOW + 1u32; return Style { id : 0u32 } }
+    var idx = STYLE_COUNT; STYLE_STORE[idx as size_t] = d; STYLE_COUNT = STYLE_COUNT + 1u32; STYLE_MISSES = STYLE_MISSES + 1u32; return Style { id : idx }
 }
+func style_mask_by_id(id : u32) : u64 { style_init(); if(id >= STYLE_COUNT) { return 0u64 }; return STYLE_STORE[id as size_t].set_mask }
+@direct_init
+public struct Style {
+    internal var id : u32
+    public func new() : Style { style_init(); return Style { id : 0u32 } }
+    func id_internal(&self) : u32 { return self.id }
+    public func padding(&self, p : Insets) : Style {
+        var d = style_data(self.id)
+        d.f_padding = p
+        d.set_mask = d.set_mask | (1u64 << 0u64)
+        return style_intern(d)
+    }
 
-public func style_hash(s : &Style) : u64 {
-    var h = s.set_mask
-    h = (h ^ ((s.f_padding.left as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_padding.top as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_padding.right as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_padding.bottom as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_gap as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_min_width as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_max_width as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_grow as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_shrink as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_align_items as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_justify as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_align_self as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_background as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_foreground as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_border.width as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_border.color as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_radius as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_shadow as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_opacity as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_clip as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_overflow as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_text as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_weight as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_cursor as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_z as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_aspect as u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_inset.left as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_inset.top as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_inset.right as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_inset.bottom as u64) + 0x9E3779B97F4A7C15u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_grid_col as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_grid_col_span as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_grid_row as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_grid_row_span as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_direction as u64)) * 0x100000001b3u64
-    h = (h ^ ((s.f_text_style.size as u64) * 31u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_text_align as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_wrap as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_max_lines as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_text_overflow as u64)) * 0x100000001b3u64
-    h = (h ^ (s.f_tab_size as u64)) * 0x100000001b3u64
-    return h
+    public func gap(&self, s : Space) : Style {
+        var d = style_data(self.id)
+        d.f_gap = s
+        d.set_mask = d.set_mask | (1u64 << 1u64)
+        return style_intern(d)
+    }
+
+    public func width(&self, s : Dim) : Style {
+        var d = style_data(self.id)
+        d.f_width = s
+        d.set_mask = d.set_mask | (1u64 << 2u64)
+        return style_intern(d)
+    }
+
+    public func height(&self, s : Dim) : Style {
+        var d = style_data(self.id)
+        d.f_height = s
+        d.set_mask = d.set_mask | (1u64 << 3u64)
+        return style_intern(d)
+    }
+
+    public func min_width(&self, px : float) : Style {
+        var d = style_data(self.id)
+        d.f_min_width = px
+        d.set_mask = d.set_mask | (1u64 << 4u64)
+        return style_intern(d)
+    }
+
+    public func max_width(&self, px : float) : Style {
+        var d = style_data(self.id)
+        d.f_max_width = px
+        d.set_mask = d.set_mask | (1u64 << 5u64)
+        return style_intern(d)
+    }
+
+    public func grow(&self, f : float) : Style {
+        var d = style_data(self.id)
+        d.f_grow = f
+        d.set_mask = d.set_mask | (1u64 << 6u64)
+        return style_intern(d)
+    }
+
+    public func shrink(&self, f : float) : Style {
+        var d = style_data(self.id)
+        d.f_shrink = f
+        d.set_mask = d.set_mask | (1u64 << 7u64)
+        return style_intern(d)
+    }
+
+    public func basis(&self, s : Dim) : Style {
+        var d = style_data(self.id)
+        d.f_basis = s
+        d.set_mask = d.set_mask | (1u64 << 8u64)
+        return style_intern(d)
+    }
+
+    public func align_items(&self, a : Align) : Style {
+        var d = style_data(self.id)
+        d.f_align_items = a
+        d.set_mask = d.set_mask | (1u64 << 9u64)
+        return style_intern(d)
+    }
+
+    public func justify(&self, j : Justify) : Style {
+        var d = style_data(self.id)
+        d.f_justify = j
+        d.set_mask = d.set_mask | (1u64 << 10u64)
+        return style_intern(d)
+    }
+
+    public func align_self(&self, a : Align) : Style {
+        var d = style_data(self.id)
+        d.f_align_self = a
+        d.set_mask = d.set_mask | (1u64 << 11u64)
+        return style_intern(d)
+    }
+
+    public func background(&self, c : ColorToken) : Style {
+        var d = style_data(self.id)
+        d.f_background = c
+        d.set_mask = d.set_mask | (1u64 << 12u64)
+        return style_intern(d)
+    }
+
+    public func foreground(&self, c : ColorToken) : Style {
+        var d = style_data(self.id)
+        d.f_foreground = c
+        d.set_mask = d.set_mask | (1u64 << 13u64)
+        return style_intern(d)
+    }
+
+    public func border(&self, b : Border) : Style {
+        var d = style_data(self.id)
+        d.f_border = b
+        d.set_mask = d.set_mask | (1u64 << 14u64)
+        return style_intern(d)
+    }
+
+    public func radius(&self, r : Radius) : Style {
+        var d = style_data(self.id)
+        d.f_radius = r
+        d.set_mask = d.set_mask | (1u64 << 15u64)
+        return style_intern(d)
+    }
+
+    public func shadow(&self, e : Elevation) : Style {
+        var d = style_data(self.id)
+        d.f_shadow = e
+        d.set_mask = d.set_mask | (1u64 << 16u64)
+        return style_intern(d)
+    }
+
+    public func opacity(&self, f : float) : Style {
+        var d = style_data(self.id)
+        d.f_opacity = f
+        d.set_mask = d.set_mask | (1u64 << 17u64)
+        return style_intern(d)
+    }
+
+    public func clip(&self, on : bool) : Style {
+        var d = style_data(self.id)
+        d.f_clip = on
+        d.set_mask = d.set_mask | (1u64 << 18u64)
+        return style_intern(d)
+    }
+
+    public func overflow(&self, o : Overflow) : Style {
+        var d = style_data(self.id)
+        d.f_overflow = o
+        d.set_mask = d.set_mask | (1u64 << 19u64)
+        return style_intern(d)
+    }
+
+    public func text(&self, role : TextRole) : Style {
+        var d = style_data(self.id)
+        d.f_text = role
+        d.set_mask = d.set_mask | (1u64 << 20u64)
+        return style_intern(d)
+    }
+
+    public func weight(&self, w : FontWeight) : Style {
+        var d = style_data(self.id)
+        d.f_weight = w
+        d.set_mask = d.set_mask | (1u64 << 21u64)
+        return style_intern(d)
+    }
+
+    public func cursor(&self, c : Cursor) : Style {
+        var d = style_data(self.id)
+        d.f_cursor = c
+        d.set_mask = d.set_mask | (1u64 << 22u64)
+        return style_intern(d)
+    }
+
+    public func z(&self, value : i32) : Style {
+        var d = style_data(self.id)
+        d.f_z = value
+        d.set_mask = d.set_mask | (1u64 << 23u64)
+        return style_intern(d)
+    }
+
+    public func aspect(&self, ratio : float) : Style {
+        var d = style_data(self.id)
+        d.f_aspect = ratio
+        d.set_mask = d.set_mask | (1u64 << 24u64)
+        return style_intern(d)
+    }
+
+    public func position(&self, p : Position) : Style {
+        var d = style_data(self.id)
+        d.f_position = p
+        d.set_mask = d.set_mask | (1u64 << 25u64)
+        return style_intern(d)
+    }
+
+    public func inset(&self, i : Insets) : Style {
+        var d = style_data(self.id)
+        d.f_inset = i
+        d.set_mask = d.set_mask | (1u64 << 26u64)
+        return style_intern(d)
+    }
+
+    public func direction(&self, dir : Direction) : Style {
+        var d = style_data(self.id)
+        d.f_direction = dir
+        d.set_mask = d.set_mask | (1u64 << 31u64)
+        return style_intern(d)
+    }
+
+    public func text_style(&self, t : TextStyle) : Style {
+        var d = style_data(self.id)
+        d.f_text_style = t
+        d.set_mask = d.set_mask | (1u64 << 32u64)
+        return style_intern(d)
+    }
+
+    public func text_align(&self, a : TextAlign) : Style {
+        var d = style_data(self.id)
+        d.f_text_align = a
+        d.set_mask = d.set_mask | (1u64 << 33u64)
+        return style_intern(d)
+    }
+
+    public func wrap(&self, w : WrapMode) : Style {
+        var d = style_data(self.id)
+        d.f_wrap = w
+        d.set_mask = d.set_mask | (1u64 << 34u64)
+        return style_intern(d)
+    }
+
+    public func max_lines(&self, n : u16) : Style {
+        var d = style_data(self.id)
+        d.f_max_lines = n
+        d.set_mask = d.set_mask | (1u64 << 35u64)
+        return style_intern(d)
+    }
+
+    public func text_overflow(&self, o : TextOverflow) : Style {
+        var d = style_data(self.id)
+        d.f_text_overflow = o
+        d.set_mask = d.set_mask | (1u64 << 36u64)
+        return style_intern(d)
+    }
+
+    public func tab_size(&self, spaces : u8) : Style {
+        var d = style_data(self.id)
+        d.f_tab_size = spaces
+        d.set_mask = d.set_mask | (1u64 << 37u64)
+        return style_intern(d)
+    }
+
+    public func padding_all(&self, s : Space) : Style {
+        var d = style_data(self.id)
+        d.f_padding = Insets.all(space_px(s))
+        d.set_mask = d.set_mask | (1u64 << 0u64)
+        return style_intern(d)
+    }
+
+    public func grid_column(&self, col : u16, span : u16) : Style {
+        var d = style_data(self.id)
+        d.f_grid_col = col; d.f_grid_col_span = span
+        d.set_mask = d.set_mask | (1u64 << 27u64) | (1u64 << 28u64)
+        return style_intern(d)
+    }
+
+    public func grid_row(&self, row : u16, span : u16) : Style {
+        var d = style_data(self.id)
+        d.f_grid_row = row; d.f_grid_row_span = span
+        d.set_mask = d.set_mask | (1u64 << 29u64) | (1u64 << 30u64)
+        return style_intern(d)
+    }
+    public func merge(&self, overlay : Style) : Style {
+        style_init()
+        var merged = style_data(self.id)
+        var overlay_data = style_data(overlay.id)
+        if((overlay_data.set_mask & (1u64 << 0u64)) != 0u64) { merged.f_padding = overlay_data.f_padding; merged.set_mask = merged.set_mask | (1u64 << 0u64) }
+        if((overlay_data.set_mask & (1u64 << 1u64)) != 0u64) { merged.f_gap = overlay_data.f_gap; merged.set_mask = merged.set_mask | (1u64 << 1u64) }
+        if((overlay_data.set_mask & (1u64 << 2u64)) != 0u64) { merged.f_width = overlay_data.f_width; merged.set_mask = merged.set_mask | (1u64 << 2u64) }
+        if((overlay_data.set_mask & (1u64 << 3u64)) != 0u64) { merged.f_height = overlay_data.f_height; merged.set_mask = merged.set_mask | (1u64 << 3u64) }
+        if((overlay_data.set_mask & (1u64 << 4u64)) != 0u64) { merged.f_min_width = overlay_data.f_min_width; merged.set_mask = merged.set_mask | (1u64 << 4u64) }
+        if((overlay_data.set_mask & (1u64 << 5u64)) != 0u64) { merged.f_max_width = overlay_data.f_max_width; merged.set_mask = merged.set_mask | (1u64 << 5u64) }
+        if((overlay_data.set_mask & (1u64 << 6u64)) != 0u64) { merged.f_grow = overlay_data.f_grow; merged.set_mask = merged.set_mask | (1u64 << 6u64) }
+        if((overlay_data.set_mask & (1u64 << 7u64)) != 0u64) { merged.f_shrink = overlay_data.f_shrink; merged.set_mask = merged.set_mask | (1u64 << 7u64) }
+        if((overlay_data.set_mask & (1u64 << 8u64)) != 0u64) { merged.f_basis = overlay_data.f_basis; merged.set_mask = merged.set_mask | (1u64 << 8u64) }
+        if((overlay_data.set_mask & (1u64 << 9u64)) != 0u64) { merged.f_align_items = overlay_data.f_align_items; merged.set_mask = merged.set_mask | (1u64 << 9u64) }
+        if((overlay_data.set_mask & (1u64 << 10u64)) != 0u64) { merged.f_justify = overlay_data.f_justify; merged.set_mask = merged.set_mask | (1u64 << 10u64) }
+        if((overlay_data.set_mask & (1u64 << 11u64)) != 0u64) { merged.f_align_self = overlay_data.f_align_self; merged.set_mask = merged.set_mask | (1u64 << 11u64) }
+        if((overlay_data.set_mask & (1u64 << 12u64)) != 0u64) { merged.f_background = overlay_data.f_background; merged.set_mask = merged.set_mask | (1u64 << 12u64) }
+        if((overlay_data.set_mask & (1u64 << 13u64)) != 0u64) { merged.f_foreground = overlay_data.f_foreground; merged.set_mask = merged.set_mask | (1u64 << 13u64) }
+        if((overlay_data.set_mask & (1u64 << 14u64)) != 0u64) { merged.f_border = overlay_data.f_border; merged.set_mask = merged.set_mask | (1u64 << 14u64) }
+        if((overlay_data.set_mask & (1u64 << 15u64)) != 0u64) { merged.f_radius = overlay_data.f_radius; merged.set_mask = merged.set_mask | (1u64 << 15u64) }
+        if((overlay_data.set_mask & (1u64 << 16u64)) != 0u64) { merged.f_shadow = overlay_data.f_shadow; merged.set_mask = merged.set_mask | (1u64 << 16u64) }
+        if((overlay_data.set_mask & (1u64 << 17u64)) != 0u64) { merged.f_opacity = overlay_data.f_opacity; merged.set_mask = merged.set_mask | (1u64 << 17u64) }
+        if((overlay_data.set_mask & (1u64 << 18u64)) != 0u64) { merged.f_clip = overlay_data.f_clip; merged.set_mask = merged.set_mask | (1u64 << 18u64) }
+        if((overlay_data.set_mask & (1u64 << 19u64)) != 0u64) { merged.f_overflow = overlay_data.f_overflow; merged.set_mask = merged.set_mask | (1u64 << 19u64) }
+        if((overlay_data.set_mask & (1u64 << 20u64)) != 0u64) { merged.f_text = overlay_data.f_text; merged.set_mask = merged.set_mask | (1u64 << 20u64) }
+        if((overlay_data.set_mask & (1u64 << 21u64)) != 0u64) { merged.f_weight = overlay_data.f_weight; merged.set_mask = merged.set_mask | (1u64 << 21u64) }
+        if((overlay_data.set_mask & (1u64 << 22u64)) != 0u64) { merged.f_cursor = overlay_data.f_cursor; merged.set_mask = merged.set_mask | (1u64 << 22u64) }
+        if((overlay_data.set_mask & (1u64 << 23u64)) != 0u64) { merged.f_z = overlay_data.f_z; merged.set_mask = merged.set_mask | (1u64 << 23u64) }
+        if((overlay_data.set_mask & (1u64 << 24u64)) != 0u64) { merged.f_aspect = overlay_data.f_aspect; merged.set_mask = merged.set_mask | (1u64 << 24u64) }
+        if((overlay_data.set_mask & (1u64 << 25u64)) != 0u64) { merged.f_position = overlay_data.f_position; merged.set_mask = merged.set_mask | (1u64 << 25u64) }
+        if((overlay_data.set_mask & (1u64 << 26u64)) != 0u64) { merged.f_inset = overlay_data.f_inset; merged.set_mask = merged.set_mask | (1u64 << 26u64) }
+        if((overlay_data.set_mask & (1u64 << 27u64)) != 0u64) { merged.f_grid_col = overlay_data.f_grid_col; merged.set_mask = merged.set_mask | (1u64 << 27u64) }
+        if((overlay_data.set_mask & (1u64 << 28u64)) != 0u64) { merged.f_grid_col_span = overlay_data.f_grid_col_span; merged.set_mask = merged.set_mask | (1u64 << 28u64) }
+        if((overlay_data.set_mask & (1u64 << 29u64)) != 0u64) { merged.f_grid_row = overlay_data.f_grid_row; merged.set_mask = merged.set_mask | (1u64 << 29u64) }
+        if((overlay_data.set_mask & (1u64 << 30u64)) != 0u64) { merged.f_grid_row_span = overlay_data.f_grid_row_span; merged.set_mask = merged.set_mask | (1u64 << 30u64) }
+        if((overlay_data.set_mask & (1u64 << 31u64)) != 0u64) { merged.f_direction = overlay_data.f_direction; merged.set_mask = merged.set_mask | (1u64 << 31u64) }
+        if((overlay_data.set_mask & (1u64 << 32u64)) != 0u64) { merged.f_text_style = overlay_data.f_text_style; merged.set_mask = merged.set_mask | (1u64 << 32u64) }
+        if((overlay_data.set_mask & (1u64 << 33u64)) != 0u64) { merged.f_text_align = overlay_data.f_text_align; merged.set_mask = merged.set_mask | (1u64 << 33u64) }
+        if((overlay_data.set_mask & (1u64 << 34u64)) != 0u64) { merged.f_wrap = overlay_data.f_wrap; merged.set_mask = merged.set_mask | (1u64 << 34u64) }
+        if((overlay_data.set_mask & (1u64 << 35u64)) != 0u64) { merged.f_max_lines = overlay_data.f_max_lines; merged.set_mask = merged.set_mask | (1u64 << 35u64) }
+        if((overlay_data.set_mask & (1u64 << 36u64)) != 0u64) { merged.f_text_overflow = overlay_data.f_text_overflow; merged.set_mask = merged.set_mask | (1u64 << 36u64) }
+        if((overlay_data.set_mask & (1u64 << 37u64)) != 0u64) { merged.f_tab_size = overlay_data.f_tab_size; merged.set_mask = merged.set_mask | (1u64 << 37u64) }
+        return style_intern(merged)
+    }
+}
+public namespace ui_internal {
+public func style_store_size() : u32 { style_init(); return STYLE_COUNT }
+public func style_store_hits() : u32 { return STYLE_HITS }
+public func style_store_misses() : u32 { return STYLE_MISSES }
+public func style_store_overflow() : u32 { return STYLE_OVERFLOW }
 }

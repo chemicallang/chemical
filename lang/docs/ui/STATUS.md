@@ -10,8 +10,8 @@
 | P0.1 Feasibility probe | done | b5de9c323 | ui-P0.1 | `evidence/P0.1/` | raster/GTK/TCC corrected; font cmap + named-fn blockers | |
 | P0.3a Scaffolding/scripts | done | 957948ed2 | ui-P0.3a | `evidence/P0.3a/` | packages/scripts/schemas/CI; scaffold tests | ASAN runtime symlinked locally |
 | P0.2a Contract consolidation/check | done | 92e45cc93 | ui-P0.2a | `evidence/P0.2/` | API 367 decls; front-end check green | TCC full link in P0.2b |
-| P0.2b @extern method mangling | done | pending | ui-P0.2b | `evidence/P0.2/` | contract builds/links/runs TCC+LLVM | compiler fix + regression |
-| P0.2 Freeze contracts | done | pending | ui-P0.2 | `evidence/P0.2/` | 367 decls; index check; full contract run | |
+| P0.2b @extern method mangling | done | d70835a1d | ui-P0.2b | `evidence/P0.2/` | contract builds/links/runs TCC+LLVM | compiler fix + regression |
+| P0.2 Freeze contracts | done | d70835a1d | ui-P0.2 | `evidence/P0.2/` | 367 decls; index check; full contract run | |
 | P0.3b Test core/bench/lint | todo | — | — | — | — | |
 | P0.4 Design spec/tokens | todo | — | — | — | — | |
 | P1.1 Math/geometry/color | todo | — | — | — | — | |

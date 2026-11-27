@@ -1,0 +1,9 @@
+{
+  "name": "row-grow",
+  "provenance": "hand-written P1.6 Taffy-style row; fixed widths + grow, padding 8, gap 8; 0.5 px oracle",
+  "viewport": [200, 100],
+  "expect": [
+    {"key": "a", "rect": [8, 8, 83, 10]},
+    {"key": "c", "rect": [99, 8, 93, 10]}
+  ]
+}

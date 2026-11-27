@@ -1,0 +1,6 @@
+{
+  "name": "align-center",
+  "provenance": "hand-written P1.6 cross-axis center alignment",
+  "viewport": [100, 100],
+  "expect": [{"key": "center", "rect": [0, 15, 20, 10]}]
+}

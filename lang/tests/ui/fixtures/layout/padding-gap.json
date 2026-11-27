@@ -1,0 +1,9 @@
+{
+  "name": "padding-gap",
+  "provenance": "hand-written P1.6 padding 5 + gap 10, start justification",
+  "viewport": [100, 100],
+  "expect": [
+    {"key": "a", "rect": [5, 5, 20, 10]},
+    {"key": "c", "rect": [35, 5, 20, 10]}
+  ]
+}

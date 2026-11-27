@@ -1,0 +1,1 @@
+{"name":"scroll-horizontal","provenance":"hand-written P1.7 horizontal scroll: 100x50 viewport, 200-wide content, offset 30","viewport":[100,100],"expect":{"scroll_offset":[30,0],"content":[200,50],"max":[100,0],"scrollbar_visible_x":true}}

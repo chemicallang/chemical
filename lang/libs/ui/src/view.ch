@@ -72,6 +72,10 @@ public struct NodeMeta {
     var scroll_anchor : ScrollAnchor
     var span_start : u32
     var span_count : u32
+    var grid_columns : &[GridTrack]
+    var grid_rows : &[GridTrack]
+    var grid_gap : Space
+    var has_grid_tracks : bool
 }
 
 func empty_semantics() : Semantics {
@@ -107,7 +111,9 @@ func empty_meta() : NodeMeta {
         error : UiError.make(ErrorCode.Internal, ""), error_code_value : ErrorCode.Internal,
         has_error : false, semantics : empty_semantics(), has_semantics : false,
         virtual_axis : Axis.Vertical, scroll_anchor : ScrollAnchor.Start(),
-        span_start : 0u32, span_count : 0u32
+        span_start : 0u32, span_count : 0u32,
+        grid_columns : zeroed<[0]GridTrack>(), grid_rows : zeroed<[0]GridTrack>(),
+        grid_gap : Space.None, has_grid_tracks : false
     }
 }
 
@@ -167,6 +173,8 @@ public struct ViewBuilder {
     var diagnostic_code : ErrorCode
     var style_hits : u32
     var style_misses : u32
+    var layout_epoch : u64
+    var layout_dirty_node : u32
 
     func make_internal(capacity : u32, width : float, height : float, debug_duplicate : bool) : ViewBuilder {
         unsafe {
@@ -194,7 +202,8 @@ public struct ViewBuilder {
             root : zeroed<NodeId>(),
             frame_data : frame, viewport_data : viewport,
             node_count_value : 0u32, diagnostic_count : 0u32,
-            diagnostic_code : ErrorCode.Other, style_hits : 0u32, style_misses : 0u32
+            diagnostic_code : ErrorCode.Other, style_hits : 0u32, style_misses : 0u32,
+            layout_epoch : 0u64, layout_dirty_node : 0u32
         }
         b.nodes.reserve(capacity as size_t)
         b.node_base = b.nodes.mutable_data()
@@ -277,6 +286,8 @@ public struct ViewBuilder {
             n.virtual_count = VIEW_NONE
         }
         self.node_count_value = self.node_count_value + 1u32
+        self.layout_epoch = self.layout_epoch + 1u64
+        self.layout_dirty_node = 0u32
         if(self.debug_duplicate) {
             if(!self.keys_seen.insert(k)) { self.record(ErrorCode.DuplicateKey) }
         }
@@ -291,6 +302,16 @@ public struct ViewBuilder {
         var Ok(dst) = p else return ""
         unsafe { memcpy(dst as *mut void, value.data() as *mut void, value.size()) }
         return unsafe(std::string_view(dst as *char, value.size()))
+    }
+
+    func copy_grid_tracks(&mut self, tracks : &[GridTrack]) : &[GridTrack] {
+        if(tracks.size() == 0u) { return zeroed<[0]GridTrack>() }
+        var n = tracks.size() * sizeof(GridTrack)
+        var p = self.frame_storage.alloc(n, 8u)
+        if(p is Result.Err) { self.record(ErrorCode.OutOfMemory); return zeroed<[0]GridTrack>() }
+        var Ok(dst) = p else return zeroed<[0]GridTrack>()
+        unsafe { memcpy(dst as *mut void, tracks.data() as *mut void, n) }
+        return unsafe(std::span<GridTrack>(dst as *mut GridTrack, tracks.size()))
     }
 
     func copy_span(&mut self, span : TextSpan) : TextSpan {
@@ -327,7 +348,12 @@ public struct ViewBuilder {
 
     public func grid(&mut self, k : Key, style : Style, tracks : GridTracks) : NodeId {
         var id = self.container(ui_internal::ViewKind.Grid, k, style)
-        // Track arrays are contract-owned until P1.6.
+        var mp = self.meta_for(id)
+        if(mp != null) {
+            var cols = self.copy_grid_tracks(tracks.columns)
+            var rows = self.copy_grid_tracks(tracks.rows)
+            unsafe { mp.grid_columns = cols; mp.grid_rows = rows; mp.grid_gap = tracks.gap; mp.has_grid_tracks = true }
+        }
         return id
     }
 
@@ -466,6 +492,8 @@ public struct ViewBuilder {
                 pp.last_child = child.index()
             }
             pp.child_count = pp.child_count + 1u32
+            self.layout_epoch = self.layout_epoch + 1u64
+            self.layout_dirty_node = 0u32
             return true
         }
     }
@@ -518,6 +546,7 @@ public struct ViewBuilder {
                 vp.next_sibling = child.index()
             }
             pp.child_count = pp.child_count + 1u32
+            self.layout_epoch = self.layout_epoch + 1u64
         }
     }
 
@@ -527,6 +556,9 @@ public struct ViewBuilder {
         var current = self.style_at(unsafe(p.style_index))
         var merged = current.merge(style)
         unsafe { p.style_index = self.style_index(merged) }
+        self.layout_epoch = self.layout_epoch + 1u64
+        if(self.layout_dirty_node != 0u32 && self.layout_dirty_node != node.index()) { self.layout_dirty_node = 0u32 }
+        else { self.layout_dirty_node = node.index() }
     }
     public func state_style(&mut self, node : NodeId, state : WidgetState, style : Style) {
         var p = self.node_ptr(node)
@@ -646,6 +678,7 @@ public func reset_view_builder(b : &mut ViewBuilder) {
     b.diagnostic_code = ErrorCode.Other
     b.style_hits = 0u32
     b.style_misses = 0u32
+    b.layout_dirty_node = 0u32
     b.frame_storage.reset()
     b.root = zeroed<NodeId>()
     b.root = b.add_node(ViewKind.Root, key("root"), 0u32)

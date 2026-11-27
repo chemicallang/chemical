@@ -25,8 +25,9 @@
 | P1.4b Reconcile hot path | done | — | — | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
 | P1.5 Style/tokens/themes | done | 58dd0b8c5 | ui-P1.5 | `evidence/P1.5/` | Theme/features/resolution TCC+LLVM+ASAN; contrast light 4.548 min; 438 API decls | no token/golden churn |
 | P1.5b Font metrics fixture | done | 58dd0b8c5 | ui-P1.5b | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster; P1.6 not started |
-| P1.6 Layout v1 | todo | — | — | — | — | |
-| P1.7 Layout v2 | todo | — | — | — | — | |
+| P1.6 Layout v1 | done | pending | ui-P1.6 | `evidence/P1.6/` | 12 fixtures + 1k property; LLVM p50 simple 1960us/mixed 2725us/wide 26366us; one-edit 0us; TCC functional | P1.7 not started |
+| P1.7 Layout v2 | done | pending | ui-P1.7 | `evidence/P1.7/` | P1.7b wrap 7673us / grid 6063us / scroll100k 72662us; scroll1k 493us/update14us pass; TCC 44437us functional | performance gates still missed; budgets unchanged; P1.8 not started |
+| P1.7b Layout-v2 hot path | blocked | — | — | `evidence/P1.7b/` | before/after measured; wrap 2.1x faster but still 7673us; grid/scroll blocked | measured profile; no budget change |
 | P1.8 Display list/painter | todo | — | — | — | — | |
 | P1.9 CPU rasterizer | todo | — | — | — | — | |
 | P1.10 Headless/app loop | todo | — | — | — | — | |

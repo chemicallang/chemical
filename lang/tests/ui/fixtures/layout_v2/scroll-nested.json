@@ -1,0 +1,1 @@
+{"name":"scroll-nested","provenance":"hand-written P1.7 nested scroll offsets (outer 20, inner 30)","viewport":[100,100],"invariants":["inner rect y = -20","inner content y = -50"]}

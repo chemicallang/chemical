@@ -1,0 +1,6 @@
+{
+  "name": "text-intrinsic",
+  "provenance": "P1.5b pinned Liberation Sans Body 14px; TextContext intrinsic A",
+  "viewport": [100, 100],
+  "expect": {"key": "t", "rect": [0, 0, 9.337891, 20], "first_baseline": 13.804199}
+}

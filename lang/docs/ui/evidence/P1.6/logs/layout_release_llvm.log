@@ -1,0 +1,7 @@
+ui layout PASS
+layout simple_us p50=1960 p95=3553
+layout warm_passes=0 cached=1
+layout mixed_us p50=2725 p95=4171
+layout wide_us p50=26366 p95=47823
+layout one_change_us p50=0 p95=1
+ui-test: PASS (llvm, filter=layout)

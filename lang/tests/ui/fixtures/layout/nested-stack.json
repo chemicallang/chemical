@@ -1,0 +1,9 @@
+{
+  "name": "nested-stack",
+  "provenance": "hand-written P1.6 stack places children on the same content origin",
+  "viewport": [100, 100],
+  "expect": [
+    {"key": "one", "rect": [0, 0, 10, 10]},
+    {"key": "two", "rect": [0, 0, 20, 20]}
+  ]
+}

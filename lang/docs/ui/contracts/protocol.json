@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "api": "ui.debug.v1",
+  "transport": ["tcp-jsonrpc", "dom-bridge", "websocket-relay"],
+  "methods": [
+    "hello", "app.info", "gpu.info", "gpu.set", "fonts.list", "fonts.add", "fonts.use",
+    "tree.snapshot", "tree.find", "node.inspect", "node.highlight",
+    "input.pointer", "input.key", "input.text", "input.ime", "input.scroll",
+    "action.invoke", "clock.get", "clock.set", "clock.pause", "clock.resume",
+    "clock.advance", "clock.rate", "frame.step",
+    "animation.list", "animation.seek", "animation.rate",
+    "screenshot", "overlay.set", "capture.start", "capture.stop",
+    "state.snapshot", "state.restore", "audit.run", "perf.stats", "log.tail",
+    "events.subscribe", "catalog.get", "tokens.get", "shutdown"
+  ],
+  "notifications": ["tree.changed", "frame", "error", "log", "animation.finished"],
+  "cli": {
+    "binary": "chemical ui",
+    "commands": ["run", "tree", "inspect", "click", "type", "key", "hover", "drag", "scroll", "shot", "record", "replay", "diff", "audit", "bench", "test", "mcp", "relay", "catalog", "tokens", "fonts"],
+    "exit_codes": {"success": 0, "usage": 2, "not_found": 3, "app_or_protocol": 4, "timeout": 5, "gate_failure": 6},
+    "flags": ["--json", "--watch", "--debug", "--headless", "--renderer=cpu|gpu", "--out", "--frame", "--at", "--scale", "--theme", "--fps", "--seconds", "--filter"]
+  },
+  "mcp_tools": ["ui_snapshot", "ui_find", "ui_inspect", "ui_act", "ui_clock", "ui_screenshot", "ui_capture", "ui_audit", "ui_perf", "ui_gpu", "ui_fonts", "ui_catalog"]
+}

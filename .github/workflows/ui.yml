@@ -28,12 +28,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Self-test harness (bad packet red, good packet green)
         run: ./scripts/ui-verify.sh --self-test
-      - name: API index is stable
-        run: |
-          ./scripts/ui-api-index.sh
-          cp lang/docs/ui/ui_api_index.json /tmp/ui_api_index.first.json
-          ./scripts/ui-api-index.sh
-          cmp lang/docs/ui/ui_api_index.json /tmp/ui_api_index.first.json
+      - name: API index matches frozen baseline
+        run: ./scripts/ui-api-index.sh --check
       - name: Verify P0.3a manifest/evidence
         run: ./scripts/ui-verify.sh --packet P0.3a
 
@@ -100,14 +96,21 @@ jobs:
         run: ./scripts/ui-test.sh --tcc --filter scaffold
 
   contract-snippets:
-    name: Contract snippet compile job (placeholder)
+    name: Frozen contract compiles (TCC + LLVM)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: P0.2 fills lang/tests/ui/contracts; fail if declarations appeared early
-        run: |
-          if find lang/tests/ui/contracts -name '*.ch' -print -quit | grep -q .; then
-            echo "contract snippets exist before P0.2 froze API.md" >&2
-            exit 1
-          fi
-          echo "contract snippet placeholder is intentionally empty until P0.2"
+      - name: Setup libtcc + LLVM
+        run: ./scripts/setup.sh --with-llvm
+      - name: Configure
+        run: ./scripts/configure.sh
+      - name: Build TCCCompiler
+        run: ./scripts/build.sh --tcc -j 4
+      - name: Build LLVM Compiler
+        run: ./scripts/build.sh --llvm -j 4
+      - name: Contract compile check (TCC)
+        run: ./scripts/ui-test.sh --tcc --filter contract
+      - name: Contract compile check (LLVM)
+        run: ./scripts/ui-test.sh --llvm --filter contract
+      - name: API index diff gate
+        run: ./scripts/ui-api-index.sh --check

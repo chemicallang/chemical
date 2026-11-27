@@ -9,7 +9,8 @@
 | P0.1a Named-function compiler fix | done | 018a2bc10 | ui-P0.1a | `evidence/P0.1a/` | named fn → std::function works on TCC+LLVM | |
 | P0.1 Feasibility probe | done | e1c895b0f | ui-P0.1 | `evidence/P0.1/` | raster/GTK/TCC corrected; font cmap + named-fn blockers | |
 | P0.3a Scaffolding/scripts | done | 4277533bf | ui-P0.3a | `evidence/P0.3a/` | packages/scripts/schemas/CI; scaffold tests | ASAN runtime symlinked locally |
-| P0.2 Freeze contracts | todo | — | — | — | — | |
+| P0.2a Contract consolidation/check | done | a38082d6e | ui-P0.2a | `evidence/P0.2/` | API 367 decls; front-end check green | TCC full link in P0.2b |
+| P0.2 Freeze contracts | in-progress | — | — | `evidence/P0.2/` | P0.2b: @extern method mangling | |
 | P0.3b Test core/bench/lint | todo | — | — | — | — | |
 | P0.4 Design spec/tokens | todo | — | — | — | — | |
 | P1.1 Math/geometry/color | todo | — | — | — | — | |

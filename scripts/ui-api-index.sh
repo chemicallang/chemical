@@ -10,14 +10,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="$ROOT/lang/docs/ui/ui_api_index.json"
 SRC="$ROOT/lang/docs/ui/API.md"
+CHECK=0
 
 usage() {
     cat <<'EOF'
-Usage: scripts/ui-api-index.sh [--out <path>] [--help]
+Usage: scripts/ui-api-index.sh [--out <path>] [--check] [--help]
 
 Reads lang/docs/ui/API.md, extracts declarations from Chemical code fences, and
 writes a stable sorted JSON index (default: lang/docs/ui/ui_api_index.json).
-Exits 1 on a conflicting duplicate key.
+--check writes to a temp file and fails if the committed index differs (removed,
+renamed, or changed signature/default). Exits 1 on a conflicting duplicate key.
 EOF
 }
 
@@ -25,6 +27,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --out) shift; [ $# -gt 0 ] || { echo "ui-api-index: --out needs a path" >&2; exit 2; }; OUT="$1" ;;
         --out=*) OUT="${1#*=}" ;;
+        --check) CHECK=1 ;;
         --help|-h) usage; exit 0 ;;
         *) echo "ui-api-index: unknown argument '$1'" >&2; usage >&2; exit 2 ;;
     esac
@@ -32,6 +35,11 @@ while [ $# -gt 0 ]; do
 done
 
 [ -f "$SRC" ] || { echo "ui-api-index: missing $SRC" >&2; exit 1; }
+CHECK_TMP=""
+if [ "$CHECK" = "1" ]; then
+    CHECK_TMP="$(mktemp "${TMPDIR:-/tmp}/ui-api-index.XXXXXX.json")"
+    OUT="$CHECK_TMP"
+fi
 mkdir -p "$(dirname "$OUT")"
 
 python3 - "$SRC" "$OUT" <<'PY'
@@ -102,11 +110,34 @@ while i < len(lines):
             name = name_of(text)
             owner = "::".join(s[1] for s in scope)
             if kind != "namespace":
+                members = []
+                if "{" in raw:
+                    body_depth = 0
+                    j = i
+                    body_lines = []
+                    while j < len(lines):
+                        line = lines[j]
+                        body_depth += line.count("{") - line.count("}")
+                        body_lines.append(line)
+                        if body_depth <= 0 and j >= i:
+                            break
+                        j += 1
+                    for line in body_lines:
+                        stripped_member = line.strip()
+                        if not stripped_member or stripped_member.startswith("//"):
+                            continue
+                        if stripped_member in ("{", "}"):
+                            continue
+                        # drop the outer braces from the first/last lines
+                        stripped_member = stripped_member.strip("{").strip("}").strip()
+                        if stripped_member:
+                            members.append(norm(stripped_member))
                 decls.append({
                     "kind": kind,
                     "name": name,
                     "owner": owner,
                     "signature": norm(text),
+                    "members": members,
                     "fence": fence,
                     "line": start + 1,
                     "key": f"{kind}|{owner}|{name}",
@@ -155,3 +186,20 @@ with open(out_path, "w", encoding="utf-8") as f:
     f.write("\n")
 print(f"ui-api-index: {len(decls)} declarations, {len(identical)} identical duplicate(s) -> {out_path}")
 PY
+
+if [ "$CHECK" = "1" ]; then
+    BASELINE="$ROOT/lang/docs/ui/ui_api_index.json"
+    if [ ! -f "$BASELINE" ]; then
+        echo "ui-api-index: --check needs a committed baseline at $BASELINE" >&2
+        exit 1
+    fi
+    if cmp -s "$OUT" "$BASELINE"; then
+        echo "ui-api-index: --check OK (index matches baseline)" >&2
+        rm -f "$CHECK_TMP"
+    else
+        echo "ui-api-index: API index changed; review the diff and update the baseline" >&2
+        diff -u "$BASELINE" "$OUT" | head -80 >&2 || true
+        rm -f "$CHECK_TMP"
+        exit 1
+    fi
+fi

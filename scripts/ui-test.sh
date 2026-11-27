@@ -25,7 +25,7 @@ usage() {
 Usage: scripts/ui-test.sh [options]
 
   --tcc | --llvm           Backend (default: --tcc)
-  --filter <tag|glob>      Only 'scaffold' exists in P0.3a (default: scaffold)
+  --filter <tag|glob>      scaffold | contract (default: scaffold)
   --no-build               Use an existing build artifact
   --sanitize=<list>        LLVM only: address,undefined (rejected on TCC)
   --emit-c                 TCC: emit C and compile it with the system cc
@@ -71,13 +71,40 @@ if [ "$BACKEND" = "llvm" ] && [ -n "$SANITIZE" ]; then
 fi
 case "$FILTER" in
     ""|scaffold|scaffold*|"*") FILTER="${FILTER:-scaffold}" ;;
-    *) echo "ui-test: no test matches filter '$FILTER' (P0.3a has only 'scaffold')" >&2; exit 2 ;;
+    contract|contract*) FILTER=contract ;;
+    *) echo "ui-test: no test matches filter '$FILTER' (P0.2 has scaffold|contract)" >&2; exit 2 ;;
 esac
 
 mkdir -p "$BUILD_DIR"
 BUILD_LOG="$BUILD_DIR/ui-test-build.log"
 RUN_LOG="$BUILD_DIR/ui-test-run.log"
 EXE="$BUILD_DIR/ui_tests_${BACKEND}.exe"
+
+if [ "$FILTER" = "contract" ]; then
+    CONTRACT_MOD="$ROOT/lang/tests/ui/contracts/chemical.mod"
+    if [ "$BACKEND" = "tcc" ]; then
+        CHECKER="$ROOT/cmake-build-debug/TCCCompiler"
+    else
+        CHECKER="$ROOT/cmake-build-debug/Compiler"
+    fi
+    if ! "$CHECKER" "$CONTRACT_MOD" --check --mode debug_quick \
+            >"$BUILD_LOG" 2>&1; then
+        cat "$BUILD_LOG" >&2
+        echo "ui-test: contract check failed ($BACKEND)" >&2
+        if [ "$JSON" = "1" ]; then
+            printf '{"suite":"ui","backend":"%s","filter":"contract","status":"fail","exit_code":1}\n' "$BACKEND"
+        fi
+        exit 1
+    fi
+    printf 'ui contract PASS\n' >"$RUN_LOG"
+    if [ "$JSON" = "1" ]; then
+        printf '{"suite":"ui","backend":"%s","filter":"contract","status":"pass","tests":1,"exit_code":0}\n' "$BACKEND"
+    else
+        cat "$RUN_LOG"
+        echo "ui-test: PASS ($BACKEND, filter=contract)"
+    fi
+    exit 0
+fi
 
 if [ "$NO_BUILD" = "0" ]; then
     rm -f "$EXE"

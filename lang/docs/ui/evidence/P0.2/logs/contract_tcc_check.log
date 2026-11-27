@@ -1,0 +1,234 @@
+File order seed: 1951730754471817040 (set FILE_ORDER_SEED to reproduce)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+<string>:3597: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:3618: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4298: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4299: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4314: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4315: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4418: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4419: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4425: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4426: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4953: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4954: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4969: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:4970: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:5032: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:5033: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:5039: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:5040: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6148: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6149: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6164: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6165: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6246: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6247: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6253: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:6254: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7195: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7196: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7211: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7212: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7274: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7275: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7281: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:7282: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8632: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8639: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8646: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8653: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8661: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8669: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8677: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8685: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8693: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8701: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:8811: warning: function might return no value: 'std_stdioIoErrorhas_message' in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:12802: warning: function might return no value: 'std_stdstringmutable_data' in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:14025: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:19983: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:19984: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20004: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20005: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20120: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20121: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20181: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20182: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20202: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20203: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20318: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20319: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20728: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20729: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20744: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20745: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20807: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20808: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20814: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:20815: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21301: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21302: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21317: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21318: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21380: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21381: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21387: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:21388: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22053: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22054: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22121: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22122: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22544: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22545: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22560: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22561: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22623: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22624: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22630: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22631: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22768: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22769: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22789: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22790: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22905: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:22906: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23235: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23236: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23301: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23302: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23322: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23323: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23438: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23439: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23654: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23655: warning: assignment from incompatible pointer type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23720: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23741: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23856: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:23891: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:24783: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:24852: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:25614: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:25768: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:25903: warning: assignment discards qualifiers from pointer target type in lang/tests/ui/contracts/build/lab/chemical.lab/build.lab.o
+<string>:3597: warning: assignment discards qualifiers from pointer target type in 
+<string>:3618: warning: assignment discards qualifiers from pointer target type in 
+<string>:4298: warning: assignment from incompatible pointer type in 
+<string>:4299: warning: assignment from incompatible pointer type in 
+<string>:4314: warning: assignment from incompatible pointer type in 
+<string>:4315: warning: assignment from incompatible pointer type in 
+<string>:4418: warning: assignment from incompatible pointer type in 
+<string>:4419: warning: assignment from incompatible pointer type in 
+<string>:4425: warning: assignment from incompatible pointer type in 
+<string>:4426: warning: assignment from incompatible pointer type in 
+<string>:4953: warning: assignment from incompatible pointer type in 
+<string>:4954: warning: assignment from incompatible pointer type in 
+<string>:4969: warning: assignment from incompatible pointer type in 
+<string>:4970: warning: assignment from incompatible pointer type in 
+<string>:5032: warning: assignment from incompatible pointer type in 
+<string>:5033: warning: assignment from incompatible pointer type in 
+<string>:5039: warning: assignment from incompatible pointer type in 
+<string>:5040: warning: assignment from incompatible pointer type in 
+<string>:6148: warning: assignment from incompatible pointer type in 
+<string>:6149: warning: assignment from incompatible pointer type in 
+<string>:6164: warning: assignment from incompatible pointer type in 
+<string>:6165: warning: assignment from incompatible pointer type in 
+<string>:6246: warning: assignment from incompatible pointer type in 
+<string>:6247: warning: assignment from incompatible pointer type in 
+<string>:6253: warning: assignment from incompatible pointer type in 
+<string>:6254: warning: assignment from incompatible pointer type in 
+<string>:7195: warning: assignment from incompatible pointer type in 
+<string>:7196: warning: assignment from incompatible pointer type in 
+<string>:7211: warning: assignment from incompatible pointer type in 
+<string>:7212: warning: assignment from incompatible pointer type in 
+<string>:7274: warning: assignment from incompatible pointer type in 
+<string>:7275: warning: assignment from incompatible pointer type in 
+<string>:7281: warning: assignment from incompatible pointer type in 
+<string>:7282: warning: assignment from incompatible pointer type in 
+<string>:8632: warning: assignment from incompatible pointer type in 
+<string>:8639: warning: assignment from incompatible pointer type in 
+<string>:8646: warning: assignment from incompatible pointer type in 
+<string>:8653: warning: assignment from incompatible pointer type in 
+<string>:8661: warning: assignment from incompatible pointer type in 
+<string>:8669: warning: assignment from incompatible pointer type in 
+<string>:8677: warning: assignment from incompatible pointer type in 
+<string>:8685: warning: assignment from incompatible pointer type in 
+<string>:8693: warning: assignment from incompatible pointer type in 
+<string>:8701: warning: assignment from incompatible pointer type in 
+<string>:8811: warning: function might return no value: 'std_stdioIoErrorhas_message' in 
+<string>:12802: warning: function might return no value: 'std_stdstringmutable_data' in 
+<string>:14025: warning: assignment from incompatible pointer type in 
+<string>:19983: warning: assignment from incompatible pointer type in 
+<string>:19984: warning: assignment from incompatible pointer type in 
+<string>:20004: warning: assignment from incompatible pointer type in 
+<string>:20005: warning: assignment from incompatible pointer type in 
+<string>:20120: warning: assignment from incompatible pointer type in 
+<string>:20121: warning: assignment from incompatible pointer type in 
+<string>:20181: warning: assignment from incompatible pointer type in 
+<string>:20182: warning: assignment from incompatible pointer type in 
+<string>:20202: warning: assignment from incompatible pointer type in 
+<string>:20203: warning: assignment from incompatible pointer type in 
+<string>:20318: warning: assignment from incompatible pointer type in 
+<string>:20319: warning: assignment from incompatible pointer type in 
+<string>:20728: warning: assignment from incompatible pointer type in 
+<string>:20729: warning: assignment from incompatible pointer type in 
+<string>:20744: warning: assignment from incompatible pointer type in 
+<string>:20745: warning: assignment from incompatible pointer type in 
+<string>:20807: warning: assignment from incompatible pointer type in 
+<string>:20808: warning: assignment from incompatible pointer type in 
+<string>:20814: warning: assignment from incompatible pointer type in 
+<string>:20815: warning: assignment from incompatible pointer type in 
+<string>:21301: warning: assignment from incompatible pointer type in 
+<string>:21302: warning: assignment from incompatible pointer type in 
+<string>:21317: warning: assignment from incompatible pointer type in 
+<string>:21318: warning: assignment from incompatible pointer type in 
+<string>:21380: warning: assignment from incompatible pointer type in 
+<string>:21381: warning: assignment from incompatible pointer type in 
+<string>:21387: warning: assignment from incompatible pointer type in 
+<string>:21388: warning: assignment from incompatible pointer type in 
+<string>:22053: warning: assignment from incompatible pointer type in 
+<string>:22054: warning: assignment from incompatible pointer type in 
+<string>:22121: warning: assignment from incompatible pointer type in 
+<string>:22122: warning: assignment from incompatible pointer type in 
+<string>:22544: warning: assignment from incompatible pointer type in 
+<string>:22545: warning: assignment from incompatible pointer type in 
+<string>:22560: warning: assignment from incompatible pointer type in 
+<string>:22561: warning: assignment from incompatible pointer type in 
+<string>:22623: warning: assignment from incompatible pointer type in 
+<string>:22624: warning: assignment from incompatible pointer type in 
+<string>:22630: warning: assignment from incompatible pointer type in 
+<string>:22631: warning: assignment from incompatible pointer type in 
+<string>:22768: warning: assignment from incompatible pointer type in 
+<string>:22769: warning: assignment from incompatible pointer type in 
+<string>:22789: warning: assignment from incompatible pointer type in 
+<string>:22790: warning: assignment from incompatible pointer type in 
+<string>:22905: warning: assignment from incompatible pointer type in 
+<string>:22906: warning: assignment from incompatible pointer type in 
+<string>:23235: warning: assignment from incompatible pointer type in 
+<string>:23236: warning: assignment from incompatible pointer type in 
+<string>:23301: warning: assignment from incompatible pointer type in 
+<string>:23302: warning: assignment from incompatible pointer type in 
+<string>:23322: warning: assignment from incompatible pointer type in 
+<string>:23323: warning: assignment from incompatible pointer type in 
+<string>:23438: warning: assignment from incompatible pointer type in 
+<string>:23439: warning: assignment from incompatible pointer type in 
+<string>:23654: warning: assignment from incompatible pointer type in 
+<string>:23655: warning: assignment from incompatible pointer type in 
+<string>:23720: warning: assignment discards qualifiers from pointer target type in 
+<string>:23741: warning: assignment discards qualifiers from pointer target type in 
+<string>:23856: warning: assignment discards qualifiers from pointer target type in 
+<string>:23891: warning: assignment discards qualifiers from pointer target type in 
+<string>:24783: warning: assignment discards qualifiers from pointer target type in 
+<string>:24852: warning: assignment discards qualifiers from pointer target type in 
+<string>:25614: warning: assignment discards qualifiers from pointer target type in 
+<string>:25768: warning: assignment discards qualifiers from pointer target type in 
+<string>:25903: warning: assignment discards qualifiers from pointer target type in 
+[lab] Building executable 'main' at path 'a'
+[lab] Building module cstd (1 / 4)
+[lab] Building module core (2 / 4)
+[lab] Building module std (3 / 4)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[lab] Building module ui_contracts (4 / 4)

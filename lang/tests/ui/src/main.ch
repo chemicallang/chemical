@@ -11,8 +11,6 @@ using ui_test_core::Bounds;
 using ui_test_core::CoreError;
 using ui_test_core::GoldenOptions;
 using ui_test_core::Harness;
-using ui_test_core::Key;
-using ui_test_core::NodeId;
 using ui_test_core::Query;
 
 func expect_scaffold(name : *char, value : u32) : bool {
@@ -49,9 +47,9 @@ func core_checks() : bool {
     var root_key = ui_test_core::key("root")
     var a_key = ui_test_core::key("a")
     var b_key = ui_test_core::key("b")
-    var root = h.add_node(Option.None<NodeId>(), root_key, Bounds { x : 0.0f, y : 0.0f, w : 200.0f, h : 100.0f }, "root", 1u8, "root")
-    var a = h.add_node(Option.Some<NodeId>(root), a_key, Bounds { x : 5.0f, y : 6.0f, w : 10.0f, h : 20.0f }, "Alpha", 2u8, "a")
-    var b = h.add_node(Option.Some<NodeId>(root), b_key, Bounds { x : 20.0f, y : 6.0f, w : 30.0f, h : 20.0f }, "Beta", 3u8, "b")
+    var root = h.add_node(Option.None<ui_test_core::NodeId>(), root_key, Bounds { x : 0.0f, y : 0.0f, w : 200.0f, h : 100.0f }, "root", 1u8, "root")
+    var a = h.add_node(Option.Some<ui_test_core::NodeId>(root), a_key, Bounds { x : 5.0f, y : 6.0f, w : 10.0f, h : 20.0f }, "Alpha", 2u8, "a")
+    var b = h.add_node(Option.Some<ui_test_core::NodeId>(root), b_key, Bounds { x : 20.0f, y : 6.0f, w : 30.0f, h : 20.0f }, "Beta", 3u8, "b")
 
     var by_a = h.by_key(a_key)
     ok = check("by_key", by_a is Option.Some) && ok
@@ -85,7 +83,7 @@ func core_checks() : bool {
     ok = check("find_all_text", h.find_all(q).size() == 1u) && ok
 
     h.set_state(a_key, 41i64)
-    var kids = vector<NodeId>()
+    var kids = vector<ui_test_core::NodeId>()
     kids.push(b)
     kids.push(a)
     h.reorder(root, kids.as_span())
@@ -134,6 +132,14 @@ func geometry_checks() : bool {
 
 func error_checks() : bool {
     return error_tests::run()
+}
+
+func arena_checks() : bool {
+    return arena_tests::run()
+}
+
+func keys_checks() : bool {
+    return keys_tests::run()
 }
 
 func golden_checks() : bool {
@@ -209,9 +215,11 @@ func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("design", 6u)) { return design_checks() }
     if(filter.equals_with_len("geometry", 8u)) { return geometry_checks() }
     if(filter.equals_with_len("error", 5u)) { return error_checks() }
+    if(filter.equals_with_len("arena", 5u)) { return arena_checks() }
+    if(filter.equals_with_len("keys", 4u)) { return keys_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
-        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && golden_checks()
+        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && golden_checks()
     }
     unsafe { printf("ui tests: unknown filter\n") }
     return false
@@ -238,6 +246,10 @@ public func main(argc : int, argv : **char) : int {
             unsafe { write(1, "ui geometry PASS\n" as *void, 17u) }
         } else if(filter.equals_with_len("error", 5u)) {
             unsafe { write(1, "ui error PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("arena", 5u)) {
+            unsafe { write(1, "ui arena PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("keys", 4u)) {
+            unsafe { write(1, "ui keys PASS\n" as *void, 13u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

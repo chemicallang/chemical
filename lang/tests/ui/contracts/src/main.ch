@@ -384,8 +384,11 @@ public struct HostCaps {
 
 // ── 2. Identity ────────────────────────────────────────────────────────────
 public struct NodeId {
-    private var index : u32
-    private var generation : u32
+    private var index_value : u32
+    private var generation_value : u32
+    @extern public func index(&self) : u32
+    @extern public func generation(&self) : u32
+    @extern public func is_valid(&self) : bool
 }
 public struct Key {
     private var hash : u64

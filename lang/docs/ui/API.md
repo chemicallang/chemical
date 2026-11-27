@@ -676,8 +676,11 @@ public struct HostCaps {
 
 ```chemical
 public struct NodeId {          // private construction; frame-local
-    private var index : u32
-    private var generation : u32
+    private var index_value : u32
+    private var generation_value : u32
+    public func index(&self) : u32
+    public func generation(&self) : u32
+    public func is_valid(&self) : bool
 }
 
 public struct Key {                 // private fields; constructors only

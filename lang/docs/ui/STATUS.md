@@ -16,7 +16,8 @@
 | P0.4 Design spec/tokens | done | d668e5a44 | ui-P0.4 | `evidence/P0.4/` | tokens/theme check; design TCC+LLVM; 3 refs + token sheet | parent commit/tag pending |
 | P1.1 Math/geometry/color | done | 01756803d | ui-P1.1 | `evidence/P1.1/` | geometry 10k TCC/LLVM/ASAN; error TCC/LLVM/ASAN; 435 API decls | parent commit/tag pending |
 | P1.2 Arena/IDs/keys | done | e48c86184 | ui-P1.2 | `evidence/P1.2/` | 1M arena/10M keys TCC+LLVM+ASAN; 438 API decls | parent commit/tag pending |
-| P1.3 View builder | done | — | — | `evidence/P1.3/` | ViewBuilder all §3; 100k TCC/LLVM/ASAN | target 5ms not met; parent commit/tag pending |
+| P1.3a ViewBuilder structure | done | ee2c8fc71 | ui-P1.3a | `evidence/P1.3/` | all §3; 100k TCC/LLVM/ASAN | perf split |
+| P1.3 View builder performance | in-progress | — | — | `evidence/P1.3/` | P1.3b compact node/metadata | 5 ms gate |
 | P1.4 Reconciler/tree | todo | — | — | — | — | |
 | P1.5 Style/tokens/themes | todo | — | — | — | — | |
 | P1.5b Font metrics fixture | todo | — | — | — | — | |

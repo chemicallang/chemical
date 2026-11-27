@@ -1,0 +1,3 @@
+ui view PASS
+view flat_us=202694 deep_us=220406 flat_nodes=100001 deep_nodes=100001 frame_high=100000
+ui-test: PASS (llvm, filter=view)

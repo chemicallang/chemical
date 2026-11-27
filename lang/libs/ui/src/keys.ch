@@ -112,6 +112,47 @@ public func key_pair(label : string_view, a : u64, b : u64) : Key {
 
 public namespace ui_internal {
 
+// Fixed-capacity open-addressing set for the builder's duplicate-key check.
+// It allocates once at construction and never grows per node.
+public struct KeySet {
+    var keys : vector<Key>
+    var occupied : vector<bool>
+    var mask : size_t
+    var count : u32
+
+    public func new(expected : u32) : KeySet {
+        var cap : size_t = 1u
+        var wanted = (expected as size_t) * 2u + 1u
+        while(cap < wanted) { cap = cap * 2u }
+        var s = KeySet { keys : vector<Key>(), occupied : vector<bool>(), mask : cap - 1u, count : 0u32 }
+        s.keys.resize(cap)
+        s.occupied.resize(cap)
+        return s
+    }
+
+    public func insert(&mut self, k : Key) : bool {
+        if(self.count >= self.keys.size() as u32) { return false }
+        var h = k.hash_internal()
+        h = (h ^ k.id()) * FNV_PRIME
+        h = (h ^ k.tag()) * FNV_PRIME
+        var slot = (h as size_t) & self.mask
+        var probes : size_t = 0
+        while(probes < self.keys.size()) {
+            var occ = self.occupied.get_ptr(slot)
+            var keyp = self.keys.get_ptr(slot)
+            if(occ != null && keyp != null) {
+                unsafe {
+                    if(!*occ) { *keyp = k; *occ = true; self.count = self.count + 1u32; return true }
+                    if(keyp.equals_key(k)) { return false }
+                }
+            }
+            slot = (slot + 1u) & self.mask
+            probes = probes + 1u
+        }
+        return false
+    }
+}
+
 @direct_init
 public struct KeyScope {
     var buckets : unordered_map<u64, u32>

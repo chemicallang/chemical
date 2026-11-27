@@ -1,0 +1,13 @@
+{
+  "packet": "P1.3a",
+  "name": "ViewBuilder structural core",
+  "state": "done",
+  "commands": [
+    {"id": "view-tcc", "run": "scripts/ui-test.sh --tcc --filter view", "artifacts": ["lang/tests/ui/chemical.mod"]},
+    {"id": "view-llvm", "run": "scripts/ui-test.sh --llvm --filter view", "artifacts": ["lang/tests/ui/chemical.mod"]}
+  ],
+  "artifacts": ["lang/libs/ui/src/view.ch", "lang/libs/ui/src/view_types.ch", "lang/libs/ui/src/style.ch", "lang/tests/ui/src/view.ch"],
+  "evidence": {"dir": "lang/docs/ui/evidence/P1.3", "required": true, "files": ["REPORT.md"]},
+  "benchmarks": {"keys": ["view_flat_us"], "compare": false},
+  "stubs": ["performance gate open in P1.3b"]
+}

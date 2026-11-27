@@ -254,3 +254,23 @@ no panic. `view.tree.txt` and structural/ASAN logs remain in `logs/`.
 The original gates still fail. `BLOCKER.md` records the remaining profile and
 proposes LLVM ≤10 ms / TCC functional-only for parent approval; the test gate
 was not changed.
+
+---
+
+## P1.3c parent decision — measured gate amendment
+
+After compact `Style` (4 bytes, interned 512-entry store), 96-byte nodes, in-place
+append, and debug-only duplicate probing, the release results are:
+
+| Backend | Flat p50 | Flat p95 | Deep p50 | Gate |
+|---|---:|---:|---:|---|
+| LLVM | **6,896 µs** | **9,060 µs** | **8,850 µs** | 8,000 / 12,000 µs |
+| TCC | **59,034 µs** | **60,256 µs** | **62,893 µs** | functional only |
+
+The original **5 ms** target was a pre-implementation stretch and is not met by
+the base append path even before style/text (`fragment` add-only 6.8 ms). This
+does not affect normal frames: a 1k-node dashboard view costs ~70 µs; 100k
+simultaneous nodes is a stress ceiling, and virtualized tables build only
+visible rows. Parent amendment: **LLVM ≤8 ms p50 / ≤12 ms p95, 5 ms stretch;
+TCC functional**. `BENCHMARKS.md` and `EXECUTION.md` record the measured values;
+the test asserts the amended LLVM gate and prints TCC without a frame gate.

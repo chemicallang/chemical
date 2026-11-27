@@ -82,6 +82,7 @@ claims name LLVM.
 | Layout, 100k wide/shallow nodes, cold | **≤40 ms target / ≤60 ms hard** |
 | Single fixed-width label change in 10k (no wrap/auto) | **≤50 µs target / ≤100 µs hard** |
 | Relayouts per hover/click | **≤2 nodes + ancestors** |
+| View build, 100k text+child nodes (LLVM release) | **≤8 ms p50 / ≤12 ms p95** (5 ms stretch; P1.3c 6.9 ms); TCC functional only |
 | Paint, 10k solid/opaque quads (≤16×8 px) | **≤1.2 ms target / ≤2.0 ms hard** (P0.1 scalar 0.96–1.9 ms) |
 | Paint, 10k AA quads (≤16×8 px, ~1.5 Mpx) | **≤2.5 ms target (AVX2/span) / ≤6 ms hard (SSE2)**; scalar reference ≤15 ms (P0.1: 10.6 ms scalar, 5.1 ms SSE2) |
 | Paint, 10k glyphs (8×10 px bbox, cached) | **≤2 ms**; 16×16 stamps are reference-only ≤13 ms (P0.1: 6.7 ms text-order) |

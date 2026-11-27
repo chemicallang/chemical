@@ -504,8 +504,11 @@ Acceptance: fuzz 1M operations; no leaks; O(1) lookup.
 - No heap allocation per node after the arena warms; measure `view_stats`.
 - Compile-only API snippet tests; structural tests (parent/child order).
 
-Acceptance: build 100k nodes ≤5 ms (view only) on reference; zero per-node
-`malloc`; V: builder debug dump (`view.tree.txt`) + a simple 3-node frame.
+Acceptance: build 100k text+child nodes **≤8 ms p50 / ≤12 ms p95 on LLVM
+release** (5 ms stretch target; P1.3c measured 6.9 ms p50), zero per-node
+`malloc`; TCC is functional only (no frame gate; measured 59 ms); V: builder
+debug dump (`view.tree.txt`) + a simple 3-node frame. The 5 ms figure was a
+pre-implementation stretch; see `evidence/P1.3/REPORT.md`.
 
 #### P1.4 — Reconciler and retained tree
 

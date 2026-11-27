@@ -2606,3 +2606,12 @@ func neg_raw_api_allowed_inside_unsafe(env : &mut TestEnv) {
     var mod = "module neg_test\nsource \".\"\nimport std\nimport encoding\n"
     expect_compile_success_with_mod(env, "raw_api_allowed_inside_unsafe", ch, mod)
 }
+// P0.1a: a named function with the wrong signature must be rejected by the
+// normal type check when assigned to std::function, not crash in lowering.
+@test
+func neg_named_function_signature_mismatch(env : &mut TestEnv) {
+    unsafe { mkdir(NEG_WORK_DIR, 0o777 as uint) }
+    var ch = "func add(a : int, b : int) : int {\n    return a + b\n}\npublic func main() : int {\n    var f : std::function<(a : int) => int> = add\n    return f(1)\n}\n"
+    expect_compile_error_with_mod(env, "named_fn_signature_mismatch", ch,
+                                  "does not satisfy type", NEG_MOD_STD_CORE)
+}

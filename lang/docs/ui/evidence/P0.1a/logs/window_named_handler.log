@@ -1,0 +1,6 @@
+=== TCCCompiler ===
+P0.1 window resize1=5 resize2=12 events=0 created_ms=114
+P0.1 window_create_userdata_run PASS
+=== Compiler ===
+P0.1 window resize1=5 resize2=11 events=0 created_ms=113
+P0.1 window_create_userdata_run PASS

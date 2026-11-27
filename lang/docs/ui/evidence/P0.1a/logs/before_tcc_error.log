@@ -1,0 +1,59 @@
+File order seed: 7982406625436867289 (set FILE_ORDER_SEED to reproduce)
+[lab] Building executable 'main' at path '/tmp/named_fn_tcc.exe'
+[lab] Building module cstd (1 / 4)
+[lab] Building module core (2 / 4)
+[lab] Building module std (3 / 4)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[lab] Building module ui_probe_bug_named_fn (4 / 4)
+<string>:3352: warning: assignment discards qualifiers from pointer target type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:3373: warning: assignment discards qualifiers from pointer target type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4262: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4263: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4278: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4279: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4382: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4383: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4389: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4390: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4953: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4954: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4969: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:4970: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:5032: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:5033: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:5039: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:5040: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6084: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6085: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6100: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6101: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6182: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6183: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6189: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:6190: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7223: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7224: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7239: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7240: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7302: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7303: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7309: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:7310: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:11689: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:14893: warning: function might return no value: 'std_stdstringmutable_data' in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:16773: warning: function might return no value: 'std_stdioIoErrorhas_message' in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17176: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17183: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17190: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17197: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17205: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17213: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17221: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17229: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17237: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:17245: warning: assignment from incompatible pointer type in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+<string>:18965: error: cannot convert 'static void (int, int)' to 'struct std_stddefault_function_instance' in lang/tests/ui_probe/bugs/named_fn/build/object_tcc.o
+error: couldn't compile the program
+[lab] error: couldn't build c program due to error in translation, written at lang/tests/ui_probe/bugs/named_fn/build/Translated.c
+[lab] error emitting executable, returned status code 1

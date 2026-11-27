@@ -1,0 +1,473 @@
+==> Building negative tests...
+cmake-build-debug/TCCCompiler lang/tests/build.lab -o lang/tests/build/negative-tests-tcc.exe --mode debug_quick --arg-negative --no-cache
+File order seed: 5706576795564392706 (set FILE_ORDER_SEED to reproduce)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+<string>:4088: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4089: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4104: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4105: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4208: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4209: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4215: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4216: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4399: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4420: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5146: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5147: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5162: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5163: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5225: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5226: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5232: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5233: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5944: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5945: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5960: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:5961: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6042: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6043: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6049: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:6050: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7340: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7341: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7356: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7357: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7419: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7420: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7426: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:7427: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:9077: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10010: warning: function might return no value: 'std_stdioIoErrorhas_message' in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10554: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10561: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10568: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10575: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10583: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10591: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10599: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10607: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10615: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:10623: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:15833: warning: function might return no value: 'std_stdstringmutable_data' in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:19983: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:19984: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20004: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20005: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20120: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20121: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20181: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20182: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20202: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20203: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20318: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20319: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20728: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20729: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20744: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20745: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20807: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20808: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20814: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:20815: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21301: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21302: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21317: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21318: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21380: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21381: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21387: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:21388: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22053: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22054: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22121: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22122: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22195: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22196: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22216: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22217: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22332: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22333: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22742: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22743: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22758: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22759: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22821: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22822: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22828: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:22829: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23235: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23236: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23343: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23344: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23364: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23365: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23480: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23481: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23654: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23655: warning: assignment from incompatible pointer type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23720: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23741: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23856: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:23891: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24783: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24852: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:24941: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:25095: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:25230: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41699: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41721: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41748: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:41775: warning: assignment discards qualifiers from pointer target type in lang/tests/build/lab/chemical.lab/build.lab.o
+<string>:4088: warning: assignment from incompatible pointer type in 
+<string>:4089: warning: assignment from incompatible pointer type in 
+<string>:4104: warning: assignment from incompatible pointer type in 
+<string>:4105: warning: assignment from incompatible pointer type in 
+<string>:4208: warning: assignment from incompatible pointer type in 
+<string>:4209: warning: assignment from incompatible pointer type in 
+<string>:4215: warning: assignment from incompatible pointer type in 
+<string>:4216: warning: assignment from incompatible pointer type in 
+<string>:4399: warning: assignment discards qualifiers from pointer target type in 
+<string>:4420: warning: assignment discards qualifiers from pointer target type in 
+<string>:5146: warning: assignment from incompatible pointer type in 
+<string>:5147: warning: assignment from incompatible pointer type in 
+<string>:5162: warning: assignment from incompatible pointer type in 
+<string>:5163: warning: assignment from incompatible pointer type in 
+<string>:5225: warning: assignment from incompatible pointer type in 
+<string>:5226: warning: assignment from incompatible pointer type in 
+<string>:5232: warning: assignment from incompatible pointer type in 
+<string>:5233: warning: assignment from incompatible pointer type in 
+<string>:5944: warning: assignment from incompatible pointer type in 
+<string>:5945: warning: assignment from incompatible pointer type in 
+<string>:5960: warning: assignment from incompatible pointer type in 
+<string>:5961: warning: assignment from incompatible pointer type in 
+<string>:6042: warning: assignment from incompatible pointer type in 
+<string>:6043: warning: assignment from incompatible pointer type in 
+<string>:6049: warning: assignment from incompatible pointer type in 
+<string>:6050: warning: assignment from incompatible pointer type in 
+<string>:7340: warning: assignment from incompatible pointer type in 
+<string>:7341: warning: assignment from incompatible pointer type in 
+<string>:7356: warning: assignment from incompatible pointer type in 
+<string>:7357: warning: assignment from incompatible pointer type in 
+<string>:7419: warning: assignment from incompatible pointer type in 
+<string>:7420: warning: assignment from incompatible pointer type in 
+<string>:7426: warning: assignment from incompatible pointer type in 
+<string>:7427: warning: assignment from incompatible pointer type in 
+<string>:9077: warning: assignment from incompatible pointer type in 
+<string>:10010: warning: function might return no value: 'std_stdioIoErrorhas_message' in 
+<string>:10554: warning: assignment from incompatible pointer type in 
+<string>:10561: warning: assignment from incompatible pointer type in 
+<string>:10568: warning: assignment from incompatible pointer type in 
+<string>:10575: warning: assignment from incompatible pointer type in 
+<string>:10583: warning: assignment from incompatible pointer type in 
+<string>:10591: warning: assignment from incompatible pointer type in 
+<string>:10599: warning: assignment from incompatible pointer type in 
+<string>:10607: warning: assignment from incompatible pointer type in 
+<string>:10615: warning: assignment from incompatible pointer type in 
+<string>:10623: warning: assignment from incompatible pointer type in 
+<string>:15833: warning: function might return no value: 'std_stdstringmutable_data' in 
+<string>:19983: warning: assignment from incompatible pointer type in 
+<string>:19984: warning: assignment from incompatible pointer type in 
+<string>:20004: warning: assignment from incompatible pointer type in 
+<string>:20005: warning: assignment from incompatible pointer type in 
+<string>:20120: warning: assignment from incompatible pointer type in 
+<string>:20121: warning: assignment from incompatible pointer type in 
+<string>:20181: warning: assignment from incompatible pointer type in 
+<string>:20182: warning: assignment from incompatible pointer type in 
+<string>:20202: warning: assignment from incompatible pointer type in 
+<string>:20203: warning: assignment from incompatible pointer type in 
+<string>:20318: warning: assignment from incompatible pointer type in 
+<string>:20319: warning: assignment from incompatible pointer type in 
+<string>:20728: warning: assignment from incompatible pointer type in 
+<string>:20729: warning: assignment from incompatible pointer type in 
+<string>:20744: warning: assignment from incompatible pointer type in 
+<string>:20745: warning: assignment from incompatible pointer type in 
+<string>:20807: warning: assignment from incompatible pointer type in 
+<string>:20808: warning: assignment from incompatible pointer type in 
+<string>:20814: warning: assignment from incompatible pointer type in 
+<string>:20815: warning: assignment from incompatible pointer type in 
+<string>:21301: warning: assignment from incompatible pointer type in 
+<string>:21302: warning: assignment from incompatible pointer type in 
+<string>:21317: warning: assignment from incompatible pointer type in 
+<string>:21318: warning: assignment from incompatible pointer type in 
+<string>:21380: warning: assignment from incompatible pointer type in 
+<string>:21381: warning: assignment from incompatible pointer type in 
+<string>:21387: warning: assignment from incompatible pointer type in 
+<string>:21388: warning: assignment from incompatible pointer type in 
+<string>:22053: warning: assignment from incompatible pointer type in 
+<string>:22054: warning: assignment from incompatible pointer type in 
+<string>:22121: warning: assignment from incompatible pointer type in 
+<string>:22122: warning: assignment from incompatible pointer type in 
+<string>:22195: warning: assignment from incompatible pointer type in 
+<string>:22196: warning: assignment from incompatible pointer type in 
+<string>:22216: warning: assignment from incompatible pointer type in 
+<string>:22217: warning: assignment from incompatible pointer type in 
+<string>:22332: warning: assignment from incompatible pointer type in 
+<string>:22333: warning: assignment from incompatible pointer type in 
+<string>:22742: warning: assignment from incompatible pointer type in 
+<string>:22743: warning: assignment from incompatible pointer type in 
+<string>:22758: warning: assignment from incompatible pointer type in 
+<string>:22759: warning: assignment from incompatible pointer type in 
+<string>:22821: warning: assignment from incompatible pointer type in 
+<string>:22822: warning: assignment from incompatible pointer type in 
+<string>:22828: warning: assignment from incompatible pointer type in 
+<string>:22829: warning: assignment from incompatible pointer type in 
+<string>:23235: warning: assignment from incompatible pointer type in 
+<string>:23236: warning: assignment from incompatible pointer type in 
+<string>:23343: warning: assignment from incompatible pointer type in 
+<string>:23344: warning: assignment from incompatible pointer type in 
+<string>:23364: warning: assignment from incompatible pointer type in 
+<string>:23365: warning: assignment from incompatible pointer type in 
+<string>:23480: warning: assignment from incompatible pointer type in 
+<string>:23481: warning: assignment from incompatible pointer type in 
+<string>:23654: warning: assignment from incompatible pointer type in 
+<string>:23655: warning: assignment from incompatible pointer type in 
+<string>:23720: warning: assignment discards qualifiers from pointer target type in 
+<string>:23741: warning: assignment discards qualifiers from pointer target type in 
+<string>:23856: warning: assignment discards qualifiers from pointer target type in 
+<string>:23891: warning: assignment discards qualifiers from pointer target type in 
+<string>:24783: warning: assignment discards qualifiers from pointer target type in 
+<string>:24852: warning: assignment discards qualifiers from pointer target type in 
+<string>:24941: warning: assignment discards qualifiers from pointer target type in 
+<string>:25095: warning: assignment discards qualifiers from pointer target type in 
+<string>:25230: warning: assignment discards qualifiers from pointer target type in 
+<string>:41699: warning: assignment discards qualifiers from pointer target type in 
+<string>:41721: warning: assignment discards qualifiers from pointer target type in 
+<string>:41748: warning: assignment discards qualifiers from pointer target type in 
+<string>:41775: warning: assignment discards qualifiers from pointer target type in 
+[build.lab] current file path : lang/tests/build.lab
+[build.lab] current dir path : lang/tests/
+[build.lab] interested relative path : lang/tests/ext/file.c
+Compiler Version = 0.6.0
+[lab] Building executable 'chemical-negative-tests' at path 'lang/tests/build/negative-tests-tcc.exe'
+[lab] Building module core (1 / 13)
+[lab] Building module cstd (2 / 13)
+[lab] Building module std (3 / 13)
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/str.ch:76:10
+[SymRes:after_link_sig] warn: default constructor is created by name 'make', a function by name 'make' already exists, please create a manual constructor to avoid this at /home/wakaztahir/work/Chemical/chemical/lang/libs/std/src/os_string.ch:21:10
+[lab] Building module path (4 / 13)
+[lab] Building module osrand (5 / 13)
+[lab] Building module crypto (6 / 13)
+[lab] Building module encoding (7 / 13)
+[lab] Building module async (8 / 13)
+[TypeCheck] warn[SAFE-GLOBAL-003]: mutable reference to the global 'g_exec' escapes into a caller: every caller gets a `&mut` to the same object, so two threads can write it at once. The unsafe boundary asserts they are synchronized — hold a lock across every access, or make the global thread-local at /home/wakaztahir/work/Chemical/chemical/lang/libs/async/src/raw.ch:121:16
+[TypeCheck] warn[SAFE-GLOBAL-003]: mutable reference to the global 'g_reactor' escapes into a caller: every caller gets a `&mut` to the same object, so two threads can write it at once. The unsafe boundary asserts they are synchronized — hold a lock across every access, or make the global thread-local at /home/wakaztahir/work/Chemical/chemical/lang/libs/async/src/raw.ch:501:16
+[lab] Building module fs (9 / 13)
+[lab] Building module test_env (10 / 13)
+[lab] Building module test_report (11 / 13)
+[lab] Building module test (12 / 13)
+[Parsed] /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch:21:22
+[Parser] warn: deprecated syntax, pointer should be before type at /home/wakaztahir/work/Chemical/chemical/lang/libs/test/posix/launch.ch:146:32
+[lab] Building module negative_tests (13 / 13)
+[Parsed] /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:66:20
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:102:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:153:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:157:25
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:161:24
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:169:21
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:224:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:226:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:229:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:260:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:262:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:265:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:290:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:292:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:295:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:316:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:318:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:321:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:419:28
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:421:27
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:424:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:456:28
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:458:27
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:461:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:489:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:491:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:494:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:510:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:512:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:514:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:516:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:540:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:542:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:544:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:546:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:561:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:563:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:565:26
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:567:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:586:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:588:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:591:31
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:617:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:619:29
+[Parser] warn: deprecated syntax, brackets should be before type at /home/wakaztahir/work/Chemical/chemical/lang/tests/negative/src/main.ch:622:31
+<string>:3679: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:3700: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4323: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4324: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4339: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4340: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4402: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4403: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4409: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:4410: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5085: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5086: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5101: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5102: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5205: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5206: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5212: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:5213: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6117: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6118: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6133: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6134: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6215: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6216: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6222: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:6223: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7195: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7196: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7211: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7212: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7274: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7275: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7281: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:7282: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:9504: warning: function might return no value: 'std_stdioIoErrorhas_message' in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:16951: warning: function might return no value: 'std_stdstringmutable_data' in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17538: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17545: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17552: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17559: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17567: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17575: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17583: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17591: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17599: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:17607: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:18060: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26387: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26388: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26403: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26404: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26466: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26467: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26473: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26474: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26780: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:26801: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:35998: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:36494: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:36893: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:37002: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:37113: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:39081: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:44528: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46005: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46006: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46021: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46022: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46125: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46126: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46132: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46133: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46458: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:46479: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47067: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47068: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47083: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47084: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47187: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47188: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47194: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47195: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47937: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47938: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47953: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:47954: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:48016: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:48017: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:48023: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:48024: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49286: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49465: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49466: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49497: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49790: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:49795: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:50385: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:50425: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51162: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51183: warning: assignment discards qualifiers from pointer target type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51704: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51705: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51720: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51721: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51783: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51784: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51790: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:51791: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52270: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52271: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52286: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52287: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52349: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52350: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52356: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52357: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52841: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52842: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52857: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52858: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52920: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52921: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52927: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:52928: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:53960: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:53961: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:53976: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:53977: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:54104: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:54105: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:54111: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:54112: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:55775: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56263: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56268: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56355: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56363: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56370: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56401: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56803: warning: assignment from incompatible pointer type in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:56999: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57016: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57024: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57086: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57087: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57089: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57138: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57139: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57182: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57189: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57204: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57211: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57282: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57314: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+<string>:57750: warning: cast between pointer and integer of different size in lang/tests/build/chemical-negative-tests.dir/object_tcc.o
+==> Running negative tests...
+[1m[34mGroup: [90m(no-group)[0m
+  [32m- [1mneg_named_function_signature_mismatch[0m[0m 1073742763
+    [32mPASS[0m
+
+[1m[36mTest run summary[0m
+  Total: 1 | [32mPassed: [32m1[0m | [90mFailed: [31m0[0m
+
+[1mSummary: 1 tests - [32m1 passed[0m, [90m0 failed[0m
+

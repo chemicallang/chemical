@@ -7661,6 +7661,57 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         }
     }
     if (conv_type) {
+        // A named function converted to a callable instance needs a
+        // capturing-ABI thunk: the instance always invokes its stored function
+        // as `fn(void* data, ...)`, while the named function has no hidden data
+        // pointer. Wrap it before the lambda path (which only matches lambda
+        // literals).
+        BaseType* conv_canon = conv_type->canonical();
+        CapturingFunctionType* named_cap =
+            conv_canon ? conv_canon->get_cap_func_type() : nullptr;
+        if (named_cap == nullptr && conv_type) {
+            named_cap = conv_type->get_cap_func_type();
+        }
+        Value* named_arg = arg;
+        while (named_arg != nullptr) {
+            if (named_arg->val_kind() == ValueKind::UnsafeValue) {
+                named_arg = static_cast<UnsafeValue*>(named_arg)->getValue();
+            } else if (named_arg->val_kind() == ValueKind::CastedValue) {
+                named_arg = named_arg->as_casted_value_unsafe()->value;
+            } else if (named_arg->val_kind() == ValueKind::ReferenceOfValue) {
+                named_arg = named_arg->as_reference_of_value_unsafe()->value;
+            } else if (named_arg->val_kind() == ValueKind::AddrOfValue) {
+                named_arg = named_arg->as_addr_of_value_unsafe()->value;
+            } else {
+                break;
+            }
+        }
+        if (named_cap != nullptr && named_arg != nullptr &&
+            named_arg->val_kind() != ValueKind::Identifier &&
+            named_arg->val_kind() != ValueKind::AccessChain &&
+            named_arg->val_kind() != ValueKind::GenericInstIdentifier) {
+            named_arg = nullptr;
+        }
+        if (named_cap != nullptr && named_arg != nullptr) {
+            ASTNode* named_linked = named_arg->linked_node();
+            if (named_linked != nullptr &&
+                named_linked->kind() == ASTNodeKind::FunctionDecl) {
+                FunctionDeclaration* nfd = named_linked->as_function_unsafe();
+                FunctionType* target_ft = named_cap->get_func_type();
+                if (target_ft == nullptr || !target_ft->equal_type(nfd)) {
+                    error = "named function signature does not match the callable type";
+                    return MIRExprResult::error();
+                }
+                BaseType* inst = named_cap->instance_type
+                                     ? const_cast<BaseType*>(named_cap->instance_type.getType())
+                                     : nullptr;
+                if (inst == nullptr) {
+                    error = "callable type has no function instance";
+                    return MIRExprResult::error();
+                }
+                return materialize_named_function_instance(nfd, inst, error);
+            }
+        }
         // an untyped struct literal (`f({ a: 1, b: 2 })`) takes its type from the
         // expected parameter/return type
         if (arg && arg->val_kind() == ValueKind::StructValue) {

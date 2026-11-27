@@ -1,0 +1,88 @@
+
+== environment ==
+PASS ui-probe-env
+
+== build/run foundation with TCCCompiler ==
+PASS foundation run TCCCompiler
+
+== build/run foundation with Compiler ==
+PASS foundation run Compiler
+
+== build/run embed with TCCCompiler ==
+PASS embed run TCCCompiler
+
+== build/run embed with Compiler ==
+PASS embed run Compiler
+
+== build/run linkc with TCCCompiler ==
+PASS linkc run TCCCompiler
+
+== build/run linkc with Compiler ==
+PASS linkc run Compiler
+
+== build/run image_bench with TCCCompiler ==
+PASS image_bench run TCCCompiler
+
+== build/run image_bench with Compiler ==
+PASS image_bench run Compiler
+
+== build/run dce_with with TCCCompiler ==
+PASS dce_with run TCCCompiler
+
+== build/run dce_with with Compiler ==
+PASS dce_with run Compiler
+
+== build/run dce_without with TCCCompiler ==
+PASS dce_without run TCCCompiler
+
+== build/run dce_without with Compiler ==
+PASS dce_without run Compiler
+
+== build/run baseline with TCCCompiler ==
+PASS baseline run TCCCompiler
+
+== build/run baseline with Compiler ==
+PASS baseline run Compiler
+
+== build/run window_probe with TCCCompiler ==
+PASS window_probe run TCCCompiler
+
+== build/run window_probe with Compiler ==
+PASS window_probe run Compiler
+
+== build/run font_probe with TCCCompiler ==
+PASS font_probe run TCCCompiler
+
+== build/run font_probe with Compiler ==
+PASS font_probe run Compiler
+
+== negative no_panic ==
+PASS no_panic rejects unannotated std (SAFE-PANIC-001)
+
+== allocation shim ==
+PASS allocation counter
+PASS OOM aborts through __chc_panic (rc=255)
+
+== raster prototype ==
+PASS raster probe
+
+== GPU Vulkan spike ==
+PASS Vulkan lavapipe device init
+PASS Vulkan default adapter init
+
+== wasm float ==
+PASS wasm float (C emitter)
+PASS wasm float (LLVM)
+
+== stripped sizes ==
+dce_with_Compiler.exe                            117272 bytes
+dce_with_TCCCompiler.exe                         240704 bytes
+dce_without_Compiler.exe                         117272 bytes
+dce_without_TCCCompiler.exe                      240704 bytes
+baseline_Compiler.exe                            121368 bytes
+baseline_TCCCompiler.exe                         244432 bytes
+window_probe_Compiler.exe                        216032 bytes
+window_probe_TCCCompiler.exe                     981912 bytes
+
+P0.1 probes: PASS=27 FAIL=0
+logs: /home/wakaztahir/work/Chemical/chemical/lang/tests/ui_probe/build/logs

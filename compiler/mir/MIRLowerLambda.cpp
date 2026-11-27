@@ -1289,6 +1289,194 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     return true;
 }
 
+MIRExprResult MIRLowerer::materialize_named_function_instance(
+        FunctionDeclaration* fd, BaseType* instance_type, std::string& error) {
+    if (fd == nullptr || instance_type == nullptr) {
+        error = "named function conversion has no callable instance type";
+        return MIRExprResult::error();
+    }
+    if (fd->get_self_param() != nullptr) {
+        error = "a method with self cannot be used as a plain function value";
+        return MIRExprResult::error();
+    }
+    if (fd->isVariadic()) {
+        error = "a variadic named function cannot be stored in std::function";
+        return MIRExprResult::error();
+    }
+
+    // All callable aliases resolve to `default_function_instance.make2`.
+    FunctionDeclaration* make2 = nullptr;
+    ASTNode* inst_node = instance_type->get_direct_linked_canonical_node();
+    if (inst_node == nullptr) inst_node = instance_type->get_direct_linked_node();
+    if (inst_node != nullptr && inst_node->kind() == ASTNodeKind::StructDecl) {
+        ASTNode* child = inst_node->as_struct_def_unsafe()->child("make2");
+        if (child != nullptr && child->kind() == ASTNodeKind::FunctionDecl) {
+            make2 = child->as_function_unsafe();
+        }
+    }
+    if (make2 == nullptr) make2 = resolve_method_fallback(instance_type, "make2");
+    if (make2 == nullptr || make2->params.size() < 5) {
+        error = "named function conversion: callable instance has no 'make2' constructor";
+        return MIRExprResult::error();
+    }
+
+    const TypeId void_t = types_.void_type();
+    const TypeId void_ptr_t = types_.pointer_type(void_t, true);
+    const TypeId ret = fd->returnType ? types_.map(fd->returnType) : void_t;
+    const bool sret = abi::needs_sret(module_, ret);
+
+    // The capturing-call ABI is `(void* data, [sret], params...)`. A named
+    // function has no hidden data pointer, so a thunk supplies it (unused) and
+    // forwards the real parameters to the named function.
+    MIRScratch<TypeId> _ptypes(*this);
+    std::vector<TypeId>& ptypes = _ptypes.v;
+    std::vector<TypeId> forwarded;
+    ptypes.push_back(void_ptr_t);
+    if (sret) ptypes.push_back(types_.pointer_type(ret, true));
+    for (FunctionParam* p : fd->params) {
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (abi::is_aggregate(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ptypes.push_back(pt);
+        forwarded.push_back(pt);
+    }
+    const TypeId thunk_ftype = types_.function_signature(
+        sret ? void_t : ret, ptypes, false);
+    const TypeId thunk_ptr_t = types_.pointer_type(thunk_ftype, true);
+
+    static std::atomic<uint64_t> s_named_fn_counter{0};
+    const std::string tname = "__chx_namedfn_" + lambda_scope_tag_ + "_" +
+        std::to_string(s_named_fn_counter.fetch_add(1, std::memory_order_relaxed));
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Function;
+    rec.linkage = MIRLinkage::Internal;
+    rec.has_body = true;
+    rec.type = thunk_ftype;
+    const SymbolId thunk_sym = module_.symbols.add(
+        rec, tname.data(), static_cast<uint32_t>(tname.size()), tname.data(),
+        static_cast<uint32_t>(tname.size()));
+
+    MIRFunction fn;
+    fn.symbol = thunk_sym;
+    fn.function_type = thunk_ftype;
+    if (fd->encoded_location().encoded != 0 && source_loc_provider_ != nullptr) {
+        const uint64_t enc = fd->encoded_location().encoded;
+        if (source_loc_provider_(enc, fn.decl_loc)) fn.has_decl_loc = true;
+    }
+    if (!fn.has_decl_loc && builder_ != nullptr) {
+        const MIRFunction& outer = builder_->function();
+        if (outer.has_decl_loc) {
+            fn.decl_loc = outer.decl_loc;
+            fn.has_decl_loc = true;
+        }
+    }
+    if (builder_ != nullptr) fn.parent_symbol = builder_->function().symbol;
+
+    MIRBuilder b(*arena_, module_, fn);
+    MIRBuilder* saved_builder = builder_;
+    builder_ = &b;
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    (void)b.param(void_ptr_t); // hidden data pointer, unused
+    ValueId sret_ptr = MIR_NULL;
+    if (sret) {
+        sret_ptr = b.param(types_.pointer_type(ret, true));
+        fn.sret_pointer = sret_ptr;
+    }
+    std::vector<ValueId> param_values;
+    param_values.reserve(forwarded.size());
+    for (TypeId pt : forwarded) {
+        param_values.push_back(b.param(pt));
+    }
+
+    const SymbolId callee = intern_function(fd);
+    MIRArgScope _args_scope(*this);
+    std::vector<MIROperand>& args = _args_scope.v;
+    for (size_t i = 0; i < forwarded.size(); ++i) {
+        args.push_back(MIROperand::value(param_values[i], forwarded[i]));
+    }
+
+    bool ok = true;
+    if (sret) {
+        const PlaceId tmp = b.alloc_place(ret, MIRStorageClass::Temporary);
+        if (tmp == MIR_INVALID_ID) {
+            ok = false;
+        } else {
+            b.call_sret(callee, tmp, args.data(), static_cast<uint32_t>(args.size()));
+            // Write the returned aggregate through the caller's sret pointer.
+            const TypeId u64_t = types_.u64_type();
+            const TypeId memcpy_ft = types_.function_signature(
+                void_ptr_t, {void_ptr_t, void_ptr_t, u64_t});
+            const SymbolId memcpy_sym = extern_symbol("memcpy", memcpy_ft);
+            const ValueId dst = b.cast(sret_ptr, void_ptr_t);
+            const ValueId src = b.cast(
+                b.address_of(tmp, types_.pointer_type(ret, true)), void_ptr_t);
+            const ValueId size = b.size_of(ret, u64_t);
+            MIROperand margs[3] = {
+                MIROperand::value(dst, void_ptr_t),
+                MIROperand::value(src, void_ptr_t),
+                MIROperand::value(size, u64_t)};
+            b.call_scalar(memcpy_sym, void_ptr_t, margs, 3);
+            b.ret_void();
+        }
+    } else if (is_void_type(module_, ret)) {
+        b.call_scalar(callee, void_t, args.data(), static_cast<uint32_t>(args.size()));
+        b.ret_void();
+    } else {
+        const ValueId rv = b.call_scalar(callee, ret, args.data(),
+                                        static_cast<uint32_t>(args.size()));
+        b.ret(rv);
+    }
+    if (ok && !b.ok()) {
+        ok = false;
+        error = b.error() ? b.error() : "named function thunk builder failure";
+    }
+    builder_ = saved_builder;
+    if (!ok) return MIRExprResult::error();
+
+    std::string c;
+    std::string emit_error;
+    if (!emit_function_c(fn, module_, c, emit_error)) {
+        error = emit_error;
+        return MIRExprResult::error();
+    }
+    lambda_defs_.push_back(std::move(c));
+    lambda_functions_.push_back(fn);
+
+    // Build the instance through `make2(fn_ptr, null, null, 0, 0)`.
+    const TypeId inst_t = types_.map(instance_type);
+    const PlaceId out = builder_->alloc_place(inst_t, MIRStorageClass::Temporary);
+    if (out == MIR_INVALID_ID) {
+        error = "named function conversion: could not allocate callable instance";
+        return MIRExprResult::error();
+    }
+    MIRArgScope _ctor_args(*this);
+    std::vector<MIROperand>& cargs = _ctor_args.v;
+    const TypeId p0 = types_.map(make2->params[0]->type);
+    const TypeId p1 = types_.map(make2->params[1]->type);
+    const TypeId p2 = types_.map(make2->params[2]->type);
+    const TypeId p3 = types_.map(make2->params[3]->type);
+    const TypeId p4 = types_.map(make2->params[4]->type);
+    const ValueId fn_addr = builder_->function_addr(thunk_sym, thunk_ptr_t);
+    cargs.push_back(MIROperand::value(builder_->cast(fn_addr, p0), p0));
+    const ValueId null_cap = builder_->const_null(p1, module_.constants.add_null(p1));
+    cargs.push_back(MIROperand::value(null_cap, p1));
+    const ValueId null_dtor = builder_->const_null(p2, module_.constants.add_null(p2));
+    cargs.push_back(MIROperand::value(null_dtor, p2));
+    const ValueId zero_size = builder_->const_int(p3, module_.constants.add_int(p3, 0));
+    cargs.push_back(MIROperand::value(zero_size, p3));
+    const ValueId zero_align = builder_->const_int(p4, module_.constants.add_int(p4, 0));
+    cargs.push_back(MIROperand::value(zero_align, p4));
+    builder_->init(out, intern_function(make2), cargs.data(),
+                   static_cast<uint32_t>(cargs.size()));
+    return MIRExprResult::place(out, inst_t);
+}
+
 MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error) {
     if (!lamb) {
         error = "null lambda";

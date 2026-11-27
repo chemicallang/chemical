@@ -7,8 +7,9 @@
 **Verdict:** the core language/platform capabilities needed by the UI library
 are available, but **three measured gaps must be decided before P0.3a/P1.9**:
 
-1. `std::function` from a **named function** is miscompiled (TCC rejects the C,
-   LLVM passes garbage). Explicit lambda syntax works. → `BLOCKER.md` §1.
+1. `std::function` from a **named function** was miscompiled (TCC rejected the C,
+   LLVM passed garbage). **Fixed in P0.1a** — see `../P0.1a/REPORT.md`; the
+   original finding is kept below for history. Explicit lambda syntax works. → `BLOCKER.md` §1.
 2. The `font` parser's **cmap format 4 lookup is wrong** (returns wrong glyph
    IDs); TTC/CFF-outline/cmap-12/composite/contour ends are also missing.
    → `BLOCKER.md` §2. This blocks P1.5b/P2.1, not the core runtime.
@@ -62,7 +63,7 @@ which builds each probe with **both** `cmake-build-debug/TCCCompiler` and
 | Same with `Result<T, E>` returns across the interface + generic `run` | PASS | PASS | `foundation` (`application_result_interface`) |
 | `std::function`: by-value capture, non-capturing lambda | PASS | PASS | `|base|(...)` and `||(...)` |
 | `std::function`: explicit `|&x|` borrow capture | PASS only inside `unsafe` | same | `SAFE-UNSAFE-002`; expected until typed capture tracks the reference lifetime |
-| `std::function`: **named function** assigned to the type | **FAIL (C translation)** | **FAIL at runtime (garbage)** | reduced repro `bugs/named_fn/`; see `BLOCKER.md` §1 |
+| `std::function`: **named function** assigned to the type | **FAIL (C translation)** at P0.1 → **PASS in P0.1a** | **FAIL at runtime (garbage)** at P0.1 → **PASS in P0.1a** | reduced repro `bugs/named_fn/`; see `../P0.1a/REPORT.md` |
 | `[no_panic]` transitive chain (`checked_add` → `layout_add` → `component_add`) | PASS | PASS | `foundation` |
 | `[no_panic]` + panicking std call | expected diagnostic | expected diagnostic | `SAFE-PANIC-001` on `vector::make` |
 | `intrinsics::embed_file()` from a library | PASS | PASS | 47-byte asset embedded from `embed_lib/src/asset.txt` |
@@ -350,7 +351,7 @@ scope, as documented.
 
 | # | Blocker | Class | Affects |
 |---|---|---|---|
-| 1 | Named function → `std::function` miscompiled (TCC C error; LLVM garbage) | **compiler/std** | UI event handler ergonomics; workaround: explicit lambda |
+| 1 | Named function → `std::function` miscompiled (TCC C error; LLVM garbage) — **FIXED in P0.1a** | **compiler/std** | see `../P0.1a/REPORT.md` |
 | 2 | `font` cmap format 4 layout wrong; no TTC/CFF outline/cmap-12/composite/contour ends | library | P1.5b, P2.1, P2.2 |
 | 3 | No `link framework` + `.m` host shim support | **compiler** | P3.4 macOS |
 | 4 | No IME in `window` (GTK/Win32) and no Cocoa backend | platform library | P3.4, P3.5 |
@@ -374,7 +375,8 @@ No compiler/std change is needed for: `Application`/generic `run`, `embed_file`,
   reason, not skipped.
 - The window probe initially crashed when a **named function** was passed to
   `on_resize`; this was reduced to `bugs/named_fn/` and recorded as a blocker.
-  The probe now uses explicit lambdas, and both backends pass.
+  P0.1a fixed the conversion (both backends), so the probe can use either form;
+  it still uses explicit lambdas and both backends pass.
 - The font result is worse than RESEARCH §7 predicted: not only are formats
   missing, the format-4 lookup is wrong. The independent Python cmap oracle
   (`A`→36) is included in the log/analysis so this is not a probe bug.

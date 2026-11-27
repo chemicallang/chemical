@@ -1346,6 +1346,14 @@ private:
                                             std::string& error);
     /** Generate a non-capturing lambda function and yield its function pointer. */
     MIRExprResult materialize_noncapturing_lambda(LambdaFunction* lamb, std::string& error);
+    /**
+     * Wrap a named function in a non-capturing `default_function_instance`
+     * (a capturing-ABI thunk + `make2`), so `std::function` conversion works
+     * without an implicit function-to-struct C cast.
+     */
+    MIRExprResult materialize_named_function_instance(FunctionDeclaration* fd,
+                                                      BaseType* instance_type,
+                                                      std::string& error);
     /** Lower a call through a capturing function instance (`std::function`). */
     MIRExprResult lower_capturing_function_call(MIRExprResult recv, BaseType* recv_type,
                                                 FunctionCall* call, std::string& error);
@@ -1730,6 +1738,8 @@ private:
         TypeId dtor_type = MIR_INVALID_ID;
     };
     std::unordered_map<LambdaFunction*, LambdaMaterialization> lambda_materializations_;
+    /** Named functions used as callable values: `fd -> capturing-ABI thunk`. */
+    std::unordered_map<FunctionDeclaration*, SymbolId> named_function_thunks_;
     /** Stable storage for synthetic async-closure declarations and their names. */
     std::deque<std::string> async_synthetic_names_;
     std::vector<std::unique_ptr<FunctionDeclaration>> async_synthetic_decls_;

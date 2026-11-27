@@ -9,6 +9,11 @@ are library/platform work and are listed here so the parent can order them.
 
 ## 1. Compiler/std: named function assigned to `std::function`
 
+> **RESOLVED in P0.1a.** Both backends now wrap the named function in a
+> non-capturing callable instance (thunk + `make2`); the repro passes. See
+> [`../P0.1a/REPORT.md`](../P0.1a/REPORT.md). The text below is the original
+> P0.1 finding, kept for history.
+
 **Repro (committed):** `lang/tests/ui_probe/bugs/named_fn/`
 
 ```bash

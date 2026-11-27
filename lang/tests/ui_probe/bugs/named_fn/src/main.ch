@@ -1,14 +1,14 @@
-// P0.1 reduced compiler bug: a named function assigned to `std::function`.
+// P0.1a regression proof: a named function assigned to `std::function`.
 //
-// Expected today:
+// Before P0.1a:
 //   TCCCompiler: C translation error "cannot convert 'static void (int, int)'
 //                to 'struct std_stddefault_function_instance'"
-//   Compiler:    builds, but `f(1, 2)` passes garbage and prints g=16777217
+//   Compiler:    built, but `f(1, 2)` passed garbage and printed g=16777217
 //
-// Workaround for the UI library: construct the callback with explicit lambda
-// syntax (`||(a:int,b:int) => { ... }`) until this is fixed.
-//
-// This file is intentionally a failing probe; run-probes.sh does not gate on it.
+// After P0.1a both backends wrap the named function in a non-capturing
+// callable instance (a capturing-ABI thunk + `make2`) and this probe prints
+// `g=3` / `named_fn PASS`. Keep it as a proof; the regression tests live in
+// `lang/tests/src/basic/lambda/named_function.ch`.
 
 var g : int = 0
 

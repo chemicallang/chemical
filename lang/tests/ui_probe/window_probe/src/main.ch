@@ -14,6 +14,12 @@ func quit_cb(data : *mut void) : int {
     return 0
 }
 
+// P0.1a: a named function must convert to the `std::function` handler type.
+// This is the exact shape that used to crash before the conversion fix.
+func on_resize_named(width : int, height : int) {
+    unsafe { g_resize1 = g_resize1 + 1 }
+}
+
 public func main() : int {
     var t = Instant.now()
     var created1 = window::Window.new("P0.1 window one", 320, 200)
@@ -30,9 +36,9 @@ public func main() : int {
     }
     var Ok(w2) = created2 else unsafe { unreachable }
 
-    // NOTE: named functions assigned to std::function are broken on both
-    // backends (see evidence/P0.1/BLOCKER.md). Use explicit lambdas here.
-    w1.on_resize(||(width : int, height : int) => { unsafe { g_resize1 = g_resize1 + 1 } })
+    // NOTE: `w1` deliberately uses a named function (P0.1a); `w2` uses a
+    // lambda. Both must route independently through the same handler type.
+    w1.on_resize(on_resize_named)
     w2.on_resize(||(width : int, height : int) => { unsafe { g_resize2 = g_resize2 + 1 } })
     w1.on_event(||(event : &window::Event) => { unsafe { g_event1 = g_event1 + 1 } })
     w1.show()

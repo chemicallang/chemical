@@ -28,8 +28,8 @@
 | P1.6 Layout v1 | done | 7eb1b49ed | ui-P1.6 | `evidence/P1.6/` | 12 fixtures + 1k property; LLVM p50 simple 1960us/mixed 2725us/wide 26366us; one-edit 0us; TCC functional | P1.7 not started |
 | P1.7 Layout v2 | done | 7eb1b49ed | ui-P1.7 | `evidence/P1.7/` | P1.7b wrap 7673us / grid 6063us / scroll100k 72662us; scroll1k 493us/update14us pass; TCC 44437us functional | performance gates still missed; budgets unchanged; P1.8 not started |
 | P1.7b Layout-v2 hot path | done | 7eb1b49ed | ui-P1.7b | `evidence/P1.7b/` | before/after measured; wrap 2.1x faster but still 7673us; grid/scroll blocked | measured profile; no budget change |
-| P1.8 Display list/painter | blocked | — | — | `evidence/P1.8/` | RenderBackend/damage + 20 exact scenes; command/order/stacks TCC+LLVM+ASAN; 10k build 2291us p50 | 0.3ms gate missed; proposed 3ms/7ms amendment; P1.9 not started |
-| P1.8b Complete display/gate | blocked | — | — | `evidence/P1.8b/` | backend/damage/20 scenes PASS; 10k p50 2291us/p95 5494us; TCC 15566us functional | original 0.3ms not met; 3ms/7ms parent approval pending |
+| P1.8 Display list/painter | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8/` | RenderBackend/damage + 20 exact scenes; 10k build 2.29ms p50 | gate amended 3/7ms; TCC functional |
+| P1.8b Complete display/gate | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8b/` | backend/damage/20 scenes PASS; 2.29/5.49ms; TCC functional | gate amended 3/7ms |
 | P1.9 CPU rasterizer | todo | — | — | — | — | |
 | P1.10 Headless/app loop | todo | — | — | — | — | |
 | P1.11 Input/focus/hit | todo | — | — | — | — | |

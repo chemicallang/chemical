@@ -14,7 +14,7 @@
 | P0.2 Freeze contracts | done | d70835a1d | ui-P0.2 | `evidence/P0.2/` | 367 decls; index check; full contract run | |
 | P0.3b Test core/bench/lint | done | 761717b2d | ui-P0.3b | `evidence/P0.3b/` | core/golden PASS TCC+LLVM; 3 scenes baseline; lint fixtures | parent commit/tag pending |
 | P0.4 Design spec/tokens | done | d668e5a44 | ui-P0.4 | `evidence/P0.4/` | tokens/theme check; design TCC+LLVM; 3 refs + token sheet | parent commit/tag pending |
-| P1.1 Math/geometry/color | done | — | — | `evidence/P1.1/` | geometry 10k TCC/LLVM/ASAN; error TCC/LLVM/ASAN; 435 API decls | parent commit/tag pending |
+| P1.1 Math/geometry/color | done | 01756803d | ui-P1.1 | `evidence/P1.1/` | geometry 10k TCC/LLVM/ASAN; error TCC/LLVM/ASAN; 435 API decls | parent commit/tag pending |
 | P1.2 Arena/IDs/keys | todo | — | — | — | — | |
 | P1.3 View builder | todo | — | — | — | — | |
 | P1.4 Reconciler/tree | todo | — | — | — | — | |

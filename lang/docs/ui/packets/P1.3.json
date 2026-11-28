@@ -1,12 +1,74 @@
 {
   "packet": "P1.3",
-  "name": "View builder and view arena",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "name": "ViewBuilder and view arena",
+  "state": "done",
+  "notes": "P1.3 structural and performance work complete under the parent-amended measured gate; release view PASS.",
+  "commands": [
+    {
+      "id": "view-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "view-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "view-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    },
+    {
+      "id": "contract-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "contract-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "theme-check",
+      "run": "scripts/ui-gen-theme.sh --check",
+      "artifacts": [
+        "lang/libs/ui/src/theme.ch",
+        "lang/docs/ui/tokens.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/view.ch",
+    "lang/libs/ui/src/view_types.ch",
+    "lang/libs/ui/src/style.ch",
+    "lang/tests/ui/src/view.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/API.md",
+    "lang/docs/ui/ui_api_index.json"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.3",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -15,5 +77,10 @@
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "ImageSource.Bytes unsupported until P2.8 image cache",
+    "virtual_list stores count/axis only until P1.7/P4.8",
+    "Style token resolution/layout/paint until P1.5/P1.6",
+    "duplicate-key detection is builder-wide until P1.4 scopes it"
+  ]
 }

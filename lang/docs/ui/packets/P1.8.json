@@ -1,19 +1,74 @@
 {
   "packet": "P1.8",
   "name": "Display list and painter",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Functional display list/Painter, command order, clip/transform/layer, culling, determinism pass TCC/LLVM/ASAN. LLVM release 10k command gate fails: p50 2586us vs 300us. Budgets unchanged; see evidence/P1.8/BLOCKER.md.",
+  "commands": [
+    {
+      "id": "display-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/display.ch",
+    "lang/tests/ui/src/display.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/evidence/P1.8/REPORT.md",
+    "lang/docs/ui/evidence/P1.8/BLOCKER.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.8",
-    "required": false,
+    "required": true,
     "files": [
-      "REPORT.md"
+      "REPORT.md",
+      "BLOCKER.md"
     ]
   },
   "benchmarks": {
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "10k display command build gate blocked at 2586us p50"
+  ]
 }

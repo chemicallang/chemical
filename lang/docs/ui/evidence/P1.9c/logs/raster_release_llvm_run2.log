@@ -1,0 +1,6 @@
+ui raster PASS
+raster solid10k_us p50=1047 p95=1446
+raster aa10k_us p50=4657 p95=5035
+raster clearfill1080p_us p50=333 p95=541
+raster damage200x120_us p50=1 p95=6
+ui-test: PASS (llvm, filter=raster)

@@ -1,0 +1,7 @@
+layout_v2 wrap_us p50=7673 p95=10172
+layout_v2 grid_us p50=6063 p95=9342
+layout_v2 scroll100k_us p50=72662 p95=74724
+layout_v2 scroll1k_us=493
+layout_v2 scroll_update_us=14
+layout_v2 FAIL wrap-gate
+ui-test: FAIL (exit 1)

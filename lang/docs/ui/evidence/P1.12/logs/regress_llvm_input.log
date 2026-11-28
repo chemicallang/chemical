@@ -1,0 +1,3 @@
+ui input PASS
+input event_max_us=0.361
+ui-test: PASS (llvm, filter=input)

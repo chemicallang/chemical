@@ -7,8 +7,8 @@
 #   scripts/ui-lint.sh --json
 #
 # Rules: UI-KEY-001 (list loop without key), UI-PANIC-001 (panic/unwrap/expect/
-# unreachable in ui* or compiled/ui_*), UI-RAW-001 (raw pointer in app/view code
-# without an unsafe host-boundary comment).
+# unreachable and unchecked access in ui* or compiled/ui_*), UI-RAW-001 (raw
+# pointer in app/view code without an unsafe host-boundary comment).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 exec python3 - "$ROOT" "$@" <<'PY'
@@ -27,7 +27,7 @@ for i,a in enumerate(args):
     else:
         print(f"ui-lint: unknown argument {a}", file=sys.stderr); sys.exit(2)
 
-panic_re = re.compile(r'\b(panic|unwrap|expect|unreachable)\b')
+panic_re = re.compile(r'\b(panic|unwrap|expect|unreachable)\b|\b(?:take_|get_)?unchecked\b')
 raw_re = re.compile(r'ui::raw|as\s+\*mut|as\s+\*const|&raw\s+mut|&raw\b')
 list_start = re.compile(r'\bfor\s*\(|\bwhile\s*\(')
 visible_call = re.compile(r'\bb\.(text|row|column|grid|image|icon|virtual_list)\s*\(')
@@ -102,6 +102,7 @@ if fixtures:
     clean = os.path.join(root,"lang/tests/ui/fixtures/lint/clean")
     bads = {
         "bad_key": ("UI-KEY-001", os.path.join(root,"lang/tests/ui/fixtures/lint/bad_key")),
+        "bad_unchecked": ("UI-PANIC-001", os.path.join(root,"lang/tests/ui/fixtures/lint/bad_unchecked")),
         "bad_panic": ("UI-PANIC-001", os.path.join(root,"lang/tests/ui/fixtures/lint/bad_panic")),
         "bad_raw": ("UI-RAW-001", os.path.join(root,"lang/tests/ui/fixtures/lint/bad_raw")),
     }

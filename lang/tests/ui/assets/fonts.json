@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "fonts": [
+    {
+      "family": "Liberation Sans",
+      "style": "Regular",
+      "path": "fonts/LiberationSans-Regular.ttf",
+      "sha256": "075e71be4c58beda172ecb574a799308f04c3d054c6a5b7434954d3b0f1b28d8",
+      "version": "2.1.5",
+      "license": "OFL-1.1",
+      "source": "https://github.com/liberationfonts",
+      "license_file": "fonts/LiberationSans-OFL.txt",
+      "embedded_by_default": false
+    }
+  ]
+}

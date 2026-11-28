@@ -1,0 +1,7 @@
+ui layout PASS
+layout simple_us p50=11485 p95=13326
+layout warm_passes=0 cached=1
+layout mixed_us p50=16611 p95=18633
+layout wide_us p50=124730 p95=137359
+layout one_change_us p50=0 p95=2
+ui-test: PASS (tcc, filter=layout)

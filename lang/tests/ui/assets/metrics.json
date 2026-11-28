@@ -1,0 +1,111 @@
+{
+  "advances": [
+    {
+      "advance": 569,
+      "codepoint": 32,
+      "glyph": 3,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 48,
+      "glyph": 19,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 49,
+      "glyph": 20,
+      "missing": false
+    },
+    {
+      "advance": 1366,
+      "codepoint": 65,
+      "glyph": 36,
+      "missing": false
+    },
+    {
+      "advance": 1366,
+      "codepoint": 66,
+      "glyph": 37,
+      "missing": false
+    },
+    {
+      "advance": 1479,
+      "codepoint": 72,
+      "glyph": 43,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 100,
+      "glyph": 71,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 101,
+      "glyph": 72,
+      "missing": false
+    },
+    {
+      "advance": 455,
+      "codepoint": 108,
+      "glyph": 79,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 111,
+      "glyph": 82,
+      "missing": false
+    },
+    {
+      "advance": 682,
+      "codepoint": 114,
+      "glyph": 85,
+      "missing": false
+    },
+    {
+      "advance": 1479,
+      "codepoint": 119,
+      "glyph": 90,
+      "missing": false
+    },
+    {
+      "advance": 1139,
+      "codepoint": 233,
+      "glyph": 171,
+      "missing": false
+    },
+    {
+      "advance": 1536,
+      "codepoint": 20013,
+      "glyph": 0,
+      "missing": true
+    },
+    {
+      "advance": 1536,
+      "codepoint": 128512,
+      "glyph": 0,
+      "missing": true
+    }
+  ],
+  "fallback_advance_em": 0.5,
+  "family": "Liberation Sans",
+  "font_file": "fonts/LiberationSans-Regular.ttf",
+  "font_sha256": "075e71be4c58beda172ecb574a799308f04c3d054c6a5b7434954d3b0f1b28d8",
+  "license": "OFL-1.1",
+  "metrics": {
+    "ascent": 1854,
+    "cap_height": 1409,
+    "descent": 434,
+    "line_gap": 307,
+    "line_height": 2595,
+    "x_height": 1082
+  },
+  "schema": 1,
+  "style": "Regular",
+  "units_per_em": 2048,
+  "version": "2.1.5"
+}

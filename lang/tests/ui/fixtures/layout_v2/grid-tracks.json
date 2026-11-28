@@ -1,0 +1,1 @@
+{"name":"grid-tracks","provenance":"hand-written P1.7 grid: columns Px50 + Fr1, rows Px20 + Fr1, 100x100","viewport":[100,100],"expect":[{"key":"a","rect":[0,0,50,20]},{"key":"c","rect":[50,0,50,20]},{"key":"d","rect":[0,20,50,80]},{"key":"span","rect":[0,0,100,20]}]}

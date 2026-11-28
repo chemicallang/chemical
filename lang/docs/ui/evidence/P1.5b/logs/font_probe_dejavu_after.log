@@ -1,0 +1,35 @@
+P0.1 font_atomic_write PASS no-partial
+font DejaVuSans.ttf size=759720 tables=20 glyphs=6253 em=2048 asc=1901 desc=-492
+  glyph A U+0041 id=36
+  glyph eacute U+00E9 id=171
+  glyph CJK U+4E2D FAIL
+  glyph emoji U+1F600 FAIL
+  outline A U+0041 points=22 flags=11
+  outline eacute U+00E9 FAIL(unsupported)
+  outline CJK U+4E2D FAIL(no glyph)
+font NotoSans.ttf size=512672 tables=18 glyphs=3317 em=1000 asc=1069 desc=-293
+  glyph A U+0041 id=36
+  glyph eacute U+00E9 id=171
+  glyph CJK U+4E2D FAIL
+  glyph emoji U+1F600 FAIL
+  outline A U+0041 points=36 flags=18
+  outline eacute U+00E9 FAIL(unsupported)
+  outline CJK U+4E2D FAIL(no glyph)
+font NotoSansCJK.ttc LOAD_FAIL
+font NotoColorEmoji.ttf size=11020136 tables=13 glyphs=4124 em=2048 asc=1900 desc=-500
+  glyph A U+0041 FAIL
+  glyph eacute U+00E9 FAIL
+  glyph CJK U+4E2D FAIL
+  glyph emoji U+1F600 FAIL
+  outline A U+0041 FAIL(no glyph)
+  outline eacute U+00E9 FAIL(no glyph)
+  outline CJK U+4E2D FAIL(no glyph)
+font NimbusSans.otf size=82264 tables=12 glyphs=855 em=1000 asc=1075 desc=-299
+  glyph A U+0041 id=34
+  glyph eacute U+00E9 id=207
+  glyph CJK U+4E2D FAIL
+  glyph emoji U+1F600 FAIL
+  outline A U+0041 FAIL(unsupported)
+  outline eacute U+00E9 FAIL(unsupported)
+  outline CJK U+4E2D FAIL(no glyph)
+P0.1 font_probe DONE

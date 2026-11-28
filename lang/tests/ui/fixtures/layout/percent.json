@@ -1,0 +1,6 @@
+{
+  "name": "percent",
+  "provenance": "hand-written P1.6 Percent fraction (0.5) against parent content width",
+  "viewport": [200, 100],
+  "expect": [{"key": "pct", "rect": [0, 15, 50, 10]}]
+}

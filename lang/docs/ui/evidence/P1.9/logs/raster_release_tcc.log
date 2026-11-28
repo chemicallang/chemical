@@ -1,0 +1,6 @@
+ui raster PASS
+raster solid10k_us p50=221291 p95=221632
+raster aa10k_us p50=6845519 p95=6870332
+raster clearfill1080p_us p50=131978 p95=134531
+raster damage200x120_us p50=1988 p95=2052
+ui-test: PASS (tcc, filter=raster)

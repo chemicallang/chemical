@@ -1,0 +1,1 @@
+{"name":"scroll-both","provenance":"hand-written P1.7 both-axis scroll and clamp","viewport":[100,100],"expect":{"content":[200,200],"max":[100,150],"clamped_offset":[100,150],"scrollbar_visible_x":true,"scrollbar_visible_y":true}}

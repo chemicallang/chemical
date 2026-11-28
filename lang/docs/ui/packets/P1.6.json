@@ -1,12 +1,76 @@
 {
   "packet": "P1.6",
   "name": "Layout v1 (flex/stack)",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Internal layout v1: row/column/stack, intrinsic/text metrics, grow/shrink, padding/gap, percent/fill, min/max, align/justify/baseline, basic absolute, warnings, cache; 12 fixtures + 1k property; LLVM release gates pass. No wrap/grid/scroll.",
+  "commands": [
+    {
+      "id": "layout-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter layout",
+      "artifacts": [
+        "lang/tests/ui/src/layout.ch"
+      ]
+    },
+    {
+      "id": "layout-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter layout",
+      "artifacts": [
+        "lang/tests/ui/src/layout.ch"
+      ]
+    },
+    {
+      "id": "layout-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter layout",
+      "artifacts": [
+        "lang/tests/ui/src/layout.ch"
+      ]
+    },
+    {
+      "id": "layout-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter layout",
+      "artifacts": [
+        "lang/tests/ui/src/layout.ch"
+      ]
+    },
+    {
+      "id": "layout-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter layout",
+      "artifacts": [
+        "lang/tests/ui/src/layout.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/layout.ch",
+    "lang/libs/ui/src/view.ch",
+    "lang/tests/ui/src/layout.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/tests/ui/fixtures/layout/row-grow.json",
+    "lang/tests/ui/fixtures/layout/column-shrink.json",
+    "lang/tests/ui/fixtures/layout/padding-gap.json",
+    "lang/tests/ui/fixtures/layout/min-max.json",
+    "lang/tests/ui/fixtures/layout/percent.json",
+    "lang/tests/ui/fixtures/layout/fill.json",
+    "lang/tests/ui/fixtures/layout/align-center.json",
+    "lang/tests/ui/fixtures/layout/baseline.json",
+    "lang/tests/ui/fixtures/layout/nested-stack.json",
+    "lang/tests/ui/fixtures/layout/text-intrinsic.json",
+    "lang/tests/ui/fixtures/layout/absolute.json",
+    "lang/tests/ui/fixtures/layout/nan-inf.json",
+    "lang/docs/ui/evidence/P1.6/REPORT.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.6",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]

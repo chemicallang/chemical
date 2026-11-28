@@ -1,19 +1,76 @@
 {
   "packet": "P1.10",
   "name": "Headless host, app loop, PNG",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Headless Application/UiCtx/Options/run_headless loop: on_start, view, reconcile, layout, display, CPU raster, synthetic update tick, quit/max_frames, typed errors, optional PNG. ui-shot.sh renders the built-in 3-node fixture; 3-node and 1k exact PNGs committed and inspected. TCC/LLVM/ASAN and P1.6/P1.7/view/style/theme/display/raster/contract green. LLVM release 960x640 first-frame+PNG p50 86.70ms / 90.15ms 1k; TCC functional. P1.11 not started.",
+  "commands": [
+    {
+      "id": "headless-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter headless",
+      "artifacts": ["lang/tests/ui/src/headless.ch"]
+    },
+    {
+      "id": "headless-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter headless",
+      "artifacts": ["lang/tests/ui/src/headless.ch"]
+    },
+    {
+      "id": "headless-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter headless",
+      "artifacts": ["lang/tests/ui/src/headless.ch"]
+    },
+    {
+      "id": "headless-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter headless",
+      "artifacts": ["lang/tests/ui/src/headless.ch"]
+    },
+    {
+      "id": "headless-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter headless",
+      "artifacts": ["lang/tests/ui/src/headless.ch"]
+    },
+    {
+      "id": "ui-shot",
+      "run": "scripts/ui-shot.sh --headless --theme light --scale 1 --out /tmp/ui-shot-p110.png",
+      "artifacts": ["scripts/ui-shot.sh", "lang/tests/ui/shot/src/main.ch"]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": ["lang/docs/ui/API.md", "lang/docs/ui/ui_api_index.json"]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/app.ch",
+    "lang/libs/ui/src/theme.ch",
+    "lang/libs/ui/src/geometry.ch",
+    "lang/libs/ui_host/src/host.ch",
+    "lang/tests/ui/src/headless.ch",
+    "lang/tests/ui/src/main.ch",
+    "lang/tests/ui/chemical.mod",
+    "lang/tests/ui/shot/chemical.mod",
+    "lang/tests/ui/shot/src/main.ch",
+    "lang/tests/ui/fixtures/headless/scene_3node.png",
+    "lang/tests/ui/fixtures/headless/scene_1k.png",
+    "lang/tests/ui/fixtures/headless/SHA256SUMS",
+    "scripts/ui-shot.sh",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/STUBS.md",
+    "lang/docs/ui/evidence/P1.10/REPORT.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.10",
-    "required": false,
-    "files": [
-      "REPORT.md"
-    ]
+    "required": true,
+    "files": ["REPORT.md"]
   },
   "benchmarks": {
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "No input/window/present/focus/semantics/IME; P1.11/P1.14/P3.x",
+    "update receives a synthetic deterministic tick until P1.11 supplies events",
+    "UiCtx.text_context is an empty non-owning context in this checkpoint; production harness is P6.1",
+    "text/image/icon/path/gradient/shadow raster commands remain deferred"
+  ]
 }

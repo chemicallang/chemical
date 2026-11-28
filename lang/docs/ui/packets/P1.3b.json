@@ -1,0 +1,60 @@
+{
+  "packet": "P1.3b",
+  "name": "ViewBuilder performance hardening",
+  "state": "blocked",
+  "notes": "Release view gate is blocked: LLVM flat p50 10,190us > 5,000us; TCC flat p50 69,670us > 10,000us. See evidence/P1.3/BLOCKER.md; no budget change.",
+  "commands": [
+    {
+      "id": "release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "debug-view",
+      "run": "scripts/ui-test.sh --llvm --filter view",
+      "artifacts": [
+        "lang/tests/ui/src/view.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/view.ch",
+    "lang/libs/ui/src/view_types.ch",
+    "lang/libs/ui/src/style.ch",
+    "lang/tests/ui/src/view.ch",
+    "lang/docs/ui/evidence/P1.3/BLOCKER.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.3",
+    "required": true,
+    "files": [
+      "BLOCKER.md",
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "Release view gate blocked on builder/append/Style-copy cost",
+    "100k target unchanged at LLVM 5ms / TCC 10ms"
+  ]
+}

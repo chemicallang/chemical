@@ -1,0 +1,68 @@
+{
+  "packet": "P1.4b",
+  "name": "Reconcile hot-path optimization",
+  "state": "done",
+  "notes": "Single-pass sibling diff, one key index, reusable scratch/work buffers, direct link updates, and no-scratch subtree removal. LLVM release 10k reorder p50 714us / p95 916us; TCC functional. See evidence/P1.4b/REPORT.md.",
+  "commands": [
+    {
+      "id": "reconcile-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/reconcile.ch",
+    "lang/tests/ui/src/reconcile.ch",
+    "lang/docs/ui/evidence/P1.4b/REPORT.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.4b",
+    "required": true,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": []
+}

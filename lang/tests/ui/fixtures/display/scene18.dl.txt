@@ -1,0 +1,10 @@
+DISPLAY 1
+viewport 100.000 100.000
+commands 6
+paths 0 gradients 0
+0 clippush rect 0.000 0.000 0.000 0.000 color 0 0 0 0 radius 0.000 width 0.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip 0.000 0.000 100.000 100.000 text  baseline 0.000 path 0 gradient 0
+1 clippush rect 0.000 0.000 0.000 0.000 color 0 0 0 0 radius 0.000 width 0.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip 0.000 0.000 100.000 100.000 text  baseline 0.000 path 0 gradient 0
+2 roundrect rect 0.000 0.000 80.000 60.000 color 37 99 235 255 radius 4.000 width 0.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip 0.000 0.000 100.000 100.000 text  baseline 0.000 path 0 gradient 0
+3 border rect 0.000 0.000 80.000 60.000 color 226 232 240 255 radius 4.000 width 1.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip 0.000 0.000 100.000 100.000 text  baseline 0.000 path 0 gradient 0
+4 clippop rect 0.000 0.000 0.000 0.000 color 0 0 0 0 radius 0.000 width 0.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip none text  baseline 0.000 path 0 gradient 0
+5 clippop rect 0.000 0.000 0.000 0.000 color 0 0 0 0 radius 0.000 width 0.000 opacity 1.000 layer 0 z 0 transform 1.000 0.000 0.000 1.000 0.000 0.000 clip none text  baseline 0.000 path 0 gradient 0

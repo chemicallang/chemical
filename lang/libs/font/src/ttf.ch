@@ -47,6 +47,9 @@ public struct Font {
     internal var units_per_em : u16
     internal var ascent : i16
     internal var descent : i16
+    internal var line_gap_units : i16
+    internal var cap_height_units : i16
+    internal var x_height_units : i16
     internal var num_glyphs : u16
     internal var loaded : bool
 
@@ -58,6 +61,9 @@ public struct Font {
             units_per_em : 0,
             ascent : 0,
             descent : 0,
+            line_gap_units : 0,
+            cap_height_units : 0,
+            x_height_units : 0,
             num_glyphs : 0,
             loaded : false
         }
@@ -81,6 +87,9 @@ public struct Font {
     public func em_size(&self) : u16 { return self.units_per_em }
     public func ascender(&self) : i16 { return self.ascent }
     public func descender(&self) : i16 { return self.descent }
+    public func line_gap(&self) : i16 { return self.line_gap_units }
+    public func cap_height(&self) : i16 { return self.cap_height_units }
+    public func x_height(&self) : i16 { return self.x_height_units }
     public func glyph_count(&self) : u16 { return self.num_glyphs }
     public func data_size(&self) : size_t { return self.data.size() }
     public func table_count(&self) : size_t { return self.tables.size() }
@@ -89,6 +98,9 @@ public struct Font {
     public func validate(&self) : std::Result<std::Unit, FontError> {
         if(!self.loaded || self.data.size() < 12) {
             return std::Result.Err< std::Unit, FontError >(FontError.InvalidFormat(string("font is not loaded")))
+        }
+        if(self.units_per_em == 0) {
+            return std::Result.Err< std::Unit, FontError >(FontError.InvalidFormat(string("units_per_em is zero")))
         }
         var i : size_t = 0
         while(i < self.tables.size()) {
@@ -214,6 +226,9 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
                 font.units_per_em = read_u16_be(font.data.data(), (head.offset as size_t) + 18)
             }
         }
+        if(font.units_per_em == 0) {
+            return std.Result.Err(FontError.InvalidFormat(string("units_per_em is zero")))
+        }
 
         // Read hhea table for ascent/descent
         var hhea_result = find_table(font, 0x68686561u32) // 'hhea'
@@ -222,6 +237,38 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
             if((hhea.offset as size_t) + 36 <= font.data.size()) {
                 font.ascent = read_i16_be(font.data.data(), (hhea.offset as size_t) + 4)
                 font.descent = read_i16_be(font.data.data(), (hhea.offset as size_t) + 6)
+                font.line_gap_units = read_i16_be(font.data.data(), (hhea.offset as size_t) + 8)
+            }
+        }
+
+        // OS/2 supplies typo/win metrics, x-height and cap-height. Missing or
+        // older tables are tolerated; hhea remains the fallback.
+        var os2_result = find_table(font, 0x4F532F32u32) // 'OS/2'
+        if(os2_result is Result.Ok) {
+            var Ok(os2) = os2_result else unsafe { unreachable }
+            var os2_base = os2.offset as size_t
+            if(os2_base + 78 <= font.data.size()) {
+                var typo_asc = read_i16_be(font.data.data(), os2_base + 68) as i32
+                var typo_desc = read_i16_be(font.data.data(), os2_base + 70) as i32
+                var typo_gap = read_i16_be(font.data.data(), os2_base + 72) as i32
+                var win_asc = read_u16_be(font.data.data(), os2_base + 74) as i32
+                var win_desc = read_u16_be(font.data.data(), os2_base + 76) as i32
+                var asc = font.ascent as i32
+                var desc = -(font.descent as i32)
+                var gap = font.line_gap_units as i32
+                if(typo_asc > asc) { asc = typo_asc }
+                if(win_asc > asc) { asc = win_asc }
+                if(typo_desc < 0) { typo_desc = -typo_desc }
+                if(typo_desc > desc) { desc = typo_desc }
+                if(win_desc > desc) { desc = win_desc }
+                if(typo_gap > gap) { gap = typo_gap }
+                font.ascent = asc as i16
+                font.descent = (0 - desc) as i16
+                font.line_gap_units = gap as i16
+                if(os2_base + 90 <= font.data.size()) {
+                    font.x_height_units = read_i16_be(font.data.data(), os2_base + 86)
+                    font.cap_height_units = read_i16_be(font.data.data(), os2_base + 88)
+                }
             }
         }
 
@@ -369,15 +416,20 @@ func cmap_format4_lookup(font : *mut Font, base : size_t, codepoint : u32) : u16
         var length = read_u16_be(font.data.data(), base + 2)
         var seg_count = read_u16_be(font.data.data(), base + 6) / 2
 
-        var search_offset = base + 14
+        var seg = seg_count as size_t
+        var end_base = base + 14
+        var start_base = base + 16 + seg * 2
+        var delta_base = base + 16 + seg * 4
+        var range_base = base + 16 + seg * 6
         var i : u16 = 0
         while(i < seg_count) {
-            var end_offset = search_offset + (i as size_t) * 4
-            var start_offset = search_offset + 2 + (i as size_t) * 4
-            var id_delta_offset = search_offset + seg_count as size_t * 4 + (i as size_t) * 2
-            var id_range_offset = search_offset + seg_count as size_t * 6 + (i as size_t) * 2
+            var end_offset = end_base + (i as size_t) * 2
+            var start_offset = start_base + (i as size_t) * 2
+            var id_delta_offset = delta_base + (i as size_t) * 2
+            var id_range_offset = range_base + (i as size_t) * 2
 
-            if(id_range_offset + 2 > font.data.size()) { break }
+            if(end_offset + 2 > font.data.size() || start_offset + 2 > font.data.size() ||
+               id_delta_offset + 2 > font.data.size() || id_range_offset + 2 > font.data.size()) { break }
 
             var end_code = read_u16_be(font.data.data(), end_offset)
             var start_code = read_u16_be(font.data.data(), start_offset)
@@ -388,7 +440,7 @@ func cmap_format4_lookup(font : *mut Font, base : size_t, codepoint : u32) : u16
                 if(id_range_off == 0) {
                     return ((codepoint as i32) + (id_delta as i32)) as u16
                 } else {
-                    var glyph_offset = id_range_offset as size_t + (id_range_off as size_t) + ((codepoint - start_code as u32) as size_t) * 2
+                    var glyph_offset = id_range_offset + (id_range_off as size_t) + ((codepoint - start_code as u32) as size_t) * 2
                     if(glyph_offset + 2 > font.data.size()) { return 0 }
                     var glyph_id = read_u16_be(font.data.data(), glyph_offset)
                     if(glyph_id != 0) {

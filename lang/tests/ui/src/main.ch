@@ -11,9 +11,8 @@ using ui_test_core::Bounds;
 using ui_test_core::CoreError;
 using ui_test_core::GoldenOptions;
 using ui_test_core::Harness;
-using ui_test_core::Key;
-using ui_test_core::NodeId;
 using ui_test_core::Query;
+using ui_internal::style_store_reset;
 
 func expect_scaffold(name : *char, value : u32) : bool {
     if(value == API_VERSION) { return true }
@@ -49,9 +48,9 @@ func core_checks() : bool {
     var root_key = ui_test_core::key("root")
     var a_key = ui_test_core::key("a")
     var b_key = ui_test_core::key("b")
-    var root = h.add_node(Option.None<NodeId>(), root_key, Bounds { x : 0.0f, y : 0.0f, w : 200.0f, h : 100.0f }, "root", 1u8, "root")
-    var a = h.add_node(Option.Some<NodeId>(root), a_key, Bounds { x : 5.0f, y : 6.0f, w : 10.0f, h : 20.0f }, "Alpha", 2u8, "a")
-    var b = h.add_node(Option.Some<NodeId>(root), b_key, Bounds { x : 20.0f, y : 6.0f, w : 30.0f, h : 20.0f }, "Beta", 3u8, "b")
+    var root = h.add_node(Option.None<ui_test_core::NodeId>(), root_key, Bounds { x : 0.0f, y : 0.0f, w : 200.0f, h : 100.0f }, "root", 1u8, "root")
+    var a = h.add_node(Option.Some<ui_test_core::NodeId>(root), a_key, Bounds { x : 5.0f, y : 6.0f, w : 10.0f, h : 20.0f }, "Alpha", 2u8, "a")
+    var b = h.add_node(Option.Some<ui_test_core::NodeId>(root), b_key, Bounds { x : 20.0f, y : 6.0f, w : 30.0f, h : 20.0f }, "Beta", 3u8, "b")
 
     var by_a = h.by_key(a_key)
     ok = check("by_key", by_a is Option.Some) && ok
@@ -85,7 +84,7 @@ func core_checks() : bool {
     ok = check("find_all_text", h.find_all(q).size() == 1u) && ok
 
     h.set_state(a_key, 41i64)
-    var kids = vector<NodeId>()
+    var kids = vector<ui_test_core::NodeId>()
     kids.push(b)
     kids.push(a)
     h.reorder(root, kids.as_span())
@@ -126,6 +125,80 @@ func core_checks() : bool {
 
 func design_checks() : bool {
     return design::run()
+}
+
+func geometry_checks() : bool {
+    return geometry_tests::run()
+}
+
+func error_checks() : bool {
+    return error_tests::run()
+}
+
+func arena_checks() : bool {
+    return arena_tests::run()
+}
+
+func keys_checks() : bool {
+    return keys_tests::run()
+}
+
+func view_checks() : bool {
+    return view_tests::run()
+}
+
+func reconcile_checks() : bool {
+    return reconcile_tests::run()
+}
+
+func style_checks() : bool {
+    style_store_reset()
+    return style_tests::run_style()
+}
+
+func theme_checks() : bool {
+    style_store_reset()
+    return style_tests::run_theme()
+}
+
+func text_metrics_checks() : bool {
+    return text_tests::run_text_metrics()
+}
+
+func layout_checks() : bool {
+    return layout_tests::run_layout()
+}
+
+func layout_v2_checks() : bool {
+    return layout_v2_tests::run_layout_v2()
+}
+
+func display_checks() : bool {
+    return display_tests::run_display()
+}
+
+func raster_checks() : bool {
+    return raster_tests::run_raster()
+}
+
+func headless_checks() : bool {
+    return headless_tests::run_headless_tests()
+}
+
+func input_checks() : bool {
+    return input_tests::run_input_tests()
+}
+
+func semantics_checks() : bool {
+    return semantics_tests::run_semantics_tests()
+}
+
+func gtk_checks() : bool {
+    return gtk_tests::run_gtk_tests()
+}
+
+func error_boundary_checks() : bool {
+    return error_tests::run_error_tests()
 }
 
 func golden_checks() : bool {
@@ -199,9 +272,34 @@ func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("scaffold", 8u)) { return scaffold_checks() }
     if(filter.equals_with_len("core", 4u)) { return core_checks() }
     if(filter.equals_with_len("design", 6u)) { return design_checks() }
+    if(filter.equals_with_len("geometry", 8u)) { return geometry_checks() }
+    if(filter.equals_with_len("error", 5u)) { return error_checks() }
+    if(filter.equals_with_len("arena", 5u)) { return arena_checks() }
+    if(filter.equals_with_len("keys", 4u)) { return keys_checks() }
+    if(filter.equals_with_len("view", 4u)) { return view_checks() }
+    if(filter.equals_with_len("reconcile", 9u)) { return reconcile_checks() }
+    if(filter.equals_with_len("style", 5u)) { return style_checks() }
+    if(filter.equals_with_len("theme", 5u)) { return theme_checks() }
+    if(filter.equals_with_len("text_metrics", 12u)) { return text_metrics_checks() }
+    if(filter.equals_with_len("font_metrics", 12u)) { return text_metrics_checks() }
+    if(filter.equals_with_len("layout", 6u)) { return layout_checks() }
+    if(filter.equals_with_len("layout_v2", 9u)) { return layout_v2_checks() }
+    if(filter.equals_with_len("wrap", 4u)) { return layout_v2_checks() }
+    if(filter.equals_with_len("grid", 4u)) { return layout_v2_checks() }
+    if(filter.equals_with_len("scroll", 6u)) { return layout_v2_checks() }
+    if(filter.equals_with_len("layers", 6u)) { return layout_v2_checks() }
+    if(filter.equals_with_len("display", 7u)) { return display_checks() }
+    if(filter.equals_with_len("raster", 6u)) { return raster_checks() }
+    if(filter.equals_with_len("headless", 8u)) { return headless_checks() }
+    if(filter.equals_with_len("input", 5u)) { return input_checks() }
+    if(filter.equals_with_len("semantics", 9u)) { return semantics_checks() }
+    if(filter.equals_with_len("audit", 5u)) { return semantics_checks() }
+    if(filter.equals_with_len("errors", 6u)) { return error_boundary_checks() }
+    if(filter.equals_with_len("fault", 5u)) { return error_boundary_checks() }
+    if(filter.equals_with_len("gtk", 3u)) { return gtk_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
-        return scaffold_checks() && core_checks() && design_checks() && golden_checks()
+        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks() && style_checks() && theme_checks() && text_metrics_checks() && layout_checks() && layout_v2_checks() && display_checks() && raster_checks() && headless_checks() && input_checks() && semantics_checks() && error_boundary_checks()
     }
     unsafe { printf("ui tests: unknown filter\n") }
     return false
@@ -224,6 +322,42 @@ public func main(argc : int, argv : **char) : int {
             unsafe { write(1, "ui core PASS\n" as *void, 13u) }
         } else if(filter.equals_with_len("design", 6u)) {
             unsafe { write(1, "ui design PASS\n" as *void, 15u) }
+        } else if(filter.equals_with_len("geometry", 8u)) {
+            unsafe { write(1, "ui geometry PASS\n" as *void, 17u) }
+        } else if(filter.equals_with_len("error", 5u)) {
+            unsafe { write(1, "ui error PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("arena", 5u)) {
+            unsafe { write(1, "ui arena PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("keys", 4u)) {
+            unsafe { write(1, "ui keys PASS\n" as *void, 13u) }
+        } else if(filter.equals_with_len("view", 4u)) {
+            unsafe { write(1, "ui view PASS\n" as *void, 13u) }
+        } else if(filter.equals_with_len("reconcile", 9u)) {
+            unsafe { write(1, "ui reconcile PASS\n" as *void, 18u) }
+        } else if(filter.equals_with_len("style", 5u)) {
+            unsafe { write(1, "ui style PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("theme", 5u)) {
+            unsafe { write(1, "ui theme PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("text_metrics", 12u) || filter.equals_with_len("font_metrics", 12u)) {
+            unsafe { write(1, "ui text_metrics PASS\n" as *void, 21u) }
+        } else if(filter.equals_with_len("layout", 6u)) {
+            unsafe { write(1, "ui layout PASS\n" as *void, 15u) }
+        } else if(filter.equals_with_len("layout_v2", 9u) || filter.equals_with_len("wrap", 4u) || filter.equals_with_len("grid", 4u) || filter.equals_with_len("scroll", 6u) || filter.equals_with_len("layers", 6u)) {
+            unsafe { write(1, "ui layout_v2 PASS\n" as *void, 18u) }
+        } else if(filter.equals_with_len("display", 7u)) {
+            unsafe { write(1, "ui display PASS\n" as *void, 16u) }
+        } else if(filter.equals_with_len("raster", 6u)) {
+            unsafe { write(1, "ui raster PASS\n" as *void, 15u) }
+        } else if(filter.equals_with_len("headless", 8u)) {
+            unsafe { write(1, "ui headless PASS\n" as *void, 17u) }
+        } else if(filter.equals_with_len("input", 5u)) {
+            unsafe { write(1, "ui input PASS\n" as *void, 14u) }
+        } else if(filter.equals_with_len("semantics", 9u) || filter.equals_with_len("audit", 5u)) {
+            unsafe { write(1, "ui semantics PASS\n" as *void, 18u) }
+        } else if(filter.equals_with_len("errors", 6u) || filter.equals_with_len("fault", 5u)) {
+            unsafe { write(1, "ui errors PASS\n" as *void, 15u) }
+        } else if(filter.equals_with_len("gtk", 3u)) {
+            unsafe { write(1, "ui gtk PASS\n" as *void, 12u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

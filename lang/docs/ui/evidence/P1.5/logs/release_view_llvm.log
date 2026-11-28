@@ -1,0 +1,4 @@
+ui view PASS
+view flat_us=13479 deep_us=14615 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
+view release run=0 flat_us=7351 deep_us=9852\nview release run=1 flat_us=7682 deep_us=10026\nview release run=2 flat_us=7721 deep_us=9911\nview release run=3 flat_us=7596 deep_us=9973\nview release run=4 flat_us=7577 deep_us=9855\nview release PASS flat_p50=7596 flat_p95=7721 deep_p50=9911 limit=8000\nview style_store_overflow=130 style_store_size=512
+ui-test: PASS (llvm, filter=view)

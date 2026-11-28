@@ -1,0 +1,6 @@
+{
+  "name": "fill",
+  "provenance": "hand-written P1.6 Fill = grow 1 / basis 0 after a fixed child",
+  "viewport": [200, 100],
+  "expect": [{"key": "fill", "rect": [50, 15, 50, 10]}]
+}

@@ -1,0 +1,3 @@
+ui gtk PASS
+gtk BLOCKED no DISPLAY/WAYLAND_DISPLAY
+ui-test: PASS (tcc, filter=gtk)

@@ -1,12 +1,95 @@
 {
   "packet": "P1.2",
   "name": "Arena, generational IDs, keys",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "P1.2 NodeArena/FrameArena/Key and bounded debug table green TCC/LLVM/ASAN; parent commit/tag pending.",
+  "commands": [
+    {
+      "id": "arena-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter arena",
+      "artifacts": [
+        "lang/tests/ui/src/arena.ch"
+      ]
+    },
+    {
+      "id": "arena-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter arena",
+      "artifacts": [
+        "lang/tests/ui/src/arena.ch"
+      ]
+    },
+    {
+      "id": "arena-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter arena",
+      "artifacts": [
+        "lang/tests/ui/src/arena.ch"
+      ]
+    },
+    {
+      "id": "keys-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter keys",
+      "artifacts": [
+        "lang/tests/ui/src/keys.ch"
+      ]
+    },
+    {
+      "id": "keys-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter keys",
+      "artifacts": [
+        "lang/tests/ui/src/keys.ch"
+      ]
+    },
+    {
+      "id": "keys-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter keys",
+      "artifacts": [
+        "lang/tests/ui/src/keys.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    },
+    {
+      "id": "contract-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "contract-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "theme-check",
+      "run": "scripts/ui-gen-theme.sh --check",
+      "artifacts": [
+        "lang/libs/ui/src/theme.ch",
+        "lang/docs/ui/tokens.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/arena.ch",
+    "lang/libs/ui/src/keys.ch",
+    "lang/tests/ui/src/arena.ch",
+    "lang/tests/ui/src/keys.ch",
+    "lang/tests/ui/contracts/src/main.ch",
+    "lang/docs/ui/API.md",
+    "lang/docs/ui/ui_api_index.json",
+    "scripts/ui-test.sh"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.2",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -15,5 +98,9 @@
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "Key debug table is bounded/lossy by design",
+    "KeyedSlots removal is deferred to P1.4",
+    "NodeArena stores metadata only; P1.3 adds payload"
+  ]
 }

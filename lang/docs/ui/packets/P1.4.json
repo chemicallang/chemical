@@ -1,12 +1,67 @@
 {
   "packet": "P1.4",
   "name": "Reconciler and retained tree",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Reconciler and retained tree complete; P1.4b hot-path optimization met the gate (LLVM p50 714us / p95 916us; TCC functional). See evidence/P1.4b/REPORT.md.",
+  "commands": [
+    {
+      "id": "reconcile-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "reconcile-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter reconcile",
+      "artifacts": [
+        "lang/tests/ui/src/reconcile.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/reconcile.ch",
+    "lang/libs/ui/src/view.ch",
+    "lang/libs/ui/src/arena.ch",
+    "lang/tests/ui/src/reconcile.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/evidence/P1.4/REPORT.md",
+    "lang/docs/ui/evidence/P1.4/BLOCKER.md",
+    "lang/docs/ui/evidence/P1.4b/REPORT.md"
+  ],
   "evidence": {
-    "dir": "lang/docs/ui/evidence/P1.4",
-    "required": false,
+    "dir": "lang/docs/ui/evidence/P1.4b",
+    "required": true,
     "files": [
       "REPORT.md"
     ]

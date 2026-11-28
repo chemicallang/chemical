@@ -1,19 +1,80 @@
 {
   "packet": "P1.9",
   "name": "CPU rasterizer v1",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Functional/golden rasterizer committed at 89d45bdc8. P1.9b C SIMD helper and P1.9c analytic AA close the original release gates: LLVM release median solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms hard, clear+fill 0.333ms p50, damage 0.001ms. 2.5ms AA target remains a documented miss. P1.10 not started.",
+  "commands": [
+    {
+      "id": "raster-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "raster-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter raster",
+      "artifacts": [
+        "lang/tests/ui/src/raster.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/raster.ch",
+    "lang/libs/ui/chemical.mod",
+    "lang/tests/ui/src/raster.ch",
+    "lang/tests/ui/src/main.ch",
+    "lang/tests/ui/chemical.mod",
+    "lang/tests/ui/fixtures/raster/torture_320x240.png",
+    "lang/tests/ui/fixtures/raster/torture_640x480.png",
+    "lang/tests/ui/fixtures/raster/SHA256SUMS",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/evidence/P1.9/REPORT.md",
+    "lang/docs/ui/evidence/P1.9/BLOCKER.md"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.9",
-    "required": false,
+    "required": true,
     "files": [
-      "REPORT.md"
+      "REPORT.md",
+      "BLOCKER.md"
     ]
   },
   "benchmarks": {
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "AA 2.5ms target remains a documented miss; hard 6ms gate passes at 4.467ms median",
+    "text/image/icon/path/gradient/shadow commands remain counted no-ops"
+  ]
 }

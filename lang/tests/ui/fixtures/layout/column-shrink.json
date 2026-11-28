@@ -1,0 +1,9 @@
+{
+  "name": "column-shrink",
+  "provenance": "hand-written P1.6 column shrink, two 30 px bases in a 30 px parent; shrink weighted by shrink x base",
+  "viewport": [100, 100],
+  "expect": [
+    {"key": "x", "rect": [0, 0, 100, 15]},
+    {"key": "y", "rect": [0, 15, 100, 15]}
+  ]
+}

@@ -1,0 +1,2 @@
+ui headless PASS
+ui-test: PASS (tcc, filter=headless)

@@ -1,0 +1,1 @@
+{"name":"scroll-small","provenance":"hand-written P1.7 content smaller than viewport: no scrollbar, max 0","viewport":[100,100],"expect":{"max":[0,0],"scrollbar_visible_x":false,"scrollbar_visible_y":false}}

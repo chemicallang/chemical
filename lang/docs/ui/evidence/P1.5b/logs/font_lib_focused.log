@@ -1,0 +1,27 @@
+[1m[34mGroup: [90m(no-group)[0m
+  [32m- [1mfont_api_load_and_metrics[0m[0m 1073741859
+    [32mPASS[0m
+
+  [32m- [1mfont_api_measure_text_and_glyph[0m[0m 1073741892
+    [32mPASS[0m
+
+  [32m- [1mfont_api_measure_text_decodes_utf8[0m[0m 1073741912
+    [32mPASS[0m
+
+  [32m- [1mfont_api_bad_magic_rejected[0m[0m 1073741922
+    [32mPASS[0m
+
+  [32m- [1mfont_api_truncated_rejected[0m[0m 1073741925
+    [32mPASS[0m
+
+  [32m- [1mfont_api_rejects_unloaded_font[0m[0m 1073741936
+    [32mPASS[0m
+
+  [32m- [1mfont_create_empty_works[0m[0m 1073742213
+    [32mPASS[0m
+
+[1m[36mTest run summary[0m
+  Total: 7 | [32mPassed: [32m7[0m | [90mFailed: [31m0[0m
+
+[1mSummary: 7 tests - [32m7 passed[0m, [90m0 failed[0m
+

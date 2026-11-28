@@ -1,0 +1,66 @@
+{
+  "packet": "P1.8b",
+  "name": "Complete P1.8 and settle display gate",
+  "state": "done",
+  "notes": "RenderBackend recording adapter, damage, 20 exact scene serializations, PaintProps cache. Display 10k p50 2291us/p95 5494us; proposed 3ms/7ms amendment, original 0.3ms not met. TCC functional. P1.9 not started.",
+  "commands": [
+    {
+      "id": "display-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "display-release",
+      "run": "scripts/ui-test.sh --llvm --release --filter display",
+      "artifacts": [
+        "lang/tests/ui/src/display.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/display.ch",
+    "lang/tests/ui/src/display.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/docs/ui/evidence/P1.8b/REPORT.md",
+    "lang/docs/ui/evidence/P1.8/BLOCKER.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.8b",
+    "required": true,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "display 10k gate at 2291us; amendment 3ms/7ms pending parent approval"
+  ]
+}

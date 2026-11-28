@@ -1,0 +1,5 @@
+ui view PASS
+view flat_us=58717 deep_us=61749 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
+view release run=0 flat_us=53893 deep_us=57093\nview release run=1 flat_us=53662 deep_us=57147\nview release run=2 flat_us=53865 deep_us=57223\nview release run=3 flat_us=53844 deep_us=57271\nview release run=4 flat_us=54003 deep_us=57122\nview release PASS (tcc functional) flat_p50=53865 deep_p50=57147
+view style_store_overflow=130 style_store_size=512
+ui-test: PASS (tcc, filter=view)

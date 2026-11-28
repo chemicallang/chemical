@@ -1,0 +1,6 @@
+{
+  "name": "nan-inf",
+  "provenance": "hand-written P1.6 finite clamp: Inf width and negative height -> zero + LayoutWarning",
+  "viewport": [100, 100],
+  "expect": [{"key": "bad", "rect": [0, 0, 0, 0], "warnings": ">0"}]
+}

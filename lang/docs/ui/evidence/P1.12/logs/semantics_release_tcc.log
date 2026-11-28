@@ -1,0 +1,3 @@
+ui semantics PASS
+semantics 10k_us p50=23866 p95=26494
+ui-test: PASS (tcc, filter=semantics)

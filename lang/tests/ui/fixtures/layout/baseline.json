@@ -1,0 +1,6 @@
+{
+  "name": "baseline",
+  "provenance": "hand-written P1.6 text baseline alignment; invariant: both runs share one absolute baseline",
+  "viewport": [100, 100],
+  "invariants": ["baseline(t1) == baseline(t2)", "first child top + intrinsic baseline is the shared baseline"]
+}

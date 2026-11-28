@@ -1,0 +1,2 @@
+ui display PASS
+ui-test: PASS (llvm, filter=display)

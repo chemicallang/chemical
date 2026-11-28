@@ -1,12 +1,92 @@
 {
   "packet": "P1.13",
   "name": "Typed-error boundary, fault injection, panic audit",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "Contained on_start/view/update/paint errors with keyed Role.Alert card, safe static detail text, Retry focus/restore, report_error and b.error integration; fresh keyed frame prevents partial corrupt state. Added six fault sites (start/view/update/layout/font/paint) plus OOM/image/font/protocol/missing typed codes and retry/forged-fatal checks. Panic whitelist has no abort sites; ui-lint reports 0 findings and its fixtures pass. Error-card PNG hash 28b1d7e0...; TCC/LLVM/ASAN/release PASS. P1.14 not started.",
+  "commands": [
+    {
+      "id": "errors-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter errors",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "fault-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter fault",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "errors-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter errors",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "errors-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter errors",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "errors-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter errors",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "errors-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter errors",
+      "artifacts": [
+        "lang/tests/ui/src/errors.ch"
+      ]
+    },
+    {
+      "id": "ui-lint",
+      "run": "scripts/ui-lint.sh",
+      "artifacts": [
+        "lang/docs/ui/PANIC_WHITELIST.md"
+      ]
+    },
+    {
+      "id": "ui-lint-fixtures",
+      "run": "scripts/ui-lint.sh --fixtures",
+      "artifacts": [
+        "lang/docs/ui/PANIC_WHITELIST.md"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/app.ch",
+    "lang/libs/ui/src/view.ch",
+    "lang/tests/ui/src/errors.ch",
+    "lang/tests/ui/src/headless.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/tests/ui/fixtures/errors/error_card.png",
+    "lang/tests/ui/fixtures/errors/SHA256SUMS",
+    "lang/docs/ui/PANIC_WHITELIST.md",
+    "lang/docs/ui/evidence/P1.13/REPORT.md",
+    "scripts/ui-lint.sh",
+    "lang/libs/ui/src/semantics.ch",
+    "lang/tests/ui/fixtures/lint/bad_unchecked/view.ch"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.13",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -15,5 +95,10 @@
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "No protocol server/native a11y bridge/full catalog/production UiHarness",
+    "Error-card labels use a test-only 5x7 debug bitmap; production text is P2.2",
+    "on_close has no error channel; no compiler-wide [no_panic] enforcement (P7.6)",
+    "Faults are typed simulations of OOM/decode/resource failures, not a hostile allocator/decoder"
+  ]
 }

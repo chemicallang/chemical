@@ -1,12 +1,97 @@
 {
   "packet": "P1.1",
   "name": "Math, geometry, color, errors",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "P1.1 value methods, UiError taxonomy, property tests, TCC/LLVM/ASAN green; parent commit/tag pending.",
+  "commands": [
+    {
+      "id": "geometry-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter geometry",
+      "artifacts": [
+        "lang/tests/ui/src/geometry.ch"
+      ]
+    },
+    {
+      "id": "geometry-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter geometry",
+      "artifacts": [
+        "lang/tests/ui/src/geometry.ch"
+      ]
+    },
+    {
+      "id": "geometry-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter geometry",
+      "artifacts": [
+        "lang/tests/ui/src/geometry.ch"
+      ]
+    },
+    {
+      "id": "error-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter error",
+      "artifacts": [
+        "lang/tests/ui/src/error.ch"
+      ]
+    },
+    {
+      "id": "error-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter error",
+      "artifacts": [
+        "lang/tests/ui/src/error.ch"
+      ]
+    },
+    {
+      "id": "error-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter error",
+      "artifacts": [
+        "lang/tests/ui/src/error.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/ui_api_index.json",
+        "lang/docs/ui/API.md"
+      ]
+    },
+    {
+      "id": "contract-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "contract-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter contract",
+      "artifacts": [
+        "lang/tests/ui/contracts/src/main.ch"
+      ]
+    },
+    {
+      "id": "theme-check",
+      "run": "scripts/ui-gen-theme.sh --check",
+      "artifacts": [
+        "lang/libs/ui/src/theme.ch",
+        "lang/docs/ui/tokens.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/geometry.ch",
+    "lang/libs/ui/src/error.ch",
+    "lang/libs/ui/src/theme.ch",
+    "lang/tests/ui/src/geometry.ch",
+    "lang/tests/ui/src/error.ch",
+    "lang/tests/ui/contracts/src/main.ch",
+    "lang/docs/ui/API.md",
+    "lang/docs/ui/ui_api_index.json",
+    "scripts/ui-test.sh",
+    "scripts/ui_gen_theme.py"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.1",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -15,5 +100,8 @@
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "Fatal is private-only until the runtime fatal path lands",
+    "Transform rotation uses a no-libm Taylor approximation"
+  ]
 }

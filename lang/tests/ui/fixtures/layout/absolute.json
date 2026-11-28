@@ -1,0 +1,6 @@
+{
+  "name": "absolute",
+  "provenance": "hand-written P1.6 absolute top 10 / left 20 in a 100x100 parent",
+  "viewport": [100, 100],
+  "expect": [{"key": "abs", "rect": [20, 10, 20, 10]}]
+}

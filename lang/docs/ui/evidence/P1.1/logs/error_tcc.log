@@ -1,0 +1,2 @@
+ui error PASS
+ui-test: PASS (tcc, filter=error)

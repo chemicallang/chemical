@@ -1,0 +1,1 @@
+{"name":"grid-auto-span","provenance":"hand-written P1.7 Auto track from intrinsic width 30, Fr takes 70","viewport":[100,100],"expect":[{"key":"a","rect":[0,0,30,20]},{"key":"c","rect":[30,0,70,20]}]}

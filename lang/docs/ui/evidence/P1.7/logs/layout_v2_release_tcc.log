@@ -1,0 +1,7 @@
+ui layout_v2 PASS
+layout_v2 wrap_us p50=44437 p95=47822
+layout_v2 grid_us p50=20864 p95=23361
+layout_v2 scroll100k_us p50=155082 p95=156306
+layout_v2 scroll1k_us=1508
+layout_v2 scroll_update_us=42
+ui-test: PASS (tcc, filter=layout_v2)

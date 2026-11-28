@@ -1,0 +1,3 @@
+ui display PASS
+display 10k_us p50=15566 p95=19017
+ui-test: PASS (tcc, filter=display)

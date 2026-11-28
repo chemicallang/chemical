@@ -1,0 +1,1 @@
+{"name":"layers","provenance":"hand-written P1.7 overlay excluded from normal flow; Dialog layer; explicit z=5","viewport":[100,100],"expect":{"normal_rect":[0,0,10,10],"overlay_size":[20,10],"layer":"Dialog","z":5}}

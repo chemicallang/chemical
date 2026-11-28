@@ -236,9 +236,54 @@ host entry and drive the core loop. A headless build uses
 ### 1.2 Supporting types
 
 ```chemical
-@direct_init public struct Point { var x : float; var y : float }
-@direct_init public struct Rect { var x : float; var y : float; var w : float; var h : float }
-@direct_init public struct Transform2D { var m : [6]float }
+@direct_init
+public struct Point {
+    var x : float
+    var y : float
+    public func zero() : Point
+    public func new(x : float, y : float) : Point
+    public func add(&self, other : Point) : Point
+    public func sub(&self, other : Point) : Point
+    public func scale(&self, s : float) : Point
+    public func length(&self) : float
+    public func distance(&self, other : Point) : float
+    public func lerp(&self, other : Point, t : float) : Point
+    public func is_finite(&self) : bool
+}
+@direct_init
+public struct Rect {
+    var x : float
+    var y : float
+    var w : float
+    var h : float
+    public func zero() : Rect
+    public func new(x : float, y : float, w : float, h : float) : Rect
+    public func from_ltrb(left : float, top : float, right : float, bottom : float) : Rect
+    public func x2(&self) : float
+    public func y2(&self) : float
+    public func contains(&self, p : Point) : bool
+    public func intersects(&self, other : Rect) : bool
+    public func intersection(&self, other : Rect) : Option<Rect>
+    public func union(&self, other : Rect) : Rect
+    public func inset(&self, i : Insets) : Rect
+    public func offset(&self, dx : float, dy : float) : Rect
+    public func area(&self) : float
+    public func is_finite(&self) : bool
+}
+@direct_init
+public struct Transform2D {
+    // Canvas2D order [a, b, c, d, tx, ty]:
+    // x' = a*x + c*y + tx, y' = b*x + d*y + ty.
+    var m : [6]float
+    public func identity() : Transform2D
+    public func translate(tx : float, ty : float) : Transform2D
+    public func scale(sx : float, sy : float) : Transform2D
+    public func rotate(radians : float) : Transform2D
+    // self ∘ other: apply other first, then self.
+    public func multiply(&self, other : Transform2D) : Transform2D
+    public func transform_point(&self, p : Point) : Point
+    public func is_finite(&self) : bool
+}
 @direct_init public struct Shadow { var x : float; var y : float; var blur : float; var spread : float; var color : Color }
 @direct_init public struct TextSpan {
     var text : string_view; var role : TextRole; var color : ColorToken
@@ -352,7 +397,13 @@ public struct FrameStats {
 ```
 
 The full key set and the `Rect`/`Point` helpers are defined in `ui::geom` and
-`ui::input`; packets may add helper methods but not rename the types.
+`ui::input`; P1.1 adds the value methods above without renaming the types.
+`Rect` is half-open: `contains` includes `x/y` and excludes `x+w/y+h`; empty
+rectangles (`w <= 0 || h <= 0`) never intersect or contain. `Rect.new` clamps
+negative/non-finite extents to zero; `from_ltrb` normalizes the corners.
+`Transform2D` uses Canvas2D order `[a,b,c,d,tx,ty]`; `multiply` returns
+`self ∘ other` (other applies first). Non-finite inputs/results clamp to identity/
+zero where the value may be passed to layout or paint.
 
 ### 1.3 Rendering backend
 
@@ -625,8 +676,11 @@ public struct HostCaps {
 
 ```chemical
 public struct NodeId {          // private construction; frame-local
-    private var index : u32
-    private var generation : u32
+    private var index_value : u32
+    private var generation_value : u32
+    public func index(&self) : u32
+    public func generation(&self) : u32
+    public func is_valid(&self) : bool
 }
 
 public struct Key {                 // private fields; constructors only
@@ -783,7 +837,34 @@ public enum Justify { Start, Center, End, SpaceBetween, SpaceAround, SpaceEvenly
 public enum Axis { Horizontal, Vertical, Both }
 
 @direct_init
-public struct Color { var r : u8; var g : u8; var b : u8; var a : u8 }
+public struct Color {
+    var r : u8
+    var g : u8
+    var b : u8
+    var a : u8
+    public func new(r : u8, g : u8, b : u8) : Color
+    public func rgba(r : u8, g : u8, b : u8, a : u8) : Color
+    // Byte order is 0xRRGGBBAA: red in the high byte.
+    public func from_u32(v : u32) : Color
+    public func to_u32(&self) : u32
+    public func with_alpha(&self, alpha : u8) : Color
+    public func premultiply(&self) : Color
+    public func unpremultiply(&self) : Color
+    public func lerp(&self, other : Color, t : float) : Color
+    // Integer sRGB-encoded source-over compositing (CONTRACTS.md §6).
+    public func over(&self, dst : Color) : Color
+    public func relative_luminance(&self) : f64
+    public func contrast_ratio(&self, other : Color) : f64
+    public func is_opaque(&self) : bool
+    public func to_premul_u32(&self) : u32
+}
+
+`Color.from_u32`/`to_u32` use `0xRRGGBBAA` (red high byte). Premultiply,
+unpremultiply and `over` are integer sRGB-u8 operations; `over` is source-over
+using `div255` and returns exact `dst` for a transparent source and exact `src`
+for an opaque source. Luminance/contrast are WCAG sRGB relative-luminance values
+in f64 and ignore alpha. A translucent premultiply round-trip is exact only within
+the information lost at low alpha (`255/a + 1` channel tolerance).
 
 public variant Dim {
     Auto()
@@ -793,7 +874,18 @@ public variant Dim {
 }
 
 @direct_init
-public struct Size { var width : float; var height : float }
+public struct Size {
+    var width : float
+    var height : float
+    public func zero() : Size
+    public func new(width : float, height : float) : Size
+    public func add(&self, other : Size) : Size
+    public func sub(&self, other : Size) : Size
+    public func max(&self, other : Size) : Size
+    public func min(&self, other : Size) : Size
+    public func area(&self) : float
+    public func is_finite(&self) : bool
+}
 
 public enum Direction { Auto, Ltr, Rtl }
 public enum TextAlign { Start, Center, End, Justify }
@@ -805,7 +897,18 @@ public enum OverlayLayer { Tooltip, Popover, Menu, Dialog, Toast }
 public variant ScrollAnchor { Start() End() Center() Node(key : Key) }
 
 @direct_init
-public struct Insets { var left : float; var top : float; var right : float; var bottom : float }
+public struct Insets {
+    var left : float
+    var top : float
+    var right : float
+    var bottom : float
+    public func zero() : Insets
+    public func all(v : float) : Insets
+    public func symmetric(horizontal : float, vertical : float) : Insets
+    public func horizontal(v : float) : Insets
+    public func vertical(v : float) : Insets
+    public func is_finite(&self) : bool
+}
 
 @direct_init
 public struct Border { var width : float; var color : ColorToken }
@@ -1287,14 +1390,31 @@ public enum ErrorCode {
 public struct UiError {                // private fields; @make only
     private var code_value : ErrorCode
     private var class_value : ErrorClass
-    private var detail : ErrorDetail   // static/inline, never a borrowed dynamic view
-    private var source : Option<SourceLocation>
-    private var retry : RetryHint
+    private var detail_value : ErrorDetail   // static/inline, never a borrowed dynamic view
+    private var source_value : Option<SourceLocation>
+    private var retry_value : RetryHint
     @make func make(code : ErrorCode, message : &'static str) : UiError
     public func code(&self) : ErrorCode
     public func class(&self) : ErrorClass
+    public func retry_hint(&self) : RetryHint
+    public func detail(&self) : &ErrorDetail
+    public func source(&self) : Option<SourceLocation>
+    public func with_source(&self, loc : SourceLocation) : UiError
+    public func with_retry(&self, hint : RetryHint) : UiError
 }
+
+public func classify(code : ErrorCode) : ErrorClass
+public func <T> ok(value : T) : Result<T, UiError>
+public func <T> err(error : UiError) : Result<T, UiError>
+public func <T, U> map(r : Result<T, UiError>, f : (x : T) => U) : Result<U, UiError>
 ```
+
+`UiError.make` never creates `Fatal`: `classify` maps app codes to `Expected` or
+`Internal` only; `Fatal` is reserved for a private runtime helper. Default retry
+hints are `Backoff` for `Io/Timeout/Busy/WouldBlock/DeviceLost` and `Never`
+otherwise. `detail()` returns the inline static detail; `with_source`/`with_retry`
+copy the value without allocation. The file view in `SourceLocation` is a
+borrowed view and must be static/host-owned if retained by debug tooling.
 
 The full code/recovery table and allocation-free detail format are in
 `CONTRACTS.md` §7. `Other` + `ErrorDetail.code` keeps the enum extensible. Error cards are keyed

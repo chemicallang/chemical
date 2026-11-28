@@ -1,0 +1,42 @@
+{
+  "packet": "P1.7b",
+  "name": "Layout-v2 hot-path optimization",
+  "state": "done",
+  "notes": "Wrap line-record single-pass and grid Auto-skip optimized; wrap 7673us, grid6063us, scroll100k72662us still miss unchanged gates. scroll1k/update pass. Functional TCC/LLVM/ASAN green; see evidence/P1.7b/REPORT.md.",
+  "commands": [
+    {
+      "id": "layout-v2-release",
+      "run": "scripts/ui-test.sh --llvm --release --filter layout_v2",
+      "artifacts": [
+        "lang/tests/ui/src/layout_v2.ch"
+      ]
+    },
+    {
+      "id": "layout-v2-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter layout_v2",
+      "artifacts": [
+        "lang/tests/ui/src/layout_v2.ch"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/layout.ch",
+    "lang/tests/ui/src/layout_v2.ch",
+    "lang/docs/ui/evidence/P1.7b/REPORT.md",
+    "lang/docs/ui/evidence/P1.7/BLOCKER.md"
+  ],
+  "evidence": {
+    "dir": "lang/docs/ui/evidence/P1.7b",
+    "required": true,
+    "files": [
+      "REPORT.md"
+    ]
+  },
+  "benchmarks": {
+    "keys": [],
+    "compare": false
+  },
+  "stubs": [
+    "wrap/grid/scroll 100k gates still miss budgets"
+  ]
+}

@@ -1,0 +1,1 @@
+{"name":"wrap-lines","provenance":"hand-written P1.7 wrap: four 30x10 children in 100px row; 3 on line 0, 1 on line 1","viewport":[100,100],"expect":[{"key":"a","line":0,"rect":[0,0,30,10]},{"key":"c","line":0,"rect":[30,0,30,10]},{"key":"d","line":0,"rect":[60,0,30,10]},{"key":"e","line":1,"rect":[0,10,30,10]}]}

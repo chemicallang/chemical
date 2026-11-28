@@ -34,7 +34,7 @@
 | P1.9b C SIMD raster spans | done | 0799d8950 | ui-P1.9 | `evidence/P1.9b/` | helper 14,614B/11,296B object; release -O2 link-c; solid 0.917/1.485ms, damage 0.001ms | AA blocker superseded by P1.9c |
 | P1.9c Analytic AA coverage | done | 0799d8950 | ui-P1.9 | `evidence/P1.9c/` | 5-run LLVM release solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms, clear+fill 0.333/0.541ms, damage 0.001/0.006ms; TCC functional | 2.5ms AA target remains documented miss; goldens approved; P1.10 not started |
 | P1.10 Headless/app loop | done | ce061332c | ui-P1.10 | `evidence/P1.10/` | 3-node + 1k exact PNG; TCC/LLVM/ASAN; LLVM release 3node 86.70/86.82ms, 1k 90.15/90.29ms; TCC 531/550ms functional | no input/window; synthetic update tick; P1.11 not started |
-| P1.11 Input/focus/hit | done | — | — | `evidence/P1.11/` | hit10k 412/430us; event max 0.341us; scroll10k 0us; focus/hover PNG exact; TCC functional | click/tab/shift/escape/wheel/overlay/clip/transform/disabled/stale PASS; P1.12 not started |
+| P1.11 Input/focus/hit | done | 0615afb10 | ui-P1.11 | `evidence/P1.11/` | hit10k 412/430us; event max 0.341us; scroll10k 0us; focus/hover PNG exact; TCC functional | click/tab/shift/escape/wheel/overlay/clip/transform/disabled/stale PASS; P1.12 not started |
 | P1.12 Semantics/audit | todo | — | — | — | — | |
 | P1.13 Typed-error boundary/panic audit | todo | — | — | — | — | |
 | P1.14 Linux walking skeleton | todo | — | — | — | — | stage gate |

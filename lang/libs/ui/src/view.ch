@@ -68,6 +68,7 @@ public struct NodeMeta {
     var has_error : bool
     var semantics : Semantics
     var has_semantics : bool
+    var disabled : bool
     var virtual_axis : Axis
     var scroll_anchor : ScrollAnchor
     var span_start : u32
@@ -107,7 +108,7 @@ func empty_meta() : NodeMeta {
         grid_col : 0u16, grid_row : 0u16, grid_col_span : 1u16, grid_row_span : 1u16,
         has_grid_cell : false, transform : Transform2D.identity(), has_transform : false,
         anim_prop : AnimProperty.Opacity, anim_to : 0.0f, anim_spec : empty_spec(),
-        has_anim : false, anim_exit : false,
+        has_anim : false, anim_exit : false, disabled : false,
         error : UiError.make(ErrorCode.Internal, ""), error_code_value : ErrorCode.Internal,
         has_error : false, semantics : empty_semantics(), has_semantics : false,
         virtual_axis : Axis.Vertical, scroll_anchor : ScrollAnchor.Start(),
@@ -593,6 +594,10 @@ public struct ViewBuilder {
     public func focusable(&mut self, node : NodeId, tab_index : i32) {
         var mp = self.meta_for(node)
         if(mp != null) { unsafe { mp.focusable = true; mp.tab_index = tab_index } } else { self.record(ErrorCode.StaleNode) }
+    }
+    public func disabled(&mut self, node : NodeId, value : bool) {
+        var mp = self.meta_for(node)
+        if(mp != null) { unsafe { mp.disabled = value } } else { self.record(ErrorCode.StaleNode) }
     }
     public func grid_cell(&mut self, node : NodeId, col : u16, row : u16, col_span : u16, row_span : u16) {
         var mp = self.meta_for(node)

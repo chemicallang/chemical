@@ -1,0 +1,3 @@
+ui display PASS
+display 10k_us p50=2539 p95=6499
+ui-test: PASS (llvm, filter=display)

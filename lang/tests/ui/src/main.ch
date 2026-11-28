@@ -182,6 +182,10 @@ func headless_checks() : bool {
     return headless_tests::run_headless_tests()
 }
 
+func input_checks() : bool {
+    return input_tests::run_input_tests()
+}
+
 func golden_checks() : bool {
     var ok = true
     var fixture : string_view = "/home/wakaztahir/work/Chemical/chemical/lang/tests/ui/fixtures/pixels/checker_128.png"
@@ -272,9 +276,10 @@ func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("display", 7u)) { return display_checks() }
     if(filter.equals_with_len("raster", 6u)) { return raster_checks() }
     if(filter.equals_with_len("headless", 8u)) { return headless_checks() }
+    if(filter.equals_with_len("input", 5u)) { return input_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
-        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks() && style_checks() && theme_checks() && text_metrics_checks() && layout_checks() && layout_v2_checks() && display_checks() && raster_checks() && headless_checks()
+        return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks() && style_checks() && theme_checks() && text_metrics_checks() && layout_checks() && layout_v2_checks() && display_checks() && raster_checks() && headless_checks() && input_checks()
     }
     unsafe { printf("ui tests: unknown filter\n") }
     return false
@@ -325,6 +330,8 @@ public func main(argc : int, argv : **char) : int {
             unsafe { write(1, "ui raster PASS\n" as *void, 15u) }
         } else if(filter.equals_with_len("headless", 8u)) {
             unsafe { write(1, "ui headless PASS\n" as *void, 17u) }
+        } else if(filter.equals_with_len("input", 5u)) {
+            unsafe { write(1, "ui input PASS\n" as *void, 14u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

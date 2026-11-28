@@ -1,19 +1,34 @@
 {
   "packet": "P1.11",
   "name": "Input, focus, hit testing",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
-  "evidence": {
-    "dir": "lang/docs/ui/evidence/P1.11",
-    "required": false,
-    "files": [
-      "REPORT.md"
-    ]
-  },
-  "benchmarks": {
-    "keys": [],
-    "compare": false
-  },
-  "stubs": []
+  "state": "done",
+  "notes": "Display-time hit records with clip/transform/z/scroll/disabled; point->topmost interactive, focus traversal by key/tab order, pointer/key/text/wheel normalization and deterministic dispatch to Application.update, click/double-click, hover/focus rings. LLVM release hit10k 412/430us <=500us, event max 0.341us <=1ms, scroll10k 0us. TCC hit10k 2260us functional. Focus/hover PNG exact and inspected. P1.12 not started.",
+  "commands": [
+    {"id":"input-tcc","run":"scripts/ui-test.sh --tcc --filter input","artifacts":["lang/tests/ui/src/input.ch"]},
+    {"id":"input-llvm","run":"scripts/ui-test.sh --llvm --filter input","artifacts":["lang/tests/ui/src/input.ch"]},
+    {"id":"input-asan","run":"scripts/ui-test.sh --llvm --sanitize=address,undefined --filter input","artifacts":["lang/tests/ui/src/input.ch"]},
+    {"id":"input-release-llvm","run":"scripts/ui-test.sh --llvm --release --filter input","artifacts":["lang/tests/ui/src/input.ch"]},
+    {"id":"input-release-tcc","run":"scripts/ui-test.sh --tcc --release --filter input","artifacts":["lang/tests/ui/src/input.ch"]},
+    {"id":"api-index","run":"scripts/ui-api-index.sh --check","artifacts":["lang/docs/ui/API.md","lang/docs/ui/ui_api_index.json"]}
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/input.ch",
+    "lang/libs/ui/src/app.ch",
+    "lang/libs/ui/src/display.ch",
+    "lang/libs/ui/src/view.ch",
+    "lang/tests/ui/src/input.ch",
+    "lang/tests/ui/src/main.ch",
+    "lang/tests/ui/chemical.mod",
+    "scripts/ui-test.sh",
+    "lang/tests/ui/fixtures/input/focus_hover.png",
+    "lang/tests/ui/fixtures/input/SHA256SUMS",
+    "lang/docs/ui/evidence/P1.11/REPORT.md"
+  ],
+  "evidence": {"dir":"lang/docs/ui/evidence/P1.11","required":true,"files":["REPORT.md"]},
+  "benchmarks": {"keys":[],"compare":false},
+  "stubs": [
+    "No IME/drag/multi-window/semantics/text editing/modal focus trap; P3.5/P4/P7/P1.12",
+    "Removed-focus fallback currently clears after the next display build; nearest-ancestor restore is a follow-up",
+    "Wheel has no runtime-owned inertia animation; payload phase is carried only"
+  ]
 }

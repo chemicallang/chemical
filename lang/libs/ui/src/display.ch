@@ -105,18 +105,43 @@ func display_resolve(st : &mut DisplayState, style_id : u32, theme : &Theme) : P
 }
 
 @direct_init
+public struct HitRecord {
+    var node : NodeId
+    var key : Key
+    var rect : Rect
+    var device_rect : Rect
+    var transform : Transform2D
+    var clip : Rect
+    var device_clip : Rect
+    var has_clip : bool
+    var z : i32
+    var order : u32
+    var tab_index : i32
+    var focusable : bool
+    var interactive : bool
+    var disabled : bool
+    var scrollable : bool
+    var parent : u32
+}
+
+@direct_init
 public struct DisplayState {
     var list : DisplayList
     var last_style_id : u32
     var last_paint : PaintProps
     var has_paint : bool
+    var focus_key : Option<Key>
+    var hover_key : Option<Key>
+    var hits : vector<HitRecord>
     public func new(capacity : u32) : DisplayState {
         var l = DisplayList { commands : vector<DisplayCommand>(), paths : vector<Path>(),
             gradients : vector<Gradient>(), viewport : Size.zero(),
             text_arena : FrameArena.new(1024u * 1024u) }
         l.commands.reserve(capacity as size_t)
         return DisplayState { list : l, last_style_id : 0u32,
-            last_paint : display_empty_paint(), has_paint : false }
+            last_paint : display_empty_paint(), has_paint : false,
+            focus_key : Option.None<Key>(), hover_key : Option.None<Key>(),
+            hits : vector<HitRecord>() }
     }
 }
 
@@ -350,6 +375,36 @@ func display_build_node(state : &mut DisplayState, b : &ViewBuilder, layout : &L
         }
         var rs = display_resolve(state, n.style_id, theme)
         var opacity = display_clamp_opacity(rs.opacity)
+        var meta_focusable = false
+        var meta_interactive = false
+        var meta_disabled = false
+        var meta_tab_index = 0i32
+        var meta_has_command = false
+        if((n.id.index() as size_t) < b.node_count_value + 1u32) {
+            var vn0 = b.node_base + (n.id.index() - 1u32)
+            if(vn0.meta_index != VIEW_NONE && (vn0.meta_index as size_t) < b.metas.size()) {
+                var m0 = b.metas.get_ptr(vn0.meta_index as size_t)
+                meta_focusable = m0.focusable
+                meta_has_command = m0.has_command
+                meta_tab_index = m0.tab_index
+                meta_disabled = m0.disabled
+                if(m0.has_semantics) { meta_disabled = meta_disabled || m0.semantics.states.disabled }
+            }
+        }
+        meta_interactive = meta_focusable || meta_has_command
+        if(meta_focusable || meta_has_command || n.kind == ViewKind.Scroll) {
+            var dev_rect = display_transform_rect(tr, n.rect)
+            var dev_clip = Rect.zero()
+            if(has_clip) { dev_clip = display_transform_rect(tr, clip) }
+            state.hits.push(HitRecord {
+                node : n.id, key : n.key, rect : n.rect, device_rect : dev_rect,
+                transform : tr, clip : clip, device_clip : dev_clip, has_clip : has_clip,
+                z : n.z_index, order : state.hits.size() as u32, tab_index : meta_tab_index,
+                focusable : meta_focusable, interactive : meta_interactive,
+                disabled : meta_disabled, scrollable : n.kind == ViewKind.Scroll,
+                parent : n.parent
+            })
+        }
         if(has_node_transform) {
             var cptr = display_empty_command(DisplayCommandKind.TransformPush)
             cptr.transform = tr; cptr.opacity = opacity; cptr.clip = clip; cptr.has_clip = has_clip
@@ -438,6 +493,31 @@ func display_build_node(state : &mut DisplayState, b : &ViewBuilder, layout : &L
             }
             layer = layer + 1u32
         }
+        var has_ring_state = state.focus_key.is_some() || state.hover_key.is_some()
+        if(has_ring_state) {
+        var is_focus = false
+        switch(state.focus_key) {
+            Some(fk) => { is_focus = fk.equals_key(n.key) }
+            None() => { }
+        }
+        var is_hover = false
+        switch(state.hover_key) {
+            Some(hk) => { is_hover = hk.equals_key(n.key) }
+            None() => { }
+        }
+        if((is_focus || is_hover) && n.rect.w > 0.0f && n.rect.h > 0.0f) {
+            var fr = Rect.from_ltrb(n.rect.x - 2.0f, n.rect.y - 2.0f,
+                n.rect.x2() + 2.0f, n.rect.y2() + 2.0f)
+            var token = ColorToken.BorderStrong
+            var fw = 1.0f
+            if(is_focus) { token = ColorToken.FocusRing; fw = 2.0f }
+            var frc = theme.color(token)
+            var fcmd = display_empty_command(DisplayCommandKind.Border)
+            fcmd.rect = fr; fcmd.radius = rs.radius; fcmd.width = fw
+            fcmd.color = frc; fcmd.transform = tr; fcmd.clip = clip; fcmd.has_clip = has_clip
+            display_emit(&raw mut state.list, fcmd)
+        }
+        }
         if(n.is_overlay) {
             var op = display_empty_command(DisplayCommandKind.LayerPop)
             op.layer = n.overlay_layer as u8; op.z = n.z_index
@@ -461,6 +541,7 @@ public func display_build(st : &mut DisplayState, b : &ViewBuilder, layout : &La
     st.list.paths.clear()
     st.list.gradients.clear()
     st.list.text_arena.reset()
+    st.hits.clear()
     st.list.viewport = viewport
     display_build_node(st, b, layout, theme, textctx, layout.result.root_index,
         Transform2D.identity(), Rect.new(0.0f,0.0f,viewport.width,viewport.height), true, false)

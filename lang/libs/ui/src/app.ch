@@ -6,6 +6,8 @@ using std::Result;
 using std::Unit;
 using std::string;
 using std::string_view;
+using std::vector;
+using ui_internal::HitResult;
 
 public enum Renderer { Auto, Cpu, Gpu }
 public enum GpuBackend { Auto, Vulkan, Metal, D3D12, WebGpu, OpenGl }
@@ -101,9 +103,69 @@ public struct Screenshot {
     var hash : u64
 }
 
+public enum EventKind {
+    Click, DoubleClick, ContextMenu, Press, Release, PointerMove, PointerEnter,
+    PointerLeave, Scroll, KeyDown, KeyUp, TextInput, Focus, Blur, Frame, Command,
+    Custom, Resize, DpiChange, Timer
+}
+
+public enum KeyCode {
+    Unknown, Tab, Enter, Escape, Space, Backspace, Delete, Insert,
+    Left, Right, Up, Down, Home, End, PageUp, PageDown,
+    A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z,
+    Digit0,Digit1,Digit2,Digit3,Digit4,Digit5,Digit6,Digit7,Digit8,Digit9,
+    Minus,Equal,LeftBracket,RightBracket,Backslash,Semicolon,Quote,Comma,Period,Slash,Backquote,
+    F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,
+    ShiftLeft,ShiftRight,ControlLeft,ControlRight,AltLeft,AltRight,MetaLeft,MetaRight,CapsLock,
+    Numpad0,Numpad1,Numpad2,Numpad3,Numpad4,Numpad5,Numpad6,Numpad7,Numpad8,Numpad9,
+    NumpadAdd,NumpadSubtract,NumpadMultiply,NumpadDivide,NumpadDecimal,NumpadEnter,
+    PrintScreen,ScrollLock,Pause,ContextMenu,MediaPlayPause,MediaStop,MediaNext,MediaPrev,
+    VolumeUp,VolumeDown,VolumeMute
+}
+
+@direct_init
+public struct Modifiers { var shift : bool; var ctrl : bool; var alt : bool; var meta : bool; var caps : bool }
+@direct_init
+public struct PointerPayload {
+    var button : u8; var press_count : u8; var pointer_kind : u8
+    var pressure : float; var tilt_x : float; var tilt_y : float
+}
+@direct_init
+public struct ScrollPayload { var dx : float; var dy : float; var phase : u8 }
+@direct_init
+public struct KeyPayload { var code : KeyCode; var repeat : bool; var text : Option<string_view> }
+@direct_init
+public struct TextPayload { var text : string_view }
+@direct_init
+public struct FocusPayload { var focused : bool }
+
+public variant Payload {
+    None()
+    Pointer(value : PointerPayload)
+    Scroll(value : ScrollPayload)
+    Key(value : KeyPayload)
+    Text(value : TextPayload)
+    Focus(value : FocusPayload)
+}
+
+@direct_init
 public struct UiEvent {
-    var frame : u64
+    var window : WindowId
+    var key : Key
+    var kind : EventKind
+    var payload : Payload
+    var modifiers : Modifiers
+    var local_x : float
+    var local_y : float
     var timestamp_ms : double
+    var frame : u64
+    // Direct normalized fields mirror Payload for stable ABI dispatch.
+    var pointer_button : u8
+    var scroll_dx : float
+    var scroll_dy : float
+    var key_code : KeyCode
+    var key_repeat : bool
+    var text_value : string_view
 }
 
 public enum CloseAction { Allow, Veto }
@@ -174,6 +236,12 @@ public struct HeadlessState {
     var display : ui_internal::DisplayState
     var buffer : ui_internal::ColorBuffer
     var stats : FrameStats
+    var focus_key : Option<Key>
+    var hover_key : Option<Key>
+    var pressed_key : Option<Key>
+    var capture_key : Option<Key>
+    var last_click_key : Option<Key>
+    var last_click_ms : double
     var dirty : bool
     var quit : bool
     var frame_no : u64
@@ -191,6 +259,17 @@ public struct UiCtx {
     internal var dirty_value : bool
     internal var quit_value : bool
     internal var text_scale_value : float
+    internal var focus_value : Option<Key>
+    internal var event_kind_value : EventKind
+    internal var event_key_value : Key
+    internal var event_code_value : KeyCode
+    internal var event_repeat_value : bool
+    internal var event_shift_value : bool
+    internal var event_text_value : string_view
+    internal var event_scroll_value : Point
+    internal var scroll_key_value : Key
+    internal var scroll_point_value : Point
+    internal var has_scroll_value : bool
 
     public func frame_info(&self) : &FrameInfo { return &self.frame_value }
     public func viewport(&self) : Viewport { return self.viewport_value }
@@ -199,6 +278,26 @@ public struct UiCtx {
     public func text_context(&self) : &TextContext { return &self.textctx_value }
     public func theme(&self) : &Theme { return &self.theme_value }
     public func theme_mode(&self) : ThemeMode { return self.frame_value.theme }
+    public func focused_key(&self) : Option<Key> { return self.focus_value }
+    public func event_kind(&self) : EventKind { return self.event_kind_value }
+    public func event_code(&self) : KeyCode { return self.event_code_value }
+    public func event_repeat(&self) : bool { return self.event_repeat_value }
+    public func event_shift(&self) : bool { return self.event_shift_value }
+    public func event_text(&self) : string_view { return self.event_text_value }
+    public func event_scroll(&self) : Point { return self.event_scroll_value }
+    public func is_focused(&self, key : Key) : bool {
+        if(self.focus_value is Option.Some) { var Some(k) = self.focus_value else return false; return k.equals_key(key) }
+        return false
+    }
+    public func focus(&mut self, key : Key) { self.focus_value = Option.Some<Key>(key) }
+    public func scroll_offset(&self, key : Key) : Point {
+        if(self.has_scroll_value && self.scroll_key_value.equals_key(key)) { return self.scroll_point_value }
+        return Point.zero()
+    }
+    public func set_scroll(&mut self, key : Key, offset : Point) {
+        self.scroll_key_value = key; self.scroll_point_value = offset; self.has_scroll_value = true
+    }
+    public func scroll_to(&mut self, key : Key) { self.scroll_key_value = key; self.has_scroll_value = true; self.scroll_point_value = Point.zero() }
     public func now_ms(&self) : double { return self.frame_value.now_ms }
     public func frame(&self) : u64 { return self.frame_value.frame }
     public func stats(&self) : FrameStats { return self.stats_value }
@@ -213,6 +312,316 @@ public struct UiCtx {
     public func set_text_scale(&mut self, scale : float) {
         if(scale > 0.0f && scale == scale && finite32(scale)) { self.text_scale_value = scale; self.dirty_value = true }
     }
+}
+
+@thread_local @never_destructed
+var g_headless_events : vector<UiEvent> = zeroed:unsafe<vector<UiEvent>>()
+@thread_local @never_destructed
+var g_headless_event_max_us : double = 0.0
+
+@retained
+public func headless_queue_size() : u32 { unsafe { return g_headless_events.size() as u32 } }
+@retained
+public func headless_queue_at(i : size_t) : UiEvent { unsafe { return g_headless_events.get_ptr(i)[0] } }
+@retained
+public func headless_queue_clear() { unsafe { g_headless_events.clear() } }
+@retained
+public func headless_option_key(o : Option<Key>, fallback : Key) : Key {
+    switch(o) {
+        Some(v) => { return v }
+        None() => { }
+    }
+    return fallback
+}
+@retained
+public func headless_option_hit(o : Option<HitResult>, fallback : HitResult) : HitResult {
+    switch(o) {
+        Some(v) => { return v }
+        None() => { }
+    }
+    return fallback
+}
+@retained
+public func headless_event_scroll_payload(ev : &UiEvent) : ScrollPayload {
+    switch(ev.payload) {
+        Scroll(v) => { return v }
+        default => { }
+    }
+    return ScrollPayload { dx : 0.0f, dy : 0.0f, phase : 1u8 }
+}
+@retained
+public func headless_event_key_payload(ev : &UiEvent) : KeyPayload {
+    switch(ev.payload) {
+        Key(v) => { return v }
+        default => { }
+    }
+    return KeyPayload { code : KeyCode.Unknown, repeat : false, text : Option.None<string_view>() }
+}
+
+@retained
+public func headless_hit_current(state : &HeadlessState, p : Point) : Option<HitResult> {
+    return ui_internal::hit_test(&state.display, &state.layout, p)
+}
+@retained
+public func headless_hit_focusable_current(state : &HeadlessState, p : Point) : Option<HitResult> {
+    return ui_internal::hit_test_focusable(&state.display, &state.layout, p)
+}
+@retained
+public func headless_focus_next_current(state : &HeadlessState, current : Option<Key>, backwards : bool) : Option<HitResult> {
+    return ui_internal::focus_next(&state.display, current, backwards)
+}
+@retained
+public func headless_scroll_current(state : &mut HeadlessState, hit : HitResult, dx : float, dy : float) : Option<Key> {
+    return ui_internal::scroll_by_hit(&mut state.layout, &hit, dx, dy)
+}
+
+@retained
+public func headless_event_base(kind : EventKind, x : float, y : float, mods : Modifiers) : UiEvent {
+    return UiEvent {
+        window : zeroed<WindowId>(), key : zeroed<Key>(), kind : kind,
+        payload : Payload.None(), modifiers : mods, local_x : x, local_y : y,
+        timestamp_ms : 0.0, frame : 0u64,
+        pointer_button : 0u8, scroll_dx : 0.0f, scroll_dy : 0.0f,
+        key_code : KeyCode.Unknown, key_repeat : false, text_value : ""
+    }
+}
+
+@retained
+public func headless_event_max_us() : double { unsafe { return g_headless_event_max_us } }
+@retained
+public func headless_event_reset_timing() { unsafe { g_headless_event_max_us = 0.0 } }
+@retained
+public func headless_input_reset() { headless_queue_clear() }
+@retained
+public func headless_input_count() : u32 { return headless_queue_size() }
+@retained
+public func headless_input_pointer(kind : EventKind, x : float, y : float, button : u8, mods : Modifiers) {
+    var e = headless_event_base(kind, x, y, mods)
+    e.pointer_button = button
+    e.payload = Payload.Pointer(PointerPayload {
+        button : button, press_count : 1u8, pointer_kind : 1u8,
+        pressure : 1.0f, tilt_x : 0.0f, tilt_y : 0.0f
+    })
+    unsafe { g_headless_events.push(e) }
+}
+@retained
+public func headless_input_pointer_at(kind : EventKind, x : float, y : float, button : u8, mods : Modifiers, at_ms : double) {
+    var e = headless_event_base(kind, x, y, mods)
+    e.timestamp_ms = at_ms
+    e.pointer_button = button
+    e.payload = Payload.Pointer(PointerPayload {
+        button : button, press_count : 1u8, pointer_kind : 1u8,
+        pressure : 1.0f, tilt_x : 0.0f, tilt_y : 0.0f
+    })
+    unsafe { g_headless_events.push(e) }
+}
+@retained
+public func headless_input_wheel(x : float, y : float, dx : float, dy : float, mods : Modifiers) {
+    var e = headless_event_base(EventKind.Scroll, x, y, mods)
+    e.scroll_dx = dx; e.scroll_dy = dy
+    e.payload = Payload.Scroll(ScrollPayload { dx : dx, dy : dy, phase : 1u8 })
+    unsafe { g_headless_events.push(e) }
+}
+@retained
+public func headless_input_key(kind : EventKind, code : KeyCode, mods : Modifiers, repeat : bool, text : string_view) {
+    var e = headless_event_base(kind, 0.0f, 0.0f, mods)
+    var text_opt = Option.None<string_view>()
+    if(text.size() > 0u) { text_opt = Option.Some<string_view>(text) }
+    e.key_code = code; e.key_repeat = repeat; e.text_value = text
+    e.payload = Payload.Key(KeyPayload { code : code, repeat : repeat, text : text_opt })
+    unsafe { g_headless_events.push(e) }
+}
+@retained
+public func headless_input_text(text : string_view) {
+    var e = headless_event_base(EventKind.TextInput, 0.0f, 0.0f, Modifiers { shift : false, ctrl : false, alt : false, meta : false, caps : false })
+    e.text_value = text
+    e.payload = Payload.Text(TextPayload { text : text })
+    unsafe { g_headless_events.push(e) }
+}
+
+@retained
+public func <A> headless_call_update(app : &mut A, state : &mut HeadlessState, ctx : &mut UiCtx, ev : &UiEvent) : Result<Unit,UiError> where A : Application {
+    ctx.focus_value = state.focus_key
+    ctx.stats_value = state.stats
+    ctx.event_kind_value = ev.kind
+    ctx.event_key_value = ev.key
+    ctx.event_code_value = ev.key_code
+    ctx.event_repeat_value = ev.key_repeat
+    ctx.event_shift_value = ev.modifiers.shift
+    ctx.event_text_value = ev.text_value
+    ctx.event_scroll_value = Point { x : ev.scroll_dx, y : ev.scroll_dy }
+    var t = std::chrono::Instant.now()
+    var r = app.update(ev, ctx)
+    var us = (t.elapsed().as_nanos() as double) / 1000.0
+    state.stats.event_to_update_us = us
+    unsafe { if(us > g_headless_event_max_us) { g_headless_event_max_us = us } }
+    state.dirty = ctx.dirty_value
+    state.quit = ctx.quit_value
+    state.theme = ctx.theme_value
+    state.frame.theme = ctx.frame_value.theme
+    state.focus_key = ctx.focus_value
+    if(ctx.has_scroll_value) {
+        ui_internal::layout_set_scroll(&mut state.layout, ctx.scroll_key_value, ctx.scroll_point_value)
+        state.dirty = true
+    }
+    return r
+}
+
+@retained
+public func <A> headless_set_focus(app : &mut A, state : &mut HeadlessState, ctx : &mut UiCtx, next : Option<Key>) : Result<Unit,UiError> where A : Application {
+    var old_some = state.focus_key.is_some()
+    var old_key = headless_option_key(state.focus_key, zeroed<Key>())
+    var next_some = next.is_some()
+    var next_key = headless_option_key(next, zeroed<Key>())
+    var same = false
+    if(old_some && next_some) { same = old_key.equals_key(next_key) }
+    else if(!old_some && !next_some) { same = true }
+    if(same) { return Result.Ok<Unit,UiError>(Unit{}) }
+    if(old_some) {
+        var be = headless_event_base(EventKind.Blur, 0.0f, 0.0f, Modifiers { shift : false, ctrl : false, alt : false, meta : false, caps : false })
+        be.key = old_key
+        be.payload = Payload.Focus(FocusPayload { focused : false })
+        var br = headless_call_update(app, state, ctx, &be)
+        if(br is Result.Err) { var Err(e) = br else return Result.Err<Unit,UiError>(UiError.make(ErrorCode.Internal, "blur result corrupt")); return Result.Err<Unit,UiError>(e) }
+    }
+    state.focus_key = next
+    if(next_some) {
+        var fe = headless_event_base(EventKind.Focus, 0.0f, 0.0f, Modifiers { shift : false, ctrl : false, alt : false, meta : false, caps : false })
+        fe.key = next_key
+        fe.payload = Payload.Focus(FocusPayload { focused : true })
+        var fr = headless_call_update(app, state, ctx, &fe)
+        if(fr is Result.Err) { var Err(e) = fr else return Result.Err<Unit,UiError>(UiError.make(ErrorCode.Internal, "focus result corrupt")); return Result.Err<Unit,UiError>(e) }
+    }
+    return Result.Ok<Unit,UiError>(Unit{})
+}
+
+@retained
+public func <A> headless_dispatch_events(app : &mut A, state : &mut HeadlessState, ctx : &mut UiCtx) : Result<u32, UiError> where A : Application {
+    if(headless_queue_size() == 0u32) { return Result.Ok<u32,UiError>(0u32) }
+    var count = 0u32
+    var i : size_t = 0u
+    while(i < (headless_queue_size() as size_t)) {
+        var ev = headless_queue_at(i)
+        var target = headless_hit_current(state, Point { x : ev.local_x, y : ev.local_y })
+        var target_some = target.is_some()
+        var target_hit = headless_option_hit(target, zeroed<HitResult>())
+        var target_key = target_hit.key
+        var focus_target = headless_hit_focusable_current(state, Point { x : ev.local_x, y : ev.local_y })
+        var focus_some = focus_target.is_some()
+        var focus_hit = headless_option_hit(focus_target, zeroed<HitResult>())
+        if(ev.kind == EventKind.PointerMove || ev.kind == EventKind.PointerEnter) {
+            var old_some = state.hover_key.is_some()
+            var old_hover = headless_option_key(state.hover_key, zeroed<Key>())
+            var hov = Option.None<Key>()
+            if(target_some) { hov = Option.Some<Key>(target_key) }
+            state.hover_key = hov
+            if(old_some && !old_hover.equals_key(target_key)) {
+                var le = headless_event_base(EventKind.PointerLeave, ev.local_x, ev.local_y, ev.modifiers)
+                le.key = old_hover
+                var lr = headless_call_update(app, state, ctx, &le)
+                if(lr is Result.Err) { var Err(e) = lr else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "leave corrupt")); return Result.Err<u32,UiError>(e) }
+            }
+            ev.key = target_key
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "move corrupt")); return Result.Err<u32,UiError>(e) }
+            if(target_some) {
+                var en = headless_event_base(EventKind.PointerEnter, ev.local_x, ev.local_y, ev.modifiers)
+                en.key = target_key
+                var er = headless_call_update(app, state, ctx, &en)
+                if(er is Result.Err) { var Err(e) = er else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "enter corrupt")); return Result.Err<u32,UiError>(e) }
+            }
+        } else if(ev.kind == EventKind.PointerLeave) {
+            state.hover_key = Option.None<Key>()
+            ev.key = zeroed<Key>()
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "leave corrupt")); return Result.Err<u32,UiError>(e) }
+        } else if(ev.kind == EventKind.Press || ev.kind == EventKind.ContextMenu) {
+            ev.key = target_key
+            if(focus_some) {
+                var fr = headless_set_focus(app, state, ctx, Option.Some<Key>(focus_hit.key))
+                if(fr is Result.Err) { var Err(e) = fr else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "focus corrupt")); return Result.Err<u32,UiError>(e) }
+            }
+            if(ev.kind == EventKind.Press) {
+                var pkey = Option.None<Key>()
+                if(target_some) { pkey = Option.Some<Key>(target_key) }
+                state.pressed_key = pkey
+                state.capture_key = state.pressed_key
+            }
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "press corrupt")); return Result.Err<u32,UiError>(e) }
+        } else if(ev.kind == EventKind.Release) {
+            var pressed_some = state.pressed_key.is_some()
+            var pressed_key = headless_option_key(state.pressed_key, zeroed<Key>())
+            var release_key = target_key
+            if(pressed_some) { release_key = pressed_key }
+            ev.key = release_key
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "release corrupt")); return Result.Err<u32,UiError>(e) }
+            var release_same = target_some && target_key.equals_key(pressed_key)
+            if(pressed_some && release_same) {
+                var ce = headless_event_base(EventKind.Click, ev.local_x, ev.local_y, ev.modifiers)
+                ce.key = release_key
+                ce.payload = ev.payload
+                var when = ev.timestamp_ms
+                if(when == 0.0) { when = state.frame.now_ms }
+                var last_some = state.last_click_key.is_some()
+                var last_key = headless_option_key(state.last_click_key, zeroed<Key>())
+                var was_double = last_some && last_key.equals_key(release_key) && (when - state.last_click_ms) <= 400.0
+                if(was_double) { ce.kind = EventKind.DoubleClick }
+                state.last_click_key = Option.Some<Key>(release_key)
+                state.last_click_ms = when
+                var cr = headless_call_update(app, state, ctx, &ce)
+                if(cr is Result.Err) { var Err(e) = cr else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "click corrupt")); return Result.Err<u32,UiError>(e) }
+            }
+            state.pressed_key = Option.None<Key>()
+            state.capture_key = Option.None<Key>()
+        } else if(ev.kind == EventKind.Scroll) {
+            var sd = ScrollPayload { dx : ev.scroll_dx, dy : ev.scroll_dy, phase : 1u8 }
+            var key_for_scroll = target_key
+            if(target_some) {
+                var got = headless_scroll_current(state, target_hit, sd.dx, sd.dy)
+                if(got.is_some()) { key_for_scroll = headless_option_key(got, target_key) }
+            }
+            ev.key = key_for_scroll
+            var soff = ui_internal::layout_scroll_offset(&state.layout, key_for_scroll)
+            ctx.scroll_key_value = key_for_scroll
+            ctx.scroll_point_value = soff
+            ctx.has_scroll_value = true
+            state.dirty = true
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "scroll corrupt")); return Result.Err<u32,UiError>(e) }
+        } else if(ev.kind == EventKind.KeyDown || ev.kind == EventKind.KeyUp) {
+            var kp = KeyPayload { code : ev.key_code, repeat : ev.key_repeat, text : Option.None<string_view>() }
+            var focus_some_key = state.focus_key.is_some()
+            var evkey = headless_option_key(state.focus_key, zeroed<Key>())
+            ev.key = evkey
+            if(ev.kind == EventKind.KeyDown && kp.code == KeyCode.Tab) {
+                var nf = headless_focus_next_current(state, state.focus_key, ev.modifiers.shift)
+                var nk = Option.None<Key>()
+                if(nf.is_some()) { nk = Option.Some<Key>(headless_option_hit(nf, zeroed<HitResult>()).key) }
+                var fr = headless_set_focus(app, state, ctx, nk)
+                if(fr is Result.Err) { var Err(e) = fr else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "tab corrupt")); return Result.Err<u32,UiError>(e) }
+            } else if(ev.kind == EventKind.KeyDown && kp.code == KeyCode.Escape) {
+                var fr = headless_set_focus(app, state, ctx, Option.None<Key>())
+                if(fr is Result.Err) { var Err(e) = fr else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "escape corrupt")); return Result.Err<u32,UiError>(e) }
+            }
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "key corrupt")); return Result.Err<u32,UiError>(e) }
+        } else if(ev.kind == EventKind.TextInput) {
+            var fk = headless_option_key(state.focus_key, zeroed<Key>())
+            ev.key = fk
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "text corrupt")); return Result.Err<u32,UiError>(e) }
+        } else {
+            var r = headless_call_update(app, state, ctx, &ev)
+            if(r is Result.Err) { var Err(e) = r else return Result.Err<u32,UiError>(UiError.make(ErrorCode.Internal, "event corrupt")); return Result.Err<u32,UiError>(e) }
+        }
+        count = count + 1u32
+        if(state.quit) { break }
+        i = i + 1u
+    }
+    headless_queue_clear()
+    return Result.Ok<u32,UiError>(count)
 }
 
 @retained
@@ -351,14 +760,24 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         layout : ui_internal::new_layout_state(capacity),
         display : ui_internal::DisplayState.new(display_cap),
         buffer : ui_internal::ColorBuffer.new(physical_w, physical_h),
-        stats : headless_zero_stats(), dirty : true, quit : false, frame_no : 0u64,
+        stats : headless_zero_stats(), focus_key : Option.None<Key>(),
+        hover_key : Option.None<Key>(), pressed_key : Option.None<Key>(),
+        capture_key : Option.None<Key>(), last_click_key : Option.None<Key>(),
+        last_click_ms : 0.0, dirty : true, quit : false, frame_no : 0u64,
         frames_run : 0u32, view_calls : 0u32, buffer_ready : false
     }
     var ctx = UiCtx {
         frame_value : state.frame, viewport_value : state.viewport,
         theme_value : state.theme, textctx_value : ui_internal::empty_text_context(),
         stats_value : state.stats, dirty_value : true, quit_value : false,
-        text_scale_value : state.frame.text_scale
+        text_scale_value : state.frame.text_scale,
+        focus_value : state.focus_key,
+        event_kind_value : EventKind.Frame, event_key_value : zeroed<Key>(),
+        event_code_value : KeyCode.Unknown, event_repeat_value : false,
+        event_shift_value : false, event_text_value : "",
+        event_scroll_value : Point.zero(),
+        scroll_key_value : zeroed<Key>(),
+        scroll_point_value : Point.zero(), has_scroll_value : false
     }
     var start = app.on_start(&state.frame, &mut ctx)
     if(start is Result.Err) { var Err(e) = start else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "on_start result corrupt")); return Result.Err<Screenshot,UiError>(e) }
@@ -394,9 +813,18 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         if(ui_internal::layout_warning_count(&state.layout) != 0u32) {
             return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Layout, "layout produced warnings"))
         }
+        state.display.focus_key = state.focus_key
+        state.display.hover_key = state.hover_key
         var pstart = std::chrono::Instant.now()
         var _commands = ui_internal::display_build(&mut state.display, &state.builder, &state.layout, &state.theme, &state.layout_ctx.text, Size.new(physical_w as float, physical_h as float))
         var paint_us = pstart.elapsed().as_micros() as double
+        if(state.focus_key.is_some()) {
+            var fk = headless_option_key(state.focus_key, zeroed<Key>())
+            if(ui_internal::hit_focusable_by_key(&state.display, fk).is_none()) {
+                state.focus_key = Option.None<Key>()
+                state.dirty = true
+            }
+        }
         var raster = ui_internal::Rasterizer.new(&raw mut state.buffer)
         var _rstats = raster.render(&state.display.list)
         state.buffer_ready = true
@@ -423,13 +851,28 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         ctx.frame_value = state.frame
         ctx.stats_value = state.stats
         ctx.text_scale_value = state.frame.text_scale
-        var tick = UiEvent { frame : state.frame_no - 1u64, timestamp_ms : state.frame.now_ms }
-        var ur = app.update(&tick, &mut ctx)
-        if(ur is Result.Err) { var Err(e) = ur else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "update result corrupt")); return Result.Err<Screenshot,UiError>(e) }
+        ctx.focus_value = state.focus_key
+        if(headless_queue_size() > 0u32) {
+            var er = headless_dispatch_events(app, &mut state, &mut ctx)
+            if(er is Result.Err) { var Err(e) = er else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "event result corrupt")); return Result.Err<Screenshot,UiError>(e) }
+        } else {
+            var tick = UiEvent {
+                window : zeroed<WindowId>(), key : zeroed<Key>(), kind : EventKind.Frame,
+                payload : Payload.None(), modifiers : Modifiers { shift : false, ctrl : false, alt : false, meta : false, caps : false },
+                local_x : 0.0f, local_y : 0.0f, timestamp_ms : state.frame.now_ms,
+                frame : state.frame_no - 1u64, pointer_button : 0u8,
+                scroll_dx : 0.0f, scroll_dy : 0.0f, key_code : KeyCode.Unknown,
+                key_repeat : false, text_value : ""
+            }
+            var ur = app.update(&tick, &mut ctx)
+            if(ur is Result.Err) { var Err(e) = ur else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "update result corrupt")); return Result.Err<Screenshot,UiError>(e) }
+            state.dirty = ctx.dirty_value
+            state.quit = ctx.quit_value
+            state.theme = ctx.theme_value
+            state.frame.theme = ctx.frame_value.theme
+        }
         state.dirty = ctx.dirty_value
-        state.quit = ctx.quit_value
-        state.theme = ctx.theme_value
-        state.frame.theme = ctx.frame_value.theme
+        state.focus_key = ctx.focus_value
         if(state.quit) { break }
         // Headless has no event source or animation owner yet. One stable
         // frame is the settle point; max_frames > 1 repeats the same stable

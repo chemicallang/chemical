@@ -1,0 +1,4 @@
+ui view PASS
+view flat_us=72526 deep_us=78806 flat_nodes=100001 deep_nodes=100001 frame_high=100000 style_pool=42 hits=100000 misses=0 node_bytes=96 style_bytes=4
+view style_store_overflow=130 style_store_size=512
+ui-test: PASS (tcc, filter=view)

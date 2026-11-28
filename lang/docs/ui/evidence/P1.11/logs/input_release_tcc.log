@@ -1,0 +1,5 @@
+ui input PASS
+input event_max_us=0.521
+input hit10k_us p50=2260 p95=2267
+input scroll10k_us p50=1 p95=1
+ui-test: PASS (tcc, filter=input)

@@ -1,12 +1,67 @@
 {
   "packet": "P1.12",
   "name": "Semantics tree and audit core",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
+  "state": "done",
+  "notes": "SemanticsTree from view/layout/style with explicit+implicit roles, hidden exclusion, overlay order, focus state, owned snapshot strings, find/bounds/focus/scroll accessors, JSON snapshot and Add/Update/Remove diffs. Audit core with 12 A11Y rules and deterministic findings; bad fixture fails correctly, clean passes. Focus/hover semantics and overlay PNG labels committed. LLVM release semantics10k 4822/7529us; TCC 23866/26494us functional; display/raster/input/headless regressions green. P1.13 not started.",
+  "commands": [
+    {
+      "id": "semantics-tcc",
+      "run": "scripts/ui-test.sh --tcc --filter semantics",
+      "artifacts": [
+        "lang/tests/ui/src/semantics.ch"
+      ]
+    },
+    {
+      "id": "semantics-llvm",
+      "run": "scripts/ui-test.sh --llvm --filter semantics",
+      "artifacts": [
+        "lang/tests/ui/src/semantics.ch"
+      ]
+    },
+    {
+      "id": "semantics-asan",
+      "run": "scripts/ui-test.sh --llvm --sanitize=address,undefined --filter semantics",
+      "artifacts": [
+        "lang/tests/ui/src/semantics.ch"
+      ]
+    },
+    {
+      "id": "semantics-release-llvm",
+      "run": "scripts/ui-test.sh --llvm --release --filter semantics",
+      "artifacts": [
+        "lang/tests/ui/src/semantics.ch"
+      ]
+    },
+    {
+      "id": "semantics-release-tcc",
+      "run": "scripts/ui-test.sh --tcc --release --filter semantics",
+      "artifacts": [
+        "lang/tests/ui/src/semantics.ch"
+      ]
+    },
+    {
+      "id": "api-index",
+      "run": "scripts/ui-api-index.sh --check",
+      "artifacts": [
+        "lang/docs/ui/API.md",
+        "lang/docs/ui/ui_api_index.json"
+      ]
+    }
+  ],
+  "artifacts": [
+    "lang/libs/ui/src/semantics.ch",
+    "lang/tests/ui/src/semantics.ch",
+    "lang/tests/ui/src/main.ch",
+    "scripts/ui-test.sh",
+    "lang/tests/ui/fixtures/semantics/overlay.png",
+    "lang/tests/ui/fixtures/semantics/snapshot.json",
+    "lang/tests/ui/fixtures/semantics/SHA256SUMS",
+    "lang/docs/ui/evidence/P1.12/REPORT.md",
+    "lang/libs/ui/src/raster.ch"
+  ],
   "evidence": {
     "dir": "lang/docs/ui/evidence/P1.12",
-    "required": false,
+    "required": true,
     "files": [
       "REPORT.md"
     ]
@@ -15,5 +70,10 @@
     "keys": [],
     "compare": false
   },
-  "stubs": []
+  "stubs": [
+    "No protocol server/native a11y bridge/full catalog; P3.8/P5/P4",
+    "Semantics updates are produced but not wired to a protocol transport",
+    "Overlay role/label glyphs are a test-only debug bitmap; production text is P2.2",
+    "Contrast uses an 8-bit sRGB approximation, not ICC conversion"
+  ]
 }

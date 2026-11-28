@@ -1,0 +1,3 @@
+ui semantics PASS
+semantics 10k_us p50=4822 p95=7529
+ui-test: PASS (llvm, filter=semantics)

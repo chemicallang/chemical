@@ -1,0 +1,5 @@
+ui input PASS
+input event_max_us=0.591
+input hit10k_us p50=383 p95=386
+input scroll10k_us p50=0 p95=0
+ui-test: PASS (llvm, filter=input)

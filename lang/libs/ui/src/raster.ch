@@ -329,6 +329,10 @@ public func raster_save_png(buf : &ColorBuffer, path : &path::Path) : Result<Uni
 
 public func raster_buffer_bytes(buf : &ColorBuffer) : &[u8] { return buf.pixels.as_span() }
 public func raster_pixel(buf : &ColorBuffer, x : u32, y : u32) : Color { return buf.pixel(x,y) }
+public func raster_set_pixel(buf : *mut ColorBuffer, x : u32, y : u32, c : Color) {
+    if(buf == null) { return }
+    unsafe { buf.put(x,y,c.r,c.g,c.b,c.a) }
+}
 public func raster_clear(buf : *mut ColorBuffer) {
     if(buf == null) { return }
     unsafe { if(!buf.valid()) { return }; ui_raster_clear(buf.pixels.mutable_data(), buf.pixels.size()) }

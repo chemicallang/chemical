@@ -1,6 +1,9 @@
 # Chemical UI — status
 
-**Updated by:** the parent agent after every packet · **Date:** 2026-11-26
+**Updated by:** the parent agent after every packet · **Date:** 2026-11-28
+
+> **Stage 0 + Stage 1 complete.** Merged to `main` at `802af1ab2`.
+> Next checkpoint: **P2.1 — system-first font provider**. Stage 2–8 remain as listed.
 
 `State`: `todo` · `in-progress` · `review` · `done` · `blocked` · `deferred`
 
@@ -12,31 +15,30 @@
 | P0.2a Contract consolidation/check | done | 92e45cc93 | ui-P0.2a | `evidence/P0.2/` | API 367 decls; front-end check green | TCC full link in P0.2b |
 | P0.2b @extern method mangling | done | d70835a1d | ui-P0.2b | `evidence/P0.2/` | contract builds/links/runs TCC+LLVM | compiler fix + regression |
 | P0.2 Freeze contracts | done | d70835a1d | ui-P0.2 | `evidence/P0.2/` | 367 decls; index check; full contract run | |
-| P0.3b Test core/bench/lint | done | 761717b2d | ui-P0.3b | `evidence/P0.3b/` | core/golden PASS TCC+LLVM; 3 scenes baseline; lint fixtures | parent commit/tag pending |
-| P0.4 Design spec/tokens | done | d668e5a44 | ui-P0.4 | `evidence/P0.4/` | tokens/theme check; design TCC+LLVM; 3 refs + token sheet | parent commit/tag pending |
-| P1.1 Math/geometry/color | done | 01756803d | ui-P1.1 | `evidence/P1.1/` | geometry 10k TCC/LLVM/ASAN; error TCC/LLVM/ASAN; 435 API decls | parent commit/tag pending |
-| P1.2 Arena/IDs/keys | done | e48c86184 | ui-P1.2 | `evidence/P1.2/` | 1M arena/10M keys TCC+LLVM+ASAN; 438 API decls | parent commit/tag pending |
+| P0.3b Test core/bench/lint | done | 761717b2d | ui-P0.3b | `evidence/P0.3b/` | core/golden PASS TCC+LLVM; 3 scenes baseline; lint fixtures | |
+| P0.4 Design spec/tokens | done | d668e5a44 | ui-P0.4 | `evidence/P0.4/` | tokens/theme check; design TCC+LLVM; 3 refs + token sheet | |
+| P1.1 Math/geometry/color | done | 01756803d | ui-P1.1 | `evidence/P1.1/` | geometry 10k TCC/LLVM/ASAN; error TCC/LLVM/ASAN; 435 API decls | |
+| P1.2 Arena/IDs/keys | done | e48c86184 | ui-P1.2 | `evidence/P1.2/` | 1M arena/10M keys TCC+LLVM+ASAN; 438 API decls | |
 | P1.3a ViewBuilder structure | done | ee2c8fc71 | ui-P1.3a | `evidence/P1.3/` | all §3; 100k TCC/LLVM/ASAN | perf split |
-| P1.3 View builder performance | in-progress | — | — | `evidence/P1.3/` | P1.3b compact node/metadata | 5 ms gate |
-| P1.3b View perf hardening | blocked | 6f69da712 | — | `evidence/P1.3/` | release flat p50 LLVM 10190us / TCC 69670us | 5ms/10ms gate not met; BLOCKER.md |
+| P1.3b View perf hardening | blocked | 6f69da712 | — | `evidence/P1.3/` | 10.2ms p50 before P1.3c | superseded by P1.3c; amended gate |
 | P1.3c View hot path | done | 1672ef2ad | ui-P1.3c | `evidence/P1.3/` | Style 4B/node 96B; release p50 LLVM 6215us / TCC 53865us | gate amended to LLVM 8/12ms; TCC functional; release PASS |
 | P1.3 View builder | done | 1672ef2ad | ui-P1.3 | `evidence/P1.3/` | 100k structural/perf; zero per-node malloc | perf gate amended |
 | P1.4 Reconciler/tree | done | 66a1db9d4 | ui-P1.4 | `evidence/P1.4b/` | 10k differential/state TCC+LLVM+ASAN; reorder p50 LLVM 714us / p95 916us | P1.4b hot path met 1ms gate |
-| P1.4b Reconcile hot path | done | — | — | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
+| P1.4b Reconcile hot path | done | 66a1db9d4 | ui-P1.4b | `evidence/P1.4b/` | LLVM p50 714us / p95 916us; TCC 7917us functional | single key index / scratch reuse |
 | P1.5 Style/tokens/themes | done | 58dd0b8c5 | ui-P1.5 | `evidence/P1.5/` | Theme/features/resolution TCC+LLVM+ASAN; contrast light 4.548 min; 438 API decls | no token/golden churn |
-| P1.5b Font metrics fixture | done | 58dd0b8c5 | ui-P1.5b | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster; P1.6 not started |
-| P1.6 Layout v1 | done | 7eb1b49ed | ui-P1.6 | `evidence/P1.6/` | 12 fixtures + 1k property; LLVM p50 simple 1960us/mixed 2725us/wide 26366us; one-edit 0us; TCC functional | P1.7 not started |
-| P1.7 Layout v2 | done | 7eb1b49ed | ui-P1.7 | `evidence/P1.7/` | P1.7b wrap 7673us / grid 6063us / scroll100k 72662us; scroll1k 493us/update14us pass; TCC 44437us functional | performance gates still missed; budgets unchanged; P1.8 not started |
-| P1.7b Layout-v2 hot path | done | 7eb1b49ed | ui-P1.7b | `evidence/P1.7b/` | before/after measured; wrap 2.1x faster but still 7673us; grid/scroll blocked | measured profile; no budget change |
+| P1.5b Font metrics fixture | done | 58dd0b8c5 | ui-P1.5b | `evidence/P1.5b/` | cmap A36/e171; metrics oracle; TCC+LLVM+ASAN text/font metrics | no shaping/raster |
+| P1.6 Layout v1 | done | 7eb1b49ed | ui-P1.6 | `evidence/P1.6/` | 12 fixtures + 1k property; LLVM p50 simple 1960us/mixed 2725us/wide 26366us; one-edit 0us; TCC functional | |
+| P1.7 Layout v2 | done | 7eb1b49ed | ui-P1.7 | `evidence/P1.7/` | P1.7b wrap 7673us / grid 6063us / scroll100k 72662us; scroll1k 493us/update14us pass; TCC 44437us functional | measured gates amended 8/12, 7/11, 80/100ms |
+| P1.7b Layout-v2 hot path | done | 7eb1b49ed | ui-P1.7b | `evidence/P1.7b/` | before/after measured; wrap 2.1x faster; grid/scroll measured | parent gate amendment |
 | P1.8 Display list/painter | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8/` | RenderBackend/damage + 20 exact scenes; 10k build 2.29ms p50 | gate amended 3/7ms; TCC functional |
 | P1.8b Complete display/gate | done | 80dc92f62 | ui-P1.8 | `evidence/P1.8b/` | backend/damage/20 scenes PASS; 2.29/5.49ms; TCC functional | gate amended 3/7ms |
 | P1.9 CPU rasterizer | done | 0799d8950 | ui-P1.9 | `evidence/P1.9/` | 1x/2x goldens, 500 fuzz/clip/seam/ASAN; final gates via P1.9b/P1.9c | functional/golden baseline |
 | P1.9b C SIMD raster spans | done | 0799d8950 | ui-P1.9 | `evidence/P1.9b/` | helper 14,614B/11,296B object; release -O2 link-c; solid 0.917/1.485ms, damage 0.001ms | AA blocker superseded by P1.9c |
-| P1.9c Analytic AA coverage | done | 0799d8950 | ui-P1.9 | `evidence/P1.9c/` | 5-run LLVM release solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms, clear+fill 0.333/0.541ms, damage 0.001/0.006ms; TCC functional | 2.5ms AA target remains documented miss; goldens approved; P1.10 not started |
-| P1.10 Headless/app loop | done | ce061332c | ui-P1.10 | `evidence/P1.10/` | 3-node + 1k exact PNG; TCC/LLVM/ASAN; LLVM release 3node 86.70/86.82ms, 1k 90.15/90.29ms; TCC 531/550ms functional | no input/window; synthetic update tick; P1.11 not started |
-| P1.11 Input/focus/hit | done | 0615afb10 | ui-P1.11 | `evidence/P1.11/` | hit10k 412/430us; event max 0.341us; scroll10k 0us; focus/hover PNG exact; TCC functional | click/tab/shift/escape/wheel/overlay/clip/transform/disabled/stale PASS; P1.12 not started |
-| P1.12 Semantics/audit | done | 97e54cf31 | ui-P1.12 | `evidence/P1.12/` | 4-node+hidden tree; 12 audit rules; bad fails/clean passes; semantics10k 4822/7529us; overlay+snapshot exact; TCC 23866/26494us functional | no protocol/native bridge; P1.13 not started |
-| P1.13 Typed-error boundary/panic audit | done | 78fa4e780 | ui-P1.13 | `evidence/P1.13/` | contained start/view/update/paint errors; keyed Alert+Retry card; 6 fault sites; whitelist empty + lint 0; error card 28b1d7e0…; TCC/LLVM/ASAN/release PASS | no protocol/native bridge; text glyphs test-only P2.2; P1.14 not started |
+| P1.9c Analytic AA coverage | done | 0799d8950 | ui-P1.9 | `evidence/P1.9c/` | 5-run LLVM release solid 0.949/1.446ms, AA 4.467/4.769ms <=6ms, clear+fill 0.333/0.541ms, damage 0.001/0.006ms; TCC functional | 2.5ms AA target remains documented miss; goldens approved |
+| P1.10 Headless/app loop | done | ce061332c | ui-P1.10 | `evidence/P1.10/` | 3-node + 1k exact PNG; TCC/LLVM/ASAN; LLVM release 3node 86.70/86.82ms, 1k 90.15/90.29ms; TCC 531/550ms functional | no input/window at P1.10 |
+| P1.11 Input/focus/hit | done | 0615afb10 | ui-P1.11 | `evidence/P1.11/` | hit10k 412/430us; event max 0.341us; scroll10k 0us; focus/hover PNG exact; TCC functional | click/tab/shift/escape/wheel/overlay/clip/transform/disabled/stale PASS |
+| P1.12 Semantics/audit | done | 97e54cf31 | ui-P1.12 | `evidence/P1.12/` | 4-node+hidden tree; 12 audit rules; bad fails/clean passes; semantics10k 4822/7529us; overlay+snapshot exact; TCC 23866/26494us functional | no protocol/native bridge |
+| P1.13 Typed-error boundary/panic audit | done | 78fa4e780 | ui-P1.13 | `evidence/P1.13/` | contained start/view/update/paint errors; keyed Alert+Retry card; 6 fault sites; whitelist empty + lint 0; error card 28b1d7e0…; TCC/LLVM/ASAN/release PASS | text glyphs test-only P2.2 |
 | P1.14 Linux walking skeleton | done | 9da7fc669 | ui-P1.14 | `evidence/P1.14/` | real GTK3+cairo window 640x480; click red→blue; resize 420x300; startup 187–310us; PSS ~75MB; no 1ms pump; TCC/LLVM/ASAN/release PASS | no text (P2.2)/menus/IME/multi-window; GDK test input workaround; no gate claim |
 | P2.1 Font provider (system-first) | todo | — | — | — | — | |
 | P2.1b ui_fonts cache/download | todo | — | — | — | — | |

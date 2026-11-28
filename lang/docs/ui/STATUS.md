@@ -37,7 +37,7 @@
 | P1.11 Input/focus/hit | done | 0615afb10 | ui-P1.11 | `evidence/P1.11/` | hit10k 412/430us; event max 0.341us; scroll10k 0us; focus/hover PNG exact; TCC functional | click/tab/shift/escape/wheel/overlay/clip/transform/disabled/stale PASS; P1.12 not started |
 | P1.12 Semantics/audit | done | 97e54cf31 | ui-P1.12 | `evidence/P1.12/` | 4-node+hidden tree; 12 audit rules; bad fails/clean passes; semantics10k 4822/7529us; overlay+snapshot exact; TCC 23866/26494us functional | no protocol/native bridge; P1.13 not started |
 | P1.13 Typed-error boundary/panic audit | done | — (uncommitted) | ui-P1.13 | `evidence/P1.13/` | contained start/view/update/paint errors; keyed Alert+Retry card; 6 fault sites; whitelist empty + lint 0; error card 28b1d7e0…; TCC/LLVM/ASAN/release PASS | no protocol/native bridge; text glyphs test-only P2.2; P1.14 not started |
-| P1.14 Linux walking skeleton | todo | — | — | — | — | stage gate |
+| P1.14 Linux walking skeleton | done | — (uncommitted) | ui-P1.14 | `evidence/P1.14/` | real GTK3+cairo window 640x480; click red→blue; resize 420x300; startup 187–310us; PSS ~75MB; no 1ms pump; TCC/LLVM/ASAN/release PASS | no text (P2.2)/menus/IME/multi-window; GDK test input workaround; no gate claim |
 | P2.1 Font provider (system-first) | todo | — | — | — | — | |
 | P2.1b ui_fonts cache/download | todo | — | — | — | — | |
 | P2.1c Font determinism/fallback | todo | — | — | — | — | |

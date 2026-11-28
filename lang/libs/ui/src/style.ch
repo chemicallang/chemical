@@ -427,6 +427,7 @@ public struct Style {
     }
 }
 public namespace ui_internal {
+public func style_store_reset() { STYLE_COUNT = 0u32; STYLE_HITS = 0u32; STYLE_MISSES = 0u32; STYLE_OVERFLOW = 0u32; style_init() }
 public func style_store_size() : u32 { style_init(); return STYLE_COUNT }
 public func style_store_hits() : u32 { return STYLE_HITS }
 public func style_store_misses() : u32 { return STYLE_MISSES }

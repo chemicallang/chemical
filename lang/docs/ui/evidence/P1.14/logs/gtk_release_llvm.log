@@ -1,0 +1,4 @@
+ui gtk PASS
+ui_native gtk startup_us=187 pss_kb=74800 frames=4 idle_cpu_ms=59.217
+gtk real PASS clicks=1 updates=2 size=640x480 resize=420x300
+ui-test: PASS (llvm, filter=gtk)

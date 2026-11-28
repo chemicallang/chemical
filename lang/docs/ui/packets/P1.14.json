@@ -1,19 +1,41 @@
 {
   "packet": "P1.14",
-  "name": "Linux walking skeleton (real window)",
-  "state": "todo",
-  "commands": [],
-  "artifacts": [],
-  "evidence": {
-    "dir": "lang/docs/ui/evidence/P1.14",
-    "required": false,
-    "files": [
-      "REPORT.md"
-    ]
-  },
-  "benchmarks": {
-    "keys": [],
-    "compare": false
-  },
-  "stubs": []
+  "name": "Linux walking skeleton (real GTK3 window)",
+  "state": "done",
+  "notes": "Real GTK3 window via window::Window/native_handle, drawing area and cairo ARGB32 present of the P1.10 pipeline; pointer/key/close/resize wiring; typed Platform when no display; headless unchanged. Real smoke 640x480 -> 420x300, click red->blue; screenshots committed. TCC/LLVM/ASAN/release pass; PSS ~75MB, first present 187-310us debug/release, no 1ms pump. P2.1 not started.",
+  "commands": [
+    {"id":"gtk-tcc","run":"DISPLAY=:0 scripts/ui-test.sh --tcc --filter gtk","artifacts":["lang/libs/ui_native/src/gtk.ch","lang/tests/ui/src/gtk.ch"]},
+    {"id":"gtk-llvm","run":"DISPLAY=:0 scripts/ui-test.sh --llvm --filter gtk","artifacts":["lang/libs/ui_native/src/gtk.ch","lang/tests/ui/src/gtk.ch"]},
+    {"id":"gtk-asan","run":"ASAN_OPTIONS=detect_leaks=0 DISPLAY=:0 scripts/ui-test.sh --llvm --sanitize=address,undefined --filter gtk","artifacts":["lang/libs/ui_native/src/gtk.ch","lang/tests/ui/src/gtk.ch"]},
+    {"id":"gtk-release-tcc","run":"DISPLAY=:0 scripts/ui-test.sh --tcc --release --filter gtk","artifacts":["lang/libs/ui_native/src/gtk.ch"]},
+    {"id":"gtk-release-llvm","run":"DISPLAY=:0 scripts/ui-test.sh --llvm --release --filter gtk","artifacts":["lang/libs/ui_native/src/gtk.ch"]},
+    {"id":"gtk-blocked","run":"DISPLAY= WAYLAND_DISPLAY= scripts/ui-test.sh --tcc --filter gtk","artifacts":["lang/tests/ui/src/gtk.ch"]},
+    {"id":"regressions","run":"scripts/ui-test.sh --tcc --filter headless","artifacts":["lang/tests/ui/src/gtk.ch"]},
+    {"id":"ui-lint","run":"scripts/ui-lint.sh","artifacts":["lang/docs/ui/PANIC_WHITELIST.md"]},
+    {"id":"api-index","run":"scripts/ui-api-index.sh --check","artifacts":["lang/docs/ui/API.md"]}
+  ],
+  "artifacts": [
+    "lang/libs/ui_native/src/gtk.ch",
+    "lang/libs/ui_native/chemical.mod",
+    "lang/libs/ui_host/src/host.ch",
+    "lang/libs/ui_host/chemical.mod",
+    "lang/libs/ui/src/app.ch",
+    "lang/tests/ui/src/gtk.ch",
+    "lang/tests/ui/src/main.ch",
+    "lang/tests/ui/chemical.mod",
+    "scripts/ui-test.sh",
+    "lang/tests/ui/fixtures/gtk/before.png",
+    "lang/tests/ui/fixtures/gtk/after_click.png",
+    "lang/tests/ui/fixtures/gtk/after_resize.png",
+    "lang/tests/ui/fixtures/gtk/SHA256SUMS",
+    "lang/docs/ui/evidence/P1.14/REPORT.md"
+  ],
+  "evidence": {"dir":"lang/docs/ui/evidence/P1.14","required":true,"files":["REPORT.md"]},
+  "benchmarks": {"keys":[],"compare":false},
+  "stubs": [
+    "No text/glyph rasterization (P2.2), menus/IME/multi-window/full UiHarness",
+    "Screenshot is the presented cairo surface, not a compositor crop",
+    "GDK test simulation unreliable on this Wayland/Xwayland session; test-only direct queue injection proves click",
+    "PSS ~75MB; no 220ms/12MB gate claim; per-frame full repaint, no damage present"
+  ]
 }

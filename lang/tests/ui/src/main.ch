@@ -12,6 +12,7 @@ using ui_test_core::CoreError;
 using ui_test_core::GoldenOptions;
 using ui_test_core::Harness;
 using ui_test_core::Query;
+using ui_internal::style_store_reset;
 
 func expect_scaffold(name : *char, value : u32) : bool {
     if(value == API_VERSION) { return true }
@@ -151,10 +152,12 @@ func reconcile_checks() : bool {
 }
 
 func style_checks() : bool {
+    style_store_reset()
     return style_tests::run_style()
 }
 
 func theme_checks() : bool {
+    style_store_reset()
     return style_tests::run_theme()
 }
 
@@ -188,6 +191,10 @@ func input_checks() : bool {
 
 func semantics_checks() : bool {
     return semantics_tests::run_semantics_tests()
+}
+
+func gtk_checks() : bool {
+    return gtk_tests::run_gtk_tests()
 }
 
 func error_boundary_checks() : bool {
@@ -289,6 +296,7 @@ func run_filter(filter : string_view) : bool {
     if(filter.equals_with_len("audit", 5u)) { return semantics_checks() }
     if(filter.equals_with_len("errors", 6u)) { return error_boundary_checks() }
     if(filter.equals_with_len("fault", 5u)) { return error_boundary_checks() }
+    if(filter.equals_with_len("gtk", 3u)) { return gtk_checks() }
     if(filter.equals_with_len("golden", 6u)) { return golden_checks() }
     if(filter.equals_with_len("*", 1u)) {
         return scaffold_checks() && core_checks() && design_checks() && geometry_checks() && error_checks() && arena_checks() && keys_checks() && view_checks() && reconcile_checks() && golden_checks() && style_checks() && theme_checks() && text_metrics_checks() && layout_checks() && layout_v2_checks() && display_checks() && raster_checks() && headless_checks() && input_checks() && semantics_checks() && error_boundary_checks()
@@ -348,6 +356,8 @@ public func main(argc : int, argv : **char) : int {
             unsafe { write(1, "ui semantics PASS\n" as *void, 18u) }
         } else if(filter.equals_with_len("errors", 6u) || filter.equals_with_len("fault", 5u)) {
             unsafe { write(1, "ui errors PASS\n" as *void, 15u) }
+        } else if(filter.equals_with_len("gtk", 3u)) {
+            unsafe { write(1, "ui gtk PASS\n" as *void, 12u) }
         } else if(filter.equals_with_len("golden", 6u)) {
             unsafe { write(1, "ui golden PASS\n" as *void, 15u) }
         } else {

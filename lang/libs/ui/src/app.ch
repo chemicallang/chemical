@@ -836,6 +836,37 @@ public func headless_font(options : &Options) : Result<TextContext, UiError> {
 }
 
 @retained
+public func ui_ctx_new(frame : FrameInfo, viewport : Viewport, theme : Theme, textctx : TextContext, stats : FrameStats, focus : Option<Key>, text_scale : float) : UiCtx {
+    return UiCtx {
+        frame_value : frame, viewport_value : viewport,
+        theme_value : theme, textctx_value : textctx,
+        stats_value : stats, dirty_value : true, quit_value : false,
+        text_scale_value : text_scale,
+        focus_value : focus, reported_error_value : Option.None<UiError>(),
+        event_kind_value : EventKind.Frame, event_key_value : zeroed<Key>(),
+        event_code_value : KeyCode.Unknown, event_repeat_value : false,
+        event_shift_value : false, event_text_value : "",
+        event_scroll_value : Point.zero(),
+        scroll_key_value : zeroed<Key>(),
+        scroll_point_value : Point.zero(), has_scroll_value : false
+    }
+}
+@retained
+public func ui_ctx_quit(ctx : &UiCtx) : bool { return ctx.quit_value }
+@retained
+public func ui_ctx_dirty(ctx : &UiCtx) : bool { return ctx.dirty_value }
+@retained
+public func ui_ctx_theme(ctx : &UiCtx) : Theme { return ctx.theme_value }
+@retained
+public func ui_ctx_focus(ctx : &UiCtx) : Option<Key> { return ctx.focus_value }
+@retained
+public func ui_ctx_set_theme(ctx : &mut UiCtx, theme : Theme) { ctx.theme_value = theme }
+@retained
+public func ui_ctx_clear_dirty(ctx : &mut UiCtx) { ctx.dirty_value = false }
+@retained
+public func ui_ctx_reported(ctx : &mut UiCtx) : Option<UiError> { return headless_report_take(ctx) }
+
+@retained
 public func headless_make_frame(options : &Options, viewport : Viewport, scale : float, frame_no : u64) : FrameInfo {
     var now = 0.0
     if(!options.fixed_time) { now = frame_no as double * 16.0 }

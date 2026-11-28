@@ -357,11 +357,15 @@ func sem_escape(out : &mut string, s : string_view) {
     while(i < s.size()) {
         var oc = s.get(i)
         if(oc.is_some()) {
-            var c = oc.take_unchecked()
-            if((c as u8) == 34u8) { out.append_view("\\\"") }
-            else if((c as u8) == 92u8) { out.append_view("\\\\") }
-            else if((c as u8) == 10u8) { out.append_view("\\n") }
-            else { out.append(c) }
+            switch(oc) {
+                Some(c) => {
+                    if((c as u8) == 34u8) { out.append_view("\\\"") }
+                    else if((c as u8) == 92u8) { out.append_view("\\\\") }
+                    else if((c as u8) == 10u8) { out.append_view("\\n") }
+                    else { out.append(c) }
+                }
+                None() => { }
+            }
         }
         i = i + 1u
     }

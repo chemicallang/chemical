@@ -242,6 +242,10 @@ public struct HeadlessState {
     var capture_key : Option<Key>
     var last_click_key : Option<Key>
     var last_click_ms : double
+    var last_error : Option<UiError>
+    var error_active : bool
+    var error_retries : u32
+    var focus_before_error : Option<Key>
     var dirty : bool
     var quit : bool
     var frame_no : u64
@@ -260,6 +264,7 @@ public struct UiCtx {
     internal var quit_value : bool
     internal var text_scale_value : float
     internal var focus_value : Option<Key>
+    internal var reported_error_value : Option<UiError>
     internal var event_kind_value : EventKind
     internal var event_key_value : Key
     internal var event_code_value : KeyCode
@@ -307,6 +312,7 @@ public struct UiCtx {
     public func request_animation_frame(&mut self) {}
     public func request_frame(&mut self) {}
     public func request_quit(&mut self) { self.quit_value = true }
+    public func report_error(&mut self, key : Key, err : UiError) { self.reported_error_value = Option.Some<UiError>(err) }
     public func set_theme(&mut self, theme : Theme) { self.theme_value = theme; self.dirty_value = true }
     public func set_theme_mode(&mut self, mode : ThemeMode) { self.frame_value.theme = mode; self.dirty_value = true }
     public func set_text_scale(&mut self, scale : float) {
@@ -450,6 +456,11 @@ public func <A> headless_call_update(app : &mut A, state : &mut HeadlessState, c
     ctx.event_shift_value = ev.modifiers.shift
     ctx.event_text_value = ev.text_value
     ctx.event_scroll_value = Point { x : ev.scroll_dx, y : ev.scroll_dy }
+    var uf = headless_fault_take(3u8)
+    if(uf is Option.Some) {
+        var fe = headless_option_error(uf, UiError.make(ErrorCode.Internal, "update fault corrupt"))
+        return Result.Err<Unit,UiError>(fe)
+    }
     var t = std::chrono::Instant.now()
     var r = app.update(ev, ctx)
     var us = (t.elapsed().as_nanos() as double) / 1000.0
@@ -460,6 +471,8 @@ public func <A> headless_call_update(app : &mut A, state : &mut HeadlessState, c
     state.theme = ctx.theme_value
     state.frame.theme = ctx.frame_value.theme
     state.focus_key = ctx.focus_value
+    var reported = headless_report_take(ctx)
+    if(reported.is_some()) { headless_set_error(state, headless_option_error(reported, UiError.make(ErrorCode.Internal, "reported error corrupt"))) }
     if(ctx.has_scroll_value) {
         ui_internal::layout_set_scroll(&mut state.layout, ctx.scroll_key_value, ctx.scroll_point_value)
         state.dirty = true
@@ -509,6 +522,18 @@ public func <A> headless_dispatch_events(app : &mut A, state : &mut HeadlessStat
         var focus_target = headless_hit_focusable_current(state, Point { x : ev.local_x, y : ev.local_y })
         var focus_some = focus_target.is_some()
         var focus_hit = headless_option_hit(focus_target, zeroed<HitResult>())
+        if(state.error_active) {
+            if(target_some && target_key.equals_key(headless_error_retry_key()) && (ev.kind == EventKind.Release || ev.kind == EventKind.Click)) {
+                state.error_active = false
+                state.last_error = Option.None<UiError>()
+                state.focus_key = state.focus_before_error
+                state.error_retries = state.error_retries + 1u32
+                state.dirty = true
+                count = count + 1u32
+            }
+            i = i + 1u
+            continue
+        }
         if(ev.kind == EventKind.PointerMove || ev.kind == EventKind.PointerEnter) {
             var old_some = state.hover_key.is_some()
             var old_hover = headless_option_key(state.hover_key, zeroed<Key>())
@@ -622,6 +647,151 @@ public func <A> headless_dispatch_events(app : &mut A, state : &mut HeadlessStat
     }
     headless_queue_clear()
     return Result.Ok<u32,UiError>(count)
+}
+
+@retained
+public func headless_report_take(ctx : &mut UiCtx) : Option<UiError> {
+    var o = ctx.reported_error_value
+    ctx.reported_error_value = Option.None<UiError>()
+    return o
+}
+@retained
+public func headless_result_error(r : Result<Unit,UiError>, fallback : UiError) : UiError {
+    switch(r) {
+        Err(e) => { return e }
+        Ok(v) => { return fallback }
+    }
+}
+@retained
+public func headless_option_error(o : Option<UiError>, fallback : UiError) : UiError {
+    switch(o) {
+        Some(e) => { return e }
+        None() => { }
+    }
+    return fallback
+}
+@retained
+public func <A> headless_paint_node(app : &A, state : &mut HeadlessState, index : u32, scale : float) : Option<UiError> where A : Application {
+    if(index == 0u32) { return Option.None<UiError>() }
+    var n = unsafe(state.layout.result.nodes.get_ptr(index as size_t))
+    var id = unsafe(n.id)
+    var kindo = ui_internal::view_node_kind(&state.builder, id)
+    if(kindo.is_some()) {
+        var kind = headless_option_kind(kindo, ui_internal::ViewKind.Root)
+        if(kind == ui_internal::ViewKind.Canvas) {
+            var cvo = ui_internal::view_canvas_id(&state.builder, id)
+            var rct = ui_internal::layout_rect(&state.layout, id)
+            if(cvo.is_some() && rct.is_some()) {
+                var cv = headless_option_canvas(cvo, zeroed<CanvasId>())
+                var rect = headless_option_rect(rct, Rect.zero())
+                var pf = headless_fault_take(6u8)
+                if(pf.is_some()) { return pf }
+                var painter = ui_internal::new_painter(&raw mut state.display.list, &raw mut state.theme, Size.new(state.viewport.size.width, state.viewport.size.height))
+                var cp = CanvasPaint { node : id, key : unsafe(n.key), id : cv, bounds : rect, scale : scale }
+                var pr = app.paint(&state.frame, cp, &mut painter)
+                if(pr is Result.Err) {
+                    return Option.Some<UiError>(headless_result_error(pr, UiError.make(ErrorCode.Internal, "paint result corrupt")))
+                }
+            }
+        }
+    }
+    var cc = unsafe(n.child_count)
+    var i = 0u32
+    while(i < cc) {
+        var cho = ui_internal::layout_child_at(&state.layout, index, i)
+        if(cho.is_some()) {
+            var ci = headless_option_u32(cho, 0u32)
+            var e = headless_paint_node(app, state, ci, scale)
+            if(e.is_some()) { return e }
+        }
+        i = i + 1u32
+    }
+    return Option.None<UiError>()
+}
+
+@retained
+public func <A> headless_paint_canvases(app : &A, state : &mut HeadlessState, scale : float) : Option<UiError> where A : Application {
+    return headless_paint_node(app, state, ui_internal::layout_root(&state.layout), scale)
+}
+
+@retained
+public func headless_option_u32(o : Option<u32>, fallback : u32) : u32 { switch(o) { Some(v) => { return v } None() => { } }; return fallback }
+@retained
+public func headless_option_kind(o : Option<ui_internal::ViewKind>, fallback : ui_internal::ViewKind) : ui_internal::ViewKind { switch(o) { Some(v) => { return v } None() => { } }; return fallback }
+@retained
+public func headless_option_canvas(o : Option<CanvasId>, fallback : CanvasId) : CanvasId { switch(o) { Some(v) => { return v } None() => { } }; return fallback }
+@retained
+public func headless_option_rect(o : Option<Rect>, fallback : Rect) : Rect { switch(o) { Some(v) => { return v } None() => { } }; return fallback }
+
+@retained
+public func headless_error_key() : Key { return key("__ui_error_card") }
+@retained
+public func headless_error_retry_key() : Key { return key("__ui_error_retry") }
+
+@thread_local @never_destructed
+var g_fault_where : u8 = 0u8
+@thread_local @never_destructed
+var g_fault_code : ErrorCode = ErrorCode.Other
+@thread_local @never_destructed
+var g_fault_remaining : u32 = 0u32
+
+@retained
+public func headless_fault_set(site : u8, code : ErrorCode, count : u32) {
+    unsafe { g_fault_where = site; g_fault_code = code; g_fault_remaining = count }
+}
+@retained
+public func headless_fault_clear() { unsafe { g_fault_where = 0u8; g_fault_remaining = 0u32 } }
+@retained
+public func headless_fault_remaining() : u32 { unsafe { return g_fault_remaining } }
+
+@retained
+public func headless_fault_take(site : u8) : Option<UiError> {
+    unsafe {
+        if(g_fault_where == site && g_fault_remaining > 0u32) {
+            g_fault_remaining = g_fault_remaining - 1u32
+            return Option.Some<UiError>(UiError.make(g_fault_code, "injected runtime fault"))
+        }
+    }
+    return Option.None<UiError>()
+}
+
+@retained
+public func headless_set_error(state : &mut HeadlessState, err : UiError) {
+    if(!state.error_active) {
+        state.focus_before_error = state.focus_key
+        state.error_retries = 0u32
+    }
+    state.last_error = Option.Some<UiError>(err)
+    state.error_active = true
+    state.focus_key = Option.Some<Key>(headless_error_retry_key())
+    state.dirty = true
+}
+
+@retained
+public func headless_error_message(state : &HeadlessState) : string_view {
+    switch(state.last_error) {
+        Some(e) => { return e.detail().message.to_view() }
+        None() => { }
+    }
+    return "UI error"
+}
+
+@retained
+public func headless_build_error_card(state : &mut HeadlessState) {
+    ui_internal::reset_view_builder(&mut state.builder)
+    var root = ui_internal::view_root(&state.builder)
+    state.builder.style(root, Style.new().width(Dim.Fill()).height(Dim.Fill()).background(ColorToken.Surface))
+    var card = state.builder.column(key("__ui_error_card"), Style.new().width(Dim.Px(300.0f)).height(Dim.Px(160.0f)).padding_all(Space.MD).background(ColorToken.SurfaceRaised).border(Border { width : 2.0f, color : ColorToken.Danger }).radius(Radius.MD))
+    state.builder.test_id(card, "error-card")
+    var cs = ui_internal::semantics_empty(); cs.role = Role.Alert; cs.label = "UI error"; cs.description = headless_error_message(state)
+    state.builder.semantics(card, cs)
+    state.builder.child(root, card)
+    var msg = state.builder.text(key("__ui_error_message"), headless_error_message(state), Style.new().text(TextRole.Body).width(Dim.Px(260.0f)).height(Dim.Px(24.0f))); state.builder.child(card, msg)
+    var retry = state.builder.row(key("__ui_error_retry"), Style.new().width(Dim.Px(120.0f)).height(Dim.Px(44.0f)).background(ColorToken.Primary).foreground(ColorToken.OnPrimary).radius(Radius.SM))
+    state.builder.focusable(retry, 0i32); state.builder.test_id(retry, "error-retry")
+    var rs = ui_internal::semantics_empty(); rs.role = Role.Button; rs.label = "Retry"
+    state.builder.semantics(retry, rs)
+    state.builder.child(card, retry)
 }
 
 @retained
@@ -763,7 +933,9 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         stats : headless_zero_stats(), focus_key : Option.None<Key>(),
         hover_key : Option.None<Key>(), pressed_key : Option.None<Key>(),
         capture_key : Option.None<Key>(), last_click_key : Option.None<Key>(),
-        last_click_ms : 0.0, dirty : true, quit : false, frame_no : 0u64,
+        last_click_ms : 0.0, last_error : Option.None<UiError>(), error_active : false,
+        error_retries : 0u32, focus_before_error : Option.None<Key>(),
+        dirty : true, quit : false, frame_no : 0u64,
         frames_run : 0u32, view_calls : 0u32, buffer_ready : false
     }
     var ctx = UiCtx {
@@ -771,7 +943,7 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         theme_value : state.theme, textctx_value : ui_internal::empty_text_context(),
         stats_value : state.stats, dirty_value : true, quit_value : false,
         text_scale_value : state.frame.text_scale,
-        focus_value : state.focus_key,
+        focus_value : state.focus_key, reported_error_value : Option.None<UiError>(),
         event_kind_value : EventKind.Frame, event_key_value : zeroed<Key>(),
         event_code_value : KeyCode.Unknown, event_repeat_value : false,
         event_shift_value : false, event_text_value : "",
@@ -779,10 +951,24 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         scroll_key_value : zeroed<Key>(),
         scroll_point_value : Point.zero(), has_scroll_value : false
     }
-    var start = app.on_start(&state.frame, &mut ctx)
-    if(start is Result.Err) { var Err(e) = start else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "on_start result corrupt")); return Result.Err<Screenshot,UiError>(e) }
-    state.dirty = ctx.dirty_value; state.quit = ctx.quit_value
-    state.theme = ctx.theme_value; state.frame.theme = ctx.frame_value.theme
+    var start_err = headless_fault_take(1u8)
+    var start : Result<Unit,UiError>
+    if(start_err is Option.Some) {
+        var se = headless_option_error(start_err, UiError.make(ErrorCode.Internal, "fault corrupt"))
+        start = Result.Err<Unit,UiError>(se)
+    } else {
+        start = app.on_start(&state.frame, &mut ctx)
+    }
+    if(start is Result.Err) {
+        var Err(e) = start else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "on_start result corrupt"))
+        headless_set_error(&mut state, e)
+    } else {
+        state.dirty = ctx.dirty_value; state.quit = ctx.quit_value
+        state.theme = ctx.theme_value; state.frame.theme = ctx.frame_value.theme
+    }
+    var start_report = headless_report_take(&mut ctx)
+    if(start_report.is_some()) { headless_set_error(&mut state, headless_option_error(start_report, UiError.make(ErrorCode.Internal, "reported error corrupt"))) }
+    if(headless_fault_take(5u8) is Option.Some) { headless_set_error(&mut state, UiError.make(ErrorCode.Font, "injected font fault")) }
     var max_frames = options.max_frames
     if(max_frames == 0u32) { max_frames = 1u32 }
     while(!state.quit && state.frames_run < max_frames) {
@@ -792,31 +978,79 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         if(options.fixed_time) { state.frame.now_ms = 0.0 } else { state.frame.now_ms = state.frame_no as double * 16.0 }
         state.builder.frame_data = state.frame
         state.builder.viewport_data = state.viewport
-        ui_internal::reset_view_builder(&mut state.builder)
-        var vr = app.view(&state.frame, &mut state.builder)
-        if(vr is Result.Err) { var Err(e) = vr else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "view result corrupt")); return Result.Err<Screenshot,UiError>(e) }
-        var Ok(returned_root) = vr else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "view root corrupt"))
-        if(!returned_root.is_valid()) { return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Layout, "application returned an invalid root")) }
-        state.view_calls = state.view_calls + 1u32
-        if(ui_internal::view_diagnostic_count(&state.builder) != 0u32) {
-            return Result.Err<Screenshot,UiError>(UiError.make(ui_internal::view_last_diagnostic(&state.builder), "view builder rejected a node"))
+        var card_frame = state.error_active
+        if(!card_frame) {
+            var view_fault = headless_fault_take(2u8)
+            if(view_fault is Option.Some) {
+                var ve = headless_option_error(view_fault, UiError.make(ErrorCode.Internal, "view fault corrupt"))
+                headless_set_error(&mut state, ve)
+                card_frame = true
+            }
         }
-        if(scale != 1.0f) {
-            state.builder.transform(ui_internal::view_root(&state.builder), Transform2D.scale(scale, scale))
+        if(card_frame) {
+            headless_build_error_card(&mut state)
+        } else {
+            ui_internal::reset_view_builder(&mut state.builder)
+            var vr = app.view(&state.frame, &mut state.builder)
+            if(vr is Result.Err) {
+                var Err(e) = vr else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "view result corrupt"))
+                headless_set_error(&mut state, e)
+                headless_build_error_card(&mut state)
+            } else {
+                var Ok(returned_root) = vr else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "view root corrupt"))
+                if(!returned_root.is_valid()) {
+                    headless_set_error(&mut state, UiError.make(ErrorCode.Layout, "application returned an invalid root"))
+                    headless_build_error_card(&mut state)
+                } else if(ui_internal::view_diagnostic_count(&state.builder) != 0u32) {
+                    var diag = ui_internal::view_last_diagnostic(&state.builder)
+                    headless_set_error(&mut state, UiError.make(diag, "view builder rejected a node"))
+                    headless_build_error_card(&mut state)
+                } else {
+                    var be = ui_internal::view_first_error(&state.builder)
+                    if(be is Option.Some) {
+                        var ve2 = headless_option_error(be, UiError.make(ErrorCode.Internal, "view error corrupt"))
+                        headless_set_error(&mut state, ve2)
+                        headless_build_error_card(&mut state)
+                    } else {
+                        state.view_calls = state.view_calls + 1u32
+                        if(scale != 1.0f) { state.builder.transform(ui_internal::view_root(&state.builder), Transform2D.scale(scale, scale)) }
+                    }
+                }
+            }
         }
         var rec = ui_internal::reconcile(&mut state.retained, &state.builder)
-        if(rec is Result.Err) { var Err(e) = rec else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "reconcile result corrupt")); return Result.Err<Screenshot,UiError>(e) }
+        if(rec is Result.Err) {
+            var Err(e) = rec else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "reconcile result corrupt"))
+            headless_set_error(&mut state, e)
+            headless_build_error_card(&mut state)
+            var rec2 = ui_internal::reconcile(&mut state.retained, &state.builder)
+            if(rec2 is Result.Err) { return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "error-card reconcile failed")) }
+        }
         var build_us = bstart.elapsed().as_micros() as double
         var lstart = std::chrono::Instant.now()
         var layout_stats = ui_internal::layout_run(&mut state.layout, &state.builder, &state.layout_ctx, &state.theme)
         var layout_us = lstart.elapsed().as_micros() as double
-        if(ui_internal::layout_warning_count(&state.layout) != 0u32) {
-            return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Layout, "layout produced warnings"))
+        var layout_fault = headless_fault_take(4u8)
+        if(layout_fault is Option.Some || ui_internal::layout_warning_count(&state.layout) != 0u32) {
+            var le = UiError.make(ErrorCode.Layout, "layout produced warnings")
+            if(layout_fault.is_some()) { le = headless_option_error(layout_fault, le) }
+            headless_set_error(&mut state, le)
+            headless_build_error_card(&mut state)
+            layout_stats = ui_internal::layout_run(&mut state.layout, &state.builder, &state.layout_ctx, &state.theme)
         }
         state.display.focus_key = state.focus_key
         state.display.hover_key = state.hover_key
         var pstart = std::chrono::Instant.now()
         var _commands = ui_internal::display_build(&mut state.display, &state.builder, &state.layout, &state.theme, &state.layout_ctx.text, Size.new(physical_w as float, physical_h as float))
+        var paint_err = headless_paint_canvases(app, &mut state, scale)
+        if(paint_err.is_some()) {
+            headless_set_error(&mut state, headless_option_error(paint_err, UiError.make(ErrorCode.Internal, "paint fault corrupt")))
+            headless_build_error_card(&mut state)
+            var prec = ui_internal::reconcile(&mut state.retained, &state.builder)
+            if(prec is Result.Err) { return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "error-card reconcile failed")) }
+            layout_stats = ui_internal::layout_run(&mut state.layout, &state.builder, &state.layout_ctx, &state.theme)
+            _commands = ui_internal::display_build(&mut state.display, &state.builder, &state.layout, &state.theme, &state.layout_ctx.text, Size.new(physical_w as float, physical_h as float))
+        }
         var paint_us = pstart.elapsed().as_micros() as double
         if(state.focus_key.is_some()) {
             var fk = headless_option_key(state.focus_key, zeroed<Key>())
@@ -854,7 +1088,11 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
         ctx.focus_value = state.focus_key
         if(headless_queue_size() > 0u32) {
             var er = headless_dispatch_events(app, &mut state, &mut ctx)
-            if(er is Result.Err) { var Err(e) = er else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "event result corrupt")); return Result.Err<Screenshot,UiError>(e) }
+            if(er is Result.Err) {
+                var Err(e) = er else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "event result corrupt"))
+                headless_set_error(&mut state, e)
+                headless_queue_clear()
+            }
         } else {
             var tick = UiEvent {
                 window : zeroed<WindowId>(), key : zeroed<Key>(), kind : EventKind.Frame,
@@ -865,14 +1103,19 @@ public func <A> headless_run_impl(app : &mut A, options : Options, out_path : st
                 key_repeat : false, text_value : ""
             }
             var ur = app.update(&tick, &mut ctx)
-            if(ur is Result.Err) { var Err(e) = ur else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "update result corrupt")); return Result.Err<Screenshot,UiError>(e) }
-            state.dirty = ctx.dirty_value
-            state.quit = ctx.quit_value
-            state.theme = ctx.theme_value
-            state.frame.theme = ctx.frame_value.theme
+            if(ur is Result.Err) {
+                var Err(e) = ur else return Result.Err<Screenshot,UiError>(UiError.make(ErrorCode.Internal, "update result corrupt"))
+                headless_set_error(&mut state, e)
+            } else {
+                state.dirty = ctx.dirty_value
+                state.quit = ctx.quit_value
+                state.theme = ctx.theme_value
+                state.frame.theme = ctx.frame_value.theme
+            }
         }
-        state.dirty = ctx.dirty_value
+        state.dirty = ctx.dirty_value || state.error_active
         state.focus_key = ctx.focus_value
+        if(state.error_active) { state.focus_key = Option.Some<Key>(headless_error_retry_key()) }
         if(state.quit) { break }
         // Headless has no event source or animation owner yet. One stable
         // frame is the settle point; max_frames > 1 repeats the same stable

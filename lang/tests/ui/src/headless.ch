@@ -200,9 +200,8 @@ func error_path() : bool {
     var app = HeadlessApp { start_calls : 0u32, update_calls : 0u32, quit_after : 0u32, scene : 0u8, fail_view : true, last_commands : 0u32, last_nodes : 0u32, last_paint_bytes : 0u64 }
     var opts = options_for(100, 100)
     var r = run_headless(&mut app, opts)
-    if(r is Result.Ok) { return fail("error-view") }
-    var Err(e) = r else return false
-    if(e.code() != ErrorCode.Layout) { return fail("error-code") }
+    // P1.13: callback failure is contained by the error boundary.
+    if(r is Result.Err) { return fail("error-view-contained") }
     return true
 }
 

@@ -701,6 +701,24 @@ public func view_style_hits(b : &ViewBuilder) : u32 { return b.style_hits }
 public func view_style_misses(b : &ViewBuilder) : u32 { return b.style_misses }
 public func view_style_pool_size(b : &ViewBuilder) : u32 { return style_store_size() }
 public func view_meta_count(b : &ViewBuilder) : u32 { return b.metas.size() as u32 }
+public func view_first_error(b : &ViewBuilder) : Option<UiError> {
+    var i : size_t = 0u
+    while(i < b.metas.size()) {
+        var m = b.metas.get_ptr(i)
+        unsafe { if(m.has_error) { return Option.Some<UiError>(m.error) } }
+        i = i + 1u
+    }
+    return Option.None<UiError>()
+}
+@retained
+public func view_canvas_id(b : &ViewBuilder, id : NodeId) : Option<CanvasId> {
+    if(!b.arena.contains(id)) { return Option.None<CanvasId>() }
+    var n = unsafe(b.node_base + (id.index() - 1u32))
+    unsafe {
+        if(n.meta_index == VIEW_NONE) { return Option.None<CanvasId>() }
+        return Option.Some<CanvasId>(b.metas.get_ptr(n.meta_index as size_t).canvas)
+    }
+}
 public func view_dump(b : &ViewBuilder) : string { return b.dump_tree() }
 public func view_node_kind(b : &ViewBuilder, id : NodeId) : Option<ViewKind> {
     if(!b.arena.contains(id)) { return Option.None<ViewKind>() }
